@@ -1,31 +1,31 @@
-import { Tabs } from "expo-router";
+import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerTitleAlign: "center"
+        headerTitleAlign: 'center',
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarLabel: "Home"
+          title: 'Home',
+          tabBarLabel: 'Home',
         }}
       />
       <Tabs.Screen
         name="journal"
         options={{
-          title: "Journal",
-          tabBarLabel: "Journal"
+          title: 'Journal',
+          tabBarLabel: 'Journal',
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarLabel: "Profile"
+          title: 'Profile',
+          tabBarLabel: 'Profile',
         }}
       />
     </Tabs>

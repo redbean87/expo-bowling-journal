@@ -23,6 +23,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
 - [ ] Team/coach sharing model
+- [ ] Re-enable stricter React Native lint rules after core flows stabilize
 
 ## Completed
 

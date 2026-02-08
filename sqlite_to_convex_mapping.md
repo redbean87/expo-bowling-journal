@@ -31,8 +31,8 @@ This document defines how data from the **SQLite backup** is translated into the
 
 ## Ignored Tables
 
-| SQLite Table | Reason |
-|-------------|--------|
+| SQLite Table     | Reason                  |
+| ---------------- | ----------------------- |
 | android_metadata | Android system metadata |
 
 ---
@@ -40,16 +40,19 @@ This document defines how data from the **SQLite backup** is translated into the
 ## houses
 
 ### SQLite Source
+
 `house`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used only for ID mapping |
-| name | name | Required |
-| location | location | Optional if present |
+
+| SQLite Column | Convex Field | Notes                    |
+| ------------- | ------------ | ------------------------ |
+| id            | (ignored)    | Used only for ID mapping |
+| name          | name         | Required                 |
+| location      | location     | Optional if present      |
 
 ### Behavior
+
 - Houses are treated as **global**
 - Deduplicate by normalized `name`
 - Create house if not already present
@@ -59,18 +62,21 @@ This document defines how data from the **SQLite backup** is translated into the
 ## leagues
 
 ### SQLite Source
+
 `league`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for ID mapping |
-| name | name | Required |
-| house_id | houseId | Optional reference |
-| start_date | startDate | Optional |
-| end_date | endDate | Optional |
+
+| SQLite Column | Convex Field | Notes               |
+| ------------- | ------------ | ------------------- |
+| id            | (ignored)    | Used for ID mapping |
+| name          | name         | Required            |
+| house_id      | houseId      | Optional reference  |
+| start_date    | startDate    | Optional            |
+| end_date      | endDate      | Optional            |
 
 ### Derived Fields
+
 - `houseName` copied from resolved house
 - `createdAt` set at import time
 
@@ -79,17 +85,20 @@ This document defines how data from the **SQLite backup** is translated into the
 ## sessions
 
 ### SQLite Source
+
 `week`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for ID mapping |
-| league_id | leagueId | Required |
-| week_number | weekNumber | Optional |
-| date | date | Required (fallback to game date) |
+
+| SQLite Column | Convex Field | Notes                            |
+| ------------- | ------------ | -------------------------------- |
+| id            | (ignored)    | Used for ID mapping              |
+| league_id     | leagueId     | Required                         |
+| week_number   | weekNumber   | Optional                         |
+| date          | date         | Required (fallback to game date) |
 
 ### Notes
+
 - One session per SQLite week
 - Always belongs to a league
 
@@ -98,17 +107,20 @@ This document defines how data from the **SQLite backup** is translated into the
 ## balls
 
 ### SQLite Source
+
 `ball`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for mapping |
-| name | name | Required |
-| brand | brand | Optional |
-| coverstock | coverstock | Optional |
+
+| SQLite Column | Convex Field | Notes            |
+| ------------- | ------------ | ---------------- |
+| id            | (ignored)    | Used for mapping |
+| name          | name         | Required         |
+| brand         | brand        | Optional         |
+| coverstock    | coverstock   | Optional         |
 
 ### Behavior
+
 - Deduplicate **per user** by normalized `name`
 - Reuse existing ball if name matches
 
@@ -117,26 +129,31 @@ This document defines how data from the **SQLite backup** is translated into the
 ## games
 
 ### SQLite Source
+
 `game`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for mapping |
-| week_id | sessionId | Required |
-| league_id | leagueId | Duplicated for queries |
-| date | date | Required |
-| ball_id | ballId | Optional reference |
-| pattern_id | patternId | Optional reference |
+
+| SQLite Column | Convex Field | Notes                  |
+| ------------- | ------------ | ---------------------- |
+| id            | (ignored)    | Used for mapping       |
+| week_id       | sessionId    | Required               |
+| league_id     | leagueId     | Duplicated for queries |
+| date          | date         | Required               |
+| ball_id       | ballId       | Optional reference     |
+| pattern_id    | patternId    | Optional reference     |
 
 ### Computed Fields
+
 Computed during import from frames:
+
 - `totalScore`
 - `strikes`
 - `spares`
 - `opens`
 
 ### Notes
+
 - Games are imported **before frames**, but stats are computed after frames load
 
 ---
@@ -144,19 +161,22 @@ Computed during import from frames:
 ## frames
 
 ### SQLite Source
+
 `frame`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for mapping |
-| game_id | gameId | Required |
-| frame_number | frameNumber | 1–10 only |
-| roll1 | roll1 | Required |
-| roll2 | roll2 | Optional |
-| roll3 | roll3 | Optional |
+
+| SQLite Column | Convex Field | Notes            |
+| ------------- | ------------ | ---------------- |
+| id            | (ignored)    | Used for mapping |
+| game_id       | gameId       | Required         |
+| frame_number  | frameNumber  | 1–10 only        |
+| roll1         | roll1        | Required         |
+| roll2         | roll2        | Optional         |
+| roll3         | roll3        | Optional         |
 
 ### Validation
+
 - Discard frames outside range 1–10
 - Normalize missing rolls to `null`
 
@@ -165,16 +185,19 @@ Computed during import from frames:
 ## patterns (optional)
 
 ### SQLite Source
+
 `pattern`
 
 ### Fields
-| SQLite Column | Convex Field | Notes |
-|--------------|--------------|------|
-| id | (ignored) | Used for mapping |
-| name | name | Required |
-| length | length | Optional |
+
+| SQLite Column | Convex Field | Notes            |
+| ------------- | ------------ | ---------------- |
+| id            | (ignored)    | Used for mapping |
+| name          | name         | Required         |
+| length        | length       | Optional         |
 
 ### Notes
+
 - Safe to skip entirely if empty
 
 ---
@@ -198,6 +221,7 @@ Maps are discarded after import completes.
 ## Failure Handling
 
 Abort import if:
+
 - Required tables are missing
 - No games or frames are found
 - Referential integrity cannot be resolved
@@ -209,6 +233,7 @@ Show user-friendly error message.
 ## Post-Import Summary
 
 After successful import, present:
+
 - Leagues imported
 - Sessions imported
 - Games imported
@@ -221,5 +246,5 @@ After successful import, present:
 ✅ Mapping locked
 
 Next step:
-- Implement Convex import action using this mapping
 
+- Implement Convex import action using this mapping

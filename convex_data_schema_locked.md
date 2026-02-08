@@ -48,6 +48,7 @@ Not extended in this schema.
 Represents a bowling league or long-running competition.
 
 **Fields**
+
 - `id`
 - `userId`
 - `name`
@@ -58,6 +59,7 @@ Represents a bowling league or long-running competition.
 - `createdAt`
 
 **Notes**
+
 - `houseName` is duplicated to avoid joins
 - Owned entirely by one user
 
@@ -70,6 +72,7 @@ Represents a single bowling session (league night or casual play).
 Previously called `week` in SQLite.
 
 **Fields**
+
 - `id`
 - `userId`
 - `leagueId`
@@ -77,6 +80,7 @@ Previously called `week` in SQLite.
 - `date`
 
 **Notes**
+
 - Flexible enough for non-league play
 - Always belongs to a league
 
@@ -87,6 +91,7 @@ Previously called `week` in SQLite.
 Represents a single game within a session.
 
 **Fields**
+
 - `id`
 - `userId`
 - `sessionId`
@@ -94,16 +99,19 @@ Represents a single game within a session.
 - `date`
 
 **Computed / Stored Stats**
+
 - `totalScore`
 - `strikes`
 - `spares`
 - `opens`
 
 **Optional References**
+
 - `ballId`
 - `patternId`
 
 **Notes**
+
 - Stats are computed during import and on write
 - Frames are not required for list views
 
@@ -114,6 +122,7 @@ Represents a single game within a session.
 Represents an individual frame within a game.
 
 **Fields**
+
 - `id`
 - `userId`
 - `gameId`
@@ -123,6 +132,7 @@ Represents an individual frame within a game.
 - `roll3` (optional)
 
 **Notes**
+
 - Stored separately for analytics and edits
 - Always queried by `gameId`
 
@@ -133,6 +143,7 @@ Represents an individual frame within a game.
 Represents bowling equipment owned by a user.
 
 **Fields**
+
 - `id`
 - `userId`
 - `name`
@@ -140,6 +151,7 @@ Represents bowling equipment owned by a user.
 - `coverstock` (optional)
 
 **Notes**
+
 - Deduplicated per user during import
 - Referenced by games
 
@@ -150,11 +162,13 @@ Represents bowling equipment owned by a user.
 Represents bowling centers.
 
 **Fields**
+
 - `id`
 - `name`
 - `location` (optional)
 
 **Notes**
+
 - Global table (not user-owned)
 - Names should be normalized
 
@@ -165,11 +179,13 @@ Represents bowling centers.
 Represents oil patterns.
 
 **Fields**
+
 - `id`
 - `name`
 - `length` (optional)
 
 **Notes**
+
 - SQLite source table may be empty
 - Safe to omit in v1
 
@@ -182,6 +198,7 @@ Represents oil patterns.
 - All existing user data is deleted before import
 
 **Import guarantees**
+
 - All documents receive `userId`
 - IDs are remapped internally
 - Stats are computed once
@@ -197,6 +214,7 @@ Represents oil patterns.
 ## Future-Proofing Notes
 
 This schema supports:
+
 - Multi-user auth
 - Data sharing (future)
 - Coach / team features
@@ -211,7 +229,7 @@ Without requiring migrations.
 ✅ Schema locked
 
 Next steps:
+
 1. SQLite → Convex field mapping
 2. Import action implementation
 3. Expo upload UI
-

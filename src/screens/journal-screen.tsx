@@ -1,6 +1,6 @@
-import { Text } from "react-native";
+import { Text } from 'react-native';
 
-import { PlaceholderScreen } from "@/components/placeholder-screen";
+import { PlaceholderScreen } from '@/components/placeholder-screen';
 
 export default function JournalScreen() {
   return (

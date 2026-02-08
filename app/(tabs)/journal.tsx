@@ -1,3 +1,3 @@
-import JournalScreen from "@/screens/journal-screen";
+import JournalScreen from '@/screens/journal-screen';
 
 export default JournalScreen;
