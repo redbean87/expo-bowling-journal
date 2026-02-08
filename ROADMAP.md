@@ -4,12 +4,10 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Establish architecture and planning baseline
+- [ ] Add tooling baseline (lint, typecheck, format, tests)
 
 ## Next
 
-- [ ] Bootstrap Expo app shell and route structure
-- [ ] Add tooling baseline (lint, typecheck, format, tests)
 - [ ] Configure Convex + auth provider + env plumbing
 - [ ] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
 - [ ] Add core Convex queries/mutations for leagues, sessions, and games
@@ -28,8 +26,10 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Completed
 
-- [ ] Initialize repository
-- [ ] Add reference docs from trading journal project
+- [x] Initialize repository
+- [x] Add reference docs from trading journal project
+- [x] Establish architecture and planning baseline
+- [x] Bootstrap Expo app shell and route structure
 
 ## Decision Log
 

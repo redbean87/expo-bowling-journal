@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Bowling Journal",
+    "slug": "expo-bowling-journal",
+    "scheme": "bowlingjournal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
