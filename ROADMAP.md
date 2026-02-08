@@ -4,12 +4,10 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Add tooling baseline (lint, typecheck, format, tests)
+- [ ] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
 
 ## Next
 
-- [ ] Configure Convex + auth provider + env plumbing
-- [ ] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
 - [ ] Add core Convex queries/mutations for leagues, sessions, and games
 - [ ] Add service abstraction and domain hooks
 - [ ] Wire minimal tab screens to live data
@@ -31,6 +29,8 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add reference docs from trading journal project
 - [x] Establish architecture and planning baseline
 - [x] Bootstrap Expo app shell and route structure
+- [x] Add tooling baseline (lint, typecheck, format, tests)
+- [x] Configure Convex + auth provider + env plumbing
 
 ## Decision Log
 
