@@ -4,11 +4,12 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
+- [x] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
 
 ## Next
 
 - [ ] Add core Convex queries/mutations for leagues, sessions, and games
+- [ ] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 - [ ] Add service abstraction and domain hooks
 - [ ] Wire minimal tab screens to live data
 - [ ] Add create/edit game flow with frame persistence
