@@ -4,13 +4,11 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [x] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
+- [ ] Add service abstraction and domain hooks
 
 ## Next
 
-- [ ] Add core Convex queries/mutations for leagues, sessions, and games
 - [ ] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
-- [ ] Add service abstraction and domain hooks
 - [ ] Wire minimal tab screens to live data
 - [ ] Add create/edit game flow with frame persistence
 - [ ] Add computed game stats pipeline (score, strikes, spares, opens)
@@ -32,6 +30,8 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Bootstrap Expo app shell and route structure
 - [x] Add tooling baseline (lint, typecheck, format, tests)
 - [x] Configure Convex + auth provider + env plumbing
+- [x] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
+- [x] Add core Convex queries/mutations for leagues, sessions, and games
 
 ## Decision Log
 
