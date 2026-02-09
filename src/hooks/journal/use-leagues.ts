@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
-import { convexJournalService } from '@/services/journal';
-
-import type { CreateLeagueInput } from '@/services/journal';
+import {
+  convexJournalService,
+  type CreateLeagueInput,
+} from '@/services/journal';
 
 export function useLeagues() {
   const leagues = useQuery(convexJournalService.listLeagues);

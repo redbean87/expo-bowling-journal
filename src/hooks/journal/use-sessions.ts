@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
-import { convexJournalService } from '@/services/journal';
-
-import type { CreateSessionInput, LeagueId } from '@/services/journal';
+import {
+  convexJournalService,
+  type CreateSessionInput,
+  type LeagueId,
+} from '@/services/journal';
 
 export function useSessions(leagueId: LeagueId | null) {
   const sessions = useQuery(
