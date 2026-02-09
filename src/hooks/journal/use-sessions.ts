@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from 'convex/react';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
 import {
@@ -8,9 +8,10 @@ import {
 } from '@/services/journal';
 
 export function useSessions(leagueId: LeagueId | null) {
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const sessions = useQuery(
     convexJournalService.listSessionsByLeague,
-    leagueId ? { leagueId } : 'skip'
+    isAuthenticated && leagueId ? { leagueId } : 'skip'
   );
   const createSessionMutation = useMutation(convexJournalService.createSession);
   const [isCreating, setIsCreating] = useState(false);
@@ -30,7 +31,9 @@ export function useSessions(leagueId: LeagueId | null) {
 
   return {
     sessions: sessions ?? [],
-    isLoading: leagueId !== null && sessions === undefined,
+    isLoading:
+      isAuthLoading ||
+      (isAuthenticated && leagueId !== null && sessions === undefined),
     createSession,
     isCreating,
   };
