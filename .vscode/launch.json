@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Convex: dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run convex:dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Expo: start",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run start",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run: Convex + Expo",
+      "configurations": ["Convex: dev", "Expo: start"],
+      "stopAll": true
+    }
+  ]
+}
