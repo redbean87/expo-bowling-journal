@@ -1,6 +1,8 @@
 import {
   framesListByGameQuery,
   framesReplaceForGameMutation,
+  importsApplyPostImportRefinementMutation,
+  importsSqliteSnapshotMutation,
   gamesCreateMutation,
   gamesGetByIdQuery,
   gamesListBySessionQuery,
@@ -22,4 +24,6 @@ export const convexJournalService = {
   updateGame: gamesUpdateMutation,
   listFramesByGame: framesListByGameQuery,
   replaceFramesForGame: framesReplaceForGameMutation,
+  applyPostImportRefinement: importsApplyPostImportRefinementMutation,
+  importSqliteSnapshot: importsSqliteSnapshotMutation,
 } as const;
