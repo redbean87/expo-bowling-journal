@@ -12,5 +12,8 @@
     "@cloudflare/workers-types": "^4.20260204.0",
     "typescript": "^5.9.2",
     "wrangler": "^4.2.0"
+  },
+  "dependencies": {
+    "sql.js": "^1.13.0"
   }
 }
