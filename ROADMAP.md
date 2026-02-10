@@ -4,13 +4,12 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
+- [ ] Add import UI entry point and post-import summary
 
 ## Next
 
 - [ ] Add computed game stats pipeline (score, strikes, spares, opens)
-- [ ] Implement SQLite import action from locked mapping
-- [ ] Add import UI entry point and post-import summary
+- [ ] Add SQLite file parser to feed `imports:importSqliteSnapshot` directly from `Backup.db`
 
 ## Later
 
@@ -32,6 +31,8 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add create/edit game flow with frame persistence
 - [x] Add service abstraction and domain hooks
 - [x] Wire minimal tab screens to live data
+- [x] Add lossless SQLite snapshot import pipeline with raw mirrors
+- [x] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 
 ## Decision Log
 

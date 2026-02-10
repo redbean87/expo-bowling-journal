@@ -31,6 +31,14 @@ frames
 balls
 houses
 patterns (optional)
+importBatches
+importRawHouses
+importRawPatterns
+importRawBalls
+importRawLeagues
+importRawWeeks
+importRawGames
+importRawFrames
 ```
 
 ---
@@ -78,6 +86,11 @@ Previously called `week` in SQLite.
 - `leagueId`
 - `weekNumber` (optional)
 - `date`
+- `houseId` (optional)
+- `ballId` (optional)
+- `patternId` (optional)
+- `notes` (optional)
+- `laneContext` (optional)
 
 **Notes**
 
@@ -109,6 +122,14 @@ Represents a single game within a session.
 
 - `ballId`
 - `patternId`
+- `houseId` (optional)
+
+**Post-Import Refinement Fields (optional)**
+
+- `handicap`
+- `laneContext`
+- `ballSwitches`
+- `notes`
 
 **Notes**
 
@@ -130,6 +151,17 @@ Represents an individual frame within a game.
 - `roll1`
 - `roll2` (optional)
 - `roll3` (optional)
+
+**Source Fidelity Fields (optional)**
+
+- `ballId`
+- `pins`
+- `scores`
+- `score`
+- `flags`
+- `pocket`
+- `footBoard`
+- `targetBoard`
 
 **Notes**
 
@@ -191,17 +223,66 @@ Represents oil patterns.
 
 ---
 
+## importBatches
+
+Tracks each user import run.
+
+**Fields**
+
+- `id`
+- `userId`
+- `sourceType`
+- `sourceFileName` (optional)
+- `sourceHash` (optional)
+- `status`
+- `importedAt`
+- `completedAt` (optional)
+- `counts`
+
+---
+
+## importRaw\*
+
+Lossless source mirrors for SQLite tables.
+
+**Tables**
+
+- `importRawHouses`
+- `importRawPatterns`
+- `importRawBalls`
+- `importRawLeagues`
+- `importRawWeeks`
+- `importRawGames`
+- `importRawFrames`
+
+**Common fields**
+
+- `id`
+- `userId`
+- `batchId`
+- `sqliteId`
+- `raw` (full source row)
+- `importedAt`
+
+**Notes**
+
+- Raw mirrors are retained after successful import by default
+- They are the source of truth for no-loss reprocessing and mapping fixes
+
+---
+
 ## Import Behavior (Locked)
 
 - Import is **replace-all** per user
 - Intended for first-time setup
-- All existing user data is deleted before import
+- All existing user-owned normalized and raw import data is deleted before import
 
 **Import guarantees**
 
 - All documents receive `userId`
 - IDs are remapped internally
-- Stats are computed once
+- Raw source rows are stored losslessly in `importRaw*`
+- Post-import refinement runs immediately after normalized insert
 
 ---
 
@@ -226,10 +307,10 @@ Without requiring migrations.
 
 ## Status
 
-✅ Schema locked
+✅ Schema locked (v2, lossless import)
 
 Next steps:
 
-1. SQLite → Convex field mapping
-2. Import action implementation
-3. Expo upload UI
+1. SQLite file parsing/upload UI
+2. Computed stats derivation from imported frame shape (`pins`/`scores`)
+3. Optional raw import retention/cleanup controls

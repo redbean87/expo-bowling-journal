@@ -15,6 +15,8 @@ This document defines how data from the **SQLite backup** is translated into the
 - SQLite primary keys are used **only** to build an in-memory ID map
 - Import order matters and must follow dependency order
 - Missing optional fields are set to `null`
+- Raw source rows are persisted losslessly in `importRaw*` tables
+- Notes and lane context remain scope-specific (`week` -> session, `game` -> game)
 
 ---
 
@@ -26,6 +28,7 @@ This document defines how data from the **SQLite backup** is translated into the
 4. balls
 5. games
 6. frames
+7. post-import refinement (sessions + games)
 
 ---
 
@@ -96,6 +99,11 @@ This document defines how data from the **SQLite backup** is translated into the
 | league_id     | leagueId     | Required                         |
 | week_number   | weekNumber   | Optional                         |
 | date          | date         | Required (fallback to game date) |
+| houseFk       | houseId      | Optional                         |
+| ballFk        | ballId       | Optional                         |
+| patternFk     | patternId    | Optional                         |
+| notes         | notes        | Optional, week-scoped            |
+| lane          | laneContext  | Optional, week-scoped            |
 
 ### Notes
 
@@ -142,6 +150,9 @@ This document defines how data from the **SQLite backup** is translated into the
 | date          | date         | Required               |
 | ball_id       | ballId       | Optional reference     |
 | pattern_id    | patternId    | Optional reference     |
+| houseFk       | houseId      | Optional reference     |
+| notes         | notes        | Optional, game-scoped  |
+| lane          | laneContext  | Optional, game-scoped  |
 
 ### Computed Fields
 
@@ -155,6 +166,7 @@ Computed during import from frames:
 ### Notes
 
 - Games are imported **before frames**, but stats are computed after frames load
+- `singlePinSpareScore` is retained in `importRawGames.raw` until a canonical handicap mapping is confirmed
 
 ---
 
@@ -166,19 +178,24 @@ Computed during import from frames:
 
 ### Fields
 
-| SQLite Column | Convex Field | Notes            |
-| ------------- | ------------ | ---------------- |
-| id            | (ignored)    | Used for mapping |
-| game_id       | gameId       | Required         |
-| frame_number  | frameNumber  | 1–10 only        |
-| roll1         | roll1        | Required         |
-| roll2         | roll2        | Optional         |
-| roll3         | roll3        | Optional         |
+| SQLite Column | Convex Field | Notes                            |
+| ------------- | ------------ | -------------------------------- |
+| \_id          | (ignored)    | Used for mapping                 |
+| gameFk        | gameId       | Required for normalized linkage  |
+| frameNum      | frameNumber  | Optional, retained if valid 1–10 |
+| ballFk        | ballId       | Optional                         |
+| pins          | pins         | Optional, source fidelity        |
+| scores        | scores       | Optional, source fidelity        |
+| score         | score        | Optional, source fidelity        |
+| flags         | flags        | Optional, source fidelity        |
+| pocket        | pocket       | Optional, source fidelity        |
+| footBoard     | footBoard    | Optional, source fidelity        |
+| targetBoard   | targetBoard  | Optional, source fidelity        |
 
 ### Validation
 
-- Discard frames outside range 1–10
-- Normalize missing rolls to `null`
+- Frame rows are always persisted to `importRawFrames`
+- Normalized `frames` rows are currently optional until `pins/scores` -> roll decoding is finalized
 
 ---
 
@@ -212,6 +229,7 @@ oldLeagueId  → newLeagueId
 oldSessionId → newSessionId
 oldGameId    → newGameId
 oldBallId    → newBallId
+oldPatternId → newPatternId
 ```
 
 Maps are discarded after import completes.
@@ -238,13 +256,45 @@ After successful import, present:
 - Sessions imported
 - Games imported
 - Frames imported
+- Refinement warnings (if any)
+
+---
+
+## Post-Import Refinement Mapping
+
+Refinement runs immediately after base import using normalized IDs.
+
+### handicap
+
+- Target: `games.handicap`
+- Source: currently unresolved in this SQLite variant
+- Behavior: set to `null`, emit warning count (non-fatal)
+
+### lane context
+
+- `week.lane` -> `sessions.laneContext`
+- `game.lane` -> `games.laneContext`
+- No cross-scope fallback between session and game lane data
+
+### ball switches
+
+- Derived from `frame.ballFk` transitions in frame order per game
+- Baseline is `game.ballFk`
+- Each switch entry stores `frameNumber`, optional `ballId`, optional `ballName`
+- Invalid frame numbers are skipped with warnings
+
+### notes
+
+- `week.notes` -> `sessions.notes`
+- `game.notes` -> `games.notes`
+- No fallback or merge across scopes
 
 ---
 
 ## Status
 
-✅ Mapping locked
+✅ Mapping locked (v2, lossless + refinement)
 
 Next step:
 
-- Implement Convex import action using this mapping
+- Add SQLite file parser/upload flow that feeds `imports:importSqliteSnapshot`
