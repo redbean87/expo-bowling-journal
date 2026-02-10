@@ -3,44 +3,44 @@ const PARSER_VERSION = 'backupdb-parser-v1';
 const REQUIRED_TABLES = {
   house: {
     requiredColumns: {
-      sqliteId: ['id'],
+      sqliteId: ['id', '_id'],
       name: ['name'],
     },
   },
   pattern: {
     requiredColumns: {
-      sqliteId: ['id'],
+      sqliteId: ['id', '_id'],
       name: ['name'],
     },
   },
   ball: {
     requiredColumns: {
-      sqliteId: ['id'],
+      sqliteId: ['id', '_id'],
       name: ['name'],
     },
   },
   league: {
     requiredColumns: {
-      sqliteId: ['id'],
+      sqliteId: ['id', '_id'],
       name: ['name'],
     },
   },
   week: {
     requiredColumns: {
-      sqliteId: ['id'],
-      leagueForeignKey: ['league_fk', 'league_id'],
+      sqliteId: ['id', '_id'],
+      leagueForeignKey: ['leagueFk', 'league_fk', 'league_id'],
     },
   },
   game: {
     requiredColumns: {
-      sqliteId: ['id'],
-      weekForeignKey: ['week_fk', 'week_id'],
+      sqliteId: ['id', '_id'],
+      weekForeignKey: ['weekFk', 'week_fk', 'week_id'],
     },
   },
   frame: {
     requiredColumns: {
       sqliteId: ['id', '_id'],
-      gameForeignKey: ['game_fk', 'game_id'],
+      gameForeignKey: ['gameFk', 'game_fk', 'game_id'],
     },
   },
 };
@@ -99,18 +99,33 @@ function asSafeIdentifier(name) {
   return `"${name.replaceAll('"', '""')}"`;
 }
 
+function queryAllRows(database, sql) {
+  const statement = database.prepare(sql);
+  const rows = [];
+
+  try {
+    while (statement.step()) {
+      rows.push(statement.getAsObject());
+    }
+  } finally {
+    statement.free();
+  }
+
+  return rows;
+}
+
 function listTables(database) {
-  return database
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-    )
-    .all();
+  return queryAllRows(
+    database,
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+  );
 }
 
 function getTableColumns(database, tableName) {
-  return database
-    .prepare(`PRAGMA table_info(${asSafeIdentifier(tableName)})`)
-    .all();
+  return queryAllRows(
+    database,
+    `PRAGMA table_info(${asSafeIdentifier(tableName)})`
+  );
 }
 
 function resolveAvailableTables(database) {
@@ -170,7 +185,7 @@ function resolveRequiredColumns(columnIndex, tableName, requiredColumns) {
 }
 
 function selectAllRows(database, tableName) {
-  return database.prepare(`SELECT * FROM ${asSafeIdentifier(tableName)}`).all();
+  return queryAllRows(database, `SELECT * FROM ${asSafeIdentifier(tableName)}`);
 }
 
 export async function parseBackupDatabase(sourceArrayBuffer) {
