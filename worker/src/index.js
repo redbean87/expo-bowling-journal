@@ -197,11 +197,17 @@ async function postConvexCallback(env, payload) {
   }
 
   const rawBody = JSON.stringify(payload);
+  const callbackPath = new URL(callbackUrl).pathname;
+  console.log('convex callback start', {
+    batchId: payload.batchId,
+    stage: payload.stage,
+    callbackUrl,
+    callbackPath,
+  });
   const timestampSeconds = Math.floor(Date.now() / 1000);
   const nonce = crypto.randomUUID();
-  const path = new URL(callbackUrl).pathname;
   const bodyHash = await sha256Hex(rawBody);
-  const signingPayload = `POST\n${path}\n${String(timestampSeconds)}\n${nonce}\n${bodyHash}`;
+  const signingPayload = `POST\n${callbackPath}\n${String(timestampSeconds)}\n${nonce}\n${bodyHash}`;
   const signature = await hmacHex(
     env.IMPORT_CALLBACK_HMAC_SECRET,
     signingPayload
@@ -219,10 +225,22 @@ async function postConvexCallback(env, payload) {
 
   if (!response.ok) {
     const bodyText = (await response.text()).slice(0, 300);
+    console.log('convex callback failed', {
+      batchId: payload.batchId,
+      stage: payload.stage,
+      status: response.status,
+      bodyText,
+    });
     throw new Error(
       `Convex callback failed (${String(response.status)}): ${bodyText}`
     );
   }
+
+  console.log('convex callback ok', {
+    batchId: payload.batchId,
+    stage: payload.stage,
+    status: response.status,
+  });
 }
 
 async function processQueueMessage(env, body) {
@@ -393,6 +411,10 @@ export default {
       });
 
       if (!verification.ok) {
+        console.log('queue request rejected', {
+          path: url.pathname,
+          reason: verification.error,
+        });
         return unauthorized(
           request,
           env,
