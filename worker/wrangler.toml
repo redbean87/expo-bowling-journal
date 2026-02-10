@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-02-10"
 
 [vars]
-CONVEX_URL = ""
+CONVEX_URL = "https://different-lynx-597.convex.cloud"
 CONVEX_IMPORT_CALLBACK_PATH = "/api/import-callback"
 CORS_ALLOWED_ORIGINS = "http://localhost:8081"
 
