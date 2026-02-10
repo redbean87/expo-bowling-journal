@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as frames from "../frames.js";
 import type * as games from "../games.js";
 import type * as http from "../http.js";
 import type * as leagues from "../leagues.js";
@@ -24,6 +25,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  frames: typeof frames;
   games: typeof games;
   http: typeof http;
   leagues: typeof leagues;

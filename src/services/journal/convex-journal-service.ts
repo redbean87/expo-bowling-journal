@@ -1,6 +1,10 @@
 import {
+  framesListByGameQuery,
+  framesReplaceForGameMutation,
   gamesCreateMutation,
+  gamesGetByIdQuery,
   gamesListBySessionQuery,
+  gamesUpdateMutation,
   leaguesCreateMutation,
   leaguesListQuery,
   sessionsCreateMutation,
@@ -13,5 +17,9 @@ export const convexJournalService = {
   listSessionsByLeague: sessionsListByLeagueQuery,
   createSession: sessionsCreateMutation,
   listGamesBySession: gamesListBySessionQuery,
+  getGameById: gamesGetByIdQuery,
   createGame: gamesCreateMutation,
+  updateGame: gamesUpdateMutation,
+  listFramesByGame: framesListByGameQuery,
+  replaceFramesForGame: framesReplaceForGameMutation,
 } as const;

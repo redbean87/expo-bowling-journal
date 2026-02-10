@@ -19,6 +19,22 @@ export const listBySession = query({
   },
 });
 
+export const getById = query({
+  args: {
+    gameId: v.id('games'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const game = await ctx.db.get(args.gameId);
+
+    if (!game || game.userId !== userId) {
+      throw new ConvexError('Game not found');
+    }
+
+    return game;
+  },
+});
+
 export const create = mutation({
   args: {
     sessionId: v.id('sessions'),
@@ -62,5 +78,46 @@ export const create = mutation({
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
     });
+  },
+});
+
+export const update = mutation({
+  args: {
+    gameId: v.id('games'),
+    date: v.string(),
+    ballId: v.optional(v.union(v.id('balls'), v.null())),
+    patternId: v.optional(v.union(v.id('patterns'), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const game = await ctx.db.get(args.gameId);
+
+    if (!game || game.userId !== userId) {
+      throw new ConvexError('Game not found');
+    }
+
+    if (args.ballId) {
+      const ball = await ctx.db.get(args.ballId);
+
+      if (!ball || ball.userId !== userId) {
+        throw new ConvexError('Ball not found');
+      }
+    }
+
+    if (args.patternId) {
+      const pattern = await ctx.db.get(args.patternId);
+
+      if (!pattern) {
+        throw new ConvexError('Pattern not found');
+      }
+    }
+
+    await ctx.db.patch(args.gameId, {
+      date: args.date,
+      ballId: args.ballId ?? null,
+      patternId: args.patternId ?? null,
+    });
+
+    return args.gameId;
   },
 });

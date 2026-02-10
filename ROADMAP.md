@@ -4,11 +4,10 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Add create/edit game flow with frame persistence
+- [ ] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 
 ## Next
 
-- [ ] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 - [ ] Add computed game stats pipeline (score, strikes, spares, opens)
 - [ ] Implement SQLite import action from locked mapping
 - [ ] Add import UI entry point and post-import summary
@@ -30,6 +29,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Configure Convex + auth provider + env plumbing
 - [x] Implement locked Convex schema (leagues, sessions, games, frames, balls, houses, patterns)
 - [x] Add core Convex queries/mutations for leagues, sessions, and games
+- [x] Add create/edit game flow with frame persistence
 - [x] Add service abstraction and domain hooks
 - [x] Wire minimal tab screens to live data
 

@@ -1,0 +1,446 @@
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+import type { EditableFrameInput, GameId, SessionId } from '@/services/journal';
+
+import { useGameEditor } from '@/hooks/journal';
+import { colors } from '@/theme/tokens';
+
+type FrameDraft = {
+  roll1: string;
+  roll2: string;
+  roll3: string;
+};
+
+const EMPTY_FRAME_DRAFT: FrameDraft = {
+  roll1: '',
+  roll2: '',
+  roll3: '',
+};
+
+const EMPTY_FRAMES: FrameDraft[] = Array.from({ length: 10 }, () => ({
+  ...EMPTY_FRAME_DRAFT,
+}));
+
+function getFirstParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+function normalizeDateValue(value: string) {
+  return value.slice(0, 10);
+}
+
+function toFrameDrafts(
+  frames: Array<{
+    frameNumber: number;
+    roll1: number;
+    roll2?: number | null;
+    roll3?: number | null;
+  }>
+): FrameDraft[] {
+  const drafts = Array.from({ length: 10 }, () => ({ ...EMPTY_FRAME_DRAFT }));
+
+  for (const frame of frames) {
+    const index = frame.frameNumber - 1;
+
+    if (index < 0 || index >= drafts.length) {
+      continue;
+    }
+
+    drafts[index] = {
+      roll1: String(frame.roll1),
+      roll2:
+        frame.roll2 === null || frame.roll2 === undefined
+          ? ''
+          : String(frame.roll2),
+      roll3:
+        frame.roll3 === null || frame.roll3 === undefined
+          ? ''
+          : String(frame.roll3),
+    };
+  }
+
+  return drafts;
+}
+
+function parseOptionalRoll(value: string) {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) {
+    throw new Error('Rolls must be integers between 0 and 10.');
+  }
+
+  return parsed;
+}
+
+function buildFramesPayload(frameDrafts: FrameDraft[]): EditableFrameInput[] {
+  const frames: EditableFrameInput[] = [];
+  let reachedEnd = false;
+
+  for (const [index, frame] of frameDrafts.entries()) {
+    const frameNumber = index + 1;
+    const roll1 = frame.roll1.trim();
+    const roll2 = frame.roll2.trim();
+    const roll3 = frame.roll3.trim();
+    const hasAnyValue =
+      roll1.length > 0 || roll2.length > 0 || roll3.length > 0;
+
+    if (!hasAnyValue) {
+      reachedEnd = true;
+      continue;
+    }
+
+    if (reachedEnd) {
+      throw new Error('Frames must be entered in order with no gaps.');
+    }
+
+    if (roll1.length === 0) {
+      throw new Error(`Frame ${frameNumber}: roll1 is required.`);
+    }
+
+    frames.push({
+      frameNumber,
+      roll1: parseOptionalRoll(roll1) ?? 0,
+      roll2: parseOptionalRoll(roll2),
+      roll3: parseOptionalRoll(roll3),
+    });
+  }
+
+  return frames;
+}
+
+export default function GameEditorScreen() {
+  const router = useRouter();
+  const navigation = useNavigation();
+  const params = useLocalSearchParams<{
+    gameId?: string | string[];
+    sessionId?: string | string[];
+  }>();
+
+  const gameIdParam = getFirstParam(params.gameId);
+  const isCreateMode = gameIdParam === 'new';
+  const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
+  const sessionId = getFirstParam(params.sessionId) as SessionId | null;
+
+  const {
+    game,
+    frames,
+    isAuthenticated,
+    isLoading,
+    isSaving,
+    createGame,
+    updateGame,
+    replaceFramesForGame,
+  } = useGameEditor(gameId);
+
+  const [date, setDate] = useState('');
+  const [frameDrafts, setFrameDrafts] = useState<FrameDraft[]>(EMPTY_FRAMES);
+  const [error, setError] = useState<string | null>(null);
+  const [didHydrate, setDidHydrate] = useState(false);
+
+  const screenTitle = useMemo(
+    () => (isCreateMode ? 'Add Game' : 'Edit Game'),
+    [isCreateMode]
+  );
+
+  useEffect(() => {
+    navigation.setOptions({ title: screenTitle });
+  }, [navigation, screenTitle]);
+
+  useEffect(() => {
+    if (didHydrate) {
+      return;
+    }
+
+    if (isCreateMode) {
+      setDate(new Date().toISOString().slice(0, 10));
+      setDidHydrate(true);
+      return;
+    }
+
+    if (!game) {
+      return;
+    }
+
+    if (frames === undefined) {
+      return;
+    }
+
+    setDate(normalizeDateValue(game.date));
+    setFrameDrafts(toFrameDrafts(frames));
+    setDidHydrate(true);
+  }, [didHydrate, frames, game, isCreateMode]);
+
+  const updateFrameDraft = (
+    frameIndex: number,
+    field: keyof FrameDraft,
+    value: string
+  ) => {
+    setFrameDrafts((current) => {
+      const next = [...current];
+      next[frameIndex] = {
+        ...next[frameIndex],
+        [field]: value,
+      };
+      return next;
+    });
+  };
+
+  const onSave = async () => {
+    setError(null);
+
+    if (!isAuthenticated) {
+      setError('Sign in to save games.');
+      return;
+    }
+
+    if (!isCreateMode && !didHydrate) {
+      setError('Game is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    const trimmedDate = date.trim();
+
+    if (trimmedDate.length === 0) {
+      setError('Date is required.');
+      return;
+    }
+
+    let nextGameId = gameId;
+
+    try {
+      const payloadFrames = buildFramesPayload(frameDrafts);
+
+      if (isCreateMode) {
+        if (!sessionId) {
+          throw new Error('Session is required when creating a game.');
+        }
+
+        nextGameId = await createGame({
+          sessionId,
+          date: trimmedDate,
+        });
+      } else {
+        if (!nextGameId) {
+          throw new Error('Game not found.');
+        }
+
+        await updateGame({
+          gameId: nextGameId,
+          date: trimmedDate,
+        });
+      }
+
+      if (!nextGameId) {
+        throw new Error('Game not found.');
+      }
+
+      await replaceFramesForGame({
+        gameId: nextGameId,
+        frames: payloadFrames,
+      });
+
+      router.back();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Unable to save game.'
+      );
+    }
+  };
+
+  if (!isCreateMode && isLoading && !didHydrate) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={colors.accent} />
+        <Text style={styles.loadingText}>Loading game...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Game details</Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            value={date}
+          />
+          <Text style={styles.helpText}>
+            Save partial games by filling only the frames bowled so far.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Frames</Text>
+          {frameDrafts.map((frame, index) => (
+            <View key={`frame-${index + 1}`} style={styles.frameRow}>
+              <Text style={styles.frameLabel}>Frame {index + 1}</Text>
+              <View style={styles.rollsRow}>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={(value) =>
+                    updateFrameDraft(index, 'roll1', value)
+                  }
+                  placeholder="R1"
+                  placeholderTextColor={colors.textSecondary}
+                  style={styles.rollInput}
+                  value={frame.roll1}
+                />
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={(value) =>
+                    updateFrameDraft(index, 'roll2', value)
+                  }
+                  placeholder="R2"
+                  placeholderTextColor={colors.textSecondary}
+                  style={styles.rollInput}
+                  value={frame.roll2}
+                />
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={(value) =>
+                    updateFrameDraft(index, 'roll3', value)
+                  }
+                  placeholder="R3"
+                  placeholderTextColor={colors.textSecondary}
+                  style={styles.rollInput}
+                  value={frame.roll3}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <Pressable
+          disabled={isSaving || (!isCreateMode && !didHydrate)}
+          onPress={onSave}
+          style={styles.saveButton}
+        >
+          <Text style={styles.saveButtonLabel}>
+            {isSaving ? 'Saving...' : 'Save game'}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: 16,
+    gap: 12,
+    paddingBottom: 28,
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  input: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#F9FBFF',
+    color: colors.textPrimary,
+    paddingHorizontal: 12,
+  },
+  helpText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  frameRow: {
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: '#FBFDFF',
+  },
+  frameLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  rollsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rollInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+    paddingHorizontal: 10,
+  },
+  error: {
+    color: '#B42318',
+    fontSize: 13,
+  },
+  saveButton: {
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonLabel: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+});
