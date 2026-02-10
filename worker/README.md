@@ -30,6 +30,7 @@ Cloudflare Worker that issues signed upload URLs, accepts SQLite backup uploads,
 - `R2_IMPORTS` (R2 bucket binding)
 - `IMPORT_QUEUE` (queue producer binding)
 - `IMPORT_CALLBACK_HMAC_SECRET` (secret)
+- `IMPORT_QUEUE_HMAC_SECRET` (secret for `/imports/queue` request verification)
 - `CONVEX_URL` (var, callback target base URL)
 - `CONVEX_IMPORT_CALLBACK_PATH` (var, callback path)
 - `CORS_ALLOWED_ORIGINS` (var, comma-separated list)

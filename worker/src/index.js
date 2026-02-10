@@ -78,6 +78,29 @@ async function hmacHex(secret, message) {
     .join('');
 }
 
+async function sha256Hex(message) {
+  const enc = new TextEncoder();
+  const digest = await crypto.subtle.digest('SHA-256', enc.encode(message));
+
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function timingSafeEqualHex(left, right) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  let mismatch = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+
+  return mismatch === 0;
+}
+
 function isSafeUserId(userId) {
   return typeof userId === 'string' && /^[a-zA-Z0-9_-]{3,128}$/.test(userId);
 }
@@ -100,6 +123,139 @@ async function parseJsonBody(request) {
   } catch {
     return null;
   }
+}
+
+async function verifySignedRequest({
+  request,
+  env,
+  secret,
+  path,
+  rawBody,
+  skewSeconds,
+}) {
+  const timestampHeader = request.headers.get('x-import-ts');
+  const nonce = request.headers.get('x-import-nonce');
+  const signature = request.headers.get('x-import-signature');
+
+  if (!timestampHeader || !nonce || !signature) {
+    return { ok: false, error: 'Missing signature headers' };
+  }
+
+  const timestampSeconds = Number(timestampHeader);
+
+  if (!Number.isFinite(timestampSeconds)) {
+    return { ok: false, error: 'Invalid signature timestamp' };
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  if (Math.abs(nowSeconds - timestampSeconds) > skewSeconds) {
+    return { ok: false, error: 'Signature timestamp outside allowed skew' };
+  }
+
+  if (nonce.length < 16 || nonce.length > 128) {
+    return { ok: false, error: 'Invalid signature nonce' };
+  }
+
+  const bodyHash = await sha256Hex(rawBody);
+  const signingPayload = `POST\n${path}\n${timestampHeader}\n${nonce}\n${bodyHash}`;
+  const expectedSignature = await hmacHex(secret, signingPayload);
+
+  if (!timingSafeEqualHex(expectedSignature, signature)) {
+    return { ok: false, error: 'Invalid signature' };
+  }
+
+  return {
+    ok: true,
+    timestampSeconds,
+    nonce,
+    signature,
+  };
+}
+
+function getCallbackUrl(env) {
+  const baseUrl = env.CONVEX_URL?.trim();
+  const path = (
+    env.CONVEX_IMPORT_CALLBACK_PATH || '/api/import-callback'
+  ).trim();
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  return `${normalizedBaseUrl}${normalizedPath}`;
+}
+
+async function postConvexCallback(env, payload) {
+  const callbackUrl = getCallbackUrl(env);
+
+  if (!callbackUrl) {
+    throw new Error('CONVEX_URL is not configured for callback delivery');
+  }
+
+  const rawBody = JSON.stringify(payload);
+  const timestampSeconds = Math.floor(Date.now() / 1000);
+  const nonce = crypto.randomUUID();
+  const path = new URL(callbackUrl).pathname;
+  const bodyHash = await sha256Hex(rawBody);
+  const signingPayload = `POST\n${path}\n${String(timestampSeconds)}\n${nonce}\n${bodyHash}`;
+  const signature = await hmacHex(
+    env.IMPORT_CALLBACK_HMAC_SECRET,
+    signingPayload
+  );
+  const response = await fetch(callbackUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-import-ts': String(timestampSeconds),
+      'x-import-nonce': nonce,
+      'x-import-signature': signature,
+    },
+    body: rawBody,
+  });
+
+  if (!response.ok) {
+    const bodyText = (await response.text()).slice(0, 300);
+    throw new Error(
+      `Convex callback failed (${String(response.status)}): ${bodyText}`
+    );
+  }
+}
+
+async function processQueueMessage(env, body) {
+  const { batchId, r2Key } = body;
+
+  await postConvexCallback(env, {
+    batchId,
+    stage: 'parsing',
+  });
+
+  const file = await env.R2_IMPORTS.get(r2Key);
+
+  if (!file) {
+    await postConvexCallback(env, {
+      batchId,
+      stage: 'failed',
+      errorMessage: 'R2 object missing for queued import',
+    });
+    return;
+  }
+
+  const bytes = await file.arrayBuffer();
+  console.log('queue placeholder processing', {
+    batchId,
+    r2Key,
+    bytes: bytes.byteLength,
+  });
+
+  await postConvexCallback(env, {
+    batchId,
+    stage: 'failed',
+    errorMessage: 'SQLite parser is not implemented in worker yet',
+  });
 }
 
 export default {
@@ -223,7 +379,34 @@ export default {
       request.method === 'POST' &&
       (url.pathname === '/imports/queue' || url.pathname === '/imports/process')
     ) {
-      const body = await parseJsonBody(request);
+      const queueHmacSecret =
+        env.IMPORT_QUEUE_HMAC_SECRET || env.IMPORT_CALLBACK_HMAC_SECRET;
+      const rawBody = await request.text();
+
+      const verification = await verifySignedRequest({
+        request,
+        env,
+        secret: queueHmacSecret,
+        path: url.pathname,
+        rawBody,
+        skewSeconds: 5 * 60,
+      });
+
+      if (!verification.ok) {
+        return unauthorized(
+          request,
+          env,
+          `Unauthorized queue request: ${verification.error}`
+        );
+      }
+
+      let body;
+
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        return badRequest(request, env, 'Invalid JSON body');
+      }
 
       if (!body) {
         return badRequest(request, env, 'Invalid JSON body');
@@ -273,32 +456,19 @@ export default {
     return methodNotAllowed(request, env);
   },
 
-  async queue(batch, env, ctx) {
+  async queue(batch, env) {
     for (const message of batch.messages) {
-      const { batchId, r2Key } = message.body;
-
-      ctx.waitUntil(
-        (async () => {
-          const file = await env.R2_IMPORTS.get(r2Key);
-
-          if (!file) {
-            console.log('queue message skipped: R2 object missing', {
-              batchId,
-              r2Key,
-            });
-            return;
-          }
-
-          const bytes = await file.arrayBuffer();
-          console.log('queue placeholder processing', {
-            batchId,
-            r2Key,
-            bytes: bytes.byteLength,
-          });
-        })()
-      );
-
-      message.ack();
+      try {
+        await processQueueMessage(env, message.body);
+        message.ack();
+      } catch (caught) {
+        console.log('queue message retry', {
+          batchId: message.body.batchId,
+          r2Key: message.body.r2Key,
+          error: caught instanceof Error ? caught.message : 'Unknown error',
+        });
+        message.retry();
+      }
     }
   },
 };

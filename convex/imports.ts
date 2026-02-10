@@ -1,12 +1,15 @@
+import { makeFunctionReference } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
 
 import {
+  internalAction,
   internalMutation,
   internalQuery,
   mutation,
   query,
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
 import {
   laneContextFromLane,
   normalizeBallSwitches,
@@ -184,6 +187,38 @@ const sqliteSnapshotArgs = {
   games: v.array(sqliteGameValidator),
   frames: v.array(sqliteFrameValidator),
 };
+
+const getBatchByIdForDispatchQuery = makeFunctionReference<
+  'query',
+  { batchId: Id<'importBatches'> },
+  {
+    _id: Id<'importBatches'>;
+    userId: Id<'users'>;
+    status: string;
+    r2Key: string | null;
+  } | null
+>('imports:getBatchByIdForCallback');
+
+const updateBatchStatusForDispatchMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    status: 'parsing' | 'importing' | 'completed' | 'failed';
+    completedAt?: number | null;
+    errorMessage?: string | null;
+  },
+  Id<'importBatches'>
+>('imports:updateBatchStatusForCallback');
+
+const dispatchImportQueueActionReference = makeFunctionReference<
+  'action',
+  {
+    batchId: Id<'importBatches'>;
+    userId: Id<'users'>;
+    r2Key: string;
+  },
+  void
+>('imports:dispatchImportQueue');
 
 function hasOwn(object: object, property: string) {
   return Object.prototype.hasOwnProperty.call(object, property);
@@ -500,10 +535,110 @@ export const startImport = mutation({
       counts: { ...EMPTY_IMPORT_COUNTS },
     });
 
+    await ctx.scheduler.runAfter(0, dispatchImportQueueActionReference, {
+      batchId,
+      userId,
+      r2Key: args.r2Key,
+    });
+
     return {
       batchId,
       deduplicated: false,
     };
+  },
+});
+
+export const dispatchImportQueue = internalAction({
+  args: {
+    batchId: v.id('importBatches'),
+    userId: v.id('users'),
+    r2Key: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.runQuery(getBatchByIdForDispatchQuery, {
+      batchId: args.batchId,
+    });
+
+    if (!batch || batch.userId !== args.userId || batch.status !== 'queued') {
+      return;
+    }
+
+    if (batch.r2Key !== args.r2Key) {
+      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        batchId: args.batchId,
+        status: 'failed',
+        completedAt: Date.now(),
+        errorMessage: 'Import queue dispatch blocked: batch key mismatch',
+      });
+      return;
+    }
+
+    const workerBaseUrl = process.env.IMPORT_WORKER_URL?.trim();
+    const queueHmacSecret =
+      process.env.IMPORT_QUEUE_HMAC_SECRET?.trim() ??
+      process.env.IMPORT_CALLBACK_HMAC_SECRET?.trim();
+
+    if (!workerBaseUrl || !queueHmacSecret) {
+      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        batchId: args.batchId,
+        status: 'failed',
+        completedAt: Date.now(),
+        errorMessage:
+          'Import queue dispatch is not configured (IMPORT_WORKER_URL/IMPORT_QUEUE_HMAC_SECRET)',
+      });
+      return;
+    }
+
+    const queuePath = '/imports/queue';
+    const normalizedWorkerUrl = workerBaseUrl.replace(/\/+$/, '');
+    const endpoint = `${normalizedWorkerUrl}${queuePath}`;
+    const requestBody = JSON.stringify({
+      batchId: args.batchId,
+      userId: args.userId,
+      r2Key: args.r2Key,
+    });
+    const timestampSeconds = Math.floor(Date.now() / 1000);
+    const nonce = crypto.randomUUID();
+    const bodyHash = await sha256Hex(requestBody);
+    const signingPayload = `POST\n${queuePath}\n${String(timestampSeconds)}\n${nonce}\n${bodyHash}`;
+    const signature = await hmacSha256Hex(queueHmacSecret, signingPayload);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-import-ts': String(timestampSeconds),
+          'x-import-nonce': nonce,
+          'x-import-signature': signature,
+        },
+        body: requestBody,
+      });
+
+      if (response.ok) {
+        return;
+      }
+
+      const responseBody = (await response.text()).slice(0, 350);
+      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        batchId: args.batchId,
+        status: 'failed',
+        completedAt: Date.now(),
+        errorMessage: `Queue dispatch failed (${String(response.status)}): ${responseBody}`,
+      });
+    } catch (caught) {
+      const message =
+        caught instanceof Error
+          ? caught.message.slice(0, 350)
+          : 'Unknown queue dispatch error';
+
+      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        batchId: args.batchId,
+        status: 'failed',
+        completedAt: Date.now(),
+        errorMessage: `Queue dispatch failed: ${message}`,
+      });
+    }
   },
 });
 
