@@ -3,6 +3,7 @@ import { makeFunctionReference } from 'convex/server';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
 
 export type ViewerQueryResult = {
+  userId: Id<'users'>;
   subject: string;
   name: string | null;
   email: string | null;
@@ -272,3 +273,50 @@ export const importsSqliteSnapshotMutation = makeFunctionReference<
     }>;
   }
 >('imports:importSqliteSnapshot');
+
+export const importsStartImportMutation = makeFunctionReference<
+  'mutation',
+  {
+    r2Key: string;
+    fileName?: string | null;
+    fileSize: number;
+    checksum?: string | null;
+    idempotencyKey: string;
+  },
+  {
+    batchId: Id<'importBatches'>;
+    deduplicated: boolean;
+  }
+>('imports:startImport');
+
+export const importsGetImportStatusQuery = makeFunctionReference<
+  'query',
+  {
+    batchId: Id<'importBatches'>;
+  },
+  {
+    batchId: Id<'importBatches'>;
+    status: string;
+    sourceType: string;
+    r2Key: string | null;
+    sourceFileName: string | null;
+    fileSize: number | null;
+    sourceHash: string | null;
+    importedAt: number;
+    completedAt: number | null;
+    errorMessage: string | null;
+    counts: {
+      houses: number;
+      leagues: number;
+      weeks: number;
+      sessions: number;
+      balls: number;
+      games: number;
+      frames: number;
+      patterns: number;
+      gamesRefined: number;
+      gamesPatched: number;
+      warnings: number;
+    };
+  }
+>('imports:getImportStatus');
