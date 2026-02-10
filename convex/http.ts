@@ -1,9 +1,310 @@
-import { httpRouter } from 'convex/server';
+import { httpRouter, makeFunctionReference } from 'convex/server';
 
+import { httpAction } from './_generated/server';
 import { auth } from './auth';
+import {
+  hmacSha256Hex,
+  sha256Hex,
+  timingSafeEqualHex,
+} from './lib/import_callback_hmac';
+
+import type { Id } from './_generated/dataModel';
 
 const http = httpRouter();
 
+const CALLBACK_PATH = '/api/import-callback';
+const SKEW_MS = 5 * 60 * 1000;
+const NONCE_TTL_MS = 15 * 60 * 1000;
+
+const getNonceByValueForCallbackQuery = makeFunctionReference<
+  'query',
+  { nonce: string },
+  { _id: Id<'importCallbackNonces'> } | null
+>('imports:getNonceByValueForCallback');
+
+const insertNonceForCallbackMutation = makeFunctionReference<
+  'mutation',
+  { nonce: string; createdAt: number; expiresAt: number },
+  Id<'importCallbackNonces'>
+>('imports:insertNonceForCallback');
+
+const getBatchByIdForCallbackQuery = makeFunctionReference<
+  'query',
+  { batchId: Id<'importBatches'> },
+  { _id: Id<'importBatches'>; status: string } | null
+>('imports:getBatchByIdForCallback');
+
+const updateBatchStatusForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    status: 'parsing' | 'importing' | 'completed' | 'failed';
+    completedAt?: number | null;
+    errorMessage?: string | null;
+  },
+  Id<'importBatches'>
+>('imports:updateBatchStatusForCallback');
+
+const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    parserVersion?: string | null;
+    snapshot: unknown;
+  },
+  {
+    batchId: Id<'importBatches'>;
+    counts: {
+      houses: number;
+      leagues: number;
+      weeks: number;
+      sessions: number;
+      balls: number;
+      games: number;
+      frames: number;
+      patterns: number;
+    };
+    refinement: {
+      sessionsProcessed: number;
+      sessionsPatched: number;
+      sessionsSkipped: number;
+      gamesProcessed: number;
+      gamesPatched: number;
+      gamesSkipped: number;
+      warnings: Array<{
+        recordType: 'session' | 'game';
+        recordId: string;
+        message: string;
+      }>;
+    };
+    warnings: Array<{
+      recordType: 'session' | 'game';
+      recordId: string;
+      message: string;
+    }>;
+  }
+>('imports:submitParsedSnapshotForCallback');
+
+type CallbackStage = 'parsing' | 'importing' | 'completed' | 'failed';
+
+type CallbackPayload = {
+  batchId: string;
+  stage: CallbackStage;
+  errorMessage?: string | null;
+  parserVersion?: string | null;
+  snapshot?: unknown;
+};
+
+function jsonResponse(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+    },
+  });
+}
+
+function isStage(value: string): value is CallbackStage {
+  return (
+    value === 'parsing' ||
+    value === 'importing' ||
+    value === 'completed' ||
+    value === 'failed'
+  );
+}
+
+function isAllowedTransition(current: string, next: CallbackStage) {
+  if (current === next) {
+    return true;
+  }
+
+  if (current === 'queued') {
+    return next === 'parsing' || next === 'failed';
+  }
+
+  if (current === 'parsing') {
+    return next === 'importing' || next === 'failed';
+  }
+
+  if (current === 'importing') {
+    return next === 'completed' || next === 'failed';
+  }
+
+  return false;
+}
+
 auth.addHttpRoutes(http);
+
+http.route({
+  path: CALLBACK_PATH,
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => {
+    const secret = process.env.IMPORT_CALLBACK_HMAC_SECRET;
+
+    if (!secret) {
+      return jsonResponse(500, {
+        error: 'Server callback secret is not configured',
+      });
+    }
+
+    const timestampHeader = request.headers.get('x-import-ts');
+    const nonce = request.headers.get('x-import-nonce');
+    const signature = request.headers.get('x-import-signature');
+
+    if (!timestampHeader || !nonce || !signature) {
+      return jsonResponse(401, {
+        error: 'Missing callback signature headers',
+      });
+    }
+
+    const timestampSeconds = Number(timestampHeader);
+
+    if (!Number.isFinite(timestampSeconds)) {
+      return jsonResponse(401, {
+        error: 'Invalid callback timestamp header',
+      });
+    }
+
+    const now = Date.now();
+
+    if (Math.abs(now - timestampSeconds * 1000) > SKEW_MS) {
+      return jsonResponse(401, {
+        error: 'Callback timestamp outside allowed skew',
+      });
+    }
+
+    if (nonce.length < 16 || nonce.length > 128) {
+      return jsonResponse(401, {
+        error: 'Invalid callback nonce',
+      });
+    }
+
+    const existingNonce = await ctx.runQuery(getNonceByValueForCallbackQuery, {
+      nonce,
+    });
+
+    if (existingNonce) {
+      return jsonResponse(401, {
+        error: 'Replay detected for callback nonce',
+      });
+    }
+
+    const rawBody = await request.text();
+    const bodyHash = await sha256Hex(rawBody);
+    const signingPayload = `POST\n${CALLBACK_PATH}\n${timestampHeader}\n${nonce}\n${bodyHash}`;
+    const expectedSignature = await hmacSha256Hex(secret, signingPayload);
+
+    if (!timingSafeEqualHex(expectedSignature, signature)) {
+      return jsonResponse(401, {
+        error: 'Invalid callback signature',
+      });
+    }
+
+    await ctx.runMutation(insertNonceForCallbackMutation, {
+      nonce,
+      createdAt: now,
+      expiresAt: now + NONCE_TTL_MS,
+    });
+
+    let payload: CallbackPayload;
+
+    try {
+      payload = JSON.parse(rawBody) as CallbackPayload;
+    } catch {
+      return jsonResponse(400, {
+        error: 'Invalid JSON callback payload',
+      });
+    }
+
+    if (!payload.batchId || typeof payload.batchId !== 'string') {
+      return jsonResponse(400, {
+        error: 'batchId is required',
+      });
+    }
+
+    if (!payload.stage || !isStage(payload.stage)) {
+      return jsonResponse(400, {
+        error: 'stage must be parsing|importing|completed|failed',
+      });
+    }
+
+    const batch = await ctx.runQuery(getBatchByIdForCallbackQuery, {
+      batchId: payload.batchId as Id<'importBatches'>,
+    });
+
+    if (!batch) {
+      return jsonResponse(404, {
+        error: 'Import batch not found',
+      });
+    }
+
+    if (!isAllowedTransition(batch.status, payload.stage)) {
+      return jsonResponse(409, {
+        error: `Invalid status transition from ${batch.status} to ${payload.stage}`,
+      });
+    }
+
+    if (payload.snapshot !== undefined && payload.snapshot !== null) {
+      if (payload.stage !== 'importing') {
+        return jsonResponse(400, {
+          error: 'snapshot payload is only valid when stage is importing',
+        });
+      }
+
+      try {
+        const result = await ctx.runMutation(
+          submitParsedSnapshotForCallbackMutation,
+          {
+            batchId: batch._id,
+            parserVersion: payload.parserVersion ?? null,
+            snapshot: payload.snapshot,
+          }
+        );
+
+        return jsonResponse(200, {
+          ok: true,
+          batchId: batch._id,
+          status: 'completed',
+          result,
+        });
+      } catch (caught) {
+        const message =
+          caught instanceof Error
+            ? caught.message.slice(0, 500)
+            : 'Failed to process parsed snapshot';
+
+        await ctx.runMutation(updateBatchStatusForCallbackMutation, {
+          batchId: batch._id,
+          status: 'failed',
+          completedAt: Date.now(),
+          errorMessage: message,
+        });
+
+        return jsonResponse(500, {
+          error: message,
+        });
+      }
+    }
+
+    const isTerminal =
+      payload.stage === 'completed' || payload.stage === 'failed';
+
+    await ctx.runMutation(updateBatchStatusForCallbackMutation, {
+      batchId: batch._id,
+      status: payload.stage,
+      completedAt: isTerminal ? Date.now() : null,
+      errorMessage:
+        payload.stage === 'failed'
+          ? (payload.errorMessage?.trim().slice(0, 500) ?? 'Import failed')
+          : null,
+    });
+
+    return jsonResponse(200, {
+      ok: true,
+      batchId: batch._id,
+      status: payload.stage,
+    });
+  }),
+});
 
 export default http;

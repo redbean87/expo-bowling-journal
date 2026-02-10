@@ -120,9 +120,13 @@ export default defineSchema({
   importBatches: defineTable({
     userId: v.id('users'),
     sourceType: v.string(),
+    r2Key: v.optional(v.union(v.string(), v.null())),
     sourceFileName: v.optional(v.union(v.string(), v.null())),
+    fileSize: v.optional(v.union(v.number(), v.null())),
     sourceHash: v.optional(v.union(v.string(), v.null())),
+    idempotencyKey: v.optional(v.union(v.string(), v.null())),
     status: v.string(),
+    errorMessage: v.optional(v.union(v.string(), v.null())),
     importedAt: v.number(),
     completedAt: v.optional(v.union(v.number(), v.null())),
     counts: v.object({
@@ -140,7 +144,9 @@ export default defineSchema({
     }),
   })
     .index('by_user', ['userId'])
-    .index('by_user_imported_at', ['userId', 'importedAt']),
+    .index('by_user_imported_at', ['userId', 'importedAt'])
+    .index('by_user_status', ['userId', 'status'])
+    .index('by_user_idempotency', ['userId', 'idempotencyKey']),
   importRawHouses: defineTable({
     userId: v.id('users'),
     batchId: v.id('importBatches'),
@@ -277,4 +283,11 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_batch', ['batchId'])
     .index('by_user_sqlite_id', ['userId', 'sqliteId']),
+  importCallbackNonces: defineTable({
+    nonce: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index('by_nonce', ['nonce'])
+    .index('by_expires_at', ['expiresAt']),
 });

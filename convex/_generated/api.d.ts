@@ -12,8 +12,11 @@ import type * as auth from "../auth.js";
 import type * as frames from "../frames.js";
 import type * as games from "../games.js";
 import type * as http from "../http.js";
+import type * as imports from "../imports.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_import_callback_hmac from "../lib/import_callback_hmac.js";
+import type * as lib_import_refinement from "../lib/import_refinement.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -28,8 +31,11 @@ declare const fullApi: ApiFromModules<{
   frames: typeof frames;
   games: typeof games;
   http: typeof http;
+  imports: typeof imports;
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
+  "lib/import_callback_hmac": typeof lib_import_callback_hmac;
+  "lib/import_refinement": typeof lib_import_refinement;
   sessions: typeof sessions;
   users: typeof users;
 }>;
