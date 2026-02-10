@@ -24,6 +24,7 @@
     "babel-preset-expo": "~54.0.10",
     "convex": "^1.31.7",
     "expo": "~54.0.22",
+    "expo-document-picker": "^14.0.8",
     "expo-router": "~6.0.13",
     "expo-secure-store": "^15.0.8",
     "expo-status-bar": "~3.0.8",

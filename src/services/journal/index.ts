@@ -11,6 +11,7 @@ export type {
   GameId,
   ImportBallSwitchInput,
   ImportLaneContextInput,
+  ImportStatus,
   ImportSqliteSnapshotInput,
   ImportSqliteSnapshotResult,
   League,
@@ -18,5 +19,7 @@ export type {
   ReplaceFramesInput,
   Session,
   SessionId,
+  StartImportInput,
+  StartImportResult,
   UpdateGameInput,
 } from './types';

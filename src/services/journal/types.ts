@@ -192,3 +192,42 @@ export type ImportSqliteSnapshotResult = {
     message: string;
   }>;
 };
+
+export type StartImportInput = {
+  r2Key: string;
+  fileName?: string | null;
+  fileSize: number;
+  checksum?: string | null;
+  idempotencyKey: string;
+};
+
+export type StartImportResult = {
+  batchId: Id<'importBatches'>;
+  deduplicated: boolean;
+};
+
+export type ImportStatus = {
+  batchId: Id<'importBatches'>;
+  status: string;
+  sourceType: string;
+  r2Key: string | null;
+  sourceFileName: string | null;
+  fileSize: number | null;
+  sourceHash: string | null;
+  importedAt: number;
+  completedAt: number | null;
+  errorMessage: string | null;
+  counts: {
+    houses: number;
+    leagues: number;
+    weeks: number;
+    sessions: number;
+    balls: number;
+    games: number;
+    frames: number;
+    patterns: number;
+    gamesRefined: number;
+    gamesPatched: number;
+    warnings: number;
+  };
+};
