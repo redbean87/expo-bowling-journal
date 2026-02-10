@@ -1,0 +1,20 @@
+name = "sqlite-import-worker"
+main = "src/index.js"
+compatibility_date = "2026-02-10"
+
+[vars]
+CONVEX_URL = ""
+CONVEX_IMPORT_CALLBACK_PATH = "/api/import-callback"
+CORS_ALLOWED_ORIGINS = "http://localhost:8081"
+
+[[r2_buckets]]
+binding = "R2_IMPORTS"
+bucket_name = "bowling-imports"
+
+[[queues.producers]]
+binding = "IMPORT_QUEUE"
+queue = "sqlite-import-jobs"
+
+[[queues.consumers]]
+queue = "sqlite-import-jobs"
+dead_letter_queue = "sqlite-import-jobs-dlq"
