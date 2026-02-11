@@ -188,6 +188,427 @@ function selectAllRows(database, tableName) {
   return queryAllRows(database, `SELECT * FROM ${asSafeIdentifier(tableName)}`);
 }
 
+function assertParsedBackupShape(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    throw new SqliteParseError(
+      'INVALID_INPUT',
+      'Parsed backup payload is missing or invalid'
+    );
+  }
+
+  if (!parsed.schema || typeof parsed.schema !== 'object') {
+    throw new SqliteParseError(
+      'INVALID_INPUT',
+      'Parsed backup schema is missing or invalid'
+    );
+  }
+
+  if (!parsed.rows || typeof parsed.rows !== 'object') {
+    throw new SqliteParseError(
+      'INVALID_INPUT',
+      'Parsed backup rows are missing or invalid'
+    );
+  }
+}
+
+function buildColumnLookup(schemaEntry) {
+  const byLower = new Map();
+
+  for (const columnName of schemaEntry.availableColumns) {
+    byLower.set(columnName.toLowerCase(), columnName);
+  }
+
+  return byLower;
+}
+
+function readField(row, columnLookup, candidates) {
+  for (const candidate of candidates) {
+    const actualColumn = columnLookup.get(candidate.toLowerCase());
+
+    if (!actualColumn) {
+      continue;
+    }
+
+    return row[actualColumn];
+  }
+
+  return undefined;
+}
+
+function toNullableInteger(value, context, required = false) {
+  if (value === undefined || value === null || value === '') {
+    if (required) {
+      throw new SqliteParseError(
+        'INVALID_ROW',
+        `${context} is required and must be an integer`
+      );
+    }
+
+    return null;
+  }
+
+  const numeric = typeof value === 'number' ? value : Number(value);
+
+  if (!Number.isFinite(numeric) || !Number.isInteger(numeric)) {
+    throw new SqliteParseError('INVALID_ROW', `${context} must be an integer`);
+  }
+
+  return numeric;
+}
+
+function toNullableDateLike(value, context) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new SqliteParseError(
+        'INVALID_ROW',
+        `${context} must be a valid date`
+      );
+    }
+
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  throw new SqliteParseError(
+    'INVALID_ROW',
+    `${context} must be a number, string, or null`
+  );
+}
+
+function toNullableText(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return String(value);
+}
+
+function mapRows(rows, mapRow) {
+  const mapped = [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    mapped.push(mapRow(rows[index], index));
+  }
+
+  return mapped;
+}
+
+function getSchemaAndRows(parsed, tableName) {
+  const schemaEntry = parsed.schema[tableName];
+  const tableRows = parsed.rows[tableName];
+
+  if (!schemaEntry || !Array.isArray(tableRows)) {
+    throw new SqliteParseError(
+      'INVALID_INPUT',
+      `Parsed backup is missing validated table payload for ${tableName}`
+    );
+  }
+
+  return { schemaEntry, tableRows };
+}
+
+export function mapParsedBackupToSnapshot(parsed, options = {}) {
+  assertParsedBackupShape(parsed);
+
+  const sourceFileName =
+    options.sourceFileName === undefined
+      ? null
+      : toNullableText(options.sourceFileName);
+  const sourceHash =
+    options.sourceHash === undefined
+      ? null
+      : toNullableText(options.sourceHash);
+
+  const housesPayload = getSchemaAndRows(parsed, 'house');
+  const patternsPayload = getSchemaAndRows(parsed, 'pattern');
+  const ballsPayload = getSchemaAndRows(parsed, 'ball');
+  const leaguesPayload = getSchemaAndRows(parsed, 'league');
+  const weeksPayload = getSchemaAndRows(parsed, 'week');
+  const gamesPayload = getSchemaAndRows(parsed, 'game');
+  const framesPayload = getSchemaAndRows(parsed, 'frame');
+
+  const houseColumns = buildColumnLookup(housesPayload.schemaEntry);
+  const patternColumns = buildColumnLookup(patternsPayload.schemaEntry);
+  const ballColumns = buildColumnLookup(ballsPayload.schemaEntry);
+  const leagueColumns = buildColumnLookup(leaguesPayload.schemaEntry);
+  const weekColumns = buildColumnLookup(weeksPayload.schemaEntry);
+  const gameColumns = buildColumnLookup(gamesPayload.schemaEntry);
+  const frameColumns = buildColumnLookup(framesPayload.schemaEntry);
+
+  const houses = mapRows(housesPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[housesPayload.schemaEntry.requiredColumns.sqliteId],
+      `house row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    name: toNullableText(readField(row, houseColumns, ['name'])),
+    sortOrder: toNullableInteger(
+      readField(row, houseColumns, ['sortOrder', 'sort_order']),
+      `house row ${String(rowIndex + 1)} sortOrder`
+    ),
+    flags: toNullableInteger(
+      readField(row, houseColumns, ['flags']),
+      `house row ${String(rowIndex + 1)} flags`
+    ),
+    location: toNullableText(readField(row, houseColumns, ['location'])),
+  }));
+
+  const patterns = mapRows(patternsPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[patternsPayload.schemaEntry.requiredColumns.sqliteId],
+      `pattern row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    name: toNullableText(readField(row, patternColumns, ['name'])),
+    sortOrder: toNullableInteger(
+      readField(row, patternColumns, ['sortOrder', 'sort_order']),
+      `pattern row ${String(rowIndex + 1)} sortOrder`
+    ),
+    flags: toNullableInteger(
+      readField(row, patternColumns, ['flags']),
+      `pattern row ${String(rowIndex + 1)} flags`
+    ),
+    length: toNullableInteger(
+      readField(row, patternColumns, ['length']),
+      `pattern row ${String(rowIndex + 1)} length`
+    ),
+  }));
+
+  const balls = mapRows(ballsPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[ballsPayload.schemaEntry.requiredColumns.sqliteId],
+      `ball row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    name: toNullableText(readField(row, ballColumns, ['name'])),
+    sortOrder: toNullableInteger(
+      readField(row, ballColumns, ['sortOrder', 'sort_order']),
+      `ball row ${String(rowIndex + 1)} sortOrder`
+    ),
+    flags: toNullableInteger(
+      readField(row, ballColumns, ['flags']),
+      `ball row ${String(rowIndex + 1)} flags`
+    ),
+    brand: toNullableText(readField(row, ballColumns, ['brand'])),
+    coverstock: toNullableText(readField(row, ballColumns, ['coverstock'])),
+  }));
+
+  const leagues = mapRows(leaguesPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[leaguesPayload.schemaEntry.requiredColumns.sqliteId],
+      `league row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    ballFk: toNullableInteger(
+      readField(row, leagueColumns, ['ballFk', 'ball_fk', 'ball_id']),
+      `league row ${String(rowIndex + 1)} ballFk`
+    ),
+    patternFk: toNullableInteger(
+      readField(row, leagueColumns, ['patternFk', 'pattern_fk', 'pattern_id']),
+      `league row ${String(rowIndex + 1)} patternFk`
+    ),
+    houseFk: toNullableInteger(
+      readField(row, leagueColumns, ['houseFk', 'house_fk', 'house_id']),
+      `league row ${String(rowIndex + 1)} houseFk`
+    ),
+    name: toNullableText(readField(row, leagueColumns, ['name'])),
+    games: toNullableInteger(
+      readField(row, leagueColumns, ['games']),
+      `league row ${String(rowIndex + 1)} games`
+    ),
+    notes: toNullableText(readField(row, leagueColumns, ['notes'])),
+    sortOrder: toNullableInteger(
+      readField(row, leagueColumns, ['sortOrder', 'sort_order']),
+      `league row ${String(rowIndex + 1)} sortOrder`
+    ),
+    flags: toNullableInteger(
+      readField(row, leagueColumns, ['flags']),
+      `league row ${String(rowIndex + 1)} flags`
+    ),
+  }));
+
+  const weeks = mapRows(weeksPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[weeksPayload.schemaEntry.requiredColumns.sqliteId],
+      `week row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    leagueFk: toNullableInteger(
+      readField(row, weekColumns, ['leagueFk', 'league_fk', 'league_id']),
+      `week row ${String(rowIndex + 1)} leagueFk`
+    ),
+    ballFk: toNullableInteger(
+      readField(row, weekColumns, ['ballFk', 'ball_fk', 'ball_id']),
+      `week row ${String(rowIndex + 1)} ballFk`
+    ),
+    patternFk: toNullableInteger(
+      readField(row, weekColumns, ['patternFk', 'pattern_fk', 'pattern_id']),
+      `week row ${String(rowIndex + 1)} patternFk`
+    ),
+    houseFk: toNullableInteger(
+      readField(row, weekColumns, ['houseFk', 'house_fk', 'house_id']),
+      `week row ${String(rowIndex + 1)} houseFk`
+    ),
+    date: toNullableDateLike(
+      readField(row, weekColumns, ['date']),
+      `week row ${String(rowIndex + 1)} date`
+    ),
+    notes: toNullableText(readField(row, weekColumns, ['notes'])),
+    lane: toNullableInteger(
+      readField(row, weekColumns, ['lane']),
+      `week row ${String(rowIndex + 1)} lane`
+    ),
+  }));
+
+  const games = mapRows(gamesPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[gamesPayload.schemaEntry.requiredColumns.sqliteId],
+      `game row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    weekFk: toNullableInteger(
+      readField(row, gameColumns, ['weekFk', 'week_fk', 'week_id']),
+      `game row ${String(rowIndex + 1)} weekFk`
+    ),
+    leagueFk: toNullableInteger(
+      readField(row, gameColumns, ['leagueFk', 'league_fk', 'league_id']),
+      `game row ${String(rowIndex + 1)} leagueFk`
+    ),
+    ballFk: toNullableInteger(
+      readField(row, gameColumns, ['ballFk', 'ball_fk', 'ball_id']),
+      `game row ${String(rowIndex + 1)} ballFk`
+    ),
+    patternFk: toNullableInteger(
+      readField(row, gameColumns, ['patternFk', 'pattern_fk', 'pattern_id']),
+      `game row ${String(rowIndex + 1)} patternFk`
+    ),
+    houseFk: toNullableInteger(
+      readField(row, gameColumns, ['houseFk', 'house_fk', 'house_id']),
+      `game row ${String(rowIndex + 1)} houseFk`
+    ),
+    score: toNullableInteger(
+      readField(row, gameColumns, ['score']),
+      `game row ${String(rowIndex + 1)} score`
+    ),
+    frame: toNullableInteger(
+      readField(row, gameColumns, ['frame']),
+      `game row ${String(rowIndex + 1)} frame`
+    ),
+    flags: toNullableInteger(
+      readField(row, gameColumns, ['flags']),
+      `game row ${String(rowIndex + 1)} flags`
+    ),
+    singlePinSpareScore: toNullableInteger(
+      readField(row, gameColumns, [
+        'singlePinSpareScore',
+        'single_pin_spare_score',
+      ]),
+      `game row ${String(rowIndex + 1)} singlePinSpareScore`
+    ),
+    notes: toNullableText(readField(row, gameColumns, ['notes'])),
+    lane: toNullableInteger(
+      readField(row, gameColumns, ['lane']),
+      `game row ${String(rowIndex + 1)} lane`
+    ),
+    date: toNullableDateLike(
+      readField(row, gameColumns, ['date']),
+      `game row ${String(rowIndex + 1)} date`
+    ),
+  }));
+
+  const frames = mapRows(framesPayload.tableRows, (row, rowIndex) => ({
+    sqliteId: toNullableInteger(
+      row[framesPayload.schemaEntry.requiredColumns.sqliteId],
+      `frame row ${String(rowIndex + 1)} sqliteId`,
+      true
+    ),
+    gameFk: toNullableInteger(
+      readField(row, frameColumns, ['gameFk', 'game_fk', 'game_id']),
+      `frame row ${String(rowIndex + 1)} gameFk`
+    ),
+    weekFk: toNullableInteger(
+      readField(row, frameColumns, ['weekFk', 'week_fk', 'week_id']),
+      `frame row ${String(rowIndex + 1)} weekFk`
+    ),
+    leagueFk: toNullableInteger(
+      readField(row, frameColumns, ['leagueFk', 'league_fk', 'league_id']),
+      `frame row ${String(rowIndex + 1)} leagueFk`
+    ),
+    ballFk: toNullableInteger(
+      readField(row, frameColumns, ['ballFk', 'ball_fk', 'ball_id']),
+      `frame row ${String(rowIndex + 1)} ballFk`
+    ),
+    frameNum: toNullableInteger(
+      readField(row, frameColumns, ['frameNum', 'frame_num']),
+      `frame row ${String(rowIndex + 1)} frameNum`
+    ),
+    pins: toNullableInteger(
+      readField(row, frameColumns, ['pins']),
+      `frame row ${String(rowIndex + 1)} pins`
+    ),
+    scores: toNullableInteger(
+      readField(row, frameColumns, ['scores']),
+      `frame row ${String(rowIndex + 1)} scores`
+    ),
+    score: toNullableInteger(
+      readField(row, frameColumns, ['score']),
+      `frame row ${String(rowIndex + 1)} score`
+    ),
+    flags: toNullableInteger(
+      readField(row, frameColumns, ['flags']),
+      `frame row ${String(rowIndex + 1)} flags`
+    ),
+    pocket: toNullableInteger(
+      readField(row, frameColumns, ['pocket']),
+      `frame row ${String(rowIndex + 1)} pocket`
+    ),
+    footBoard: toNullableInteger(
+      readField(row, frameColumns, ['footBoard', 'foot_board']),
+      `frame row ${String(rowIndex + 1)} footBoard`
+    ),
+    targetBoard: toNullableInteger(
+      readField(row, frameColumns, ['targetBoard', 'target_board']),
+      `frame row ${String(rowIndex + 1)} targetBoard`
+    ),
+  }));
+
+  return {
+    sourceFileName,
+    sourceHash,
+    houses,
+    patterns,
+    balls,
+    leagues,
+    weeks,
+    games,
+    frames,
+  };
+}
+
+export async function parseBackupDatabaseToSnapshot(
+  sourceArrayBuffer,
+  options = {}
+) {
+  const parsed = await parseBackupDatabase(sourceArrayBuffer);
+  const snapshot = mapParsedBackupToSnapshot(parsed, options);
+
+  return {
+    parserVersion: parsed.parserVersion,
+    snapshot,
+  };
+}
+
 export async function parseBackupDatabase(sourceArrayBuffer) {
   assertNonEmptyArrayBuffer(sourceArrayBuffer);
 
