@@ -20,5 +20,7 @@ queue = "sqlite-import-jobs"
 queue = "sqlite-import-jobs"
 dead_letter_queue = "sqlite-import-jobs-dlq"
 
-[wasm_modules]
-SQL_JS_WASM = "./node_modules/sql.js/dist/sql-wasm.wasm"
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = true

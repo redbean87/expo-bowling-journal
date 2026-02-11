@@ -2,6 +2,7 @@ import {
   SqliteParseError,
   parseBackupDatabaseToSnapshot,
 } from './sqlite_parser.js';
+import sqlWasmModule from 'sql.js/dist/sql-wasm.wasm';
 
 function getAllowedOrigins(env) {
   const raw = env.CORS_ALLOWED_ORIGINS?.trim();
@@ -277,7 +278,7 @@ async function processQueueMessage(env, body) {
     parsedSnapshot = await parseBackupDatabaseToSnapshot(bytes, {
       sourceFileName,
       sourceHash: null,
-      wasmModule: env.SQL_JS_WASM,
+      wasmModule: sqlWasmModule,
     });
   } catch (caught) {
     const errorMessage =
