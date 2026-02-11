@@ -4,20 +4,15 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [x] Add import regression tests for callback/import pipeline (`snapshotJson`, large payload, failure paths)
-- [x] Update import architecture docs and local/cloud test runbook
-- [x] Triage top import warning categories and reduce avoidable warning noise
+- [ ] Optional v2: decide frame/raw retention policy now that canonical frame persistence is live
 
 ## Next
 
-- [x] Add computed game stats pipeline (score, strikes, spares, opens)
-- [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
-- [ ] Optional v2: decide frame/raw retention policy if canonical frame persistence is added
+- [ ] Analytics views (trend lines, consistency, spare conversion)
+- [ ] Data export and backup tooling
 
 ## Later
 
-- [ ] Analytics views (trend lines, consistency, spare conversion)
-- [ ] Data export and backup tooling
 - [ ] Team/coach sharing model
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 
@@ -43,7 +38,13 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Switch callback transport to `snapshotJson` to handle large frame payloads
 - [x] Remove `importRawFrames` persistence to avoid Convex per-execution write limits
 - [x] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
+- [x] Add import regression tests for callback/import pipeline (`snapshotJson`, large payload, failure paths)
+- [x] Update import architecture docs and local/cloud test runbook
+- [x] Triage top import warning categories and reduce avoidable warning noise
+- [x] Document default session workflow and roadmap reporting expectations in agent/contributor docs
 - [x] Add computed game stats pipeline (score, strikes, spares, opens)
+- [x] Keep callback import runtime on `snapshotJson` transport while persisting canonical frames in chunked writes
+- [x] Fix Convex module path compatibility for import helper modules
 - [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 
 ## Decision Log
