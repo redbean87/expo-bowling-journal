@@ -277,6 +277,7 @@ async function processQueueMessage(env, body) {
     parsedSnapshot = await parseBackupDatabaseToSnapshot(bytes, {
       sourceFileName,
       sourceHash: null,
+      wasmModule: env.SQL_JS_WASM,
     });
   } catch (caught) {
     const errorMessage =

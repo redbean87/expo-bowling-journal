@@ -66,7 +66,7 @@ function assertNonEmptyArrayBuffer(source) {
   }
 }
 
-async function getSqlJs() {
+async function getSqlJs(wasmModule) {
   if (!sqlJsPromise) {
     sqlJsPromise = (async () => {
       const globalScope = globalThis;
@@ -92,6 +92,19 @@ async function getSqlJs() {
         const initSqlJs = module.default;
 
         return initSqlJs({
+          instantiateWasm: wasmModule
+            ? (imports, successCallback) => {
+                WebAssembly.instantiate(wasmModule, imports)
+                  .then((instance) => {
+                    successCallback(instance, wasmModule);
+                  })
+                  .catch((caught) => {
+                    throw caught;
+                  });
+
+                return {};
+              }
+            : undefined,
           locateFile: (fileName) => `${SQL_JS_DIST_BASE_URL}/${fileName}`,
         });
       } finally {
@@ -628,7 +641,9 @@ export async function parseBackupDatabaseToSnapshot(
   sourceArrayBuffer,
   options = {}
 ) {
-  const parsed = await parseBackupDatabase(sourceArrayBuffer);
+  const parsed = await parseBackupDatabase(sourceArrayBuffer, {
+    wasmModule: options.wasmModule,
+  });
   const snapshot = mapParsedBackupToSnapshot(parsed, options);
 
   return {
@@ -637,10 +652,10 @@ export async function parseBackupDatabaseToSnapshot(
   };
 }
 
-export async function parseBackupDatabase(sourceArrayBuffer) {
+export async function parseBackupDatabase(sourceArrayBuffer, options = {}) {
   assertNonEmptyArrayBuffer(sourceArrayBuffer);
 
-  const SQL = await getSqlJs();
+  const SQL = await getSqlJs(options.wasmModule);
   const bytes = new Uint8Array(sourceArrayBuffer);
   let database = null;
 

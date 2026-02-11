@@ -19,3 +19,6 @@ queue = "sqlite-import-jobs"
 [[queues.consumers]]
 queue = "sqlite-import-jobs"
 dead_letter_queue = "sqlite-import-jobs-dlq"
+
+[wasm_modules]
+SQL_JS_WASM = "./node_modules/sql.js/dist/sql-wasm.wasm"
