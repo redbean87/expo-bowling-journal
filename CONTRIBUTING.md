@@ -35,6 +35,21 @@ Thanks for contributing to the Bowling Journal app.
 - Avoid `any` unless unavoidable
 - Use kebab-case for file names
 
+## Default session workflow
+
+Unless a task explicitly says otherwise:
+
+1. Read `AGENTS.md`, `CONTRIBUTING.md`, and `ROADMAP.md`
+2. Continue with the top unchecked item in `## Next` from `ROADMAP.md`
+3. Follow import pipeline guardrails when import code is touched
+
+For roadmap execution updates, report in this order:
+
+1. Brief plan
+2. Implementation progress
+3. Exact validation commands with pass/fail results
+4. Proposed commit message(s)
+
 ## Import pipeline rules
 
 - Use callback payload `snapshotJson` for large import payloads

@@ -102,6 +102,21 @@ scripts/
 - Don't use `any` as a shortcut
 - Don't add comments that restate obvious code
 
+## Default Session Workflow
+
+Unless the user explicitly asks for a different workflow, start each coding session by:
+
+1. Reading `AGENTS.md`, `CONTRIBUTING.md`, and `ROADMAP.md`
+2. Continuing with the top unchecked item in `## Next` from `ROADMAP.md`
+3. Following existing import pipeline guardrails when import code is touched
+
+When reporting progress for roadmap execution, use this response structure:
+
+1. Brief plan
+2. Implementation progress
+3. Exact validation commands with pass/fail results
+4. Proposed commit message(s)
+
 ## Feature Completion Checklist
 
 Before marking a feature complete:
