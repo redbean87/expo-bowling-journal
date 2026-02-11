@@ -57,6 +57,7 @@ For roadmap execution updates, report in this order:
 - Snapshot payload is only valid for callback stage `importing`
 - Preserve status transitions: `queued -> parsing -> importing -> completed|failed`
 - Do not reintroduce `importRawFrames` persistence in v1 path
+- Canonical `frames` persistence in callback import path must use chunked writes to avoid Convex write-cap regressions
 - Add/update regression tests when changing import callback behavior
 
 ## Before opening a PR

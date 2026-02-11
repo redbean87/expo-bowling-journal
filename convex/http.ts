@@ -12,6 +12,12 @@ import {
   isStage,
   validateSnapshotPayloadStage,
 } from './lib/import_callback_validation';
+import {
+  buildCanonicalFrameInserts,
+  chunkCanonicalFrameInserts,
+  DEFAULT_CANONICAL_FRAME_CHUNK_SIZE,
+} from './lib/import_canonical_frames';
+import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Id } from './_generated/dataModel';
 
@@ -87,6 +93,8 @@ const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
       recordId: string;
       message: string;
     }>;
+    gameIdMappings: Array<{ sqliteGameId: number; gameId: Id<'games'> }>;
+    ballIdMappings: Array<{ sqliteBallId: number; ballId: Id<'balls'> }>;
   }
 >('imports:submitParsedSnapshotForCallback');
 
@@ -127,8 +135,69 @@ const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
       recordId: string;
       message: string;
     }>;
+    gameIdMappings: Array<{ sqliteGameId: number; gameId: Id<'games'> }>;
+    ballIdMappings: Array<{ sqliteBallId: number; ballId: Id<'balls'> }>;
   }
 >('imports:submitParsedSnapshotJsonForCallback');
+
+const persistCanonicalFrameChunkForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    frames: Array<{
+      gameId: Id<'games'>;
+      frameNumber: number;
+      roll1: number;
+      roll2: number | null;
+      roll3: number | null;
+      ballId: Id<'balls'> | null;
+      pins: number | null;
+      scores: number | null;
+      score: number | null;
+      flags: number | null;
+      pocket: number | null;
+      footBoard: number | null;
+      targetBoard: number | null;
+    }>;
+  },
+  { inserted: number }
+>('imports:persistCanonicalFrameChunkForCallback');
+
+const completeSnapshotImportForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    counts: {
+      houses: number;
+      leagues: number;
+      weeks: number;
+      sessions: number;
+      balls: number;
+      games: number;
+      frames: number;
+      patterns: number;
+    };
+    refinement: {
+      sessionsProcessed: number;
+      sessionsPatched: number;
+      sessionsSkipped: number;
+      gamesProcessed: number;
+      gamesPatched: number;
+      gamesSkipped: number;
+      warnings: Array<{
+        recordType: 'session' | 'game';
+        recordId: string;
+        message: string;
+      }>;
+    };
+    warnings: Array<{
+      recordType: 'session' | 'game';
+      recordId: string;
+      message: string;
+    }>;
+  },
+  Id<'importBatches'>
+>('imports:completeSnapshotImportForCallback');
 
 type CallbackPayload = {
   batchId: string;
@@ -137,6 +206,28 @@ type CallbackPayload = {
   parserVersion?: string | null;
   snapshot?: unknown;
   snapshotJson?: string;
+};
+
+type CallbackSnapshot = {
+  houses: unknown[];
+  patterns: unknown[];
+  balls: unknown[];
+  leagues: unknown[];
+  weeks: unknown[];
+  games: unknown[];
+  frames: Array<{
+    sqliteId: number;
+    gameFk?: number | null;
+    ballFk?: number | null;
+    frameNum?: number | null;
+    pins?: number | null;
+    scores?: number | null;
+    score?: number | null;
+    flags?: number | null;
+    pocket?: number | null;
+    footBoard?: number | null;
+    targetBoard?: number | null;
+  }>;
 };
 
 function jsonResponse(status: number, body: unknown) {
@@ -269,7 +360,13 @@ http.route({
 
     if (snapshotValidation.hasSnapshot || snapshotValidation.hasSnapshotJson) {
       try {
-        const result = snapshotValidation.hasSnapshotJson
+        const parsedSnapshotJson = snapshotValidation.hasSnapshotJson
+          ? parseSnapshotJsonPayload<CallbackSnapshot>(
+              payload.snapshotJson as string
+            )
+          : null;
+
+        const importResult = snapshotValidation.hasSnapshotJson
           ? await ctx.runMutation(submitParsedSnapshotJsonForCallbackMutation, {
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,
@@ -280,6 +377,40 @@ http.route({
               parserVersion: payload.parserVersion ?? null,
               snapshot: payload.snapshot,
             });
+
+        const snapshot =
+          parsedSnapshotJson ?? (payload.snapshot as CallbackSnapshot);
+
+        const frameInserts = buildCanonicalFrameInserts({
+          frames: snapshot.frames,
+          gameIdMappings: importResult.gameIdMappings,
+          ballIdMappings: importResult.ballIdMappings,
+        });
+        const frameChunks = chunkCanonicalFrameInserts(
+          frameInserts,
+          DEFAULT_CANONICAL_FRAME_CHUNK_SIZE
+        );
+
+        for (const chunk of frameChunks) {
+          await ctx.runMutation(persistCanonicalFrameChunkForCallbackMutation, {
+            batchId: batch._id,
+            frames: chunk,
+          });
+        }
+
+        await ctx.runMutation(completeSnapshotImportForCallbackMutation, {
+          batchId: batch._id,
+          counts: importResult.counts,
+          refinement: importResult.refinement,
+          warnings: importResult.warnings,
+        });
+
+        const result = {
+          batchId: importResult.batchId,
+          counts: importResult.counts,
+          refinement: importResult.refinement,
+          warnings: importResult.warnings,
+        };
 
         return jsonResponse(200, {
           ok: true,

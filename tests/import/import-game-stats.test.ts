@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { computeImportedGameStats } from '../../convex/lib/import-game-stats';
+import { computeImportedGameStats } from '../../convex/lib/import_game_stats';
 
 function standingMask(standingPins: number) {
   if (standingPins <= 0) {

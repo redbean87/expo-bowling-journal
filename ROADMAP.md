@@ -11,7 +11,7 @@ This roadmap keeps work scoped to small, precise commits.
 ## Next
 
 - [x] Add computed game stats pipeline (score, strikes, spares, opens)
-- [ ] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
+- [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 - [ ] Optional v2: decide frame/raw retention policy if canonical frame persistence is added
 
 ## Later
@@ -44,6 +44,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Remove `importRawFrames` persistence to avoid Convex per-execution write limits
 - [x] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 - [x] Add computed game stats pipeline (score, strikes, spares, opens)
+- [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 
 ## Decision Log
 
@@ -51,7 +52,7 @@ This roadmap keeps work scoped to small, precise commits.
 - Use Convex for backend, auth, and real-time sync
 - Keep a service abstraction between hooks and backend implementation
 - Keep commits small and map each commit to one roadmap item
-- Import v1 does not persist canonical `frames` rows; frame payload is used for refinement and summary counts
+- Import v1 does not persist canonical `frames` rows; v2 callback flow persists canonical `frames` with chunked writes
 - No time-based retention policy is required for v1 import data
 
 ## Risks / Unknowns

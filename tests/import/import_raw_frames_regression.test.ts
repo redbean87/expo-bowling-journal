@@ -11,4 +11,7 @@ test('v1 import path does not persist importRawFrames rows', async () => {
   assert.equal(source.includes('ctx.db.insert("importRawFrames"'), false);
   assert.equal(source.includes(".query('importRawFrames')"), false);
   assert.equal(source.includes('.query("importRawFrames")'), false);
+
+  assert.equal(source.includes('persistCanonicalFrameChunkForCallback'), true);
+  assert.equal(source.includes("ctx.db.insert('frames'"), true);
 });

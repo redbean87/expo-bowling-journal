@@ -116,6 +116,7 @@ When reporting progress for roadmap execution, use this response structure:
 2. Implementation progress
 3. Exact validation commands with pass/fail results
 4. Proposed commit message(s)
+5. Manual test step(s) for the user to run
 
 ## Feature Completion Checklist
 

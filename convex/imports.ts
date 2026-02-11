@@ -9,8 +9,8 @@ import {
   query,
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
-import { computeImportedGameStats } from './lib/import-game-stats';
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
+import { computeImportedGameStats } from './lib/import_game_stats';
 import {
   laneContextFromLane,
   normalizeBallSwitches,
@@ -56,6 +56,27 @@ type RefinementResult = {
   gamesPatched: number;
   gamesSkipped: number;
   warnings: RefinementWarning[];
+};
+
+type ImportResult = {
+  batchId: Id<'importBatches'>;
+  counts: {
+    houses: number;
+    leagues: number;
+    weeks: number;
+    sessions: number;
+    balls: number;
+    games: number;
+    frames: number;
+    patterns: number;
+  };
+  refinement: RefinementResult;
+  warnings: RefinementWarning[];
+};
+
+type SnapshotImportCoreResult = ImportResult & {
+  gameIdMappings: Array<{ sqliteGameId: number; gameId: Id<'games'> }>;
+  ballIdMappings: Array<{ sqliteBallId: number; ballId: Id<'balls'> }>;
 };
 
 type SqliteSnapshotInput = {
@@ -177,6 +198,22 @@ const sqliteFrameValidator = v.object({
   pocket: v.optional(v.union(v.number(), v.null())),
   footBoard: v.optional(v.union(v.number(), v.null())),
   targetBoard: v.optional(v.union(v.number(), v.null())),
+});
+
+const canonicalFrameInsertValidator = v.object({
+  gameId: v.id('games'),
+  frameNumber: v.number(),
+  roll1: v.number(),
+  roll2: v.union(v.number(), v.null()),
+  roll3: v.union(v.number(), v.null()),
+  ballId: v.union(v.id('balls'), v.null()),
+  pins: v.union(v.number(), v.null()),
+  scores: v.union(v.number(), v.null()),
+  score: v.union(v.number(), v.null()),
+  flags: v.union(v.number(), v.null()),
+  pocket: v.union(v.number(), v.null()),
+  footBoard: v.union(v.number(), v.null()),
+  targetBoard: v.union(v.number(), v.null()),
 });
 
 const sqliteSnapshotArgs = {
@@ -782,12 +819,50 @@ export const applyPostImportRefinement = mutation({
   },
 });
 
-async function runSqliteSnapshotImport(
+function toPublicImportResult(result: SnapshotImportCoreResult): ImportResult {
+  return {
+    batchId: result.batchId,
+    counts: result.counts,
+    refinement: result.refinement,
+    warnings: result.warnings,
+  };
+}
+
+async function completeImportBatch(
+  ctx: MutationCtx,
+  args: {
+    batchId: Id<'importBatches'>;
+    counts: ImportResult['counts'];
+    refinement: RefinementResult;
+    warnings: RefinementWarning[];
+  }
+) {
+  await ctx.db.patch(args.batchId, {
+    status: 'completed',
+    errorMessage: null,
+    completedAt: Date.now(),
+    counts: {
+      houses: args.counts.houses,
+      leagues: args.counts.leagues,
+      weeks: args.counts.weeks,
+      sessions: args.counts.sessions,
+      balls: args.counts.balls,
+      games: args.counts.games,
+      frames: args.counts.frames,
+      patterns: args.counts.patterns,
+      gamesRefined: args.refinement.gamesProcessed,
+      gamesPatched: args.refinement.gamesPatched,
+      warnings: args.warnings.length,
+    },
+  });
+}
+
+async function runSqliteSnapshotImportCore(
   ctx: MutationCtx,
   userId: Id<'users'>,
   args: SqliteSnapshotInput,
   existingBatchId?: Id<'importBatches'>
-) {
+): Promise<SnapshotImportCoreResult> {
   const importedAt = Date.now();
   const today = new Date(importedAt).toISOString().slice(0, 10);
   const importWarnings: RefinementWarning[] = [];
@@ -858,16 +933,16 @@ async function runSqliteSnapshotImport(
     .collect();
   await deleteDocsById(ctx, existingRawHouses);
 
-  let batchId = existingBatchId ?? null;
+  let batchId: Id<'importBatches'>;
 
-  if (batchId) {
-    const existingBatch = await ctx.db.get(batchId);
+  if (existingBatchId) {
+    const existingBatch = await ctx.db.get(existingBatchId);
 
     if (!existingBatch || existingBatch.userId !== userId) {
       throw new ConvexError('Import batch not found for user');
     }
 
-    await ctx.db.patch(batchId, {
+    await ctx.db.patch(existingBatchId, {
       sourceType: 'sqlite',
       sourceFileName:
         normalizeOptionalText(args.sourceFileName, 255) ??
@@ -882,6 +957,7 @@ async function runSqliteSnapshotImport(
       completedAt: null,
       counts: { ...EMPTY_IMPORT_COUNTS },
     });
+    batchId = existingBatchId;
   } else {
     batchId = await ctx.db.insert('importBatches', {
       userId,
@@ -1344,25 +1420,6 @@ async function runSqliteSnapshotImport(
     ...refinementResult.warnings,
   ]);
 
-  await ctx.db.patch(batchId, {
-    status: 'completed',
-    errorMessage: null,
-    completedAt: Date.now(),
-    counts: {
-      houses: args.houses.length,
-      leagues: args.leagues.length,
-      weeks: args.weeks.length,
-      sessions: sessionIdMap.size,
-      balls: args.balls.length,
-      games: gameIdMap.size,
-      frames: args.frames.length,
-      patterns: args.patterns.length,
-      gamesRefined: refinementResult.gamesProcessed,
-      gamesPatched: refinementResult.gamesPatched,
-      warnings: warnings.length,
-    },
-  });
-
   return {
     batchId,
     counts: {
@@ -1377,7 +1434,38 @@ async function runSqliteSnapshotImport(
     },
     refinement: refinementResult,
     warnings,
+    gameIdMappings: [...gameIdMap.entries()].map(([sqliteGameId, gameId]) => ({
+      sqliteGameId,
+      gameId,
+    })),
+    ballIdMappings: [...ballIdMap.entries()].map(([sqliteBallId, ballId]) => ({
+      sqliteBallId,
+      ballId,
+    })),
   };
+}
+
+async function runSqliteSnapshotImport(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  args: SqliteSnapshotInput,
+  existingBatchId?: Id<'importBatches'>
+) {
+  const result = await runSqliteSnapshotImportCore(
+    ctx,
+    userId,
+    args,
+    existingBatchId
+  );
+
+  await completeImportBatch(ctx, {
+    batchId: result.batchId,
+    counts: result.counts,
+    refinement: result.refinement,
+    warnings: result.warnings,
+  });
+
+  return toPublicImportResult(result);
 }
 
 export const importSqliteSnapshot = mutation({
@@ -1401,7 +1489,12 @@ export const submitParsedSnapshotForCallback = internalMutation({
       throw new ConvexError('Import batch not found');
     }
 
-    return runSqliteSnapshotImport(ctx, batch.userId, args.snapshot, batch._id);
+    return runSqliteSnapshotImportCore(
+      ctx,
+      batch.userId,
+      args.snapshot,
+      batch._id
+    );
   },
 });
 
@@ -1421,6 +1514,101 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
       args.snapshotJson
     );
-    return runSqliteSnapshotImport(ctx, batch.userId, snapshot, batch._id);
+    return runSqliteSnapshotImportCore(ctx, batch.userId, snapshot, batch._id);
+  },
+});
+
+export const persistCanonicalFrameChunkForCallback = internalMutation({
+  args: {
+    batchId: v.id('importBatches'),
+    frames: v.array(canonicalFrameInsertValidator),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.db.get(args.batchId);
+
+    if (!batch) {
+      throw new ConvexError('Import batch not found');
+    }
+
+    if (batch.status !== 'importing') {
+      throw new ConvexError('Import batch must be importing to persist frames');
+    }
+
+    for (const frame of args.frames) {
+      await ctx.db.insert('frames', {
+        userId: batch.userId,
+        gameId: frame.gameId,
+        frameNumber: frame.frameNumber,
+        roll1: frame.roll1,
+        roll2: frame.roll2,
+        roll3: frame.roll3,
+        ballId: frame.ballId,
+        pins: frame.pins,
+        scores: frame.scores,
+        score: frame.score,
+        flags: frame.flags,
+        pocket: frame.pocket,
+        footBoard: frame.footBoard,
+        targetBoard: frame.targetBoard,
+      });
+    }
+
+    return {
+      inserted: args.frames.length,
+    };
+  },
+});
+
+export const completeSnapshotImportForCallback = internalMutation({
+  args: {
+    batchId: v.id('importBatches'),
+    counts: v.object({
+      houses: v.number(),
+      leagues: v.number(),
+      weeks: v.number(),
+      sessions: v.number(),
+      balls: v.number(),
+      games: v.number(),
+      frames: v.number(),
+      patterns: v.number(),
+    }),
+    refinement: v.object({
+      sessionsProcessed: v.number(),
+      sessionsPatched: v.number(),
+      sessionsSkipped: v.number(),
+      gamesProcessed: v.number(),
+      gamesPatched: v.number(),
+      gamesSkipped: v.number(),
+      warnings: v.array(
+        v.object({
+          recordType: v.union(v.literal('session'), v.literal('game')),
+          recordId: v.string(),
+          message: v.string(),
+        })
+      ),
+    }),
+    warnings: v.array(
+      v.object({
+        recordType: v.union(v.literal('session'), v.literal('game')),
+        recordId: v.string(),
+        message: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.db.get(args.batchId);
+
+    if (!batch) {
+      throw new ConvexError('Import batch not found');
+    }
+
+    await completeImportBatch(ctx, {
+      batchId: args.batchId,
+      counts: args.counts,
+      refinement: args.refinement,
+      warnings: args.warnings,
+    });
+
+    return args.batchId;
   },
 });
