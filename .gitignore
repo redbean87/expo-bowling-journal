@@ -19,3 +19,6 @@ yarn-error.log*
 expo-env.d.ts
 # @end expo-cli
 .env.local
+worker/.dev.vars
+worker/.wrangler/
+Backup.db
