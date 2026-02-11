@@ -46,6 +46,7 @@ const REQUIRED_TABLES = {
 };
 
 let sqlJsPromise;
+const SQL_JS_DIST_BASE_URL = 'https://sql.js.org/dist';
 
 export class SqliteParseError extends Error {
   constructor(code, message, details = null) {
@@ -67,22 +68,40 @@ function assertNonEmptyArrayBuffer(source) {
 
 async function getSqlJs() {
   if (!sqlJsPromise) {
-    sqlJsPromise = import('sql.js/dist/sql-asm.js')
-      .then((module) => {
+    sqlJsPromise = (async () => {
+      const globalScope = globalThis;
+      const hasOwnProcess = Object.prototype.hasOwnProperty.call(
+        globalScope,
+        'process'
+      );
+      const previousProcess = globalScope.process;
+
+      try {
+        globalScope.process = undefined;
+        const module = await import('sql.js/dist/sql-wasm.js');
         const initSqlJs = module.default;
-        return initSqlJs();
-      })
-      .catch((caught) => {
-        sqlJsPromise = undefined;
-        const message =
-          caught instanceof Error
-            ? caught.message
-            : 'Unknown SQL.js initialization error';
-        throw new SqliteParseError(
-          'PARSER_INIT_FAILED',
-          `Failed to initialize SQLite parser: ${message}`
-        );
-      });
+
+        return initSqlJs({
+          locateFile: (fileName) => `${SQL_JS_DIST_BASE_URL}/${fileName}`,
+        });
+      } finally {
+        if (hasOwnProcess) {
+          globalScope.process = previousProcess;
+        } else {
+          delete globalScope.process;
+        }
+      }
+    })().catch((caught) => {
+      sqlJsPromise = undefined;
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : 'Unknown SQL.js initialization error';
+      throw new SqliteParseError(
+        'PARSER_INIT_FAILED',
+        `Failed to initialize SQLite parser: ${message}`
+      );
+    });
   }
 
   return sqlJsPromise;
