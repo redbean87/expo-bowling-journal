@@ -74,10 +74,20 @@ async function getSqlJs() {
         globalScope,
         'process'
       );
+      const hasOwnLocation = Object.prototype.hasOwnProperty.call(
+        globalScope,
+        'location'
+      );
       const previousProcess = globalScope.process;
+      const previousLocation = globalScope.location;
 
       try {
         globalScope.process = undefined;
+        if (!globalScope.location || !globalScope.location.href) {
+          globalScope.location = {
+            href: `${SQL_JS_DIST_BASE_URL}/`,
+          };
+        }
         const module = await import('sql.js/dist/sql-wasm.js');
         const initSqlJs = module.default;
 
@@ -89,6 +99,12 @@ async function getSqlJs() {
           globalScope.process = previousProcess;
         } else {
           delete globalScope.process;
+        }
+
+        if (hasOwnLocation) {
+          globalScope.location = previousLocation;
+        } else {
+          delete globalScope.location;
         }
       }
     })().catch((caught) => {
