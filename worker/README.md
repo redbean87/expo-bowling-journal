@@ -42,6 +42,15 @@ Suggested local settings:
 - Convex env: `IMPORT_WORKER_URL=http://127.0.0.1:8787`
 - Convex env: `IMPORT_WORKER_QUEUE_PATH=/imports/process`
 
+From repo root you can switch modes with one command:
+
+- `npm run import:mode:local`
+- `npm run import:mode:cloud`
+
+If you hit local dev port conflicts or stale runtime issues, start worker with:
+
+- `npm run worker:dev:clean`
+
 ## Required bindings and vars
 
 - `R2_IMPORTS` (R2 bucket binding)

@@ -19,7 +19,7 @@
       "name": "Worker: dev",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run worker:dev",
+      "command": "npm run worker:dev:clean",
       "cwd": "${workspaceFolder}"
     }
   ],
