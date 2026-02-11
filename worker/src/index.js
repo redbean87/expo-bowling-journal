@@ -1,3 +1,8 @@
+import {
+  SqliteParseError,
+  parseBackupDatabaseToSnapshot,
+} from './sqlite_parser.js';
+
 function getAllowedOrigins(env) {
   const raw = env.CORS_ALLOWED_ORIGINS?.trim();
 
@@ -263,17 +268,84 @@ async function processQueueMessage(env, body) {
   }
 
   const bytes = await file.arrayBuffer();
-  console.log('queue placeholder processing', {
+  const sourceFileName =
+    typeof r2Key === 'string' ? (r2Key.split('/').pop() ?? null) : null;
+
+  let parsedSnapshot;
+
+  try {
+    parsedSnapshot = await parseBackupDatabaseToSnapshot(bytes, {
+      sourceFileName,
+      sourceHash: null,
+    });
+  } catch (caught) {
+    const errorMessage =
+      caught instanceof SqliteParseError
+        ? formatSqliteParseErrorForUser(caught)
+        : 'Unable to parse SQLite backup file';
+
+    console.log('queue parse failed', {
+      batchId,
+      r2Key,
+      error:
+        caught instanceof Error ? `${caught.name}: ${caught.message}` : caught,
+    });
+
+    await postConvexCallback(env, {
+      batchId,
+      stage: 'failed',
+      errorMessage,
+    });
+
+    return;
+  }
+
+  console.log('queue parsed snapshot', {
     batchId,
     r2Key,
     bytes: bytes.byteLength,
+    parserVersion: parsedSnapshot.parserVersion,
+    counts: {
+      houses: parsedSnapshot.snapshot.houses.length,
+      patterns: parsedSnapshot.snapshot.patterns.length,
+      balls: parsedSnapshot.snapshot.balls.length,
+      leagues: parsedSnapshot.snapshot.leagues.length,
+      weeks: parsedSnapshot.snapshot.weeks.length,
+      games: parsedSnapshot.snapshot.games.length,
+      frames: parsedSnapshot.snapshot.frames.length,
+    },
   });
 
   await postConvexCallback(env, {
     batchId,
-    stage: 'failed',
-    errorMessage: 'SQLite parser is not implemented in worker yet',
+    stage: 'importing',
+    parserVersion: parsedSnapshot.parserVersion,
+    snapshot: parsedSnapshot.snapshot,
   });
+}
+
+function formatSqliteParseErrorForUser(error) {
+  if (error.code === 'INVALID_SCHEMA') {
+    return `Backup format is not supported: ${error.message}`;
+  }
+
+  if (error.code === 'INVALID_SQLITE') {
+    return 'Uploaded file is not a readable SQLite backup';
+  }
+
+  if (error.code === 'INVALID_ROW') {
+    return `Backup contains invalid data: ${error.message}`;
+  }
+
+  if (error.code === 'INVALID_INPUT') {
+    return 'Uploaded backup file is empty or invalid';
+  }
+
+  if (error.code === 'PARSER_INIT_FAILED') {
+    return 'Import parser is temporarily unavailable';
+  }
+
+  return `SQLite parse failed: ${error.message}`;
 }
 
 export default {
