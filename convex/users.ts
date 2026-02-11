@@ -1,5 +1,5 @@
-import { queryGeneric } from 'convex/server';
 import { getAuthUserId } from '@convex-dev/auth/server';
+import { queryGeneric } from 'convex/server';
 
 export const viewer = queryGeneric({
   args: {},

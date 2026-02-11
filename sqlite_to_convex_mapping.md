@@ -15,7 +15,7 @@ This document defines how data from the **SQLite backup** is translated into the
 - SQLite primary keys are used **only** to build an in-memory ID map
 - Import order matters and must follow dependency order
 - Missing optional fields are set to `null`
-- Raw source rows are persisted losslessly in `importRaw*` tables
+- Raw source rows are persisted in `importRaw*` tables for houses/patterns/balls/leagues/weeks/games
 - Notes and lane context remain scope-specific (`week` -> session, `game` -> game)
 
 ---
@@ -27,7 +27,7 @@ This document defines how data from the **SQLite backup** is translated into the
 3. sessions (weeks)
 4. balls
 5. games
-6. frames
+6. frame-derived refinement inputs (not persisted as `importRawFrames` in v1)
 7. post-import refinement (sessions + games)
 
 ---
@@ -194,7 +194,8 @@ Computed during import from frames:
 
 ### Validation
 
-- Frame rows are always persisted to `importRawFrames`
+- Frame rows are validated and consumed during import/refinement
+- v1 does not persist `importRawFrames` rows (write-cap safety)
 - Normalized `frames` rows are currently optional until `pins/scores` -> roll decoding is finalized
 
 ---
@@ -293,8 +294,8 @@ Refinement runs immediately after base import using normalized IDs.
 
 ## Status
 
-✅ Mapping locked (v2, lossless + refinement)
+✅ Mapping aligned with import v1 runtime behavior (snapshotJson callback + post-import refinement)
 
-Next step:
+Known v1 scope:
 
-- Add SQLite file parser/upload flow that feeds `imports:importSqliteSnapshot`
+- Frame count is tracked and used for refinement, but raw frame persistence is deferred

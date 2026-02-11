@@ -7,10 +7,10 @@ import {
   View,
 } from 'react-native';
 
+import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { env } from '@/config/env';
 import { viewerQuery } from '@/convex/functions';
 import { useImportBackup } from '@/hooks/journal';
-import { env } from '@/config/env';
-import { PlaceholderScreen } from '@/components/placeholder-screen';
 import { colors } from '@/theme/tokens';
 
 function formatDate(value: number | null) {

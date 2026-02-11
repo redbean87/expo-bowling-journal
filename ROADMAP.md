@@ -4,9 +4,9 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Add import regression tests for callback/import pipeline (`snapshotJson`, large payload, failure paths)
-- [ ] Update import architecture docs and local/cloud test runbook
-- [ ] Triage top import warning categories and reduce avoidable warning noise
+- [x] Add import regression tests for callback/import pipeline (`snapshotJson`, large payload, failure paths)
+- [x] Update import architecture docs and local/cloud test runbook
+- [x] Triage top import warning categories and reduce avoidable warning noise
 
 ## Next
 

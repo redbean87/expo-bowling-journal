@@ -1,151 +1,66 @@
-# SQLite Import Rollout Plan (Step-by-Step)
+# SQLite Import Architecture + Runbook (v1)
 
-Goal: Upload SQLite backup to R2, parse it in Cloudflare Worker, and import/refine into Convex safely.
+Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding Convex arg and write-cap regressions.
 
-## Current status (already done)
+## v1 architecture
 
-- Convex has lossless import mutation: `imports:importSqliteSnapshot`
-- Convex has post-import refinement pass
-- Raw mirror tables are in schema (`importRaw*`)
-- Typecheck/lint passed
+1. App requests upload URL from worker `POST /imports/upload-url`.
+2. App uploads `.db` to R2 via signed `PUT /imports/upload` URL.
+3. App starts import in Convex (`imports:startImport`) with `r2Key`.
+4. Convex dispatches worker queue request (`/imports/queue` or `/imports/process`) with signed HMAC headers.
+5. Worker downloads SQLite from R2, parses snapshot, and sends callback to Convex `POST /api/import-callback`.
+6. Callback verifies HMAC/timestamp/nonce, advances status, and imports snapshot.
 
----
+## callback transport contract
 
-## Step 1 - Create Cloudflare resources
+- Callback payload supports `snapshot` (legacy object transport) and `snapshotJson` (string transport).
+- For v1 large imports, worker sends `snapshotJson` by default.
+- `snapshot` and `snapshotJson` are mutually exclusive.
+- Snapshot payload is only valid for stage `importing`.
+- Status transitions are constrained to: `queued -> parsing -> importing -> completed` (or `failed` from queued/parsing/importing).
 
-Create:
+## data persistence scope in v1
 
-- R2 bucket: `bowling-imports`
-- Queue: `sqlite-import-jobs`
-- Dead-letter queue: `sqlite-import-jobs-dlq`
-- Worker: `sqlite-import-worker`
+- v1 persists `importRawHouses`, `importRawPatterns`, `importRawBalls`, `importRawLeagues`, `importRawWeeks`, and `importRawGames`.
+- v1 does **not** persist `importRawFrames` rows.
+- Frame data is still consumed during import/refinement and counted in `importBatches.counts.frames`.
+- Canonical frame/raw-frame persistence remains a v2 follow-up to avoid write-cap regressions.
 
-Done when:
+## warning handling in v1
 
-- All resources exist in Cloudflare dashboard
+- Import warnings are emitted for non-fatal quality issues.
+- Repeated warning categories are summarized to reduce noise (for example, repeated "missing weekFk" style warnings).
 
----
+## local runbook
 
-## Step 2 - Configure Worker project (`wrangler.toml` + bindings)
+Use local inline processing when iterating quickly:
 
-Add:
+1. Set mode: `npm run import:mode:local`
+2. Start worker: `npm run worker:dev`
+3. Start app/Convex as usual.
 
-- Worker name/main/compat date
-- R2 binding (`R2_IMPORTS`)
-- Queue producer binding (`IMPORT_QUEUE`)
-- Queue consumer for `sqlite-import-jobs`
-- Env vars:
-  - `CONVEX_URL`
-  - `CONVEX_IMPORT_CALLBACK_PATH`
+Local mode sets Convex `IMPORT_WORKER_QUEUE_PATH=/imports/process` so parse+callback run inline in one worker request.
 
-Set secrets:
+## cloud runbook
 
-- `IMPORT_CALLBACK_HMAC_SECRET`
+Use queue processing when validating production-like behavior:
 
-Done when:
+1. Set mode: `npm run import:mode:cloud`
+2. Ensure worker has queue consumer and callback secrets configured.
+3. Use normal app import flow.
 
-- `wrangler dev` starts without binding/config errors
+Cloud mode uses Convex `IMPORT_WORKER_QUEUE_PATH=/imports/queue`.
 
----
+## regression test commands
 
-## Step 3 - Worker upload URL endpoint
+- Import regression tests only: `npm run test:import`
+- Full test suite: `npm test`
+- Typecheck: `npm run typecheck`
+- Worker type check: `npm --prefix worker run check`
 
-Implement:
+The import regression suite verifies:
 
-- `POST /imports/upload-url`
-- Input: `userId`, `fileName`, `fileSize`, optional `checksum`
-- Output: `r2Key`, `uploadUrl`, `expiresAt`
-
-Done when:
-
-- Client can get URL and upload `.db` to R2 successfully
-
----
-
-## Step 4 - Convex start/poll APIs
-
-Implement:
-
-- `imports:startImport({ r2Key, fileName, fileSize, checksum?, idempotencyKey })`
-- `imports:getImportStatus({ batchId })`
-
-Behavior:
-
-- Start creates batch with status `queued`
-- Start calls Worker `POST /imports/queue` with `{ batchId, userId, r2Key }`
-- Status returns progress/errors/summaries user-scoped
-
-Done when:
-
-- Batch row appears and polling works
-
----
-
-## Step 5 - Worker queue consumer (SQLite parser)
-
-Consumer flow:
-
-1. Receive `{ batchId, userId, r2Key }`
-2. Mark batch `parsing`
-3. Download SQLite from R2
-4. Parse `house`, `pattern`, `ball`, `league`, `week`, `game`, `frame`
-5. Build snapshot payload
-6. Send callback to Convex with HMAC
-
-Done when:
-
-- Worker can parse sample `Backup.db` and send payload
-
----
-
-## Step 6 - Convex callback with HMAC verification
-
-Implement:
-
-- `imports:submitParsedSnapshot({ batchId, parserVersion, snapshot })`
-- Verify:
-  - `x-import-ts`
-  - `x-import-nonce`
-  - `x-import-signature`
-- Enforce skew window and nonce replay guard
-
-Behavior:
-
-- Set status `importing`
-- Call `imports:importSqliteSnapshot`
-- Set status `completed` or `failed`
-- Persist summary + warnings
-
-Done when:
-
-- Full flow completes with valid signature; invalid signature is rejected
-
----
-
-## Step 7 - Expo import UI
-
-Implement:
-
-- File picker for `.db`
-- Call Worker upload-url
-- Upload file to R2
-- Call Convex `startImport`
-- Poll `getImportStatus`
-- Show summary/warnings/errors
-
-Done when:
-
-- User can complete import from app and see results
-
----
-
-## Step 8 - QA checklist
-
-- Happy path import works end-to-end
-- Malformed DB marks batch `failed` with friendly message
-- User cannot query another user's batch
-- Duplicate taps with same idempotency key do not create duplicate jobs
-- Refinement fields persist:
-  - session: notes + laneContext
-  - game: notes + laneContext + ballSwitches
-  - handicap remains nullable with warning until mapped
+- callback payload/transition rules (`snapshotJson`, mutual exclusion, stage restrictions)
+- snapshot JSON parsing failure behavior
+- large `Backup.db` frame scale path (`16416` frames) using `snapshotJson` transport
+- v1 guard that `importRawFrames` persistence is not reintroduced

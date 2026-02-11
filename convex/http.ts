@@ -7,6 +7,11 @@ import {
   sha256Hex,
   timingSafeEqualHex,
 } from './lib/import_callback_hmac';
+import {
+  isAllowedTransition,
+  isStage,
+  validateSnapshotPayloadStage,
+} from './lib/import_callback_validation';
 
 import type { Id } from './_generated/dataModel';
 
@@ -125,11 +130,9 @@ const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
   }
 >('imports:submitParsedSnapshotJsonForCallback');
 
-type CallbackStage = 'parsing' | 'importing' | 'completed' | 'failed';
-
 type CallbackPayload = {
   batchId: string;
-  stage: CallbackStage;
+  stage: 'parsing' | 'importing' | 'completed' | 'failed';
   errorMessage?: string | null;
   parserVersion?: string | null;
   snapshot?: unknown;
@@ -143,35 +146,6 @@ function jsonResponse(status: number, body: unknown) {
       'content-type': 'application/json; charset=utf-8',
     },
   });
-}
-
-function isStage(value: string): value is CallbackStage {
-  return (
-    value === 'parsing' ||
-    value === 'importing' ||
-    value === 'completed' ||
-    value === 'failed'
-  );
-}
-
-function isAllowedTransition(current: string, next: CallbackStage) {
-  if (current === next) {
-    return true;
-  }
-
-  if (current === 'queued') {
-    return next === 'parsing' || next === 'failed';
-  }
-
-  if (current === 'parsing') {
-    return next === 'importing' || next === 'failed';
-  }
-
-  if (current === 'importing') {
-    return next === 'completed' || next === 'failed';
-  }
-
-  return false;
 }
 
 auth.addHttpRoutes(http);
@@ -285,26 +259,17 @@ http.route({
       });
     }
 
-    const hasSnapshot =
-      payload.snapshot !== undefined && payload.snapshot !== null;
-    const hasSnapshotJson = typeof payload.snapshotJson === 'string';
+    const snapshotValidation = validateSnapshotPayloadStage(payload);
 
-    if (hasSnapshot && hasSnapshotJson) {
+    if (snapshotValidation.error) {
       return jsonResponse(400, {
-        error: 'snapshot and snapshotJson are mutually exclusive',
+        error: snapshotValidation.error,
       });
     }
 
-    if (hasSnapshot || hasSnapshotJson) {
-      if (payload.stage !== 'importing') {
-        return jsonResponse(400, {
-          error:
-            'snapshot payload (snapshot or snapshotJson) is only valid when stage is importing',
-        });
-      }
-
+    if (snapshotValidation.hasSnapshot || snapshotValidation.hasSnapshotJson) {
       try {
-        const result = hasSnapshotJson
+        const result = snapshotValidation.hasSnapshotJson
           ? await ctx.runMutation(submitParsedSnapshotJsonForCallbackMutation, {
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,

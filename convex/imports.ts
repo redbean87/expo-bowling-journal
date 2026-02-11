@@ -17,6 +17,8 @@ import {
   normalizeNullableInteger,
   normalizeOptionalText,
 } from './lib/import_refinement';
+import { parseSnapshotJsonPayload } from './lib/import_snapshot';
+import { summarizeImportWarnings } from './lib/import_warning_summary';
 
 import type { Doc, Id, TableNames } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
@@ -222,61 +224,6 @@ const dispatchImportQueueActionReference = makeFunctionReference<
 
 function hasOwn(object: object, property: string) {
   return Object.prototype.hasOwnProperty.call(object, property);
-}
-
-function parseSnapshotJsonPayload(snapshotJson: string): SqliteSnapshotInput {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(snapshotJson);
-  } catch {
-    throw new ConvexError('Snapshot payload is not valid JSON');
-  }
-
-  if (!parsed || typeof parsed !== 'object') {
-    throw new ConvexError('Snapshot payload must be an object');
-  }
-
-  const candidate = parsed as Record<string, unknown>;
-  const arrayFields = [
-    'houses',
-    'patterns',
-    'balls',
-    'leagues',
-    'weeks',
-    'games',
-    'frames',
-  ] as const;
-
-  for (const field of arrayFields) {
-    if (!Array.isArray(candidate[field])) {
-      throw new ConvexError(
-        `Snapshot payload field '${field}' must be an array`
-      );
-    }
-  }
-
-  return {
-    sourceFileName:
-      typeof candidate.sourceFileName === 'string' ||
-      candidate.sourceFileName === null ||
-      candidate.sourceFileName === undefined
-        ? (candidate.sourceFileName as string | null | undefined)
-        : null,
-    sourceHash:
-      typeof candidate.sourceHash === 'string' ||
-      candidate.sourceHash === null ||
-      candidate.sourceHash === undefined
-        ? (candidate.sourceHash as string | null | undefined)
-        : null,
-    houses: candidate.houses as SqliteSnapshotInput['houses'],
-    patterns: candidate.patterns as SqliteSnapshotInput['patterns'],
-    balls: candidate.balls as SqliteSnapshotInput['balls'],
-    leagues: candidate.leagues as SqliteSnapshotInput['leagues'],
-    weeks: candidate.weeks as SqliteSnapshotInput['weeks'],
-    games: candidate.games as SqliteSnapshotInput['games'],
-    frames: candidate.frames as SqliteSnapshotInput['frames'],
-  };
 }
 
 function normalizeName(value: string | null | undefined) {
@@ -1386,7 +1333,10 @@ async function runSqliteSnapshotImport(
     games: gameRefinements,
   });
 
-  const warnings = [...importWarnings, ...refinementResult.warnings];
+  const warnings = summarizeImportWarnings([
+    ...importWarnings,
+    ...refinementResult.warnings,
+  ]);
 
   await ctx.db.patch(batchId, {
     status: 'completed',
@@ -1462,7 +1412,9 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
       throw new ConvexError('Import batch not found');
     }
 
-    const snapshot = parseSnapshotJsonPayload(args.snapshotJson);
+    const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
+      args.snapshotJson
+    );
     return runSqliteSnapshotImport(ctx, batch.userId, snapshot, batch._id);
   },
 });

@@ -16,7 +16,10 @@ import type * as imports from "../imports.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_import_callback_hmac from "../lib/import_callback_hmac.js";
+import type * as lib_import_callback_validation from "../lib/import_callback_validation.js";
 import type * as lib_import_refinement from "../lib/import_refinement.js";
+import type * as lib_import_snapshot from "../lib/import_snapshot.js";
+import type * as lib_import_warning_summary from "../lib/import_warning_summary.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -35,7 +38,10 @@ declare const fullApi: ApiFromModules<{
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
   "lib/import_callback_hmac": typeof lib_import_callback_hmac;
+  "lib/import_callback_validation": typeof lib_import_callback_validation;
   "lib/import_refinement": typeof lib_import_refinement;
+  "lib/import_snapshot": typeof lib_import_snapshot;
+  "lib/import_warning_summary": typeof lib_import_warning_summary;
   sessions: typeof sessions;
   users: typeof users;
 }>;

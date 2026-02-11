@@ -1,8 +1,10 @@
+import sqlWasmModule from 'sql.js/dist/sql-wasm.wasm';
+
+import { buildImportingSnapshotJsonCallbackPayload } from './callback_payload.js';
 import {
   SqliteParseError,
   parseBackupDatabaseToSnapshot,
 } from './sqlite_parser.js';
-import sqlWasmModule from 'sql.js/dist/sql-wasm.wasm';
 
 function getAllowedOrigins(env) {
   const raw = env.CORS_ALLOWED_ORIGINS?.trim();
@@ -133,7 +135,6 @@ async function parseJsonBody(request) {
 
 async function verifySignedRequest({
   request,
-  env,
   secret,
   path,
   rawBody,
@@ -336,12 +337,10 @@ async function processQueueMessage(env, body) {
     },
   });
 
-  await postConvexCallback(env, {
-    batchId,
-    stage: 'importing',
-    parserVersion: parsedSnapshot.parserVersion,
-    snapshotJson: JSON.stringify(parsedSnapshot.snapshot),
-  });
+  await postConvexCallback(
+    env,
+    buildImportingSnapshotJsonCallbackPayload(batchId, parsedSnapshot)
+  );
 }
 
 function formatSqliteParseErrorForUser(error) {
