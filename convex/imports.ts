@@ -874,12 +874,6 @@ async function runSqliteSnapshotImport(
     .collect();
   await deleteDocsById(ctx, existingBalls);
 
-  const existingRawFrames = await ctx.db
-    .query('importRawFrames')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawFrames);
-
   const existingRawGames = await ctx.db
     .query('importRawGames')
     .withIndex('by_user', (q) => q.eq('userId', userId))
@@ -1273,14 +1267,6 @@ async function runSqliteSnapshotImport(
   const framesByGame = new Map<number, typeof args.frames>();
 
   for (const row of args.frames) {
-    await ctx.db.insert('importRawFrames', {
-      userId,
-      batchId,
-      sqliteId: row.sqliteId,
-      raw: row,
-      importedAt,
-    });
-
     if (!row.gameFk) {
       continue;
     }
