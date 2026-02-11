@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "logs": "wrangler tail"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260204.0",
