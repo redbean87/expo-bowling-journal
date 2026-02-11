@@ -1,6 +1,7 @@
 name = "sqlite-import-worker"
 main = "src/index.js"
 compatibility_date = "2026-02-10"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 CONVEX_URL = "https://different-lynx-597.convex.site"
