@@ -16,6 +16,7 @@ This document defines how data from the **SQLite backup** is translated into the
 - Import order matters and must follow dependency order
 - Missing optional fields are set to `null`
 - Raw source rows are persisted in `importRaw*` tables for houses/patterns/balls/leagues/weeks/games
+- No additional time-based retention policy is applied; replace-all import is the lifecycle boundary for user-owned normalized and raw import data
 - Notes and lane context remain scope-specific (`week` -> session, `game` -> game)
 
 ---
@@ -196,7 +197,7 @@ Computed during import from frames:
 
 - Frame rows are validated and consumed during import/refinement
 - v1 does not persist `importRawFrames` rows (write-cap safety)
-- Normalized `frames` rows are currently optional until `pins/scores` -> roll decoding is finalized
+- v2 callback flow persists normalized `frames` rows in chunked writes
 
 ---
 
@@ -298,4 +299,4 @@ Refinement runs immediately after base import using normalized IDs.
 
 Known v1 scope:
 
-- Frame count is tracked and used for refinement, but raw frame persistence is deferred
+- Canonical `frames` rows are persisted in callback v2; raw frame persistence remains deferred (`importRawFrames` is not persisted)

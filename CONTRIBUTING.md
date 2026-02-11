@@ -58,6 +58,7 @@ For roadmap execution updates, report in this order:
 - Preserve status transitions: `queued -> parsing -> importing -> completed|failed`
 - Do not reintroduce `importRawFrames` persistence in v1 path
 - Canonical `frames` persistence in callback import path must use chunked writes to avoid Convex write-cap regressions
+- No additional time-based retention policy is applied right now; replace-all import remains the lifecycle boundary for user-owned normalized and raw import data
 - Add/update regression tests when changing import callback behavior
 
 ## Before opening a PR

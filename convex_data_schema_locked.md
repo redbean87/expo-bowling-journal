@@ -266,8 +266,9 @@ Lossless source mirrors for SQLite tables.
 
 **Notes**
 
-- Raw mirrors are retained after successful import by default
-- They are the source of truth for no-loss reprocessing and mapping fixes
+- Raw mirrors are retained for the active imported dataset
+- Replace-all import clears prior user-owned normalized and raw import data before each new import
+- No additional time-based retention policy is applied right now
 
 ---
 
@@ -313,4 +314,4 @@ Next steps:
 
 1. SQLite file parsing/upload UI
 2. Computed stats derivation from imported frame shape (`pins`/`scores`)
-3. Optional raw import retention/cleanup controls
+3. Analytics and export features that build on canonical `frames`

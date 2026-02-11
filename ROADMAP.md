@@ -4,7 +4,7 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Optional v2: decide frame/raw retention policy now that canonical frame persistence is live
+- No open `Now` items.
 
 ## Next
 
@@ -46,6 +46,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Keep callback import runtime on `snapshotJson` transport while persisting canonical frames in chunked writes
 - [x] Fix Convex module path compatibility for import helper modules
 - [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
+- [x] Optional v2: decide frame/raw retention policy after canonical frame persistence rollout
 
 ## Decision Log
 
@@ -54,7 +55,7 @@ This roadmap keeps work scoped to small, precise commits.
 - Keep a service abstraction between hooks and backend implementation
 - Keep commits small and map each commit to one roadmap item
 - Import v1 does not persist canonical `frames` rows; v2 callback flow persists canonical `frames` with chunked writes
-- No time-based retention policy is required for v1 import data
+- No additional time-based retention policy for import data right now; replace-all import is the lifecycle boundary for user-owned normalized and raw import tables
 
 ## Risks / Unknowns
 

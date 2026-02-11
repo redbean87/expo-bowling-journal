@@ -26,6 +26,13 @@ Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding
 - v2 callback path now persists canonical `frames` rows using chunked internal mutations to avoid Convex per-execution write-cap regressions.
 - Frame payloads remain callback-stage `importing` only and still count through `importBatches.counts.frames`.
 
+## retention policy decision
+
+- No additional time-based retention policy is applied for import data right now.
+- Replace-all import behavior remains the lifecycle boundary for user-owned normalized and raw import data.
+- Canonical `frames` remain persisted as part of the active imported dataset.
+- `importRawFrames` remains intentionally unpersisted.
+
 ## warning handling in v1
 
 - Import warnings are emitted for non-fatal quality issues.
