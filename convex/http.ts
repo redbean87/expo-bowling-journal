@@ -85,6 +85,46 @@ const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
   }
 >('imports:submitParsedSnapshotForCallback');
 
+const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    parserVersion?: string | null;
+    snapshotJson: string;
+  },
+  {
+    batchId: Id<'importBatches'>;
+    counts: {
+      houses: number;
+      leagues: number;
+      weeks: number;
+      sessions: number;
+      balls: number;
+      games: number;
+      frames: number;
+      patterns: number;
+    };
+    refinement: {
+      sessionsProcessed: number;
+      sessionsPatched: number;
+      sessionsSkipped: number;
+      gamesProcessed: number;
+      gamesPatched: number;
+      gamesSkipped: number;
+      warnings: Array<{
+        recordType: 'session' | 'game';
+        recordId: string;
+        message: string;
+      }>;
+    };
+    warnings: Array<{
+      recordType: 'session' | 'game';
+      recordId: string;
+      message: string;
+    }>;
+  }
+>('imports:submitParsedSnapshotJsonForCallback');
+
 type CallbackStage = 'parsing' | 'importing' | 'completed' | 'failed';
 
 type CallbackPayload = {
@@ -93,6 +133,7 @@ type CallbackPayload = {
   errorMessage?: string | null;
   parserVersion?: string | null;
   snapshot?: unknown;
+  snapshotJson?: string;
 };
 
 function jsonResponse(status: number, body: unknown) {
@@ -244,22 +285,36 @@ http.route({
       });
     }
 
-    if (payload.snapshot !== undefined && payload.snapshot !== null) {
+    const hasSnapshot =
+      payload.snapshot !== undefined && payload.snapshot !== null;
+    const hasSnapshotJson = typeof payload.snapshotJson === 'string';
+
+    if (hasSnapshot && hasSnapshotJson) {
+      return jsonResponse(400, {
+        error: 'snapshot and snapshotJson are mutually exclusive',
+      });
+    }
+
+    if (hasSnapshot || hasSnapshotJson) {
       if (payload.stage !== 'importing') {
         return jsonResponse(400, {
-          error: 'snapshot payload is only valid when stage is importing',
+          error:
+            'snapshot payload (snapshot or snapshotJson) is only valid when stage is importing',
         });
       }
 
       try {
-        const result = await ctx.runMutation(
-          submitParsedSnapshotForCallbackMutation,
-          {
-            batchId: batch._id,
-            parserVersion: payload.parserVersion ?? null,
-            snapshot: payload.snapshot,
-          }
-        );
+        const result = hasSnapshotJson
+          ? await ctx.runMutation(submitParsedSnapshotJsonForCallbackMutation, {
+              batchId: batch._id,
+              parserVersion: payload.parserVersion ?? null,
+              snapshotJson: payload.snapshotJson as string,
+            })
+          : await ctx.runMutation(submitParsedSnapshotForCallbackMutation, {
+              batchId: batch._id,
+              parserVersion: payload.parserVersion ?? null,
+              snapshot: payload.snapshot,
+            });
 
         return jsonResponse(200, {
           ok: true,

@@ -224,6 +224,61 @@ function hasOwn(object: object, property: string) {
   return Object.prototype.hasOwnProperty.call(object, property);
 }
 
+function parseSnapshotJsonPayload(snapshotJson: string): SqliteSnapshotInput {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(snapshotJson);
+  } catch {
+    throw new ConvexError('Snapshot payload is not valid JSON');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new ConvexError('Snapshot payload must be an object');
+  }
+
+  const candidate = parsed as Record<string, unknown>;
+  const arrayFields = [
+    'houses',
+    'patterns',
+    'balls',
+    'leagues',
+    'weeks',
+    'games',
+    'frames',
+  ] as const;
+
+  for (const field of arrayFields) {
+    if (!Array.isArray(candidate[field])) {
+      throw new ConvexError(
+        `Snapshot payload field '${field}' must be an array`
+      );
+    }
+  }
+
+  return {
+    sourceFileName:
+      typeof candidate.sourceFileName === 'string' ||
+      candidate.sourceFileName === null ||
+      candidate.sourceFileName === undefined
+        ? (candidate.sourceFileName as string | null | undefined)
+        : null,
+    sourceHash:
+      typeof candidate.sourceHash === 'string' ||
+      candidate.sourceHash === null ||
+      candidate.sourceHash === undefined
+        ? (candidate.sourceHash as string | null | undefined)
+        : null,
+    houses: candidate.houses as SqliteSnapshotInput['houses'],
+    patterns: candidate.patterns as SqliteSnapshotInput['patterns'],
+    balls: candidate.balls as SqliteSnapshotInput['balls'],
+    leagues: candidate.leagues as SqliteSnapshotInput['leagues'],
+    weeks: candidate.weeks as SqliteSnapshotInput['weeks'],
+    games: candidate.games as SqliteSnapshotInput['games'],
+    frames: candidate.frames as SqliteSnapshotInput['frames'],
+  };
+}
+
 function normalizeName(value: string | null | undefined) {
   const normalized = normalizeOptionalText(value, 120);
   return normalized;
@@ -1405,5 +1460,23 @@ export const submitParsedSnapshotForCallback = internalMutation({
     }
 
     return runSqliteSnapshotImport(ctx, batch.userId, args.snapshot, batch._id);
+  },
+});
+
+export const submitParsedSnapshotJsonForCallback = internalMutation({
+  args: {
+    batchId: v.id('importBatches'),
+    parserVersion: v.optional(v.union(v.string(), v.null())),
+    snapshotJson: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.db.get(args.batchId);
+
+    if (!batch) {
+      throw new ConvexError('Import batch not found');
+    }
+
+    const snapshot = parseSnapshotJsonPayload(args.snapshotJson);
+    return runSqliteSnapshotImport(ctx, batch.userId, snapshot, batch._id);
   },
 });

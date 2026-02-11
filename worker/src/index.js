@@ -252,10 +252,28 @@ async function postConvexCallback(env, payload) {
 async function processQueueMessage(env, body) {
   const { batchId, r2Key } = body;
 
-  await postConvexCallback(env, {
-    batchId,
-    stage: 'parsing',
-  });
+  try {
+    await postConvexCallback(env, {
+      batchId,
+      stage: 'parsing',
+    });
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : String(caught);
+
+    if (
+      message.includes('Invalid status transition from failed to parsing') ||
+      message.includes('Invalid status transition from completed to parsing')
+    ) {
+      console.log('queue skip parsing callback retry', {
+        batchId,
+        r2Key,
+        error: message,
+      });
+      return;
+    }
+
+    throw caught;
+  }
 
   const file = await env.R2_IMPORTS.get(r2Key);
 
@@ -322,7 +340,7 @@ async function processQueueMessage(env, body) {
     batchId,
     stage: 'importing',
     parserVersion: parsedSnapshot.parserVersion,
-    snapshot: parsedSnapshot.snapshot,
+    snapshotJson: JSON.stringify(parsedSnapshot.snapshot),
   });
 }
 
