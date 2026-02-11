@@ -4,12 +4,15 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Add import UI entry point and post-import summary
+- [ ] Add import regression tests for callback/import pipeline (`snapshotJson`, large payload, failure paths)
+- [ ] Update import architecture docs and local/cloud test runbook
+- [ ] Triage top import warning categories and reduce avoidable warning noise
 
 ## Next
 
 - [ ] Add computed game stats pipeline (score, strikes, spares, opens)
-- [ ] Add SQLite file parser to feed `imports:importSqliteSnapshot` directly from `Backup.db`
+- [ ] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
+- [ ] Optional v2: decide frame/raw retention policy if canonical frame persistence is added
 
 ## Later
 
@@ -31,7 +34,14 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add create/edit game flow with frame persistence
 - [x] Add service abstraction and domain hooks
 - [x] Wire minimal tab screens to live data
-- [x] Add lossless SQLite snapshot import pipeline with raw mirrors
+- [x] Add profile import UI entry point with backup file upload and status display
+- [x] Add worker deployment pipeline from `main` via GitHub Actions
+- [x] Add signed queue + callback endpoints with HMAC verification
+- [x] Add worker SQLite parser for `Backup.db` and map to Convex snapshot schema
+- [x] Add worker callback integration (`parsing` -> `importing`) with explicit failure messaging
+- [x] Add Convex callback import path that completes batches on successful snapshot import
+- [x] Switch callback transport to `snapshotJson` to handle large frame payloads
+- [x] Remove `importRawFrames` persistence to avoid Convex per-execution write limits
 - [x] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
 
 ## Decision Log
@@ -40,6 +50,8 @@ This roadmap keeps work scoped to small, precise commits.
 - Use Convex for backend, auth, and real-time sync
 - Keep a service abstraction between hooks and backend implementation
 - Keep commits small and map each commit to one roadmap item
+- Import v1 does not persist canonical `frames` rows; frame payload is used for refinement and summary counts
+- No time-based retention policy is required for v1 import data
 
 ## Risks / Unknowns
 
