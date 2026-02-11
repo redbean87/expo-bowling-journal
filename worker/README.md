@@ -25,6 +25,23 @@ Cloudflare Worker that issues signed upload URLs, accepts SQLite backup uploads,
 
    `npm run dev`
 
+To run against real Cloudflare bindings during local testing, use:
+
+`npm run dev:remote`
+
+## Local end-to-end import testing
+
+For local app + Convex dev testing without waiting on queue consumers, set Convex
+env `IMPORT_WORKER_QUEUE_PATH=/imports/process`. This makes Convex dispatch call
+the worker's inline processing endpoint, which runs parse + callback in the same
+request.
+
+Suggested local settings:
+
+- Expo env: `EXPO_PUBLIC_IMPORT_WORKER_URL=http://127.0.0.1:8787`
+- Convex env: `IMPORT_WORKER_URL=http://127.0.0.1:8787`
+- Convex env: `IMPORT_WORKER_QUEUE_PATH=/imports/process`
+
 ## Required bindings and vars
 
 - `R2_IMPORTS` (R2 bucket binding)

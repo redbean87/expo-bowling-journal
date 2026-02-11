@@ -14,12 +14,24 @@
       "request": "launch",
       "command": "npm run start",
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Worker: dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run worker:dev",
+      "cwd": "${workspaceFolder}"
     }
   ],
   "compounds": [
     {
       "name": "Run: Convex + Expo",
       "configurations": ["Convex: dev", "Expo: start"],
+      "stopAll": true
+    },
+    {
+      "name": "Run: Convex + Worker + Expo",
+      "configurations": ["Convex: dev", "Worker: dev", "Expo: start"],
       "stopAll": true
     }
   ]

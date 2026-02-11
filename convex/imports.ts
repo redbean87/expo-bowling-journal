@@ -589,7 +589,22 @@ export const dispatchImportQueue = internalAction({
       return;
     }
 
-    const queuePath = '/imports/queue';
+    const configuredQueuePath =
+      process.env.IMPORT_WORKER_QUEUE_PATH?.trim() || '/imports/queue';
+    const queuePath = configuredQueuePath.startsWith('/')
+      ? configuredQueuePath
+      : `/${configuredQueuePath}`;
+
+    if (queuePath !== '/imports/queue' && queuePath !== '/imports/process') {
+      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        batchId: args.batchId,
+        status: 'failed',
+        completedAt: Date.now(),
+        errorMessage:
+          'Import queue dispatch is misconfigured (IMPORT_WORKER_QUEUE_PATH must be /imports/queue or /imports/process)',
+      });
+      return;
+    }
     const normalizedWorkerUrl = workerBaseUrl.replace(/\/+$/, '');
     const endpoint = `${normalizedWorkerUrl}${queuePath}`;
     const requestBody = JSON.stringify({

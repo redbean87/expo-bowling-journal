@@ -528,6 +528,47 @@ export default {
         return badRequest(request, env, 'R2 object not found');
       }
 
+      if (url.pathname === '/imports/process') {
+        try {
+          await processQueueMessage(env, {
+            batchId,
+            userId,
+            r2Key,
+          });
+
+          return json(
+            request,
+            env,
+            {
+              accepted: true,
+              queued: false,
+              processed: true,
+              batchId,
+              r2Key,
+            },
+            202
+          );
+        } catch (caught) {
+          const message =
+            caught instanceof Error
+              ? caught.message
+              : 'Unknown inline processing error';
+
+          console.log('inline import processing failed', {
+            path: url.pathname,
+            batchId,
+            r2Key,
+            error: message,
+          });
+
+          return internalError(
+            request,
+            env,
+            `Inline import processing failed: ${message.slice(0, 300)}`
+          );
+        }
+      }
+
       await env.IMPORT_QUEUE.send({
         batchId,
         userId,

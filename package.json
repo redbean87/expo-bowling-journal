@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "convex:dev": "convex dev",
     "convex:codegen": "convex codegen",
+    "worker:dev": "npm --prefix worker run dev:remote",
     "worker:logs": "npm --prefix worker run logs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
