@@ -10,7 +10,7 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Next
 
-- [ ] Add computed game stats pipeline (score, strikes, spares, opens)
+- [x] Add computed game stats pipeline (score, strikes, spares, opens)
 - [ ] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 - [ ] Optional v2: decide frame/raw retention policy if canonical frame persistence is added
 
@@ -43,6 +43,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Switch callback transport to `snapshotJson` to handle large frame payloads
 - [x] Remove `importRawFrames` persistence to avoid Convex per-execution write limits
 - [x] Add post-import schema refinement pass (handicap, lane context, ball switches, notes)
+- [x] Add computed game stats pipeline (score, strikes, spares, opens)
 
 ## Decision Log
 

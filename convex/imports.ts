@@ -9,6 +9,7 @@ import {
   query,
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { computeImportedGameStats } from './lib/import-game-stats';
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
 import {
   laneContextFromLane,
@@ -1132,6 +1133,21 @@ async function runSqliteSnapshotImport(
   }
 
   const gameIdMap = new Map<number, Id<'games'>>();
+  const framesByGame = new Map<number, typeof args.frames>();
+
+  for (const row of args.frames) {
+    if (!row.gameFk) {
+      continue;
+    }
+
+    const existing = framesByGame.get(row.gameFk);
+
+    if (existing) {
+      existing.push(row);
+    } else {
+      framesByGame.set(row.gameFk, [row]);
+    }
+  }
 
   for (const row of args.games) {
     await ctx.db.insert('importRawGames', {
@@ -1189,15 +1205,21 @@ async function runSqliteSnapshotImport(
       });
     }
 
+    const fallbackScore = normalizeNullableInteger(row.score, 0, 400) ?? 0;
+    const computedStats = computeImportedGameStats(
+      framesByGame.get(row.sqliteId) ?? [],
+      fallbackScore
+    );
+
     const gameId = await ctx.db.insert('games', {
       userId,
       sessionId,
       leagueId,
       date: gameDate.date,
-      totalScore: normalizeNullableInteger(row.score, 0, 400) ?? 0,
-      strikes: 0,
-      spares: 0,
-      opens: 0,
+      totalScore: computedStats.totalScore,
+      strikes: computedStats.strikes,
+      spares: computedStats.spares,
+      opens: computedStats.opens,
       ballId: row.ballFk ? (ballIdMap.get(row.ballFk) ?? null) : null,
       patternId: row.patternFk
         ? (patternIdMap.get(row.patternFk) ?? null)
@@ -1209,22 +1231,6 @@ async function runSqliteSnapshotImport(
       ballSwitches: null,
     });
     gameIdMap.set(row.sqliteId, gameId);
-  }
-
-  const framesByGame = new Map<number, typeof args.frames>();
-
-  for (const row of args.frames) {
-    if (!row.gameFk) {
-      continue;
-    }
-
-    const existing = framesByGame.get(row.gameFk);
-
-    if (existing) {
-      existing.push(row);
-    } else {
-      framesByGame.set(row.gameFk, [row]);
-    }
   }
 
   const sessionRefinements: SessionRefinementInput[] = [];
