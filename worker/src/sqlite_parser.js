@@ -67,17 +67,10 @@ function assertNonEmptyArrayBuffer(source) {
 
 async function getSqlJs() {
   if (!sqlJsPromise) {
-    sqlJsPromise = import('sql.js/dist/sql-wasm.js')
+    sqlJsPromise = import('sql.js/dist/sql-asm.js')
       .then((module) => {
         const initSqlJs = module.default;
-        return initSqlJs({
-          locateFile: (fileName) => {
-            return new URL(
-              `../node_modules/sql.js/dist/${fileName}`,
-              import.meta.url
-            ).href;
-          },
-        });
+        return initSqlJs();
       })
       .catch((caught) => {
         sqlJsPromise = undefined;
