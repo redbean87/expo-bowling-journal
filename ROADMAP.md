@@ -59,6 +59,7 @@ This roadmap keeps work scoped to small, precise commits.
 - No additional time-based retention policy for import data right now; replace-all import is the lifecycle boundary for user-owned normalized and raw import tables
 - Callback import now persists both canonical `frames` and `importRawFrames` via bounded chunk mutations to avoid write-cap regressions
 - Replace-all import cleanup for callback/direct snapshot paths is chunked in bounded mutations to avoid Convex read-cap regressions
+- Raw import mirror persistence for callback/direct snapshot paths is chunked across all `importRaw*` tables before normalized import execution
 
 ## Risks / Unknowns
 

@@ -17,10 +17,7 @@ import {
   chunkCanonicalFrameInserts,
   DEFAULT_CANONICAL_FRAME_CHUNK_SIZE,
 } from './lib/import_canonical_frames';
-import {
-  chunkRawFrameRows,
-  DEFAULT_RAW_FRAME_CHUNK_SIZE,
-} from './lib/import_raw_frames';
+import { chunkRawFrameRows } from './lib/import_raw_frames';
 import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Id } from './_generated/dataModel';
@@ -88,6 +85,7 @@ const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
     batchId: Id<'importBatches'>;
     parserVersion?: string | null;
     skipReplaceAllCleanup?: boolean;
+    skipRawMirrorPersistence?: boolean;
     snapshot: unknown;
   },
   {
@@ -131,6 +129,7 @@ const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
     batchId: Id<'importBatches'>;
     parserVersion?: string | null;
     skipReplaceAllCleanup?: boolean;
+    skipRawMirrorPersistence?: boolean;
     snapshotJson: string;
   },
   {
@@ -191,28 +190,22 @@ const persistCanonicalFrameChunkForCallbackMutation = makeFunctionReference<
   { inserted: number }
 >('imports:persistCanonicalFrameChunkForCallback');
 
-const persistRawFrameChunkForCallbackMutation = makeFunctionReference<
+const persistRawImportChunkForBatchMutation = makeFunctionReference<
   'mutation',
   {
     batchId: Id<'importBatches'>;
-    frames: Array<{
-      sqliteId: number;
-      gameFk?: number | null;
-      weekFk?: number | null;
-      leagueFk?: number | null;
-      ballFk?: number | null;
-      frameNum?: number | null;
-      pins?: number | null;
-      scores?: number | null;
-      score?: number | null;
-      flags?: number | null;
-      pocket?: number | null;
-      footBoard?: number | null;
-      targetBoard?: number | null;
-    }>;
+    table:
+      | 'importRawHouses'
+      | 'importRawPatterns'
+      | 'importRawBalls'
+      | 'importRawLeagues'
+      | 'importRawWeeks'
+      | 'importRawGames'
+      | 'importRawFrames';
+    rows: unknown[];
   },
   { inserted: number }
->('imports:persistRawFrameChunkForCallback');
+>('imports:persistRawImportChunkForBatch');
 
 const completeSnapshotImportForCallbackMutation = makeFunctionReference<
   'mutation',
@@ -266,6 +259,7 @@ const REPLACE_ALL_CLEANUP_TABLES = [
 ] as const;
 
 const REPLACE_ALL_DELETE_CHUNK_SIZE = 128;
+const RAW_IMPORT_CHUNK_SIZE = 500;
 
 type CallbackPayload = {
   batchId: string;
@@ -457,28 +451,41 @@ http.route({
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,
               skipReplaceAllCleanup: true,
+              skipRawMirrorPersistence: true,
               snapshotJson: payload.snapshotJson as string,
             })
           : await ctx.runMutation(submitParsedSnapshotForCallbackMutation, {
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,
               skipReplaceAllCleanup: true,
+              skipRawMirrorPersistence: true,
               snapshot: payload.snapshot,
             });
 
         const snapshot =
           parsedSnapshotJson ?? (payload.snapshot as CallbackSnapshot);
 
-        const rawFrameChunks = chunkRawFrameRows(
-          snapshot.frames,
-          DEFAULT_RAW_FRAME_CHUNK_SIZE
-        );
+        for (const [table, rows] of [
+          ['importRawHouses', snapshot.houses],
+          ['importRawPatterns', snapshot.patterns],
+          ['importRawBalls', snapshot.balls],
+          ['importRawLeagues', snapshot.leagues],
+          ['importRawWeeks', snapshot.weeks],
+          ['importRawGames', snapshot.games],
+          ['importRawFrames', snapshot.frames],
+        ] as const) {
+          const chunks = chunkRawFrameRows(
+            rows as Array<{ sqliteId: number }>,
+            RAW_IMPORT_CHUNK_SIZE
+          );
 
-        for (const chunk of rawFrameChunks) {
-          await ctx.runMutation(persistRawFrameChunkForCallbackMutation, {
-            batchId: batch._id,
-            frames: chunk,
-          });
+          for (const chunk of chunks) {
+            await ctx.runMutation(persistRawImportChunkForBatchMutation, {
+              batchId: batch._id,
+              table,
+              rows: chunk,
+            });
+          }
         }
 
         const frameInserts = buildCanonicalFrameInserts({

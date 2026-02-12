@@ -17,10 +17,8 @@ test('callback importing path keeps snapshotJson transport and chunked raw/canon
   );
   assert.equal(source.includes('deleteUserDocsChunkForImportMutation'), true);
   assert.equal(source.includes('skipReplaceAllCleanup: true'), true);
-  assert.equal(
-    source.includes('persistRawFrameChunkForCallbackMutation'),
-    true
-  );
+  assert.equal(source.includes('persistRawImportChunkForBatchMutation'), true);
+  assert.equal(source.includes('skipRawMirrorPersistence: true'), true);
   assert.equal(
     source.includes('persistCanonicalFrameChunkForCallbackMutation'),
     true

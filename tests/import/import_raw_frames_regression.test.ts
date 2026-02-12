@@ -7,8 +7,8 @@ test('callback import path persists importRawFrames rows', async () => {
   const importsPath = resolve(process.cwd(), 'convex', 'imports.ts');
   const source = await readFile(importsPath, 'utf8');
 
-  assert.equal(source.includes('persistRawFrameChunkForCallback'), true);
-  assert.equal(source.includes("ctx.db.insert('importRawFrames'"), true);
+  assert.equal(source.includes('persistRawImportChunkForBatch'), true);
+  assert.equal(source.includes("v.literal('importRawFrames')"), true);
   assert.equal(source.includes(".query('importRawFrames')"), true);
 
   assert.equal(source.includes('persistCanonicalFrameChunkForCallback'), true);

@@ -11,6 +11,7 @@ Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding
 5. Worker downloads SQLite from R2, parses snapshot, and sends callback to Convex `POST /api/import-callback`.
 6. Callback verifies HMAC/timestamp/nonce, advances status, imports snapshot core entities, then persists canonical `frames` in chunked writes before marking batch `completed`.
 7. Replace-all cleanup runs in bounded user-table delete chunks before callback snapshot import mutations to avoid Convex read-cap regressions.
+8. Raw import mirror tables (`importRawHouses`..`importRawFrames`) are persisted in bounded chunks before core normalized import execution.
 
 ## callback transport contract
 
