@@ -91,7 +91,7 @@ scripts/
 - Treat `snapshot` and `snapshotJson` as mutually exclusive
 - Allow snapshot payload only on `stage: importing`
 - Preserve status transition rules (`queued -> parsing -> importing -> completed|failed`)
-- Do not reintroduce `importRawFrames` persistence in v1 import path
+- Persist `importRawFrames` in callback import flow using chunked writes to avoid write-cap regressions
 - No additional time-based retention policy is applied right now; replace-all import remains the lifecycle boundary for user-owned normalized and raw import data
 - Add or update regression tests when changing callback/import behavior
 

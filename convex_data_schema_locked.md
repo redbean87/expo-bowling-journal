@@ -284,6 +284,7 @@ Lossless source mirrors for SQLite tables.
 - IDs are remapped internally
 - Raw source rows are stored losslessly in `importRaw*`
 - Post-import refinement runs immediately after normalized insert
+- Callback-stage frame persistence uses chunked writes for both `importRawFrames` and canonical `frames`
 
 ---
 

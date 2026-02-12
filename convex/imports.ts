@@ -2,6 +2,7 @@ import { makeFunctionReference } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
 
 import {
+  action,
   internalAction,
   internalMutation,
   internalQuery,
@@ -104,6 +105,25 @@ const EMPTY_IMPORT_COUNTS = {
   gamesPatched: 0,
   warnings: 0,
 } as const;
+
+const REPLACE_ALL_CLEANUP_TABLES = [
+  'frames',
+  'games',
+  'sessions',
+  'leagues',
+  'balls',
+  'importRawGames',
+  'importRawFrames',
+  'importRawWeeks',
+  'importRawLeagues',
+  'importRawBalls',
+  'importRawPatterns',
+  'importRawHouses',
+] as const;
+
+type ReplaceAllCleanupTable = (typeof REPLACE_ALL_CLEANUP_TABLES)[number];
+
+const DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE = 128;
 
 const laneContextValidator = v.object({
   leftLane: v.optional(v.union(v.number(), v.null())),
@@ -215,6 +235,37 @@ const canonicalFrameInsertValidator = v.object({
   footBoard: v.union(v.number(), v.null()),
   targetBoard: v.union(v.number(), v.null()),
 });
+
+const rawFrameInsertValidator = v.object({
+  sqliteId: v.number(),
+  gameFk: v.optional(v.union(v.number(), v.null())),
+  weekFk: v.optional(v.union(v.number(), v.null())),
+  leagueFk: v.optional(v.union(v.number(), v.null())),
+  ballFk: v.optional(v.union(v.number(), v.null())),
+  frameNum: v.optional(v.union(v.number(), v.null())),
+  pins: v.optional(v.union(v.number(), v.null())),
+  scores: v.optional(v.union(v.number(), v.null())),
+  score: v.optional(v.union(v.number(), v.null())),
+  flags: v.optional(v.union(v.number(), v.null())),
+  pocket: v.optional(v.union(v.number(), v.null())),
+  footBoard: v.optional(v.union(v.number(), v.null())),
+  targetBoard: v.optional(v.union(v.number(), v.null())),
+});
+
+const replaceAllCleanupTableValidator = v.union(
+  v.literal('frames'),
+  v.literal('games'),
+  v.literal('sessions'),
+  v.literal('leagues'),
+  v.literal('balls'),
+  v.literal('importRawGames'),
+  v.literal('importRawFrames'),
+  v.literal('importRawWeeks'),
+  v.literal('importRawLeagues'),
+  v.literal('importRawBalls'),
+  v.literal('importRawPatterns'),
+  v.literal('importRawHouses')
+);
 
 const sqliteSnapshotArgs = {
   sourceFileName: v.optional(v.union(v.string(), v.null())),
@@ -329,6 +380,99 @@ async function deleteDocsById(
 ) {
   for (const doc of docs) {
     await ctx.db.delete(doc._id);
+  }
+}
+
+async function takeUserDocsForCleanup(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  table: ReplaceAllCleanupTable,
+  limit: number
+) {
+  switch (table) {
+    case 'frames':
+      return ctx.db
+        .query('frames')
+        .withIndex('by_user_game', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'games':
+      return ctx.db
+        .query('games')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'sessions':
+      return ctx.db
+        .query('sessions')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'leagues':
+      return ctx.db
+        .query('leagues')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'balls':
+      return ctx.db
+        .query('balls')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawGames':
+      return ctx.db
+        .query('importRawGames')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawFrames':
+      return ctx.db
+        .query('importRawFrames')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawWeeks':
+      return ctx.db
+        .query('importRawWeeks')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawLeagues':
+      return ctx.db
+        .query('importRawLeagues')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawBalls':
+      return ctx.db
+        .query('importRawBalls')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawPatterns':
+      return ctx.db
+        .query('importRawPatterns')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+    case 'importRawHouses':
+      return ctx.db
+        .query('importRawHouses')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit);
+  }
+}
+
+async function deleteUserDocsChunkForImportTable(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  table: ReplaceAllCleanupTable,
+  chunkSize: number
+) {
+  const docs = await takeUserDocsForCleanup(ctx, userId, table, chunkSize);
+  await deleteDocsById(ctx, docs as Array<{ _id: Id<TableNames> }>);
+  return docs.length;
+}
+
+async function clearUserImportDataInChunks(
+  runChunkDelete: (table: ReplaceAllCleanupTable) => Promise<number>
+) {
+  for (const table of REPLACE_ALL_CLEANUP_TABLES) {
+    let deleted = 0;
+
+    do {
+      deleted = await runChunkDelete(table);
+    } while (deleted > 0);
   }
 }
 
@@ -861,77 +1005,25 @@ async function runSqliteSnapshotImportCore(
   ctx: MutationCtx,
   userId: Id<'users'>,
   args: SqliteSnapshotInput,
-  existingBatchId?: Id<'importBatches'>
+  existingBatchId?: Id<'importBatches'>,
+  options?: {
+    skipReplaceAllCleanup?: boolean;
+  }
 ): Promise<SnapshotImportCoreResult> {
   const importedAt = Date.now();
   const today = new Date(importedAt).toISOString().slice(0, 10);
   const importWarnings: RefinementWarning[] = [];
 
-  const existingFrames = await ctx.db
-    .query('frames')
-    .withIndex('by_user_game', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingFrames);
-
-  const existingGames = await ctx.db
-    .query('games')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingGames);
-
-  const existingSessions = await ctx.db
-    .query('sessions')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingSessions);
-
-  const existingLeagues = await ctx.db
-    .query('leagues')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingLeagues);
-
-  const existingBalls = await ctx.db
-    .query('balls')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingBalls);
-
-  const existingRawGames = await ctx.db
-    .query('importRawGames')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawGames);
-
-  const existingRawWeeks = await ctx.db
-    .query('importRawWeeks')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawWeeks);
-
-  const existingRawLeagues = await ctx.db
-    .query('importRawLeagues')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawLeagues);
-
-  const existingRawBalls = await ctx.db
-    .query('importRawBalls')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawBalls);
-
-  const existingRawPatterns = await ctx.db
-    .query('importRawPatterns')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawPatterns);
-
-  const existingRawHouses = await ctx.db
-    .query('importRawHouses')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
-  await deleteDocsById(ctx, existingRawHouses);
+  if (!options?.skipReplaceAllCleanup) {
+    await clearUserImportDataInChunks((table) =>
+      deleteUserDocsChunkForImportTable(
+        ctx,
+        userId,
+        table,
+        DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE
+      )
+    );
+  }
 
   let batchId: Id<'importBatches'>;
 
@@ -1449,13 +1541,17 @@ async function runSqliteSnapshotImport(
   ctx: MutationCtx,
   userId: Id<'users'>,
   args: SqliteSnapshotInput,
-  existingBatchId?: Id<'importBatches'>
+  existingBatchId?: Id<'importBatches'>,
+  options?: {
+    skipReplaceAllCleanup?: boolean;
+  }
 ) {
   const result = await runSqliteSnapshotImportCore(
     ctx,
     userId,
     args,
-    existingBatchId
+    existingBatchId,
+    options
   );
 
   await completeImportBatch(ctx, {
@@ -1468,11 +1564,97 @@ async function runSqliteSnapshotImport(
   return toPublicImportResult(result);
 }
 
-export const importSqliteSnapshot = mutation({
+export const deleteUserDocsChunkForImport = internalMutation({
+  args: {
+    userId: v.id('users'),
+    table: replaceAllCleanupTableValidator,
+    chunkSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const chunkSize =
+      normalizeNullableInteger(args.chunkSize, 1, 500) ??
+      DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE;
+
+    const deleted = await deleteUserDocsChunkForImportTable(
+      ctx,
+      args.userId,
+      args.table,
+      chunkSize
+    );
+
+    return { deleted };
+  },
+});
+
+export const importSqliteSnapshotAfterCleanupForUser = internalMutation({
+  args: {
+    userId: v.id('users'),
+    ...sqliteSnapshotArgs,
+  },
+  handler: async (ctx, args) => {
+    const { userId, ...snapshotArgs } = args;
+    return runSqliteSnapshotImport(ctx, userId, snapshotArgs, undefined, {
+      skipReplaceAllCleanup: true,
+    });
+  },
+});
+
+export const importSqliteSnapshot = action({
   args: sqliteSnapshotArgs,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    return runSqliteSnapshotImport(ctx, userId, args);
+
+    const deleteUserDocsChunkForImportMutation = makeFunctionReference<
+      'mutation',
+      {
+        userId: Id<'users'>;
+        table: ReplaceAllCleanupTable;
+        chunkSize?: number;
+      },
+      { deleted: number }
+    >('imports:deleteUserDocsChunkForImport');
+
+    await clearUserImportDataInChunks(async (table) => {
+      const result = await ctx.runMutation(
+        deleteUserDocsChunkForImportMutation,
+        {
+          userId,
+          table,
+          chunkSize: DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
+        }
+      );
+      return result.deleted;
+    });
+
+    const importSqliteSnapshotAfterCleanupMutation = makeFunctionReference<
+      'mutation',
+      {
+        userId: Id<'users'>;
+        sourceFileName?: string | null;
+        sourceHash?: string | null;
+        houses: Array<Doc<'importRawHouses'>['raw']>;
+        patterns: Array<Doc<'importRawPatterns'>['raw']>;
+        balls: Array<Doc<'importRawBalls'>['raw']>;
+        leagues: Array<Doc<'importRawLeagues'>['raw']>;
+        weeks: Array<Doc<'importRawWeeks'>['raw']>;
+        games: Array<Doc<'importRawGames'>['raw']>;
+        frames: Array<Doc<'importRawFrames'>['raw']>;
+      },
+      ImportResult
+    >('imports:importSqliteSnapshotAfterCleanupForUser');
+
+    return ctx.runMutation(importSqliteSnapshotAfterCleanupMutation, {
+      userId,
+      sourceFileName: args.sourceFileName,
+      sourceHash: args.sourceHash,
+      houses: args.houses,
+      patterns: args.patterns,
+      balls: args.balls,
+      leagues: args.leagues,
+      weeks: args.weeks,
+      games: args.games,
+      frames: args.frames,
+    });
   },
 });
 
@@ -1480,6 +1662,7 @@ export const submitParsedSnapshotForCallback = internalMutation({
   args: {
     batchId: v.id('importBatches'),
     parserVersion: v.optional(v.union(v.string(), v.null())),
+    skipReplaceAllCleanup: v.optional(v.boolean()),
     snapshot: v.object(sqliteSnapshotArgs),
   },
   handler: async (ctx, args) => {
@@ -1493,7 +1676,10 @@ export const submitParsedSnapshotForCallback = internalMutation({
       ctx,
       batch.userId,
       args.snapshot,
-      batch._id
+      batch._id,
+      {
+        skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
+      }
     );
   },
 });
@@ -1502,6 +1688,7 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
   args: {
     batchId: v.id('importBatches'),
     parserVersion: v.optional(v.union(v.string(), v.null())),
+    skipReplaceAllCleanup: v.optional(v.boolean()),
     snapshotJson: v.string(),
   },
   handler: async (ctx, args) => {
@@ -1514,7 +1701,9 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
       args.snapshotJson
     );
-    return runSqliteSnapshotImportCore(ctx, batch.userId, snapshot, batch._id);
+    return runSqliteSnapshotImportCore(ctx, batch.userId, snapshot, batch._id, {
+      skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
+    });
   },
 });
 
@@ -1550,6 +1739,42 @@ export const persistCanonicalFrameChunkForCallback = internalMutation({
         pocket: frame.pocket,
         footBoard: frame.footBoard,
         targetBoard: frame.targetBoard,
+      });
+    }
+
+    return {
+      inserted: args.frames.length,
+    };
+  },
+});
+
+export const persistRawFrameChunkForCallback = internalMutation({
+  args: {
+    batchId: v.id('importBatches'),
+    frames: v.array(rawFrameInsertValidator),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.db.get(args.batchId);
+
+    if (!batch) {
+      throw new ConvexError('Import batch not found');
+    }
+
+    if (batch.status !== 'importing') {
+      throw new ConvexError(
+        'Import batch must be importing to persist raw frames'
+      );
+    }
+
+    const importedAt = Date.now();
+
+    for (const frame of args.frames) {
+      await ctx.db.insert('importRawFrames', {
+        userId: batch.userId,
+        batchId: args.batchId,
+        sqliteId: frame.sqliteId,
+        raw: frame,
+        importedAt,
       });
     }
 

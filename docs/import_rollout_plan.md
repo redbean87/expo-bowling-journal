@@ -10,6 +10,7 @@ Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding
 4. Convex dispatches worker queue request (`/imports/queue` or `/imports/process`) with signed HMAC headers.
 5. Worker downloads SQLite from R2, parses snapshot, and sends callback to Convex `POST /api/import-callback`.
 6. Callback verifies HMAC/timestamp/nonce, advances status, imports snapshot core entities, then persists canonical `frames` in chunked writes before marking batch `completed`.
+7. Replace-all cleanup runs in bounded user-table delete chunks before callback snapshot import mutations to avoid Convex read-cap regressions.
 
 ## callback transport contract
 
@@ -21,9 +22,9 @@ Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding
 
 ## data persistence scope
 
-- v1 baseline persists `importRawHouses`, `importRawPatterns`, `importRawBalls`, `importRawLeagues`, `importRawWeeks`, and `importRawGames`.
-- `importRawFrames` rows are still **not** persisted.
-- v2 callback path now persists canonical `frames` rows using chunked internal mutations to avoid Convex per-execution write-cap regressions.
+- v1 baseline persists `importRawHouses`, `importRawPatterns`, `importRawBalls`, `importRawLeagues`, `importRawWeeks`, `importRawGames`, and `importRawFrames`.
+- Callback import path persists `importRawFrames` rows using chunked internal mutations to avoid Convex per-execution write-cap regressions.
+- v2 callback path persists canonical `frames` rows using chunked internal mutations to avoid Convex per-execution write-cap regressions.
 - Frame payloads remain callback-stage `importing` only and still count through `importBatches.counts.frames`.
 
 ## retention policy decision
@@ -31,7 +32,7 @@ Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding
 - No additional time-based retention policy is applied for import data right now.
 - Replace-all import behavior remains the lifecycle boundary for user-owned normalized and raw import data.
 - Canonical `frames` remain persisted as part of the active imported dataset.
-- `importRawFrames` remains intentionally unpersisted.
+- Raw `importRawFrames` rows remain persisted as part of the active imported dataset.
 
 ## warning handling in v1
 
@@ -70,5 +71,4 @@ The import regression suite verifies:
 - callback payload/transition rules (`snapshotJson`, mutual exclusion, stage restrictions)
 - snapshot JSON parsing failure behavior
 - large `Backup.db` frame scale path (`16416` frames) using `snapshotJson` transport
-- `importRawFrames` persistence is not reintroduced
-- canonical frame persistence plans are chunked and bounded for large imports
+- `importRawFrames` and canonical `frames` persistence are both chunked and bounded for large imports

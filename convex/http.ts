@@ -17,6 +17,10 @@ import {
   chunkCanonicalFrameInserts,
   DEFAULT_CANONICAL_FRAME_CHUNK_SIZE,
 } from './lib/import_canonical_frames';
+import {
+  chunkRawFrameRows,
+  DEFAULT_RAW_FRAME_CHUNK_SIZE,
+} from './lib/import_raw_frames';
 import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Id } from './_generated/dataModel';
@@ -42,8 +46,30 @@ const insertNonceForCallbackMutation = makeFunctionReference<
 const getBatchByIdForCallbackQuery = makeFunctionReference<
   'query',
   { batchId: Id<'importBatches'> },
-  { _id: Id<'importBatches'>; status: string } | null
+  { _id: Id<'importBatches'>; userId: Id<'users'>; status: string } | null
 >('imports:getBatchByIdForCallback');
+
+const deleteUserDocsChunkForImportMutation = makeFunctionReference<
+  'mutation',
+  {
+    userId: Id<'users'>;
+    table:
+      | 'frames'
+      | 'games'
+      | 'sessions'
+      | 'leagues'
+      | 'balls'
+      | 'importRawGames'
+      | 'importRawFrames'
+      | 'importRawWeeks'
+      | 'importRawLeagues'
+      | 'importRawBalls'
+      | 'importRawPatterns'
+      | 'importRawHouses';
+    chunkSize?: number;
+  },
+  { deleted: number }
+>('imports:deleteUserDocsChunkForImport');
 
 const updateBatchStatusForCallbackMutation = makeFunctionReference<
   'mutation',
@@ -61,6 +87,7 @@ const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
   {
     batchId: Id<'importBatches'>;
     parserVersion?: string | null;
+    skipReplaceAllCleanup?: boolean;
     snapshot: unknown;
   },
   {
@@ -103,6 +130,7 @@ const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
   {
     batchId: Id<'importBatches'>;
     parserVersion?: string | null;
+    skipReplaceAllCleanup?: boolean;
     snapshotJson: string;
   },
   {
@@ -163,6 +191,29 @@ const persistCanonicalFrameChunkForCallbackMutation = makeFunctionReference<
   { inserted: number }
 >('imports:persistCanonicalFrameChunkForCallback');
 
+const persistRawFrameChunkForCallbackMutation = makeFunctionReference<
+  'mutation',
+  {
+    batchId: Id<'importBatches'>;
+    frames: Array<{
+      sqliteId: number;
+      gameFk?: number | null;
+      weekFk?: number | null;
+      leagueFk?: number | null;
+      ballFk?: number | null;
+      frameNum?: number | null;
+      pins?: number | null;
+      scores?: number | null;
+      score?: number | null;
+      flags?: number | null;
+      pocket?: number | null;
+      footBoard?: number | null;
+      targetBoard?: number | null;
+    }>;
+  },
+  { inserted: number }
+>('imports:persistRawFrameChunkForCallback');
+
 const completeSnapshotImportForCallbackMutation = makeFunctionReference<
   'mutation',
   {
@@ -199,6 +250,23 @@ const completeSnapshotImportForCallbackMutation = makeFunctionReference<
   Id<'importBatches'>
 >('imports:completeSnapshotImportForCallback');
 
+const REPLACE_ALL_CLEANUP_TABLES = [
+  'frames',
+  'games',
+  'sessions',
+  'leagues',
+  'balls',
+  'importRawGames',
+  'importRawFrames',
+  'importRawWeeks',
+  'importRawLeagues',
+  'importRawBalls',
+  'importRawPatterns',
+  'importRawHouses',
+] as const;
+
+const REPLACE_ALL_DELETE_CHUNK_SIZE = 128;
+
 type CallbackPayload = {
   batchId: string;
   stage: 'parsing' | 'importing' | 'completed' | 'failed';
@@ -218,6 +286,8 @@ type CallbackSnapshot = {
   frames: Array<{
     sqliteId: number;
     gameFk?: number | null;
+    weekFk?: number | null;
+    leagueFk?: number | null;
     ballFk?: number | null;
     frameNum?: number | null;
     pins?: number | null;
@@ -366,20 +436,50 @@ http.route({
             )
           : null;
 
+        for (const table of REPLACE_ALL_CLEANUP_TABLES) {
+          let deleted = 0;
+
+          do {
+            const result = await ctx.runMutation(
+              deleteUserDocsChunkForImportMutation,
+              {
+                userId: batch.userId,
+                table,
+                chunkSize: REPLACE_ALL_DELETE_CHUNK_SIZE,
+              }
+            );
+            deleted = result.deleted;
+          } while (deleted > 0);
+        }
+
         const importResult = snapshotValidation.hasSnapshotJson
           ? await ctx.runMutation(submitParsedSnapshotJsonForCallbackMutation, {
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,
+              skipReplaceAllCleanup: true,
               snapshotJson: payload.snapshotJson as string,
             })
           : await ctx.runMutation(submitParsedSnapshotForCallbackMutation, {
               batchId: batch._id,
               parserVersion: payload.parserVersion ?? null,
+              skipReplaceAllCleanup: true,
               snapshot: payload.snapshot,
             });
 
         const snapshot =
           parsedSnapshotJson ?? (payload.snapshot as CallbackSnapshot);
+
+        const rawFrameChunks = chunkRawFrameRows(
+          snapshot.frames,
+          DEFAULT_RAW_FRAME_CHUNK_SIZE
+        );
+
+        for (const chunk of rawFrameChunks) {
+          await ctx.runMutation(persistRawFrameChunkForCallbackMutation, {
+            batchId: batch._id,
+            frames: chunk,
+          });
+        }
 
         const frameInserts = buildCanonicalFrameInserts({
           frames: snapshot.frames,

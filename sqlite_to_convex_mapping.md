@@ -15,7 +15,7 @@ This document defines how data from the **SQLite backup** is translated into the
 - SQLite primary keys are used **only** to build an in-memory ID map
 - Import order matters and must follow dependency order
 - Missing optional fields are set to `null`
-- Raw source rows are persisted in `importRaw*` tables for houses/patterns/balls/leagues/weeks/games
+- Raw source rows are persisted in `importRaw*` tables for houses/patterns/balls/leagues/weeks/games/frames
 - No additional time-based retention policy is applied; replace-all import is the lifecycle boundary for user-owned normalized and raw import data
 - Notes and lane context remain scope-specific (`week` -> session, `game` -> game)
 
@@ -28,7 +28,7 @@ This document defines how data from the **SQLite backup** is translated into the
 3. sessions (weeks)
 4. balls
 5. games
-6. frame-derived refinement inputs (not persisted as `importRawFrames` in v1)
+6. frame-derived refinement inputs + raw frame mirror persistence
 7. post-import refinement (sessions + games)
 
 ---
@@ -196,8 +196,8 @@ Computed during import from frames:
 ### Validation
 
 - Frame rows are validated and consumed during import/refinement
-- v1 does not persist `importRawFrames` rows (write-cap safety)
-- v2 callback flow persists normalized `frames` rows in chunked writes
+- Callback import flow persists `importRawFrames` rows in chunked writes
+- Callback v2 flow persists normalized `frames` rows in chunked writes
 
 ---
 
@@ -299,4 +299,4 @@ Refinement runs immediately after base import using normalized IDs.
 
 Known v1 scope:
 
-- Canonical `frames` rows are persisted in callback v2; raw frame persistence remains deferred (`importRawFrames` is not persisted)
+- Canonical `frames` rows and `importRawFrames` rows are both persisted in callback import flow using chunked writes

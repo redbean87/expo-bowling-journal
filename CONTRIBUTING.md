@@ -56,7 +56,7 @@ For roadmap execution updates, report in this order:
 - Do not send both `snapshot` and `snapshotJson`
 - Snapshot payload is only valid for callback stage `importing`
 - Preserve status transitions: `queued -> parsing -> importing -> completed|failed`
-- Do not reintroduce `importRawFrames` persistence in v1 path
+- Persist `importRawFrames` in callback import flow using chunked writes to avoid write-cap regressions
 - Canonical `frames` persistence in callback import path must use chunked writes to avoid Convex write-cap regressions
 - No additional time-based retention policy is applied right now; replace-all import remains the lifecycle boundary for user-owned normalized and raw import data
 - Add/update regression tests when changing import callback behavior

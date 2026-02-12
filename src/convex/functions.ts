@@ -163,7 +163,7 @@ export const importsApplyPostImportRefinementMutation = makeFunctionReference<
 >('imports:applyPostImportRefinement');
 
 export const importsSqliteSnapshotMutation = makeFunctionReference<
-  'mutation',
+  'action',
   {
     sourceFileName?: string | null;
     sourceHash?: string | null;

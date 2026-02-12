@@ -47,6 +47,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Fix Convex module path compatibility for import helper modules
 - [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 - [x] Optional v2: decide frame/raw retention policy after canonical frame persistence rollout
+- [x] Persist `importRawFrames` in callback import flow using chunked writes while keeping `snapshotJson` + transition guardrails intact
 
 ## Decision Log
 
@@ -56,6 +57,8 @@ This roadmap keeps work scoped to small, precise commits.
 - Keep commits small and map each commit to one roadmap item
 - Import v1 does not persist canonical `frames` rows; v2 callback flow persists canonical `frames` with chunked writes
 - No additional time-based retention policy for import data right now; replace-all import is the lifecycle boundary for user-owned normalized and raw import tables
+- Callback import now persists both canonical `frames` and `importRawFrames` via bounded chunk mutations to avoid write-cap regressions
+- Replace-all import cleanup for callback/direct snapshot paths is chunked in bounded mutations to avoid Convex read-cap regressions
 
 ## Risks / Unknowns
 
