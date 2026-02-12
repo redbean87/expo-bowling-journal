@@ -4,10 +4,14 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- No open `Now` items.
+- [ ] Mobile-first league night flow (fast league -> session -> game entry)
+- [ ] Offline-first game capture with prior sign-in requirement
+- [ ] Queue + sync status UX for weak-signal bowling alleys
 
 ## Next
 
+- [ ] Simplify game entry interactions for one-hand use (bigger targets, fewer fields)
+- [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
 
@@ -60,8 +64,10 @@ This roadmap keeps work scoped to small, precise commits.
 - Callback import now persists both canonical `frames` and `importRawFrames` via bounded chunk mutations to avoid write-cap regressions
 - Replace-all import cleanup for callback/direct snapshot paths is chunked in bounded mutations to avoid Convex read-cap regressions
 - Raw import mirror persistence for callback/direct snapshot paths is chunked across all `importRaw*` tables before normalized import execution
+- Prioritize mobile-first data capture and offline resiliency ahead of analytics/reporting polish
 
 ## Risks / Unknowns
 
 - Import edge cases from older SQLite variants may require mapping adjustments
 - Final analytics scope may change after core journaling flows are stable
+- Offline queue conflict semantics should stay simple for single-user, single-device use (latest local edit wins)

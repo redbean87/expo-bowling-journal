@@ -22,3 +22,9 @@ expo-env.d.ts
 worker/.dev.vars
 worker/.wrangler/
 Backup.db
+
+# Local UX reference screenshots (keep folders, ignore images/files)
+docs/ux-reference/current-app/*
+docs/ux-reference/next-app/*
+!docs/ux-reference/current-app/.gitkeep
+!docs/ux-reference/next-app/.gitkeep
