@@ -138,8 +138,9 @@ export default function JournalScreen() {
     <PlaceholderScreen
       title="Journal"
       subtitle="Live data is now wired. Select a league and session to browse games."
+      fillCard
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Text style={styles.hint}>
           Live data syncs automatically. If you just added records, pull to
           refresh or revisit this tab.
@@ -331,6 +332,10 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: 12,
+    paddingBottom: 8,
+  },
+  scroll: {
+    flex: 1,
   },
   hint: {
     fontSize: 13,
