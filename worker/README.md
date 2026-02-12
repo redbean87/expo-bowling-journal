@@ -68,4 +68,3 @@ Manual deploy:
 `npm run deploy`
 
 GitHub auto deploy is configured in `.github/workflows/worker-deploy.yml` and runs on `main` changes under `worker/**`.
-test
