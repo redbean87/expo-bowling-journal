@@ -132,10 +132,12 @@ export default function GameEditorScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams<{
+    leagueId?: string | string[];
     gameId?: string | string[];
     sessionId?: string | string[];
   }>();
 
+  const leagueId = getFirstParam(params.leagueId);
   const gameIdParam = getFirstParam(params.gameId);
   const isCreateMode = gameIdParam === 'new';
   const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
@@ -259,7 +261,23 @@ export default function GameEditorScreen() {
         frames: payloadFrames,
       });
 
-      router.back();
+      if (navigation.canGoBack()) {
+        router.back();
+        return;
+      }
+
+      if (leagueId && sessionId) {
+        router.replace({
+          pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+          params: {
+            leagueId,
+            sessionId,
+          } as never,
+        } as never);
+        return;
+      }
+
+      router.replace('/journal');
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : 'Unable to save game.'

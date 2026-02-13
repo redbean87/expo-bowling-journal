@@ -4,8 +4,14 @@ Use this folder to keep visual references that future sessions can reuse without
 
 ## Folder Structure
 
-- `docs/ux-reference/current-app/`: screenshots of the current app and current flow pain points
-- `docs/ux-reference/next-app/`: inspiration images, mockups, and target visual direction
+- `docs/ux-reference/competitor-app/`: screenshots from competitor app flows used for UX benchmarking
+- `docs/ux-reference/next-app/`: target visual direction references (including trading journal screenshots)
+
+## Reference Intent
+
+- `competitor-app` captures workflows to compare against and learn from.
+- `next-app` captures look-and-feel references to adapt into bowling context.
+- Visual inspiration can come from non-bowling apps, but interaction design should map to bowling flow (`league -> session -> game`).
 
 ## Suggested File Naming
 
@@ -21,7 +27,7 @@ Example:
 
 ## Capture Guidance
 
-For current-flow screenshots, include these views when possible:
+For competitor-flow screenshots, include these views when possible:
 
 1. Journal main screen
 2. League/session selection flow

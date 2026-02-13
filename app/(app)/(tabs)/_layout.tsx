@@ -3,12 +3,13 @@ import { Tabs } from 'expo-router';
 export default function TabsLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         headerTitleAlign: 'center',
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarLabel: 'Home',
@@ -19,6 +20,7 @@ export default function TabsLayout() {
         options={{
           title: 'Journal',
           tabBarLabel: 'Journal',
+          headerShown: false,
         }}
       />
       <Tabs.Screen
