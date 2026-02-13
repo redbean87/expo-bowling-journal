@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -8,127 +8,75 @@ import {
   View,
 } from 'react-native';
 
-import type { EditableFrameInput, GameId, SessionId } from '@/services/journal';
+import { ActiveFrameCard } from './game-editor/active-frame-card';
+import { FrameProgressStrip } from './game-editor/frame-progress-strip';
+import { buildAutosaveGuardResult } from './game-editor/game-editor-autosave-utils';
+import {
+  EMPTY_FRAMES,
+  findSuggestedFrameIndex,
+  getFirstParam,
+  getFrameInlineError,
+  getNextCursorAfterEntry,
+  getPreferredRollField,
+  getRollValue,
+  getStandingMaskForField,
+  getVisibleRollFields,
+  normalizeDateValue,
+  toFrameDrafts,
+  type FrameDraft,
+  type RollField,
+} from './game-editor/game-editor-frame-utils';
 
-import { Button, Card, Input } from '@/components/ui';
+import type { GameId, SessionId } from '@/services/journal';
+
+import { Card, Input } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
-import { colors, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
+import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
-type FrameDraft = {
-  roll1: string;
-  roll2: string;
-  roll3: string;
+type CursorTarget = {
+  frameIndex: number;
+  field: RollField;
 };
 
-const EMPTY_FRAME_DRAFT: FrameDraft = {
-  roll1: '',
-  roll2: '',
-  roll3: '',
-};
+type AutosaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-const EMPTY_FRAMES: FrameDraft[] = Array.from({ length: 10 }, () => ({
-  ...EMPTY_FRAME_DRAFT,
-}));
-
-function getFirstParam(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
+function togglePinInMask(mask: number, pinNumber: number) {
+  return mask ^ (1 << (pinNumber - 1));
 }
 
-function normalizeDateValue(value: string) {
-  return value.slice(0, 10);
+function maskHasPin(mask: number, pinNumber: number) {
+  return (mask & (1 << (pinNumber - 1))) !== 0;
 }
 
-function toFrameDrafts(
-  frames: Array<{
-    frameNumber: number;
-    roll1: number;
-    roll2?: number | null;
-    roll3?: number | null;
-  }>
-): FrameDraft[] {
-  const drafts = Array.from({ length: 10 }, () => ({ ...EMPTY_FRAME_DRAFT }));
-
-  for (const frame of frames) {
-    const index = frame.frameNumber - 1;
-
-    if (index < 0 || index >= drafts.length) {
-      continue;
-    }
-
-    drafts[index] = {
-      roll1: String(frame.roll1),
-      roll2:
-        frame.roll2 === null || frame.roll2 === undefined
-          ? ''
-          : String(frame.roll2),
-      roll3:
-        frame.roll3 === null || frame.roll3 === undefined
-          ? ''
-          : String(frame.roll3),
-    };
+function getCommitLabel(nextCursor: CursorTarget | null) {
+  if (!nextCursor) {
+    return 'Set roll';
   }
 
-  return drafts;
+  if (nextCursor.field === 'roll1Mask') {
+    return 'Next frame';
+  }
+
+  return 'Next roll';
 }
 
-function parseOptionalRoll(value: string) {
-  const trimmed = value.trim();
-
-  if (trimmed.length === 0) {
-    return null;
+function getDefaultMaskForField(
+  frameIndex: number,
+  field: RollField,
+  standingMask: number
+) {
+  if (field === 'roll1Mask') {
+    return standingMask;
   }
 
-  const parsed = Number(trimmed);
-
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) {
-    throw new Error('Rolls must be integers between 0 and 10.');
+  if (frameIndex === 9 && standingMask === 0x3ff) {
+    return standingMask;
   }
 
-  return parsed;
-}
-
-function buildFramesPayload(frameDrafts: FrameDraft[]): EditableFrameInput[] {
-  const frames: EditableFrameInput[] = [];
-  let reachedEnd = false;
-
-  for (const [index, frame] of frameDrafts.entries()) {
-    const frameNumber = index + 1;
-    const roll1 = frame.roll1.trim();
-    const roll2 = frame.roll2.trim();
-    const roll3 = frame.roll3.trim();
-    const hasAnyValue =
-      roll1.length > 0 || roll2.length > 0 || roll3.length > 0;
-
-    if (!hasAnyValue) {
-      reachedEnd = true;
-      continue;
-    }
-
-    if (reachedEnd) {
-      throw new Error('Frames must be entered in order with no gaps.');
-    }
-
-    if (roll1.length === 0) {
-      throw new Error(`Frame ${frameNumber}: roll1 is required.`);
-    }
-
-    frames.push({
-      frameNumber,
-      roll1: parseOptionalRoll(roll1) ?? 0,
-      roll2: parseOptionalRoll(roll2),
-      roll3: parseOptionalRoll(roll3),
-    });
-  }
-
-  return frames;
+  return 0;
 }
 
 export default function GameEditorScreen() {
-  const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
@@ -136,7 +84,6 @@ export default function GameEditorScreen() {
     sessionId?: string | string[];
   }>();
 
-  const leagueId = getFirstParam(params.leagueId);
   const gameIdParam = getFirstParam(params.gameId);
   const isCreateMode = gameIdParam === 'new';
   const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
@@ -147,7 +94,6 @@ export default function GameEditorScreen() {
     frames,
     isAuthenticated,
     isLoading,
-    isSaving,
     createGame,
     updateGame,
     replaceFramesForGame,
@@ -155,13 +101,65 @@ export default function GameEditorScreen() {
 
   const [date, setDate] = useState('');
   const [frameDrafts, setFrameDrafts] = useState<FrameDraft[]>(EMPTY_FRAMES);
-  const [error, setError] = useState<string | null>(null);
+  const [activeFrameIndex, setActiveFrameIndex] = useState(0);
+  const [activeField, setActiveField] = useState<RollField>('roll1Mask');
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle');
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
   const [didHydrate, setDidHydrate] = useState(false);
+  const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
+
+  const isAutosaveInFlightRef = useRef(false);
+  const hasQueuedAutosaveRef = useRef(false);
+  const lastSavedSignatureRef = useRef<string | null>(null);
+  const saveSequenceRef = useRef(0);
 
   const screenTitle = useMemo(
     () => (isCreateMode ? 'Add Game' : 'Edit Game'),
     [isCreateMode]
   );
+
+  const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
+  const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
+  const frameRuleError = getFrameInlineError(activeFrameIndex, activeFrame);
+  const inlineError = inputError ?? frameRuleError;
+  const activeStandingMask = getStandingMaskForField(
+    activeFrameIndex,
+    activeFrame,
+    activeField
+  );
+  const activeRollMask =
+    activeFrame[activeField] ??
+    getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
+  const nextCursor = getNextCursorAfterEntry(activeFrameIndex, activeField, {
+    ...activeFrame,
+    [activeField]: activeRollMask,
+  });
+
+  const autosaveMessage = useMemo(() => {
+    if (!isAuthenticated) {
+      return 'Sign in to auto-save changes.';
+    }
+
+    if (autosaveState === 'saving') {
+      return 'Saving...';
+    }
+
+    if (autosaveState === 'saved') {
+      return 'Saved';
+    }
+
+    if (autosaveState === 'error') {
+      return autosaveError ?? 'Auto-save failed. Keep editing to retry.';
+    }
+
+    return 'Changes save automatically.';
+  }, [autosaveError, autosaveState, isAuthenticated]);
+
+  const moveCursor = ({ frameIndex, field }: CursorTarget) => {
+    setActiveFrameIndex(frameIndex);
+    setActiveField(field);
+  };
 
   useEffect(() => {
     navigation.setOptions({ title: screenTitle });
@@ -174,115 +172,347 @@ export default function GameEditorScreen() {
 
     if (isCreateMode) {
       setDate(new Date().toISOString().slice(0, 10));
+      setActiveFrameIndex(0);
+      setActiveField('roll1Mask');
+      setDraftGameId(null);
       setDidHydrate(true);
       return;
     }
 
-    if (!game) {
+    if (!game || frames === undefined) {
       return;
     }
 
-    if (frames === undefined) {
-      return;
-    }
+    const nextDrafts = toFrameDrafts(frames);
+    const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
+    const suggestedField = getPreferredRollField(
+      suggestedFrameIndex,
+      nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
+    );
 
     setDate(normalizeDateValue(game.date));
-    setFrameDrafts(toFrameDrafts(frames));
+    setFrameDrafts(nextDrafts);
+    setActiveFrameIndex(suggestedFrameIndex);
+    setActiveField(suggestedField);
+    setDraftGameId(gameId);
     setDidHydrate(true);
-  }, [didHydrate, frames, game, isCreateMode]);
+  }, [didHydrate, frames, game, gameId, isCreateMode]);
 
-  const updateFrameDraft = (
-    frameIndex: number,
-    field: keyof FrameDraft,
-    value: string
+  useEffect(() => {
+    setInputError(null);
+  }, [activeFrameIndex, activeField]);
+
+  useEffect(() => {
+    if (visibleRollFields.includes(activeField)) {
+      return;
+    }
+
+    const preferredField = getPreferredRollField(activeFrameIndex, activeFrame);
+    setActiveField(preferredField);
+  }, [activeField, activeFrame, activeFrameIndex, visibleRollFields]);
+
+  const onSelectFrame = (frameIndex: number) => {
+    const frame = frameDrafts[frameIndex] ?? EMPTY_FRAMES[0];
+    const preferredField = getPreferredRollField(frameIndex, frame);
+
+    setActiveFrameIndex(frameIndex);
+    setActiveField(preferredField);
+    setInputError(null);
+  };
+
+  const onSelectRoll = (field: RollField) => {
+    if (!visibleRollFields.includes(field)) {
+      return;
+    }
+
+    setActiveField(field);
+    setInputError(null);
+  };
+
+  const updateActiveFrame = (
+    updater: (frame: FrameDraft) => FrameDraft,
+    nextField?: RollField
   ) => {
-    setFrameDrafts((current) => {
-      const next = [...current];
-      next[frameIndex] = {
-        ...next[frameIndex],
-        [field]: value,
+    setAutosaveError(null);
+    setInputError(null);
+
+    setFrameDrafts((currentDrafts) => {
+      const nextDrafts = [...currentDrafts];
+      const currentFrame = nextDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
+      nextDrafts[activeFrameIndex] = updater(currentFrame);
+      return nextDrafts;
+    });
+
+    if (nextField) {
+      setActiveField(nextField);
+    }
+  };
+
+  const onTogglePin = (pinNumber: number) => {
+    if (!maskHasPin(activeStandingMask, pinNumber)) {
+      return;
+    }
+
+    updateActiveFrame((frame) => {
+      const standingMask = getStandingMaskForField(
+        activeFrameIndex,
+        frame,
+        activeField
+      );
+      const currentMask =
+        frame[activeField] ??
+        getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
+      const nextMask = togglePinInMask(currentMask, pinNumber);
+
+      return {
+        ...frame,
+        [activeField]: nextMask,
       };
-      return next;
     });
   };
 
-  const onSave = async () => {
-    setError(null);
+  const onSetGutter = () => {
+    updateActiveFrame((frame) => ({
+      ...frame,
+      [activeField]: 0,
+    }));
+  };
 
-    if (!isAuthenticated) {
-      setError('Sign in to save games.');
-      return;
-    }
+  const onSetFullRack = () => {
+    updateActiveFrame((frame) => ({
+      ...frame,
+      [activeField]: activeStandingMask,
+    }));
+  };
 
-    if (!isCreateMode && !didHydrate) {
-      setError('Game is still loading. Please wait a moment and try again.');
-      return;
-    }
+  const onClearRoll = () => {
+    updateActiveFrame((frame) => {
+      const nextFrame = {
+        ...frame,
+        [activeField]: null,
+      };
 
-    const trimmedDate = date.trim();
+      if (activeField === 'roll1Mask') {
+        nextFrame.roll2Mask = null;
+        nextFrame.roll3Mask = null;
+      }
 
-    if (trimmedDate.length === 0) {
-      setError('Date is required.');
-      return;
-    }
+      if (activeField === 'roll2Mask') {
+        nextFrame.roll3Mask = null;
+      }
 
-    let nextGameId = gameId;
+      return nextFrame;
+    });
+  };
 
-    try {
-      const payloadFrames = buildFramesPayload(frameDrafts);
+  const onClearFrame = () => {
+    updateActiveFrame(
+      () => ({
+        roll1Mask: null,
+        roll2Mask: null,
+        roll3Mask: null,
+      }),
+      'roll1Mask'
+    );
+  };
 
-      if (isCreateMode) {
-        if (!sessionId) {
-          throw new Error('Session is required when creating a game.');
+  const onCommitRoll = () => {
+    const nextMask = activeRollMask;
+
+    let committedFrame: FrameDraft | null = null;
+
+    updateActiveFrame((frame) => {
+      const nextFrame = {
+        ...frame,
+        [activeField]: nextMask,
+      };
+
+      if (activeField === 'roll1Mask') {
+        const roll1 = getRollValue(nextFrame.roll1Mask);
+
+        if (activeFrameIndex < 9 && roll1 === 10) {
+          nextFrame.roll2Mask = null;
+          nextFrame.roll3Mask = null;
+        }
+      }
+
+      if (activeField === 'roll2Mask') {
+        const roll1 = getRollValue(nextFrame.roll1Mask);
+        const roll2 = getRollValue(nextFrame.roll2Mask);
+
+        if (
+          activeFrameIndex < 9 &&
+          roll1 !== null &&
+          roll1 + (roll2 ?? 0) > 10
+        ) {
+          setInputError(
+            `Frame ${activeFrameIndex + 1}: roll 1 + roll 2 cannot exceed 10.`
+          );
+          return frame;
         }
 
-        nextGameId = await createGame({
-          sessionId,
-          date: trimmedDate,
-        });
-      } else {
+        if (
+          activeFrameIndex === 9 &&
+          roll1 !== null &&
+          roll2 !== null &&
+          roll1 < 10 &&
+          roll1 + roll2 > 10
+        ) {
+          setInputError(
+            'Frame 10: roll 1 + roll 2 cannot exceed 10 unless roll 1 is a strike.'
+          );
+          return frame;
+        }
+
+        if (
+          activeFrameIndex === 9 &&
+          roll1 !== null &&
+          roll2 !== null &&
+          roll1 < 10 &&
+          roll1 + roll2 < 10
+        ) {
+          nextFrame.roll3Mask = null;
+        }
+      }
+
+      committedFrame = nextFrame;
+      return nextFrame;
+    });
+
+    if (!committedFrame) {
+      return;
+    }
+
+    const cursor = getNextCursorAfterEntry(
+      activeFrameIndex,
+      activeField,
+      committedFrame
+    );
+
+    if (cursor) {
+      moveCursor(cursor);
+    }
+  };
+
+  useEffect(() => {
+    if (!didHydrate) {
+      return;
+    }
+
+    const persist = async () => {
+      if (isAutosaveInFlightRef.current) {
+        hasQueuedAutosaveRef.current = true;
+        return;
+      }
+
+      const activeGameId = draftGameId;
+      const autosavePlan = buildAutosaveGuardResult({
+        isAuthenticated,
+        date,
+        frameDrafts,
+        isCreateMode,
+        currentGameId: activeGameId,
+      });
+
+      if (autosavePlan.status === 'blocked') {
+        setAutosaveState('error');
+        setAutosaveError(autosavePlan.message);
+        return;
+      }
+
+      if (autosavePlan.status === 'idle') {
+        setAutosaveState('idle');
+        return;
+      }
+
+      const { trimmedDate, payloadFrames, signature } = autosavePlan;
+
+      if (signature === lastSavedSignatureRef.current) {
+        setAutosaveState('saved');
+        return;
+      }
+
+      isAutosaveInFlightRef.current = true;
+      setAutosaveState('saving');
+      setAutosaveError(null);
+      const saveSequence = saveSequenceRef.current + 1;
+      saveSequenceRef.current = saveSequence;
+
+      try {
+        let nextGameId = activeGameId;
+
+        if (isCreateMode) {
+          if (!sessionId) {
+            throw new Error('Session is required when creating a game.');
+          }
+
+          if (!nextGameId) {
+            nextGameId = await createGame({ sessionId, date: trimmedDate });
+            setDraftGameId(nextGameId);
+          } else {
+            await updateGame({ gameId: nextGameId, date: trimmedDate });
+          }
+        } else {
+          if (!nextGameId) {
+            throw new Error('Game not found.');
+          }
+
+          await updateGame({ gameId: nextGameId, date: trimmedDate });
+        }
+
         if (!nextGameId) {
           throw new Error('Game not found.');
         }
 
-        await updateGame({
+        await replaceFramesForGame({
+          gameId: nextGameId,
+          frames: payloadFrames,
+        });
+
+        lastSavedSignatureRef.current = JSON.stringify({
           gameId: nextGameId,
           date: trimmedDate,
+          frames: payloadFrames,
         });
+
+        if (saveSequenceRef.current === saveSequence) {
+          setAutosaveState('saved');
+          setAutosaveError(null);
+        }
+      } catch (caught) {
+        if (saveSequenceRef.current === saveSequence) {
+          setAutosaveState('error');
+          setAutosaveError(
+            caught instanceof Error ? caught.message : 'Unable to save game.'
+          );
+        }
+      } finally {
+        isAutosaveInFlightRef.current = false;
+
+        if (hasQueuedAutosaveRef.current) {
+          hasQueuedAutosaveRef.current = false;
+          void persist();
+        }
       }
+    };
 
-      if (!nextGameId) {
-        throw new Error('Game not found.');
-      }
+    const timer = setTimeout(() => {
+      void persist();
+    }, 400);
 
-      await replaceFramesForGame({
-        gameId: nextGameId,
-        frames: payloadFrames,
-      });
-
-      if (navigation.canGoBack()) {
-        router.back();
-        return;
-      }
-
-      if (leagueId && sessionId) {
-        router.replace({
-          pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-          params: {
-            leagueId,
-            sessionId,
-          } as never,
-        } as never);
-        return;
-      }
-
-      router.replace('/journal');
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Unable to save game.'
-      );
-    }
-  };
+    return () => clearTimeout(timer);
+  }, [
+    createGame,
+    date,
+    didHydrate,
+    draftGameId,
+    frameDrafts,
+    isAuthenticated,
+    isCreateMode,
+    replaceFramesForGame,
+    sessionId,
+    updateGame,
+  ]);
 
   if (!isCreateMode && isLoading && !didHydrate) {
     return (
@@ -295,7 +525,10 @@ export default function GameEditorScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
         <Card>
           <Text style={styles.sectionTitle}>Game details</Text>
           <Input
@@ -306,54 +539,39 @@ export default function GameEditorScreen() {
             value={date}
           />
           <Text style={styles.helpText}>
-            Save partial games by filling only the frames bowled so far.
+            Roll 1 starts all knocked. Fresh-rack bonus rolls do too.
+          </Text>
+          <Text
+            style={[
+              styles.autosaveText,
+              autosaveState === 'error' ? styles.autosaveTextError : null,
+            ]}
+          >
+            {autosaveMessage}
           </Text>
         </Card>
 
-        <Card>
-          <Text style={styles.sectionTitle}>Frames</Text>
-          {frameDrafts.map((frame, index) => (
-            <View key={`frame-${index + 1}`} style={styles.frameRow}>
-              <Text style={styles.frameLabel}>Frame {index + 1}</Text>
-              <View style={styles.rollsRow}>
-                <Input
-                  keyboardType="number-pad"
-                  onChangeText={(value) =>
-                    updateFrameDraft(index, 'roll1', value)
-                  }
-                  placeholder="R1"
-                  style={styles.rollInput}
-                  value={frame.roll1}
-                />
-                <Input
-                  keyboardType="number-pad"
-                  onChangeText={(value) =>
-                    updateFrameDraft(index, 'roll2', value)
-                  }
-                  placeholder="R2"
-                  style={styles.rollInput}
-                  value={frame.roll2}
-                />
-                <Input
-                  keyboardType="number-pad"
-                  onChangeText={(value) =>
-                    updateFrameDraft(index, 'roll3', value)
-                  }
-                  placeholder="R3"
-                  style={styles.rollInput}
-                  value={frame.roll3}
-                />
-              </View>
-            </View>
-          ))}
-        </Card>
+        <FrameProgressStrip
+          activeFrameIndex={activeFrameIndex}
+          frameDrafts={frameDrafts}
+          onSelectFrame={onSelectFrame}
+        />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Button
-          disabled={isSaving || (!isCreateMode && !didHydrate)}
-          label={isSaving ? 'Saving...' : 'Save game'}
-          onPress={onSave}
+        <ActiveFrameCard
+          activeField={activeField}
+          activeRollMask={activeRollMask}
+          activeStandingMask={activeStandingMask}
+          commitLabel={getCommitLabel(nextCursor)}
+          frameIndex={activeFrameIndex}
+          inlineError={inlineError}
+          onClearFrame={onClearFrame}
+          onClearRoll={onClearRoll}
+          onCommitRoll={onCommitRoll}
+          onSelectRoll={onSelectRoll}
+          onSetFullRack={onSetFullRack}
+          onSetGutter={onSetGutter}
+          onTogglePin={onTogglePin}
+          visibleRollFields={visibleRollFields}
         />
       </ScrollView>
     </View>
@@ -368,7 +586,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   sectionTitle: {
     fontSize: typeScale.titleSm,
@@ -380,30 +598,12 @@ const styles = StyleSheet.create({
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
-  frameRow: {
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceSubtle,
-  },
-  frameLabel: {
+  autosaveText: {
     fontSize: typeScale.bodySm,
-    fontWeight: '600',
-    color: colors.textPrimary,
+    color: colors.textSecondary,
   },
-  rollsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  rollInput: {
-    flex: 1,
-    height: 40,
-  },
-  error: {
+  autosaveTextError: {
     color: colors.danger,
-    fontSize: typeScale.bodySm,
   },
   loadingContainer: {
     flex: 1,

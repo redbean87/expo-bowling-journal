@@ -10,6 +10,7 @@ type FrameInput = {
   roll1: number;
   roll2: number | null;
   roll3: number | null;
+  pins: number | null;
 };
 
 function normalizeRequiredRoll(value: number, label: string): number {
@@ -35,12 +36,25 @@ function normalizeRoll(
   return value;
 }
 
+function normalizePins(value: number | null | undefined): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(value) || value < 0 || value > 2147483647) {
+    throw new ConvexError('pins must be a packed pin mask integer');
+  }
+
+  return value;
+}
+
 function validateAndNormalizeFrames(
   frames: Array<{
     frameNumber: number;
     roll1: number;
     roll2?: number | null;
     roll3?: number | null;
+    pins?: number | null;
   }>
 ): FrameInput[] {
   if (frames.length > 10) {
@@ -53,6 +67,7 @@ function validateAndNormalizeFrames(
       roll1: normalizeRequiredRoll(frame.roll1, 'roll1'),
       roll2: normalizeRoll(frame.roll2, 'roll2'),
       roll3: normalizeRoll(frame.roll3, 'roll3'),
+      pins: normalizePins(frame.pins),
     }))
     .sort((a, b) => a.frameNumber - b.frameNumber);
 
@@ -250,6 +265,7 @@ export const replaceForGame = mutation({
         roll1: v.number(),
         roll2: v.optional(v.union(v.number(), v.null())),
         roll3: v.optional(v.union(v.number(), v.null())),
+        pins: v.optional(v.union(v.number(), v.null())),
       })
     ),
   },
@@ -282,6 +298,7 @@ export const replaceForGame = mutation({
         roll1: frame.roll1,
         roll2: frame.roll2,
         roll3: frame.roll3,
+        pins: frame.pins,
       });
     }
 

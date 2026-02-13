@@ -126,6 +126,7 @@ export const framesReplaceForGameMutation = makeFunctionReference<
       roll1: number;
       roll2?: number | null;
       roll3?: number | null;
+      pins?: number | null;
     }>;
   },
   Id<'games'>
