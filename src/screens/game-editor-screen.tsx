@@ -2,18 +2,17 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import type { EditableFrameInput, GameId, SessionId } from '@/services/journal';
 
+import { Button, Card, Input } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
 
 type FrameDraft = {
   roll1: string;
@@ -297,74 +296,65 @@ export default function GameEditorScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
+        <Card>
           <Text style={styles.sectionTitle}>Game details</Text>
-          <TextInput
+          <Input
             autoCapitalize="none"
             autoCorrect={false}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textSecondary}
-            style={styles.input}
             value={date}
           />
           <Text style={styles.helpText}>
             Save partial games by filling only the frames bowled so far.
           </Text>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
+        <Card>
           <Text style={styles.sectionTitle}>Frames</Text>
           {frameDrafts.map((frame, index) => (
             <View key={`frame-${index + 1}`} style={styles.frameRow}>
               <Text style={styles.frameLabel}>Frame {index + 1}</Text>
               <View style={styles.rollsRow}>
-                <TextInput
+                <Input
                   keyboardType="number-pad"
                   onChangeText={(value) =>
                     updateFrameDraft(index, 'roll1', value)
                   }
                   placeholder="R1"
-                  placeholderTextColor={colors.textSecondary}
                   style={styles.rollInput}
                   value={frame.roll1}
                 />
-                <TextInput
+                <Input
                   keyboardType="number-pad"
                   onChangeText={(value) =>
                     updateFrameDraft(index, 'roll2', value)
                   }
                   placeholder="R2"
-                  placeholderTextColor={colors.textSecondary}
                   style={styles.rollInput}
                   value={frame.roll2}
                 />
-                <TextInput
+                <Input
                   keyboardType="number-pad"
                   onChangeText={(value) =>
                     updateFrameDraft(index, 'roll3', value)
                   }
                   placeholder="R3"
-                  placeholderTextColor={colors.textSecondary}
                   style={styles.rollInput}
                   value={frame.roll3}
                 />
               </View>
             </View>
           ))}
-        </View>
+        </Card>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable
+        <Button
           disabled={isSaving || (!isCreateMode && !didHydrate)}
+          label={isSaving ? 'Saving...' : 'Save game'}
           onPress={onSave}
-          style={styles.saveButton}
-        >
-          <Text style={styles.saveButtonLabel}>
-            {isSaving ? 'Saving...' : 'Save game'}
-          </Text>
-        </Pressable>
+        />
       </ScrollView>
     </View>
   );
@@ -376,89 +366,54 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 28,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    padding: 12,
-    gap: 10,
+    padding: spacing.lg,
+    gap: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: typeScale.titleSm,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  input: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F9FBFF',
-    color: colors.textPrimary,
-    paddingHorizontal: 12,
-  },
   helpText: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
   frameRow: {
-    gap: 8,
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#FBFDFF',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    backgroundColor: colors.surfaceSubtle,
   },
   frameLabel: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   rollsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   rollInput: {
     flex: 1,
     height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    paddingHorizontal: 10,
   },
   error: {
-    color: '#B42318',
-    fontSize: 13,
-  },
-  saveButton: {
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    color: colors.danger,
+    fontSize: typeScale.bodySm,
   },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     color: colors.textSecondary,
   },
 });

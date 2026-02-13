@@ -1,19 +1,20 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { AuthGate } from '@/components/auth-gate';
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { ScreenLayout } from '@/components/layout/screen-layout';
+import { Card } from '@/components/ui';
 import { useLeagues } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, typeScale } from '@/theme/tokens';
 
 export default function HomeScreen() {
   const { leagues, isLoading, isAuthenticated } = useLeagues();
 
   return (
-    <PlaceholderScreen
+    <ScreenLayout
       title="Bowling Journal"
       subtitle="Home now shows live Convex status while auth and core flows continue to expand."
     >
-      <View style={styles.card}>
+      <Card>
         <Text style={styles.title}>Live Data</Text>
         <Text style={styles.meta}>
           {isLoading
@@ -26,34 +27,26 @@ export default function HomeScreen() {
           Live data syncs automatically. If you just added records, pull to
           refresh or revisit this tab.
         </Text>
-      </View>
+      </Card>
 
       <AuthGate />
-    </PlaceholderScreen>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    padding: 12,
-  },
   title: {
-    fontSize: 16,
+    fontSize: typeScale.titleSm,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   meta: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     color: colors.textSecondary,
   },
   hint: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
 });

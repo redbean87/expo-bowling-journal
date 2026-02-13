@@ -6,17 +6,11 @@ import {
   useQuery,
 } from 'convex/react';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { Button, Card, Input } from '@/components/ui';
 import { viewerQuery } from '@/convex/functions';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
 
 export function AuthGate() {
   const viewer = useQuery(viewerQuery);
@@ -35,7 +29,7 @@ export function AuthGate() {
       </Unauthenticated>
 
       <Authenticated>
-        <View style={styles.card}>
+        <Card>
           <Text style={styles.title}>Signed in</Text>
           <Text style={styles.subtitle}>
             {viewer?.email
@@ -43,7 +37,7 @@ export function AuthGate() {
               : 'Connected to Convex Auth.'}
           </Text>
           <SignOutButton />
-        </View>
+        </Card>
       </Authenticated>
     </View>
   );
@@ -81,7 +75,7 @@ function AuthForm() {
   };
 
   return (
-    <View style={styles.card}>
+    <Card>
       <Text style={styles.title}>
         {isSigningUp ? 'Create account' : 'Sign in'}
       </Text>
@@ -89,54 +83,47 @@ function AuthForm() {
         Use email and password to access your bowling journal.
       </Text>
 
-      <TextInput
+      <Input
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
         onChangeText={setEmail}
         placeholder="Email"
-        placeholderTextColor={colors.textSecondary}
-        style={styles.input}
         value={email}
       />
-      <TextInput
+      <Input
         autoCapitalize="none"
         onChangeText={setPassword}
         placeholder="Password"
-        placeholderTextColor={colors.textSecondary}
         secureTextEntry
-        style={styles.input}
         value={password}
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable
+      <Button
         disabled={isSubmitting}
-        onPress={onSubmit}
-        style={styles.primaryButton}
-      >
-        <Text style={styles.primaryButtonLabel}>
-          {isSubmitting
+        label={
+          isSubmitting
             ? 'Working...'
             : isSigningUp
               ? 'Create account'
-              : 'Sign in'}
-        </Text>
-      </Pressable>
+              : 'Sign in'
+        }
+        onPress={onSubmit}
+      />
 
-      <Pressable
+      <Button
         disabled={isSubmitting}
-        onPress={() => setIsSigningUp((current) => !current)}
-        style={styles.ghostButton}
-      >
-        <Text style={styles.ghostButtonLabel}>
-          {isSigningUp
+        label={
+          isSigningUp
             ? 'Already have an account? Sign in'
-            : 'Need an account? Create one'}
-        </Text>
-      </Pressable>
-    </View>
+            : 'Need an account? Create one'
+        }
+        onPress={() => setIsSigningUp((current) => !current)}
+        variant="ghost"
+      />
+    </Card>
   );
 }
 
@@ -144,9 +131,7 @@ function SignOutButton() {
   const { signOut } = useAuthActions();
 
   return (
-    <Pressable onPress={() => void signOut()} style={styles.ghostButton}>
-      <Text style={styles.ghostButtonLabel}>Sign out</Text>
-    </Pressable>
+    <Button label="Sign out" onPress={() => void signOut()} variant="ghost" />
   );
 }
 
@@ -156,59 +141,21 @@ const styles = StyleSheet.create({
   },
   centered: {
     alignItems: 'center',
-    gap: 10,
-  },
-  card: {
-    gap: 12,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    gap: spacing.md,
   },
   title: {
-    fontSize: 20,
+    fontSize: typeScale.title,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: typeScale.body,
+    lineHeight: lineHeight.body,
     color: colors.textSecondary,
   },
-  input: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F9FBFF',
-    color: colors.textPrimary,
-    paddingHorizontal: 12,
-  },
   error: {
-    color: '#B42318',
-    fontSize: 13,
-  },
-  primaryButton: {
-    marginTop: 4,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  ghostButton: {
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghostButtonLabel: {
-    color: colors.accent,
-    fontWeight: '600',
+    color: colors.danger,
+    fontSize: typeScale.bodySm,
+    borderRadius: radius.sm,
   },
 });

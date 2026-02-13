@@ -127,6 +127,7 @@ docs/
 - [ROADMAP.md](ROADMAP.md) - Current priorities and planned milestones
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Architecture and data flow overview
 - [AGENTS.md](AGENTS.md) - Agent-specific workflow and guardrails
+- [docs/libraries.md](docs/libraries.md) - Library stack and project conventions
 - [worker/README.md](worker/README.md) - Import worker endpoints and local setup
 - [convex_data_schema_locked.md](convex_data_schema_locked.md) - Locked Convex data model reference
 - [sqlite_to_convex_mapping.md](sqlite_to_convex_mapping.md) - SQLite-to-Convex import mapping notes

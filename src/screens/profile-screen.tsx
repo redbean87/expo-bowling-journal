@@ -1,17 +1,12 @@
 import { useConvexAuth, useQuery } from 'convex/react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { ScreenLayout } from '@/components/layout/screen-layout';
+import { Button, Card } from '@/components/ui';
 import { env } from '@/config/env';
 import { viewerQuery } from '@/convex/functions';
 import { useImportBackup } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function formatDate(value: number | null) {
   if (!value) {
@@ -38,7 +33,7 @@ export default function ProfileScreen() {
     status === 'queued' || status === 'parsing' || status === 'importing';
 
   return (
-    <PlaceholderScreen
+    <ScreenLayout
       title="Profile"
       subtitle="Import your SQLite backup and track import progress here."
     >
@@ -61,25 +56,27 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.card}>
+        <Card muted>
           <Text style={styles.sectionTitle}>Backup file</Text>
           <Text style={styles.meta}>
             {selectedFileLabel ?? 'No file selected'}
           </Text>
 
-          <Pressable
+          <Button
+            label="Choose backup file"
             onPress={() => void pickBackupFile()}
-            style={styles.secondaryButton}
-          >
-            <Text style={styles.secondaryButtonLabel}>Choose backup file</Text>
-          </Pressable>
+            variant="secondary"
+          />
 
-          <Pressable
+          <Button
             disabled={
               isUploading ||
               !isAuthenticated ||
               !env.importWorkerUrl ||
               !selectedFileLabel
+            }
+            label={
+              isUploading ? 'Uploading backup...' : 'Upload and start import'
             }
             onPress={() =>
               void startBackupImport(
@@ -87,24 +84,14 @@ export default function ProfileScreen() {
                 viewer?.userId ?? null
               )
             }
-            style={[
-              styles.actionButton,
-              isUploading || !selectedFileLabel
-                ? styles.actionButtonDisabled
-                : null,
-            ]}
-          >
-            <Text style={styles.actionButtonLabel}>
-              {isUploading ? 'Uploading backup...' : 'Upload and start import'}
-            </Text>
-          </Pressable>
+          />
 
           {isUploading ? <ActivityIndicator color={colors.accent} /> : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </View>
+        </Card>
 
         {importStatus ? (
-          <View style={styles.card}>
+          <Card muted>
             <Text style={styles.sectionTitle}>Import status</Text>
             <Text style={styles.meta}>Status: {importStatus.status}</Text>
             <Text style={styles.meta}>
@@ -164,79 +151,42 @@ export default function ProfileScreen() {
                 Warnings: {importStatus.counts.warnings}
               </Text>
             </View>
-          </View>
+          </Card>
         ) : null}
       </View>
-    </PlaceholderScreen>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
+    gap: spacing.md,
   },
   copy: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
-  card: {
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#F8FAFF',
-  },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: typeScale.titleSm,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   meta: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm,
     color: colors.textSecondary,
   },
   errorText: {
-    fontSize: 13,
-    color: '#B42318',
+    fontSize: typeScale.bodySm,
+    color: colors.danger,
   },
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   countsGrid: {
-    gap: 4,
-    paddingTop: 4,
-  },
-  actionButton: {
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  actionButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  secondaryButton: {
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 13,
+    gap: spacing.xs,
+    paddingTop: spacing.xs,
   },
 });

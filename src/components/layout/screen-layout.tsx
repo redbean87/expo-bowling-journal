@@ -1,20 +1,20 @@
 import { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
 
-type PlaceholderScreenProps = PropsWithChildren<{
+type ScreenLayoutProps = PropsWithChildren<{
   title: string;
   subtitle: string;
   fillCard?: boolean;
 }>;
 
-export function PlaceholderScreen({
+export function ScreenLayout({
   title,
   subtitle,
   fillCard = false,
   children,
-}: PlaceholderScreenProps) {
+}: ScreenLayoutProps) {
   return (
     <View style={[styles.container, fillCard ? styles.containerTop : null]}>
       <View style={[styles.card, fillCard ? styles.cardFill : null]}>
@@ -29,14 +29,14 @@ export function PlaceholderScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: spacing.xl,
     backgroundColor: colors.background,
     justifyContent: 'center',
   },
   card: {
-    gap: 10,
-    padding: 20,
-    borderRadius: 16,
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -49,13 +49,13 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   title: {
-    fontSize: 26,
+    fontSize: typeScale.hero,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: typeScale.bodyLg,
+    lineHeight: lineHeight.body,
     color: colors.textSecondary,
   },
 });
