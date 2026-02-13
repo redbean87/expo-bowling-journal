@@ -1,3 +1,3 @@
-import JournalLeaguesScreen from '@/screens/journal/journal-leagues-screen';
+import JournalLeaguesScreen from '@/screens/journal-leagues-screen';
 
 export default JournalLeaguesScreen;

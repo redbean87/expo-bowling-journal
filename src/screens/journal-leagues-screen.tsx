@@ -1,17 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { ScreenLayout } from '@/components/layout/screen-layout';
+import { Button, Card, Input, PressableCard } from '@/components/ui';
 import { useLeagues } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 export default function JournalLeaguesScreen() {
   const router = useRouter();
@@ -48,38 +42,29 @@ export default function JournalLeaguesScreen() {
   };
 
   return (
-    <PlaceholderScreen
+    <ScreenLayout
       title="Journal"
       subtitle="Start with a league, then drill into sessions and games."
       fillCard
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.formCard}>
-          <TextInput
+        <Card muted>
+          <Input
             autoCapitalize="words"
             autoCorrect={false}
             onChangeText={setLeagueName}
             placeholder="League name"
-            placeholderTextColor={colors.textSecondary}
-            style={styles.input}
             value={leagueName}
           />
           {leagueError ? (
             <Text style={styles.errorText}>{leagueError}</Text>
           ) : null}
-          <Pressable
+          <Button
             disabled={isCreatingLeague}
+            label={isCreatingLeague ? 'Creating...' : 'Create league'}
             onPress={onCreateLeague}
-            style={[
-              styles.actionButton,
-              isCreatingLeague ? styles.actionButtonDisabled : null,
-            ]}
-          >
-            <Text style={styles.actionButtonLabel}>
-              {isCreatingLeague ? 'Creating...' : 'Create league'}
-            </Text>
-          </Pressable>
-        </View>
+          />
+        </Card>
 
         {isLeaguesLoading ? (
           <Text style={styles.meta}>Loading leagues...</Text>
@@ -91,7 +76,7 @@ export default function JournalLeaguesScreen() {
         ) : null}
 
         {leagues.map((league) => (
-          <Pressable
+          <PressableCard
             key={league._id}
             onPress={() =>
               router.push({
@@ -99,78 +84,38 @@ export default function JournalLeaguesScreen() {
                 params: { leagueId: league._id } as never,
               } as never)
             }
-            style={styles.row}
           >
             <Text style={styles.rowTitle}>{league.name}</Text>
             <Text style={styles.meta}>
               {league.houseName ?? 'No house set'}
             </Text>
-          </Pressable>
+          </PressableCard>
         ))}
       </ScrollView>
-    </PlaceholderScreen>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
-    paddingBottom: 8,
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
   },
-  formCard: {
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#F8FAFF',
-  },
-  input: {
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    paddingHorizontal: 12,
-  },
   errorText: {
-    fontSize: 13,
-    color: '#B42318',
-  },
-  actionButton: {
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonDisabled: {
-    opacity: 0.65,
-  },
-  actionButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  row: {
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: colors.surface,
+    fontSize: typeScale.bodySm,
+    color: colors.danger,
   },
   rowTitle: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   meta: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
 });

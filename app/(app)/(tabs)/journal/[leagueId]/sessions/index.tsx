@@ -1,3 +1,3 @@
-import JournalSessionsScreen from '@/screens/journal/journal-sessions-screen';
+import JournalSessionsScreen from '@/screens/journal-sessions-screen';
 
 export default JournalSessionsScreen;

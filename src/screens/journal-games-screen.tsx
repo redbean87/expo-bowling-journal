@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import type { LeagueId, SessionId } from '@/services/journal';
 
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { ScreenLayout } from '@/components/layout/screen-layout';
+import { Button, Card } from '@/components/ui';
 import { useGames } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
@@ -26,14 +27,15 @@ export default function JournalGamesScreen() {
   const { games, isLoading: isGamesLoading } = useGames(sessionId);
 
   return (
-    <PlaceholderScreen
+    <ScreenLayout
       title="Games"
       subtitle="Review games for this session, then add or edit frame data."
       fillCard
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Pressable
+        <Button
           disabled={!leagueId || !sessionId}
+          label="Add game"
           onPress={() =>
             router.push({
               pathname:
@@ -45,13 +47,7 @@ export default function JournalGamesScreen() {
               },
             })
           }
-          style={[
-            styles.actionButton,
-            !leagueId || !sessionId ? styles.actionButtonDisabled : null,
-          ]}
-        >
-          <Text style={styles.actionButtonLabel}>Add game</Text>
-        </Pressable>
+        />
 
         {isGamesLoading ? (
           <Text style={styles.meta}>Loading games...</Text>
@@ -64,10 +60,11 @@ export default function JournalGamesScreen() {
         ) : null}
 
         {games.map((game) => (
-          <View key={game._id} style={styles.row}>
+          <Card key={game._id}>
             <Text style={styles.rowTitle}>{game.date}</Text>
             <Text style={styles.meta}>Score {game.totalScore}</Text>
-            <Pressable
+            <Button
+              label="Edit game"
               onPress={() =>
                 router.push({
                   pathname:
@@ -79,70 +76,31 @@ export default function JournalGamesScreen() {
                   },
                 })
               }
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonLabel}>Edit game</Text>
-            </Pressable>
-          </View>
+              variant="secondary"
+            />
+          </Card>
         ))}
       </ScrollView>
-    </PlaceholderScreen>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
-    paddingBottom: 8,
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
   },
-  row: {
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: colors.surface,
-  },
   rowTitle: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   meta: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
-  },
-  actionButton: {
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonDisabled: {
-    opacity: 0.65,
-  },
-  actionButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  secondaryButton: {
-    marginTop: 4,
-    height: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F8FAFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 13,
   },
 });

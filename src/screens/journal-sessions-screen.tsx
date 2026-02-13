@@ -1,19 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import type { LeagueId } from '@/services/journal';
 
-import { PlaceholderScreen } from '@/components/placeholder-screen';
+import { ScreenLayout } from '@/components/layout/screen-layout';
+import { Button, Card, Input, PressableCard } from '@/components/ui';
 import { useLeagues, useSessions } from '@/hooks/journal';
-import { colors } from '@/theme/tokens';
+import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
@@ -97,7 +91,7 @@ export default function JournalSessionsScreen() {
   };
 
   return (
-    <PlaceholderScreen
+    <ScreenLayout
       title="Sessions"
       subtitle={
         leagueName ? `League: ${leagueName}` : 'Review and create sessions.'
@@ -105,44 +99,31 @@ export default function JournalSessionsScreen() {
       fillCard
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.formCard}>
-          <TextInput
+        <Card muted>
+          <Input
             autoCapitalize="none"
             autoCorrect={false}
             onChangeText={setSessionDate}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textSecondary}
-            style={styles.input}
             value={sessionDate}
           />
-          <TextInput
+          <Input
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="number-pad"
             onChangeText={setSessionWeekNumber}
             placeholder="Week number (optional)"
-            placeholderTextColor={colors.textSecondary}
-            style={styles.input}
             value={sessionWeekNumber}
           />
           {sessionError ? (
             <Text style={styles.errorText}>{sessionError}</Text>
           ) : null}
-          <Pressable
+          <Button
             disabled={isCreatingSession || !leagueId}
+            label={isCreatingSession ? 'Creating...' : 'Create session'}
             onPress={onCreateSession}
-            style={[
-              styles.actionButton,
-              isCreatingSession || !leagueId
-                ? styles.actionButtonDisabled
-                : null,
-            ]}
-          >
-            <Text style={styles.actionButtonLabel}>
-              {isCreatingSession ? 'Creating...' : 'Create session'}
-            </Text>
-          </Pressable>
-        </View>
+          />
+        </Card>
 
         {isSessionsLoading ? (
           <Text style={styles.meta}>Loading sessions...</Text>
@@ -157,7 +138,7 @@ export default function JournalSessionsScreen() {
         ) : null}
 
         {sessions.map((session) => (
-          <Pressable
+          <PressableCard
             key={session._id}
             onPress={() =>
               router.push({
@@ -169,78 +150,38 @@ export default function JournalSessionsScreen() {
                 } as never,
               } as never)
             }
-            style={styles.row}
           >
             <Text style={styles.rowTitle}>Date: {session.date}</Text>
             <Text style={styles.meta}>
               Week {session.weekNumber ?? 'not set'}
             </Text>
-          </Pressable>
+          </PressableCard>
         ))}
       </ScrollView>
-    </PlaceholderScreen>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
-    paddingBottom: 8,
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
   },
-  formCard: {
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#F8FAFF',
-  },
-  input: {
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    paddingHorizontal: 12,
-  },
   errorText: {
-    fontSize: 13,
-    color: '#B42318',
-  },
-  actionButton: {
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonDisabled: {
-    opacity: 0.65,
-  },
-  actionButtonLabel: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  row: {
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: colors.surface,
+    fontSize: typeScale.bodySm,
+    color: colors.danger,
   },
   rowTitle: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   meta: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm,
+    lineHeight: lineHeight.compact,
     color: colors.textSecondary,
   },
 });
