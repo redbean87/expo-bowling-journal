@@ -8,7 +8,7 @@ import {
 import { PinDeck } from './pin-deck';
 
 import { Button, Card } from '@/components/ui';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { colors, radius, spacing, typeScale } from '@/theme/tokens';
 
 const ROLL_LABELS: Record<RollField, string> = {
   roll1Mask: 'Roll 1',
@@ -22,6 +22,8 @@ type ActiveFrameCardProps = {
   visibleRollFields: RollField[];
   activeRollMask: number | null;
   activeStandingMask: number;
+  autosaveMessage: string;
+  autosaveState: 'idle' | 'saving' | 'saved' | 'error';
   inlineError: string | null;
   onSelectRoll: (field: RollField) => void;
   onTogglePin: (pinNumber: number) => void;
@@ -35,6 +37,8 @@ export function ActiveFrameCard({
   visibleRollFields,
   activeRollMask,
   activeStandingMask,
+  autosaveMessage,
+  autosaveState,
   inlineError,
   onSelectRoll,
   onTogglePin,
@@ -90,8 +94,19 @@ export function ActiveFrameCard({
         </View>
       </View>
 
+      <Text
+        style={[
+          styles.autosaveText,
+          autosaveState === 'error' ? styles.autosaveTextError : null,
+        ]}
+      >
+        {autosaveMessage}
+      </Text>
+
       {inlineError ? (
-        <Text style={styles.inlineError}>{inlineError}</Text>
+        <View style={styles.inlineErrorContainer}>
+          <Text style={styles.inlineError}>{inlineError}</Text>
+        </View>
       ) : null}
     </Card>
   );
@@ -117,6 +132,21 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  autosaveText: {
+    fontSize: typeScale.bodySm,
+    color: colors.textSecondary,
+  },
+  autosaveTextError: {
+    color: colors.danger,
+  },
+  inlineErrorContainer: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   inlineError: {
     color: colors.danger,

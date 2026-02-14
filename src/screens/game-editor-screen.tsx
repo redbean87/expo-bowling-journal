@@ -486,14 +486,6 @@ export default function GameEditorScreen() {
           <Text style={styles.helpText}>
             Roll 1 starts all knocked. Fresh-rack bonus rolls do too.
           </Text>
-          <Text
-            style={[
-              styles.autosaveText,
-              autosaveState === 'error' ? styles.autosaveTextError : null,
-            ]}
-          >
-            {autosaveMessage}
-          </Text>
         </Card>
 
         <FrameProgressStrip
@@ -506,6 +498,8 @@ export default function GameEditorScreen() {
           activeField={activeField}
           activeRollMask={activeRollMask}
           activeStandingMask={activeStandingMask}
+          autosaveMessage={autosaveMessage}
+          autosaveState={autosaveState}
           frameIndex={activeFrameIndex}
           inlineError={inlineError}
           onCommitRoll={onCommitRoll}
@@ -538,13 +532,6 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
-  },
-  autosaveText: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-  autosaveTextError: {
-    color: colors.danger,
   },
   loadingContainer: {
     flex: 1,

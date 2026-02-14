@@ -5,12 +5,13 @@ This roadmap keeps work scoped to small, precise commits.
 ## Now
 
 - [ ] Mobile-first league night flow (fast league -> session -> game entry)
+- [ ] Simplify game entry interactions for one-hand use (bigger targets, fewer fields)
+- [ ] Reduce game-entry feedback noise while keeping autosave/error recovery clear
 - [ ] Offline-first game capture with prior sign-in requirement
 - [ ] Queue + sync status UX for weak-signal bowling alleys
 
 ## Next
 
-- [ ] Simplify game entry interactions for one-hand use (bigger targets, fewer fields)
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
@@ -52,6 +53,10 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Optional v2: add canonical frame persistence with chunked writes (without reintroducing Convex write-cap failures)
 - [x] Optional v2: decide frame/raw retention policy after canonical frame persistence rollout
 - [x] Persist `importRawFrames` in callback import flow using chunked writes while keeping `snapshotJson` + transition guardrails intact
+- [x] Refactor navigation into auth/app shells with nested journal route hierarchy
+- [x] Split journal flow into leagues, sessions, and games screens
+- [x] Add theme primitives/tokens foundation (`Button`, `Card`, `Input`, `ScreenLayout`)
+- [x] Normalize screen file layout with root-level prefixed journal screen files
 
 ## Decision Log
 
