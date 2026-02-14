@@ -22,8 +22,10 @@ import {
   getPreferredRollField,
   getRollValue,
   getStandingMaskForField,
+  getTenthFrameHint,
   getVisibleRollFields,
   normalizeDateValue,
+  sanitizeFrameDraftsForEntry,
   toFrameDrafts,
   type FrameDraft,
   type RollField,
@@ -64,37 +66,6 @@ function getDefaultMaskForField(
   }
 
   return 0;
-}
-
-function sanitizeFrameDraftsForEntry(frameDrafts: FrameDraft[]): {
-  drafts: FrameDraft[];
-  changed: boolean;
-} {
-  let changed = false;
-
-  const drafts = frameDrafts.map((frame, index) => {
-    if (index === 9) {
-      return frame;
-    }
-
-    const roll1 = getRollValue(frame.roll1Mask);
-    const shouldClearRoll2 = roll1 === 10;
-    const nextRoll2Mask = shouldClearRoll2 ? null : frame.roll2Mask;
-
-    if (nextRoll2Mask === frame.roll2Mask && frame.roll3Mask === null) {
-      return frame;
-    }
-
-    changed = true;
-
-    return {
-      ...frame,
-      roll2Mask: nextRoll2Mask,
-      roll3Mask: null,
-    };
-  });
-
-  return { drafts, changed };
 }
 
 export default function GameEditorScreen() {
@@ -154,6 +125,11 @@ export default function GameEditorScreen() {
     getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
   const shortcutLabel =
     activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
+  const tenthFrameHint = getTenthFrameHint(
+    activeFrameIndex,
+    activeFrame,
+    activeField
+  );
   const autosaveMessage = useMemo(() => {
     if (!isAuthenticated) {
       return 'Sign in to auto-save changes.';
@@ -514,6 +490,7 @@ export default function GameEditorScreen() {
           autosaveMessage={autosaveMessage}
           autosaveState={autosaveState}
           inlineError={inlineError}
+          tenthFrameHint={tenthFrameHint}
           onTogglePin={onTogglePin}
         />
       </ScrollView>

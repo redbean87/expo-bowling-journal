@@ -8,7 +8,9 @@ import {
   getFrameSymbolSummary,
   getNextCursorAfterEntry,
   getStandingMaskForField,
+  getTenthFrameHint,
   getVisibleRollFields,
+  sanitizeFrameDraftsForEntry,
   toFrameDrafts,
   type FrameDraft,
 } from '../../src/screens/game-editor/game-editor-frame-utils';
@@ -216,4 +218,63 @@ test('formats frame symbols for tenth-frame open and partial states', () => {
     }),
     '5'
   );
+});
+
+test('sanitizeFrameDraftsForEntry clears invalid roll3 outside frame 10', () => {
+  const drafts = withFrame(0, {
+    roll1Mask: 0b0000000111,
+    roll2Mask: 0b0000001000,
+    roll3Mask: 0b0000010000,
+  });
+
+  const result = sanitizeFrameDraftsForEntry(drafts);
+
+  assert.equal(result.changed, true);
+  assert.equal(result.drafts[0]?.roll3Mask, null);
+  assert.equal(result.drafts[0]?.roll2Mask, 0b0000001000);
+});
+
+test('sanitizeFrameDraftsForEntry clears roll2 after strike outside frame 10', () => {
+  const drafts = withFrame(1, {
+    roll1Mask: 0x3ff,
+    roll2Mask: 0b0000000001,
+    roll3Mask: null,
+  });
+
+  const result = sanitizeFrameDraftsForEntry(drafts);
+
+  assert.equal(result.changed, true);
+  assert.equal(result.drafts[1]?.roll2Mask, null);
+});
+
+test('sanitizeFrameDraftsForEntry preserves frame 10 roll3', () => {
+  const drafts = withFrame(9, {
+    roll1Mask: 0x3ff,
+    roll2Mask: 0x3ff,
+    roll3Mask: 0b0000000011,
+  });
+
+  const result = sanitizeFrameDraftsForEntry(drafts);
+
+  assert.equal(result.changed, false);
+  assert.equal(result.drafts[9]?.roll3Mask, 0b0000000011);
+});
+
+test('getTenthFrameHint returns contextual hints for frame 10 rolls', () => {
+  const frame: FrameDraft = {
+    roll1Mask: 0x3ff,
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+
+  assert.equal(
+    getTenthFrameHint(9, frame, 'roll1Mask'),
+    'Strike or spare unlocks bonus roll.'
+  );
+  assert.equal(
+    getTenthFrameHint(9, frame, 'roll2Mask'),
+    'Bonus setup: strike gives a fresh rack.'
+  );
+  assert.equal(getTenthFrameHint(9, frame, 'roll3Mask'), 'Bonus roll.');
+  assert.equal(getTenthFrameHint(8, frame, 'roll1Mask'), null);
 });
