@@ -13,6 +13,7 @@ import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import { buildAutosaveGuardResult } from './game-editor/game-editor-autosave-utils';
 import {
   EMPTY_FRAMES,
+  FULL_PIN_MASK,
   findSuggestedFrameIndex,
   getFirstParam,
   getFrameInlineError,
@@ -29,7 +30,7 @@ import {
 
 import type { GameId, SessionId } from '@/services/journal';
 
-import { Card, Input } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -119,6 +120,8 @@ export default function GameEditorScreen() {
   const activeRollMask =
     activeFrame[activeField] ??
     getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
+  const shortcutLabel =
+    activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
   const autosaveMessage = useMemo(() => {
     if (!isAuthenticated) {
       return 'Sign in to auto-save changes.';
@@ -502,13 +505,26 @@ export default function GameEditorScreen() {
           autosaveState={autosaveState}
           frameIndex={activeFrameIndex}
           inlineError={inlineError}
-          onCommitRoll={onCommitRoll}
           onSelectRoll={onSelectRoll}
-          onSetFullRack={onSetFullRack}
           onTogglePin={onTogglePin}
           visibleRollFields={visibleRollFields}
         />
       </ScrollView>
+
+      <View style={styles.stickyActionsContainer}>
+        <View style={styles.stickyActionsRow}>
+          <View style={styles.stickyActionButton}>
+            <Button
+              label={shortcutLabel}
+              onPress={onSetFullRack}
+              variant="secondary"
+            />
+          </View>
+          <View style={styles.stickyActionButton}>
+            <Button label="Next" onPress={onCommitRoll} />
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -521,7 +537,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     gap: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl + spacing.xl,
   },
   sectionTitle: {
     fontSize: typeScale.titleSm,
@@ -543,5 +559,23 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typeScale.body,
     color: colors.textSecondary,
+  },
+  stickyActionsContainer: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
+  },
+  stickyActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderRadius: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    padding: spacing.xs,
+  },
+  stickyActionButton: {
+    flex: 1,
   },
 });

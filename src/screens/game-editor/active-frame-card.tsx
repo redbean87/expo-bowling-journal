@@ -1,10 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import {
-  FULL_PIN_MASK,
-  getRollValue,
-  type RollField,
-} from './game-editor-frame-utils';
+import { getRollValue, type RollField } from './game-editor-frame-utils';
 import { PinDeck } from './pin-deck';
 
 import { Button, Card } from '@/components/ui';
@@ -27,8 +23,6 @@ type ActiveFrameCardProps = {
   inlineError: string | null;
   onSelectRoll: (field: RollField) => void;
   onTogglePin: (pinNumber: number) => void;
-  onSetFullRack: () => void;
-  onCommitRoll: () => void;
 };
 
 export function ActiveFrameCard({
@@ -42,12 +36,8 @@ export function ActiveFrameCard({
   inlineError,
   onSelectRoll,
   onTogglePin,
-  onSetFullRack,
-  onCommitRoll,
 }: ActiveFrameCardProps) {
   const selectedCount = getRollValue(activeRollMask) ?? 0;
-  const isFreshRack = activeStandingMask === FULL_PIN_MASK;
-  const shortcutLabel = isFreshRack ? 'Strike' : 'Spare';
 
   return (
     <Card>
@@ -71,28 +61,11 @@ export function ActiveFrameCard({
         })}
       </View>
 
-      <Text style={styles.countText}>
-        Pins knocked this roll: {selectedCount}
-      </Text>
-
       <PinDeck
         selectedMask={activeRollMask ?? 0}
         standingMask={activeStandingMask}
         onTogglePin={onTogglePin}
       />
-
-      <View style={styles.actionsRow}>
-        <View style={styles.actionButton}>
-          <Button
-            label={shortcutLabel}
-            onPress={onSetFullRack}
-            variant="secondary"
-          />
-        </View>
-        <View style={styles.actionButton}>
-          <Button label="Next" onPress={onCommitRoll} />
-        </View>
-      </View>
 
       <Text
         style={[
@@ -125,13 +98,6 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    flex: 1,
   },
   autosaveText: {
     fontSize: typeScale.bodySm,

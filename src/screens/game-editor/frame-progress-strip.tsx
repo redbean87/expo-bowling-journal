@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
   symbolRow: {
     gap: spacing.sm,
     paddingBottom: spacing.xs,
+    paddingRight: spacing.sm,
   },
   pillPressed: {
     opacity: 0.82,
