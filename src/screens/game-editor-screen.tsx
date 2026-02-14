@@ -48,18 +48,6 @@ function maskHasPin(mask: number, pinNumber: number) {
   return (mask & (1 << (pinNumber - 1))) !== 0;
 }
 
-function getCommitLabel(nextCursor: CursorTarget | null) {
-  if (!nextCursor) {
-    return 'Set roll';
-  }
-
-  if (nextCursor.field === 'roll1Mask') {
-    return 'Next frame';
-  }
-
-  return 'Next roll';
-}
-
 function getDefaultMaskForField(
   frameIndex: number,
   field: RollField,
@@ -131,11 +119,6 @@ export default function GameEditorScreen() {
   const activeRollMask =
     activeFrame[activeField] ??
     getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
-  const nextCursor = getNextCursorAfterEntry(activeFrameIndex, activeField, {
-    ...activeFrame,
-    [activeField]: activeRollMask,
-  });
-
   const autosaveMessage = useMemo(() => {
     if (!isAuthenticated) {
       return 'Sign in to auto-save changes.';
@@ -271,49 +254,11 @@ export default function GameEditorScreen() {
     });
   };
 
-  const onSetGutter = () => {
-    updateActiveFrame((frame) => ({
-      ...frame,
-      [activeField]: 0,
-    }));
-  };
-
   const onSetFullRack = () => {
     updateActiveFrame((frame) => ({
       ...frame,
       [activeField]: activeStandingMask,
     }));
-  };
-
-  const onClearRoll = () => {
-    updateActiveFrame((frame) => {
-      const nextFrame = {
-        ...frame,
-        [activeField]: null,
-      };
-
-      if (activeField === 'roll1Mask') {
-        nextFrame.roll2Mask = null;
-        nextFrame.roll3Mask = null;
-      }
-
-      if (activeField === 'roll2Mask') {
-        nextFrame.roll3Mask = null;
-      }
-
-      return nextFrame;
-    });
-  };
-
-  const onClearFrame = () => {
-    updateActiveFrame(
-      () => ({
-        roll1Mask: null,
-        roll2Mask: null,
-        roll3Mask: null,
-      }),
-      'roll1Mask'
-    );
   };
 
   const onCommitRoll = () => {
@@ -561,15 +506,11 @@ export default function GameEditorScreen() {
           activeField={activeField}
           activeRollMask={activeRollMask}
           activeStandingMask={activeStandingMask}
-          commitLabel={getCommitLabel(nextCursor)}
           frameIndex={activeFrameIndex}
           inlineError={inlineError}
-          onClearFrame={onClearFrame}
-          onClearRoll={onClearRoll}
           onCommitRoll={onCommitRoll}
           onSelectRoll={onSelectRoll}
           onSetFullRack={onSetFullRack}
-          onSetGutter={onSetGutter}
           onTogglePin={onTogglePin}
           visibleRollFields={visibleRollFields}
         />

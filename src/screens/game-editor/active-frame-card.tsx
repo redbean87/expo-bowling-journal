@@ -1,10 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { getRollValue, type RollField } from './game-editor-frame-utils';
+import {
+  FULL_PIN_MASK,
+  getRollValue,
+  type RollField,
+} from './game-editor-frame-utils';
 import { PinDeck } from './pin-deck';
 
 import { Button, Card } from '@/components/ui';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { colors, spacing, typeScale } from '@/theme/tokens';
 
 const ROLL_LABELS: Record<RollField, string> = {
   roll1Mask: 'Roll 1',
@@ -21,12 +25,8 @@ type ActiveFrameCardProps = {
   inlineError: string | null;
   onSelectRoll: (field: RollField) => void;
   onTogglePin: (pinNumber: number) => void;
-  onSetGutter: () => void;
   onSetFullRack: () => void;
-  onClearRoll: () => void;
-  onClearFrame: () => void;
   onCommitRoll: () => void;
-  commitLabel: string;
 };
 
 export function ActiveFrameCard({
@@ -38,20 +38,18 @@ export function ActiveFrameCard({
   inlineError,
   onSelectRoll,
   onTogglePin,
-  onSetGutter,
   onSetFullRack,
-  onClearRoll,
-  onClearFrame,
   onCommitRoll,
-  commitLabel,
 }: ActiveFrameCardProps) {
   const selectedCount = getRollValue(activeRollMask) ?? 0;
+  const isFreshRack = activeStandingMask === FULL_PIN_MASK;
+  const shortcutLabel = isFreshRack ? 'Strike' : 'Spare';
 
   return (
     <Card>
       <Text style={styles.title}>Frame {frameIndex + 1}</Text>
-      <Text style={styles.caption}>
-        Roll 1 starts all knocked. Fresh-rack bonus rolls do too.
+      <Text style={styles.countText}>
+        {ROLL_LABELS[activeField]} • {selectedCount} pins selected
       </Text>
 
       <View style={styles.rollTabs}>
@@ -79,17 +77,18 @@ export function ActiveFrameCard({
         onTogglePin={onTogglePin}
       />
 
-      <View style={styles.quickActions}>
-        <Button label="Gutter" onPress={onSetGutter} variant="secondary" />
-        <Button label="All pins" onPress={onSetFullRack} variant="secondary" />
+      <View style={styles.actionsRow}>
+        <View style={styles.actionButton}>
+          <Button
+            label={shortcutLabel}
+            onPress={onSetFullRack}
+            variant="secondary"
+          />
+        </View>
+        <View style={styles.actionButton}>
+          <Button label="Next" onPress={onCommitRoll} />
+        </View>
       </View>
-
-      <View style={styles.quickActions}>
-        <Button label="Clear roll" onPress={onClearRoll} variant="ghost" />
-        <Button label="Clear frame" onPress={onClearFrame} variant="ghost" />
-      </View>
-
-      <Button label={commitLabel} onPress={onCommitRoll} />
 
       {inlineError ? (
         <Text style={styles.inlineError}>{inlineError}</Text>
@@ -104,11 +103,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  caption: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
   rollTabs: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -117,9 +111,12 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
   },
-  quickActions: {
+  actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
   },
   inlineError: {
     color: colors.danger,
