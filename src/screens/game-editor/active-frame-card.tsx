@@ -6,7 +6,6 @@ import { Card } from '@/components/ui';
 import { colors, radius, spacing, typeScale } from '@/theme/tokens';
 
 type ActiveFrameCardProps = {
-  frameIndex: number;
   activeRollMask: number | null;
   activeStandingMask: number;
   autosaveMessage: string;
@@ -16,7 +15,6 @@ type ActiveFrameCardProps = {
 };
 
 export function ActiveFrameCard({
-  frameIndex,
   activeRollMask,
   activeStandingMask,
   autosaveMessage,
@@ -26,8 +24,6 @@ export function ActiveFrameCard({
 }: ActiveFrameCardProps) {
   return (
     <Card style={styles.card}>
-      <Text style={styles.title}>Frame {frameIndex + 1}</Text>
-
       <PinDeck
         selectedMask={activeRollMask ?? 0}
         standingMask={activeStandingMask}
@@ -56,13 +52,12 @@ export function ActiveFrameCard({
 
 const styles = StyleSheet.create({
   card: {
+    flexGrow: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
-  },
-  title: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    padding: spacing.sm,
+    gap: spacing.xs,
+    justifyContent: 'center',
   },
   autosaveText: {
     fontSize: typeScale.bodySm,

@@ -61,18 +61,20 @@ export function PinDeck({
 
 const styles = StyleSheet.create({
   deck: {
-    gap: spacing.sm,
+    gap: 20,
     alignItems: 'center',
   },
   row: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 20,
   },
   pin: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -81,13 +83,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   pinKnocked: {
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   pinDown: {
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
-    opacity: 0.55,
+    opacity: 0.5,
   },
   pinPressed: {
     opacity: 0.82,

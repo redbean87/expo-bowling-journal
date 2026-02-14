@@ -65,6 +65,37 @@ function getDefaultMaskForField(
   return 0;
 }
 
+function sanitizeFrameDraftsForEntry(frameDrafts: FrameDraft[]): {
+  drafts: FrameDraft[];
+  changed: boolean;
+} {
+  let changed = false;
+
+  const drafts = frameDrafts.map((frame, index) => {
+    if (index === 9) {
+      return frame;
+    }
+
+    const roll1 = getRollValue(frame.roll1Mask);
+    const shouldClearRoll2 = roll1 === 10;
+    const nextRoll2Mask = shouldClearRoll2 ? null : frame.roll2Mask;
+
+    if (nextRoll2Mask === frame.roll2Mask && frame.roll3Mask === null) {
+      return frame;
+    }
+
+    changed = true;
+
+    return {
+      ...frame,
+      roll2Mask: nextRoll2Mask,
+      roll3Mask: null,
+    };
+  });
+
+  return { drafts, changed };
+}
+
 export default function GameEditorScreen() {
   const navigation = useNavigation();
   const params = useLocalSearchParams<{
@@ -165,7 +196,8 @@ export default function GameEditorScreen() {
       return;
     }
 
-    const nextDrafts = toFrameDrafts(frames);
+    const hydratedDrafts = toFrameDrafts(frames);
+    const { drafts: nextDrafts } = sanitizeFrameDraftsForEntry(hydratedDrafts);
     const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
     const suggestedField = getPreferredRollField(
       suggestedFrameIndex,
@@ -338,10 +370,17 @@ export default function GameEditorScreen() {
       }
 
       const activeGameId = draftGameId;
+      const { drafts: sanitizedDrafts, changed } =
+        sanitizeFrameDraftsForEntry(frameDrafts);
+
+      if (changed) {
+        setFrameDrafts(sanitizedDrafts);
+      }
+
       const autosavePlan = buildAutosaveGuardResult({
         isAuthenticated,
         date,
-        frameDrafts,
+        frameDrafts: sanitizedDrafts,
         isCreateMode,
         currentGameId: activeGameId,
       });
@@ -473,7 +512,6 @@ export default function GameEditorScreen() {
           activeStandingMask={activeStandingMask}
           autosaveMessage={autosaveMessage}
           autosaveState={autosaveState}
-          frameIndex={activeFrameIndex}
           inlineError={inlineError}
           onTogglePin={onTogglePin}
         />
@@ -503,9 +541,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.md,
+    flexGrow: 1,
+    padding: spacing.sm,
     gap: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   loadingContainer: {
     flex: 1,
@@ -520,12 +559,12 @@ const styles = StyleSheet.create({
   },
   stickyActionsContainer: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
     shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     shadowOffset: {
       width: 0,
       height: -2,
