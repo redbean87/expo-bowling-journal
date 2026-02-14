@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
   buildFramesPayload,
   EMPTY_FRAMES,
+  getFrameSymbolParts,
+  getFrameSymbolSummary,
   getNextCursorAfterEntry,
   getStandingMaskForField,
   getVisibleRollFields,
@@ -107,4 +109,111 @@ test('toFrameDrafts restores manual packed pins when available', () => {
     roll2Mask: 0b100,
     roll3Mask: 0,
   });
+});
+
+test('formats frame symbols for frames 1-9', () => {
+  assert.equal(
+    getFrameSymbolSummary(0, {
+      roll1Mask: 0x3ff,
+      roll2Mask: null,
+      roll3Mask: null,
+    }),
+    'X'
+  );
+
+  assert.equal(
+    getFrameSymbolSummary(0, {
+      roll1Mask: 0b0001111111,
+      roll2Mask: 0b1110000000,
+      roll3Mask: null,
+    }),
+    '7/'
+  );
+
+  assert.equal(
+    getFrameSymbolSummary(0, {
+      roll1Mask: 0,
+      roll2Mask: 0b0000001111,
+      roll3Mask: null,
+    }),
+    '-4'
+  );
+});
+
+test('returns separate roll parts so open frames are not ambiguous', () => {
+  assert.deepEqual(
+    getFrameSymbolParts(0, {
+      roll1Mask: 0b0000000001,
+      roll2Mask: 0b0000011110,
+      roll3Mask: null,
+    }),
+    ['1', '4']
+  );
+
+  assert.deepEqual(
+    getFrameSymbolParts(0, {
+      roll1Mask: 0b0000000001,
+      roll2Mask: 0b1111111110,
+      roll3Mask: null,
+    }),
+    ['1', '/']
+  );
+
+  assert.deepEqual(
+    getFrameSymbolParts(9, {
+      roll1Mask: 0x3ff,
+      roll2Mask: 0b0000000111,
+      roll3Mask: 0b1111111000,
+    }),
+    ['X', '3', '/']
+  );
+});
+
+test('formats frame symbols for tenth-frame strike and spare variants', () => {
+  assert.equal(
+    getFrameSymbolSummary(9, {
+      roll1Mask: 0x3ff,
+      roll2Mask: 0x3ff,
+      roll3Mask: 0x3ff,
+    }),
+    'XXX'
+  );
+
+  assert.equal(
+    getFrameSymbolSummary(9, {
+      roll1Mask: 0x3ff,
+      roll2Mask: 0b0001111111,
+      roll3Mask: 0b1110000000,
+    }),
+    'X7/'
+  );
+
+  assert.equal(
+    getFrameSymbolSummary(9, {
+      roll1Mask: 0b0001111111,
+      roll2Mask: 0b1110000000,
+      roll3Mask: 0x3ff,
+    }),
+    '7/X'
+  );
+});
+
+test('formats frame symbols for tenth-frame open and partial states', () => {
+  assert.equal(
+    getFrameSymbolSummary(9, {
+      roll1Mask: 0,
+      roll2Mask: 0b0000011111,
+      roll3Mask: null,
+    }),
+    '-5'
+  );
+
+  assert.equal(
+    getFrameSymbolSummary(9, {
+      roll1Mask: 0b0000011111,
+      roll2Mask: null,
+      roll3Mask: null,
+    }),
+    '5'
+  );
 });

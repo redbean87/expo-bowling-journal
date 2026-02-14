@@ -1,6 +1,9 @@
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { type FrameDraft, getFrameStatus } from './game-editor-frame-utils';
+import {
+  type FrameDraft,
+  getFrameSymbolParts,
+} from './game-editor-frame-utils';
 
 import { colors, radius, spacing, typeScale } from '@/theme/tokens';
 
@@ -16,41 +19,65 @@ export function FrameProgressStrip({
   onSelectFrame,
 }: FrameProgressStripProps) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Frame progress</Text>
+    <View style={styles.symbolSection}>
+      <Text style={styles.symbolLabel}>Symbols</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
+        contentContainerStyle={styles.symbolRow}
       >
         {frameDrafts.map((frame, index) => {
-          const status = getFrameStatus(index, frame);
+          const summaryParts = getFrameSymbolParts(index, frame);
+          const slotCount = index === 9 ? 3 : 2;
+          const isTenthFrame = index === 9;
           const isActive = index === activeFrameIndex;
 
           return (
             <Pressable
-              key={`frame-pill-${index + 1}`}
+              key={`frame-symbol-${index + 1}`}
               onPress={() => onSelectFrame(index)}
               style={({ pressed }) => [
-                styles.pill,
-                status === 'complete' ? styles.pillComplete : null,
-                status === 'partial' ? styles.pillPartial : null,
-                status === 'empty' ? styles.pillEmpty : null,
-                isActive ? styles.pillActive : null,
+                styles.symbolCell,
+                isTenthFrame ? styles.symbolCellTenth : null,
+                isActive ? styles.symbolCellActive : null,
                 pressed ? styles.pillPressed : null,
               ]}
             >
               <Text
                 style={[
-                  styles.pillLabel,
-                  status === 'empty'
-                    ? styles.pillLabelEmpty
-                    : styles.pillLabelFilled,
-                  isActive ? styles.pillLabelActive : null,
+                  styles.symbolFrameIndex,
+                  isActive ? styles.symbolFrameIndexActive : null,
                 ]}
               >
                 {index + 1}
               </Text>
+              <View style={styles.symbolPartsRow}>
+                {Array.from({ length: slotCount }, (_, slotIndex) => {
+                  const part = summaryParts[slotIndex] ?? '';
+
+                  return (
+                    <View
+                      key={`symbol-part-${index + 1}-${slotIndex + 1}`}
+                      style={[
+                        styles.symbolPartSlot,
+                        slotIndex < slotCount - 1
+                          ? styles.symbolPartSlotDivider
+                          : null,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.symbolText,
+                          part ? null : styles.symbolTextEmpty,
+                          isActive ? styles.symbolTextActive : null,
+                        ]}
+                      >
+                        {part}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
             </Pressable>
           );
         })}
@@ -60,57 +87,79 @@ export function FrameProgressStrip({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  symbolSection: {
     gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
-  title: {
+  symbolLabel: {
     fontSize: typeScale.bodySm,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  row: {
+  symbolRow: {
     gap: spacing.sm,
     paddingBottom: spacing.xs,
-  },
-  pill: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  pillEmpty: {
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pillPartial: {
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.accentMuted,
-  },
-  pillComplete: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  pillActive: {
-    borderWidth: 2,
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
   },
   pillPressed: {
     opacity: 0.82,
   },
-  pillLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '700',
+  symbolCell: {
+    width: 44,
+    minHeight: 36,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  pillLabelEmpty: {
+  symbolCellTenth: {
+    width: 56,
+  },
+  symbolCellActive: {
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.accentMuted,
+  },
+  symbolText: {
+    fontSize: typeScale.bodySm,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    minHeight: 16,
+  },
+  symbolTextEmpty: {
     color: colors.textSecondary,
   },
-  pillLabelFilled: {
-    color: colors.textPrimary,
+  symbolTextActive: {
+    color: colors.accent,
   },
-  pillLabelActive: {
-    color: colors.accentText,
+  symbolFrameIndex: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  symbolFrameIndexActive: {
+    color: colors.accent,
+  },
+  symbolPartsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 0,
+  },
+  symbolPartSlot: {
+    width: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 2,
+  },
+  symbolPartSlotDivider: {
+    marginRight: 2,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
   },
 });
