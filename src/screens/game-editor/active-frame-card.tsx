@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     padding: spacing.sm,
     gap: spacing.xs,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   autosaveText: {
     fontSize: typeScale.bodySm,

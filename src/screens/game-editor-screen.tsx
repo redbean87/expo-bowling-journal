@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -520,11 +521,15 @@ export default function GameEditorScreen() {
       <View style={styles.stickyActionsContainer}>
         <View style={styles.stickyActionsRow}>
           <View style={styles.stickyActionButton}>
-            <Button
-              label={shortcutLabel}
+            <Pressable
               onPress={onSetFullRack}
-              variant="secondary"
-            />
+              style={({ pressed }) => [
+                styles.strikeButton,
+                pressed ? styles.strikeButtonPressed : null,
+              ]}
+            >
+              <Text style={styles.strikeButtonLabel}>{shortcutLabel}</Text>
+            </Pressable>
           </View>
           <View style={styles.stickyActionButton}>
             <Button label="Next" onPress={onCommitRoll} />
@@ -542,9 +547,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
     gap: spacing.sm,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -561,26 +567,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
-    bottom: spacing.md,
-    shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    elevation: 4,
+    bottom: spacing.sm,
   },
   stickyActionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    borderRadius: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
-    padding: spacing.xs,
   },
   stickyActionButton: {
     flex: 1,
+  },
+  strikeButton: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  strikeButtonPressed: {
+    opacity: 0.82,
+  },
+  strikeButtonLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.accent,
   },
 });
