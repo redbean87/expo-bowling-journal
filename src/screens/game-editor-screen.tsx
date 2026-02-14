@@ -194,20 +194,8 @@ export default function GameEditorScreen() {
   }, [activeField, activeFrame, activeFrameIndex, visibleRollFields]);
 
   const onSelectFrame = (frameIndex: number) => {
-    const frame = frameDrafts[frameIndex] ?? EMPTY_FRAMES[0];
-    const preferredField = getPreferredRollField(frameIndex, frame);
-
     setActiveFrameIndex(frameIndex);
-    setActiveField(preferredField);
-    setInputError(null);
-  };
-
-  const onSelectRoll = (field: RollField) => {
-    if (!visibleRollFields.includes(field)) {
-      return;
-    }
-
-    setActiveField(field);
+    setActiveField('roll1Mask');
     setInputError(null);
   };
 
@@ -474,22 +462,20 @@ export default function GameEditorScreen() {
         contentContainerStyle={styles.content}
       >
         <FrameProgressStrip
+          activeField={activeField}
           activeFrameIndex={activeFrameIndex}
           frameDrafts={frameDrafts}
           onSelectFrame={onSelectFrame}
         />
 
         <ActiveFrameCard
-          activeField={activeField}
           activeRollMask={activeRollMask}
           activeStandingMask={activeStandingMask}
           autosaveMessage={autosaveMessage}
           autosaveState={autosaveState}
           frameIndex={activeFrameIndex}
           inlineError={inlineError}
-          onSelectRoll={onSelectRoll}
           onTogglePin={onTogglePin}
-          visibleRollFields={visibleRollFields}
         />
       </ScrollView>
 
@@ -519,7 +505,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     gap: spacing.sm,
-    paddingBottom: spacing.xxl + spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   loadingContainer: {
     flex: 1,
@@ -537,6 +523,14 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     bottom: spacing.lg,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    elevation: 4,
   },
   stickyActionsRow: {
     flexDirection: 'row',
