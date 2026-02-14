@@ -30,9 +30,9 @@ import {
 
 import type { GameId, SessionId } from '@/services/journal';
 
-import { Button, Card, Input } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { colors, spacing, typeScale } from '@/theme/tokens';
 
 type CursorTarget = {
   frameIndex: number;
@@ -477,20 +477,6 @@ export default function GameEditorScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        <Card>
-          <Text style={styles.sectionTitle}>Game details</Text>
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            value={date}
-          />
-          <Text style={styles.helpText}>
-            Roll 1 starts all knocked. Fresh-rack bonus rolls do too.
-          </Text>
-        </Card>
-
         <FrameProgressStrip
           activeFrameIndex={activeFrameIndex}
           frameDrafts={frameDrafts}
@@ -538,16 +524,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
     paddingBottom: spacing.xxl + spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  helpText: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
   },
   loadingContainer: {
     flex: 1,
