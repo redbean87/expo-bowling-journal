@@ -131,15 +131,11 @@ export default function GameEditorScreen() {
       return 'Saving...';
     }
 
-    if (autosaveState === 'saved') {
-      return 'Saved';
-    }
-
     if (autosaveState === 'error') {
       return autosaveError ?? 'Auto-save failed. Keep editing to retry.';
     }
 
-    return 'Changes save automatically.';
+    return '';
   }, [autosaveError, autosaveState, isAuthenticated]);
 
   const moveCursor = ({ frameIndex, field }: CursorTarget) => {
@@ -521,8 +517,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.md,
+    gap: spacing.sm,
     paddingBottom: spacing.xxl + spacing.xl,
   },
   loadingContainer: {

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { getRollValue, type RollField } from './game-editor-frame-utils';
+import { type RollField } from './game-editor-frame-utils';
 import { PinDeck } from './pin-deck';
 
 import { Button, Card } from '@/components/ui';
@@ -37,14 +37,9 @@ export function ActiveFrameCard({
   onSelectRoll,
   onTogglePin,
 }: ActiveFrameCardProps) {
-  const selectedCount = getRollValue(activeRollMask) ?? 0;
-
   return (
-    <Card>
+    <Card style={styles.card}>
       <Text style={styles.title}>Frame {frameIndex + 1}</Text>
-      <Text style={styles.countText}>
-        {ROLL_LABELS[activeField]} • {selectedCount} pins selected
-      </Text>
 
       <View style={styles.rollTabs}>
         {visibleRollFields.map((field) => {
@@ -67,14 +62,16 @@ export function ActiveFrameCard({
         onTogglePin={onTogglePin}
       />
 
-      <Text
-        style={[
-          styles.autosaveText,
-          autosaveState === 'error' ? styles.autosaveTextError : null,
-        ]}
-      >
-        {autosaveMessage}
-      </Text>
+      {autosaveMessage ? (
+        <Text
+          style={[
+            styles.autosaveText,
+            autosaveState === 'error' ? styles.autosaveTextError : null,
+          ]}
+        >
+          {autosaveMessage}
+        </Text>
+      ) : null}
 
       {inlineError ? (
         <View style={styles.inlineErrorContainer}>
@@ -86,6 +83,10 @@ export function ActiveFrameCard({
 }
 
 const styles = StyleSheet.create({
+  card: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+  },
   title: {
     fontSize: typeScale.titleSm,
     fontWeight: '700',
@@ -94,10 +95,6 @@ const styles = StyleSheet.create({
   rollTabs: {
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-  countText: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
   },
   autosaveText: {
     fontSize: typeScale.bodySm,

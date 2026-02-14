@@ -20,7 +20,6 @@ export function FrameProgressStrip({
 }: FrameProgressStripProps) {
   return (
     <View style={styles.symbolSection}>
-      <Text style={styles.symbolLabel}>Symbols</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -88,20 +87,10 @@ export function FrameProgressStrip({
 
 const styles = StyleSheet.create({
   symbolSection: {
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  symbolLabel: {
-    fontSize: typeScale.bodySm,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    gap: spacing.xs,
   },
   symbolRow: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingBottom: spacing.xs,
     paddingRight: spacing.sm,
   },
@@ -115,7 +104,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
