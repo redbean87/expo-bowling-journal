@@ -12,6 +12,7 @@ import { ActiveFrameCard } from './game-editor/active-frame-card';
 import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import { buildAutosaveGuardResult } from './game-editor/game-editor-autosave-utils';
 import {
+  buildFramesPayload,
   EMPTY_FRAMES,
   FULL_PIN_MASK,
   findSuggestedFrameIndex,
@@ -49,6 +50,36 @@ function togglePinInMask(mask: number, pinNumber: number) {
 
 function maskHasPin(mask: number, pinNumber: number) {
   return (mask & (1 << (pinNumber - 1))) !== 0;
+}
+
+function buildSyncSignature(
+  gameId: GameId | null,
+  date: string,
+  frameDrafts: FrameDraft[]
+) {
+  return JSON.stringify({
+    gameId,
+    date: date.trim(),
+    frameDrafts,
+  });
+}
+
+function buildPersistedSignature(
+  gameId: GameId | null,
+  date: string,
+  frameDrafts: FrameDraft[]
+) {
+  try {
+    const payloadFrames = buildFramesPayload(frameDrafts);
+
+    return JSON.stringify({
+      gameId: gameId ?? 'new',
+      date: date.trim(),
+      frames: payloadFrames,
+    });
+  } catch {
+    return null;
+  }
 }
 
 function getDefaultMaskForField(
@@ -104,6 +135,7 @@ export default function GameEditorScreen() {
   const isAutosaveInFlightRef = useRef(false);
   const hasQueuedAutosaveRef = useRef(false);
   const lastSavedSignatureRef = useRef<string | null>(null);
+  const lastAppliedServerSignatureRef = useRef<string | null>(null);
   const saveSequenceRef = useRef(0);
 
   const screenTitle = useMemo(
@@ -126,10 +158,6 @@ export default function GameEditorScreen() {
   const shortcutLabel =
     activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
   const autosaveMessage = useMemo(() => {
-    if (!isAuthenticated) {
-      return 'Sign in to auto-save changes.';
-    }
-
     if (autosaveState === 'saving') {
       return 'Saving...';
     }
@@ -139,7 +167,7 @@ export default function GameEditorScreen() {
     }
 
     return '';
-  }, [autosaveError, autosaveState, isAuthenticated]);
+  }, [autosaveError, autosaveState]);
 
   const moveCursor = ({ frameIndex, field }: CursorTarget) => {
     setActiveFrameIndex(frameIndex);
@@ -170,19 +198,82 @@ export default function GameEditorScreen() {
 
     const hydratedDrafts = toFrameDrafts(frames);
     const { drafts: nextDrafts } = sanitizeFrameDraftsForEntry(hydratedDrafts);
+    const hydratedDate = normalizeDateValue(game.date);
     const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
     const suggestedField = getPreferredRollField(
       suggestedFrameIndex,
       nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
     );
 
-    setDate(normalizeDateValue(game.date));
+    setDate(hydratedDate);
     setFrameDrafts(nextDrafts);
     setActiveFrameIndex(suggestedFrameIndex);
     setActiveField(suggestedField);
     setDraftGameId(gameId);
+    lastAppliedServerSignatureRef.current = buildSyncSignature(
+      gameId,
+      hydratedDate,
+      nextDrafts
+    );
+    lastSavedSignatureRef.current = buildPersistedSignature(
+      gameId,
+      hydratedDate,
+      nextDrafts
+    );
     setDidHydrate(true);
   }, [didHydrate, frames, game, gameId, isCreateMode]);
+
+  useEffect(() => {
+    if (!didHydrate || isCreateMode || !game || frames === undefined) {
+      return;
+    }
+
+    const hydratedDrafts = toFrameDrafts(frames);
+    const { drafts: incomingDrafts } =
+      sanitizeFrameDraftsForEntry(hydratedDrafts);
+    const incomingDate = normalizeDateValue(game.date);
+    const incomingSignature = buildSyncSignature(
+      gameId,
+      incomingDate,
+      incomingDrafts
+    );
+
+    if (incomingSignature === lastAppliedServerSignatureRef.current) {
+      return;
+    }
+
+    const { drafts: localDrafts } = sanitizeFrameDraftsForEntry(frameDrafts);
+    const localSignature = buildSyncSignature(gameId, date, localDrafts);
+
+    if (localSignature === incomingSignature) {
+      lastAppliedServerSignatureRef.current = incomingSignature;
+      return;
+    }
+
+    const isLocalClean =
+      localSignature === lastAppliedServerSignatureRef.current &&
+      autosaveState !== 'saving';
+
+    if (isLocalClean) {
+      setDate(incomingDate);
+      setFrameDrafts(incomingDrafts);
+      lastAppliedServerSignatureRef.current = incomingSignature;
+      lastSavedSignatureRef.current = buildPersistedSignature(
+        gameId,
+        incomingDate,
+        incomingDrafts
+      );
+    }
+  }, [
+    autosaveState,
+    date,
+    didHydrate,
+    frameDrafts,
+    frames,
+    game,
+    gameId,
+    isCreateMode,
+  ]);
 
   useEffect(() => {
     setInputError(null);
@@ -420,6 +511,11 @@ export default function GameEditorScreen() {
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('saved');
           setAutosaveError(null);
+          lastAppliedServerSignatureRef.current = buildSyncSignature(
+            nextGameId,
+            trimmedDate,
+            sanitizedDrafts
+          );
         }
       } catch (caught) {
         if (saveSequenceRef.current === saveSequence) {

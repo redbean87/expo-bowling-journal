@@ -29,18 +29,20 @@ export function ActiveFrameCard({
           standingMask={activeStandingMask}
           onTogglePin={onTogglePin}
         />
-      </View>
 
-      {autosaveMessage ? (
-        <Text
-          style={[
-            styles.autosaveText,
-            autosaveState === 'error' ? styles.autosaveTextError : null,
-          ]}
-        >
-          {autosaveMessage}
-        </Text>
-      ) : null}
+        {autosaveMessage ? (
+          <View pointerEvents="none" style={styles.autosaveOverlay}>
+            <Text
+              style={[
+                styles.autosaveText,
+                autosaveState === 'error' ? styles.autosaveTextError : null,
+              ]}
+            >
+              {autosaveMessage}
+            </Text>
+          </View>
+        ) : null}
+      </View>
 
       {inlineError ? (
         <View style={styles.inlineErrorContainer}>
@@ -59,10 +61,17 @@ const styles = StyleSheet.create({
   },
   deckArea: {
     flex: 1,
+    position: 'relative',
+  },
+  autosaveOverlay: {
+    position: 'absolute',
+    right: spacing.xs,
+    bottom: spacing.xs,
   },
   autosaveText: {
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
+    opacity: 0.75,
   },
   autosaveTextError: {
     color: colors.danger,
