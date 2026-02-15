@@ -98,6 +98,33 @@ function getDefaultMaskForField(
   return 0;
 }
 
+function clearDownstreamRolls(frame: FrameDraft, field: RollField): FrameDraft {
+  if (field === 'roll1Mask') {
+    if (frame.roll2Mask === null && frame.roll3Mask === null) {
+      return frame;
+    }
+
+    return {
+      ...frame,
+      roll2Mask: null,
+      roll3Mask: null,
+    };
+  }
+
+  if (field === 'roll2Mask') {
+    if (frame.roll3Mask === null) {
+      return frame;
+    }
+
+    return {
+      ...frame,
+      roll3Mask: null,
+    };
+  }
+
+  return frame;
+}
+
 export default function GameEditorScreen() {
   const navigation = useNavigation();
   const params = useLocalSearchParams<{
@@ -319,18 +346,19 @@ export default function GameEditorScreen() {
     }
 
     updateActiveFrame((frame) => {
+      const resetFrame = clearDownstreamRolls(frame, activeField);
       const standingMask = getStandingMaskForField(
         activeFrameIndex,
-        frame,
+        resetFrame,
         activeField
       );
       const currentMask =
-        frame[activeField] ??
+        resetFrame[activeField] ??
         getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
       const nextMask = togglePinInMask(currentMask, pinNumber);
 
       return {
-        ...frame,
+        ...resetFrame,
         [activeField]: nextMask,
       };
     });
@@ -340,8 +368,9 @@ export default function GameEditorScreen() {
     let committedFrame: FrameDraft | null = null;
 
     updateActiveFrame((frame) => {
+      const resetFrame = clearDownstreamRolls(frame, activeField);
       const nextFrame = {
-        ...frame,
+        ...resetFrame,
         [activeField]: nextMask,
       };
 
@@ -363,9 +392,6 @@ export default function GameEditorScreen() {
           roll1 !== null &&
           roll1 + (roll2 ?? 0) > 10
         ) {
-          setInputError(
-            `Frame ${activeFrameIndex + 1}: roll 1 + roll 2 cannot exceed 10.`
-          );
           return frame;
         }
 
@@ -376,9 +402,6 @@ export default function GameEditorScreen() {
           roll1 < 10 &&
           roll1 + roll2 > 10
         ) {
-          setInputError(
-            'Frame 10: roll 1 + roll 2 cannot exceed 10 unless roll 1 is a strike.'
-          );
           return frame;
         }
 
