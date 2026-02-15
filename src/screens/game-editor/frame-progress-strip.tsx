@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   symbolPartSlot: {
-    width: 11,
+    width: 12,
     alignItems: 'center',
     justifyContent: 'center',
     paddingRight: 2,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   symbolPartSlotDivider: {
-    marginRight: 2,
+    marginRight: 3,
     borderRightWidth: 1,
     borderRightColor: colors.borderStrong,
   },
