@@ -1,4 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { colors, radius, spacing, typeScale } from '@/theme/tokens';
 
@@ -19,10 +26,22 @@ export function PinDeck({
   standingMask,
   onTogglePin,
 }: PinDeckProps) {
+  const { width } = useWindowDimensions();
+  const topRowWidth = useMemo(() => width - spacing.sm * 4, [width]);
+  const slotWidth = topRowWidth / 4;
+
   return (
-    <View style={styles.deck}>
+    <View style={[styles.deck, { width: topRowWidth }]}>
       {PIN_ROWS.map((row, rowIndex) => (
-        <View key={`pin-row-${rowIndex}`} style={styles.row}>
+        <View
+          key={`pin-row-${rowIndex}`}
+          style={[
+            styles.row,
+            row.length === 1 ? styles.rowSingle : styles.rowSpread,
+            row.length === 3 ? { paddingHorizontal: slotWidth / 2 } : null,
+            row.length === 2 ? { paddingHorizontal: slotWidth } : null,
+          ]}
+        >
           {row.map((pinNumber) => {
             const isStanding = isPinSet(standingMask, pinNumber);
             const isKnocked = isPinSet(selectedMask, pinNumber);
@@ -61,12 +80,19 @@ export function PinDeck({
 
 const styles = StyleSheet.create({
   deck: {
-    gap: 20,
-    alignItems: 'center',
+    flexGrow: 1,
+    justifyContent: 'space-between',
+    alignSelf: 'center',
   },
   row: {
     flexDirection: 'row',
-    gap: 20,
+    width: '100%',
+  },
+  rowSpread: {
+    justifyContent: 'space-between',
+  },
+  rowSingle: {
+    justifyContent: 'center',
   },
   pin: {
     width: 56,

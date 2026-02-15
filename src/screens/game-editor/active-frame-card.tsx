@@ -29,11 +29,13 @@ export function ActiveFrameCard({
         <Text style={styles.tenthFrameHint}>{tenthFrameHint}</Text>
       ) : null}
 
-      <PinDeck
-        selectedMask={activeRollMask ?? 0}
-        standingMask={activeStandingMask}
-        onTogglePin={onTogglePin}
-      />
+      <View style={styles.deckArea}>
+        <PinDeck
+          selectedMask={activeRollMask ?? 0}
+          standingMask={activeStandingMask}
+          onTogglePin={onTogglePin}
+        />
+      </View>
 
       {autosaveMessage ? (
         <Text
@@ -57,8 +59,12 @@ export function ActiveFrameCard({
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     gap: spacing.xs,
     justifyContent: 'flex-start',
+  },
+  deckArea: {
+    flex: 1,
   },
   autosaveText: {
     fontSize: typeScale.bodySm,

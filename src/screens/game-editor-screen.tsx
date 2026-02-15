@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -473,10 +472,7 @@ export default function GameEditorScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.content}
-      >
+      <View style={styles.content}>
         <FrameProgressStrip
           activeField={activeField}
           activeFrameIndex={activeFrameIndex}
@@ -493,10 +489,10 @@ export default function GameEditorScreen() {
           tenthFrameHint={tenthFrameHint}
           onTogglePin={onTogglePin}
         />
-      </ScrollView>
+      </View>
 
-      <View style={styles.stickyActionsContainer}>
-        <View style={styles.stickyActionsRow}>
+      <View style={styles.actionsFooter}>
+        <View style={styles.actionsRow}>
           <View style={styles.stickyActionButton}>
             <Pressable
               onPress={onSetFullRack}
@@ -523,10 +519,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
+    flex: 1,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,
     gap: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -539,13 +536,14 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     color: colors.textSecondary,
   },
-  stickyActionsContainer: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.sm,
+  actionsFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  stickyActionsRow: {
+  actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },

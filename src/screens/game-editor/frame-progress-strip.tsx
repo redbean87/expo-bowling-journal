@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import {
   type FrameDraft,
@@ -22,11 +29,23 @@ export function FrameProgressStrip({
   activeField,
   onSelectFrame,
 }: FrameProgressStripProps) {
+  const { width, height } = useWindowDimensions();
   const scrollRef = useRef<ScrollView | null>(null);
   const cellLayoutsRef = useRef<Record<number, { x: number; width: number }>>(
     {}
   );
   const [trackWidth, setTrackWidth] = useState(0);
+  const isLargePhone = width >= 430 && height >= 860;
+  const isExtraLargePhone = width >= 500 && height >= 920;
+  const symbolCellWidth = isExtraLargePhone ? 94 : isLargePhone ? 83 : 68;
+  const symbolCellTenthWidth = isExtraLargePhone
+    ? 120
+    : isLargePhone
+      ? 107
+      : 88;
+  const symbolCellHeight = isExtraLargePhone ? 88 : isLargePhone ? 78 : 62;
+  const symbolFontSize = isExtraLargePhone ? 21 : isLargePhone ? 19 : 17;
+  const frameIndexFontSize = isExtraLargePhone ? 19 : isLargePhone ? 17 : 15;
 
   useEffect(() => {
     if (trackWidth === 0) {
@@ -81,7 +100,12 @@ export function FrameProgressStrip({
                 }}
                 style={({ pressed }) => [
                   styles.symbolCell,
+                  {
+                    width: symbolCellWidth,
+                    minHeight: symbolCellHeight,
+                  },
                   isTenthFrame ? styles.symbolCellTenth : null,
+                  isTenthFrame ? { width: symbolCellTenthWidth } : null,
                   isActive ? styles.symbolCellActive : null,
                   pressed ? styles.pillPressed : null,
                 ]}
@@ -89,6 +113,7 @@ export function FrameProgressStrip({
                 <Text
                   style={[
                     styles.symbolFrameIndex,
+                    { fontSize: frameIndexFontSize },
                     isActive ? styles.symbolFrameIndexActive : null,
                   ]}
                 >
@@ -111,15 +136,13 @@ export function FrameProgressStrip({
                         <Text
                           style={[
                             styles.symbolText,
+                            { fontSize: symbolFontSize },
                             part ? null : styles.symbolTextEmpty,
                             isActive ? styles.symbolTextActive : null,
                           ]}
                         >
                           {part}
                         </Text>
-                        {slotIndex < slotCount - 1 ? (
-                          <View style={styles.symbolPartDivider} />
-                        ) : null}
                         {isActive && slotIndex === activeSlotIndex ? (
                           <View style={styles.symbolPartMarker} />
                         ) : null}
@@ -154,8 +177,6 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   symbolCell: {
-    width: 46,
-    minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
@@ -170,7 +191,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentMuted,
   },
   symbolText: {
-    fontSize: typeScale.bodySm,
     fontWeight: '700',
     color: colors.textPrimary,
     minHeight: 16,
@@ -182,7 +202,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   symbolFrameIndex: {
-    fontSize: 11,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -211,14 +230,11 @@ const styles = StyleSheet.create({
   symbolPartMarker: {
     position: 'absolute',
     left: '50%',
-    marginLeft: -6,
+    marginLeft: -8,
     bottom: 1,
-    width: 12,
-    height: 3,
+    width: 16,
+    height: 4,
     borderRadius: 2,
     backgroundColor: colors.accent,
-  },
-  symbolPartDivider: {
-    display: 'none',
   },
 });
