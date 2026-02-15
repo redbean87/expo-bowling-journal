@@ -10,7 +10,6 @@ type ActiveFrameCardProps = {
   autosaveMessage: string;
   autosaveState: 'idle' | 'saving' | 'saved' | 'error';
   inlineError: string | null;
-  tenthFrameHint: string | null;
   onTogglePin: (pinNumber: number) => void;
 };
 
@@ -20,15 +19,10 @@ export function ActiveFrameCard({
   autosaveMessage,
   autosaveState,
   inlineError,
-  tenthFrameHint,
   onTogglePin,
 }: ActiveFrameCardProps) {
   return (
     <View style={styles.container}>
-      {tenthFrameHint ? (
-        <Text style={styles.tenthFrameHint}>{tenthFrameHint}</Text>
-      ) : null}
-
       <View style={styles.deckArea}>
         <PinDeck
           selectedMask={activeRollMask ?? 0}
@@ -67,10 +61,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   autosaveText: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-  tenthFrameHint: {
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
   },

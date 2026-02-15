@@ -708,37 +708,6 @@ export function sanitizeFrameDraftsForEntry(frameDrafts: FrameDraft[]): {
   return { drafts, changed };
 }
 
-export function getTenthFrameHint(
-  frameIndex: number,
-  frame: FrameDraft,
-  activeField: RollField
-): string | null {
-  if (frameIndex !== 9) {
-    return null;
-  }
-
-  const roll1 = getRollValue(frame.roll1Mask);
-  const roll2 = getRollValue(frame.roll2Mask);
-
-  if (activeField === 'roll1Mask') {
-    return 'Strike or spare unlocks bonus roll.';
-  }
-
-  if (activeField === 'roll2Mask') {
-    if (roll1 === 10) {
-      return 'Bonus setup: strike gives a fresh rack.';
-    }
-
-    return 'Spare earns the bonus roll.';
-  }
-
-  if (roll1 === 10 && roll2 === 10) {
-    return 'Third roll after double strike.';
-  }
-
-  return 'Bonus roll.';
-}
-
 export function findSuggestedFrameIndex(frameDrafts: FrameDraft[]): number {
   for (const [index, frame] of frameDrafts.entries()) {
     if (getFrameStatus(index, frame) !== 'complete') {

@@ -21,7 +21,6 @@ import {
   getPreferredRollField,
   getRollValue,
   getStandingMaskForField,
-  getTenthFrameHint,
   getVisibleRollFields,
   normalizeDateValue,
   sanitizeFrameDraftsForEntry,
@@ -126,11 +125,6 @@ export default function GameEditorScreen() {
     getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
   const shortcutLabel =
     activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
-  const tenthFrameHint = getTenthFrameHint(
-    activeFrameIndex,
-    activeFrame,
-    activeField
-  );
   const autosaveMessage = useMemo(() => {
     if (!isAuthenticated) {
       return 'Sign in to auto-save changes.';
@@ -488,7 +482,6 @@ export default function GameEditorScreen() {
           autosaveMessage={autosaveMessage}
           autosaveState={autosaveState}
           inlineError={inlineError}
-          tenthFrameHint={tenthFrameHint}
           onTogglePin={onTogglePin}
         />
       </View>

@@ -9,7 +9,6 @@ import {
   getSettledRunningTotals,
   getNextCursorAfterEntry,
   getStandingMaskForField,
-  getTenthFrameHint,
   getVisibleRollFields,
   sanitizeFrameDraftsForEntry,
   toFrameDrafts,
@@ -271,25 +270,6 @@ test('sanitizeFrameDraftsForEntry preserves frame 10 roll3', () => {
 
   assert.equal(result.changed, false);
   assert.equal(result.drafts[9]?.roll3Mask, 0b0000000011);
-});
-
-test('getTenthFrameHint returns contextual hints for frame 10 rolls', () => {
-  const frame: FrameDraft = {
-    roll1Mask: 0x3ff,
-    roll2Mask: null,
-    roll3Mask: null,
-  };
-
-  assert.equal(
-    getTenthFrameHint(9, frame, 'roll1Mask'),
-    'Strike or spare unlocks bonus roll.'
-  );
-  assert.equal(
-    getTenthFrameHint(9, frame, 'roll2Mask'),
-    'Bonus setup: strike gives a fresh rack.'
-  );
-  assert.equal(getTenthFrameHint(9, frame, 'roll3Mask'), 'Bonus roll.');
-  assert.equal(getTenthFrameHint(8, frame, 'roll1Mask'), null);
 });
 
 test('getSettledRunningTotals returns cumulative totals for open frames', () => {
