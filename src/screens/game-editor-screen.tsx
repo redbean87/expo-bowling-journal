@@ -251,16 +251,7 @@ export default function GameEditorScreen() {
     });
   };
 
-  const onSetFullRack = () => {
-    updateActiveFrame((frame) => ({
-      ...frame,
-      [activeField]: activeStandingMask,
-    }));
-  };
-
-  const onCommitRoll = () => {
-    const nextMask = activeRollMask;
-
+  const commitActiveRoll = (nextMask: number) => {
     let committedFrame: FrameDraft | null = null;
 
     updateActiveFrame((frame) => {
@@ -334,6 +325,14 @@ export default function GameEditorScreen() {
     if (cursor) {
       moveCursor(cursor);
     }
+  };
+
+  const onSetFullRack = () => {
+    commitActiveRoll(activeStandingMask);
+  };
+
+  const onCommitRoll = () => {
+    commitActiveRoll(activeRollMask);
   };
 
   useEffect(() => {
