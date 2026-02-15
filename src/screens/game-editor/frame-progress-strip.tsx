@@ -14,12 +14,14 @@ import {
   type RollField,
 } from './game-editor-frame-utils';
 
-import { colors, radius, spacing, typeScale } from '@/theme/tokens';
+import { type ScoreboardLayoutMode } from '@/config/preferences-storage';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 type FrameProgressStripProps = {
   frameDrafts: FrameDraft[];
   activeFrameIndex: number;
   activeField: RollField;
+  layoutMode: ScoreboardLayoutMode;
   onSelectFrame: (frameIndex: number) => void;
 };
 
@@ -27,6 +29,7 @@ export function FrameProgressStrip({
   frameDrafts,
   activeFrameIndex,
   activeField,
+  layoutMode,
   onSelectFrame,
 }: FrameProgressStripProps) {
   const { width, height } = useWindowDimensions();
@@ -37,18 +40,35 @@ export function FrameProgressStrip({
   const [trackWidth, setTrackWidth] = useState(0);
   const isLargePhone = width >= 430 && height >= 860;
   const isExtraLargePhone = width >= 500 && height >= 920;
-  const symbolCellWidth = isExtraLargePhone ? 94 : isLargePhone ? 83 : 68;
-  const symbolCellTenthWidth = isExtraLargePhone
-    ? 120
+  const regularCellWidth = isExtraLargePhone ? 94 : isLargePhone ? 83 : 68;
+  const tenthCellWidth = isExtraLargePhone ? 120 : isLargePhone ? 107 : 88;
+  const regularCellHeight = isExtraLargePhone ? 88 : isLargePhone ? 78 : 62;
+  const regularSymbolFontSize = isExtraLargePhone ? 21 : isLargePhone ? 19 : 17;
+  const regularFrameIndexFontSize = isExtraLargePhone
+    ? 19
     : isLargePhone
-      ? 107
-      : 88;
-  const symbolCellHeight = isExtraLargePhone ? 88 : isLargePhone ? 78 : 62;
-  const symbolFontSize = isExtraLargePhone ? 21 : isLargePhone ? 19 : 17;
-  const frameIndexFontSize = isExtraLargePhone ? 19 : isLargePhone ? 17 : 15;
+      ? 17
+      : 15;
+  const compactAvailableWidth = Math.max(0, trackWidth - 2);
+  const compactRegularCellWidth = Math.max(
+    30,
+    Math.floor(compactAvailableWidth / 10.3)
+  );
+  const compactTenthCellWidth = Math.max(
+    compactRegularCellWidth,
+    compactAvailableWidth - compactRegularCellWidth * 9
+  );
+  const symbolCellWidth =
+    layoutMode === 'compact' ? compactRegularCellWidth : regularCellWidth;
+  const symbolCellTenthWidth =
+    layoutMode === 'compact' ? compactTenthCellWidth : tenthCellWidth;
+  const symbolCellHeight = layoutMode === 'compact' ? 48 : regularCellHeight;
+  const symbolFontSize = layoutMode === 'compact' ? 15 : regularSymbolFontSize;
+  const frameIndexFontSize =
+    layoutMode === 'compact' ? 13 : regularFrameIndexFontSize;
 
   useEffect(() => {
-    if (trackWidth === 0) {
+    if (layoutMode === 'compact' || trackWidth === 0) {
       return;
     }
 
@@ -61,7 +81,86 @@ export function FrameProgressStrip({
     const targetX = Math.max(0, layout.x + layout.width / 2 - trackWidth / 2);
 
     scrollRef.current?.scrollTo({ x: targetX, animated: true });
-  }, [activeFrameIndex, trackWidth]);
+  }, [activeFrameIndex, layoutMode, trackWidth]);
+
+  const rowContent = frameDrafts.map((frame, index) => {
+    const summaryParts = getFrameSymbolParts(index, frame);
+    const slotCount = index === 9 ? 3 : 2;
+    const isTenthFrame = index === 9;
+    const isLastFrame = index === frameDrafts.length - 1;
+    const isActive = index === activeFrameIndex;
+    const activeSlotIndex =
+      activeField === 'roll1Mask' ? 0 : activeField === 'roll2Mask' ? 1 : 2;
+
+    return (
+      <Pressable
+        key={`frame-symbol-${index + 1}`}
+        onPress={() => onSelectFrame(index)}
+        hitSlop={8}
+        onLayout={(event) => {
+          if (layoutMode === 'compact') {
+            return;
+          }
+
+          const { x, width: cellWidth } = event.nativeEvent.layout;
+          cellLayoutsRef.current[index] = { x, width: cellWidth };
+        }}
+        style={({ pressed }) => [
+          styles.symbolCell,
+          {
+            width: symbolCellWidth,
+            minHeight: symbolCellHeight,
+          },
+          isTenthFrame ? styles.symbolCellTenth : null,
+          isLastFrame ? styles.symbolCellLast : null,
+          isTenthFrame ? { width: symbolCellTenthWidth } : null,
+          isActive ? styles.symbolCellActive : null,
+          pressed ? styles.pillPressed : null,
+        ]}
+      >
+        <Text
+          style={[
+            styles.symbolFrameIndex,
+            { fontSize: frameIndexFontSize },
+            isActive ? styles.symbolFrameIndexActive : null,
+          ]}
+        >
+          {index + 1}
+        </Text>
+        <View style={styles.symbolPartsRow}>
+          {Array.from({ length: slotCount }, (_, slotIndex) => {
+            const part = summaryParts[slotIndex] ?? '';
+
+            return (
+              <View
+                key={`symbol-part-${index + 1}-${slotIndex + 1}`}
+                style={[
+                  styles.symbolPartSlot,
+                  slotIndex < slotCount - 1
+                    ? styles.symbolPartSlotWithDivider
+                    : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.symbolText,
+                    { fontSize: symbolFontSize },
+                    part ? null : styles.symbolTextEmpty,
+                    isActive ? styles.symbolTextActive : null,
+                  ]}
+                >
+                  {part}
+                </Text>
+                {isActive && slotIndex === activeSlotIndex ? (
+                  <View style={styles.symbolPartMarker} />
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      </Pressable>
+    );
+  });
 
   return (
     <View style={styles.symbolSection}>
@@ -71,89 +170,18 @@ export function FrameProgressStrip({
           setTrackWidth(event.nativeEvent.layout.width);
         }}
       >
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.symbolRow}
-        >
-          {frameDrafts.map((frame, index) => {
-            const summaryParts = getFrameSymbolParts(index, frame);
-            const slotCount = index === 9 ? 3 : 2;
-            const isTenthFrame = index === 9;
-            const isActive = index === activeFrameIndex;
-            const activeSlotIndex =
-              activeField === 'roll1Mask'
-                ? 0
-                : activeField === 'roll2Mask'
-                  ? 1
-                  : 2;
-
-            return (
-              <Pressable
-                key={`frame-symbol-${index + 1}`}
-                onPress={() => onSelectFrame(index)}
-                hitSlop={8}
-                onLayout={(event) => {
-                  const { x, width } = event.nativeEvent.layout;
-                  cellLayoutsRef.current[index] = { x, width };
-                }}
-                style={({ pressed }) => [
-                  styles.symbolCell,
-                  {
-                    width: symbolCellWidth,
-                    minHeight: symbolCellHeight,
-                  },
-                  isTenthFrame ? styles.symbolCellTenth : null,
-                  isTenthFrame ? { width: symbolCellTenthWidth } : null,
-                  isActive ? styles.symbolCellActive : null,
-                  pressed ? styles.pillPressed : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.symbolFrameIndex,
-                    { fontSize: frameIndexFontSize },
-                    isActive ? styles.symbolFrameIndexActive : null,
-                  ]}
-                >
-                  {index + 1}
-                </Text>
-                <View style={styles.symbolPartsRow}>
-                  {Array.from({ length: slotCount }, (_, slotIndex) => {
-                    const part = summaryParts[slotIndex] ?? '';
-
-                    return (
-                      <View
-                        key={`symbol-part-${index + 1}-${slotIndex + 1}`}
-                        style={[
-                          styles.symbolPartSlot,
-                          slotIndex < slotCount - 1
-                            ? styles.symbolPartSlotWithDivider
-                            : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.symbolText,
-                            { fontSize: symbolFontSize },
-                            part ? null : styles.symbolTextEmpty,
-                            isActive ? styles.symbolTextActive : null,
-                          ]}
-                        >
-                          {part}
-                        </Text>
-                        {isActive && slotIndex === activeSlotIndex ? (
-                          <View style={styles.symbolPartMarker} />
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {layoutMode === 'compact' ? (
+          <View style={styles.symbolRow}>{rowContent}</View>
+        ) : (
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.symbolRow}
+          >
+            {rowContent}
+          </ScrollView>
+        )}
       </View>
     </View>
   );
@@ -171,6 +199,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   symbolRow: {
+    flexDirection: 'row',
     paddingRight: 0,
   },
   pillPressed: {
@@ -183,6 +212,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSubtle,
     borderRightWidth: 1,
     borderColor: colors.border,
+  },
+  symbolCellLast: {
+    borderRightWidth: 0,
   },
   symbolCellTenth: {
     width: 58,

@@ -1,11 +1,19 @@
 import { useConvexAuth, useQuery } from 'convex/react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Button, Card } from '@/components/ui';
 import { env } from '@/config/env';
+import { type ScoreboardLayoutMode } from '@/config/preferences-storage';
 import { viewerQuery } from '@/convex/functions';
 import { useImportBackup } from '@/hooks/journal';
+import { usePreferences } from '@/providers/preferences-provider';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function formatDate(value: number | null) {
@@ -31,6 +39,25 @@ export default function ProfileScreen() {
   const status = importStatus?.status ?? null;
   const isImporting =
     status === 'queued' || status === 'parsing' || status === 'importing';
+  const { scoreboardLayout, setScoreboardLayout, isHydrated } =
+    usePreferences();
+
+  const scoreboardLayoutOptions: Array<{
+    label: string;
+    value: ScoreboardLayoutMode;
+    description: string;
+  }> = [
+    {
+      label: 'Current',
+      value: 'current',
+      description: 'Larger, scrollable frame strip while editing.',
+    },
+    {
+      label: 'Compact',
+      value: 'compact',
+      description: 'Fit all 10 frames in one row.',
+    },
+  ];
 
   return (
     <ScreenLayout
@@ -55,6 +82,50 @@ export default function ProfileScreen() {
             uploads.
           </Text>
         ) : null}
+
+        <Card muted>
+          <Text style={styles.sectionTitle}>Game entry</Text>
+          <Text style={styles.meta}>Scoreboard layout</Text>
+
+          <View style={styles.layoutOptionsRow}>
+            {scoreboardLayoutOptions.map((option) => {
+              const isActive = scoreboardLayout === option.value;
+
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setScoreboardLayout(option.value)}
+                  style={({ pressed }) => [
+                    styles.layoutOption,
+                    isActive ? styles.layoutOptionActive : null,
+                    pressed ? styles.layoutOptionPressed : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.layoutOptionLabel,
+                      isActive ? styles.layoutOptionLabelActive : null,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.layoutOptionDescription,
+                      isActive ? styles.layoutOptionDescriptionActive : null,
+                    ]}
+                  >
+                    {option.description}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {!isHydrated ? (
+            <Text style={styles.meta}>Loading preference...</Text>
+          ) : null}
+        </Card>
 
         <Card muted>
           <Text style={styles.sectionTitle}>Backup file</Text>
@@ -184,6 +255,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  layoutOptionsRow: {
+    gap: spacing.sm,
+  },
+  layoutOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    gap: spacing.xs,
+  },
+  layoutOptionActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentMuted,
+  },
+  layoutOptionPressed: {
+    opacity: 0.82,
+  },
+  layoutOptionLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  layoutOptionLabelActive: {
+    color: colors.accent,
+  },
+  layoutOptionDescription: {
+    fontSize: typeScale.bodySm,
+    color: colors.textSecondary,
+  },
+  layoutOptionDescriptionActive: {
+    color: colors.textPrimary,
   },
   countsGrid: {
     gap: spacing.xs,

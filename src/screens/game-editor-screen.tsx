@@ -34,6 +34,7 @@ import type { GameId, SessionId } from '@/services/journal';
 
 import { Button } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
+import { usePreferences } from '@/providers/preferences-provider';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 type CursorTarget = {
@@ -89,6 +90,7 @@ export default function GameEditorScreen() {
     updateGame,
     replaceFramesForGame,
   } = useGameEditor(gameId);
+  const { scoreboardLayout } = usePreferences();
 
   const [date, setDate] = useState('');
   const [frameDrafts, setFrameDrafts] = useState<FrameDraft[]>(EMPTY_FRAMES);
@@ -477,6 +479,7 @@ export default function GameEditorScreen() {
           activeField={activeField}
           activeFrameIndex={activeFrameIndex}
           frameDrafts={frameDrafts}
+          layoutMode={scoreboardLayout}
           onSelectFrame={onSelectFrame}
         />
 
