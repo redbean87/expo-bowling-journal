@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -21,10 +22,38 @@ export function FrameProgressStrip({
   activeField,
   onSelectFrame,
 }: FrameProgressStripProps) {
+  const scrollRef = useRef<ScrollView | null>(null);
+  const cellLayoutsRef = useRef<Record<number, { x: number; width: number }>>(
+    {}
+  );
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  useEffect(() => {
+    if (trackWidth === 0) {
+      return;
+    }
+
+    const layout = cellLayoutsRef.current[activeFrameIndex];
+
+    if (!layout) {
+      return;
+    }
+
+    const targetX = Math.max(0, layout.x + layout.width / 2 - trackWidth / 2);
+
+    scrollRef.current?.scrollTo({ x: targetX, animated: true });
+  }, [activeFrameIndex, trackWidth]);
+
   return (
     <View style={styles.symbolSection}>
-      <View style={styles.symbolTrack}>
+      <View
+        style={styles.symbolTrack}
+        onLayout={(event) => {
+          setTrackWidth(event.nativeEvent.layout.width);
+        }}
+      >
         <ScrollView
+          ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.symbolRow}
@@ -45,6 +74,11 @@ export function FrameProgressStrip({
               <Pressable
                 key={`frame-symbol-${index + 1}`}
                 onPress={() => onSelectFrame(index)}
+                hitSlop={8}
+                onLayout={(event) => {
+                  const { x, width } = event.nativeEvent.layout;
+                  cellLayoutsRef.current[index] = { x, width };
+                }}
                 style={({ pressed }) => [
                   styles.symbolCell,
                   isTenthFrame ? styles.symbolCellTenth : null,
@@ -170,14 +204,14 @@ const styles = StyleSheet.create({
   symbolPartMarker: {
     position: 'absolute',
     bottom: 1,
-    width: 10,
-    height: 2,
-    borderRadius: 1,
+    width: 12,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: colors.accent,
   },
   symbolPartSlotDivider: {
     marginRight: 2,
     borderRightWidth: 1,
-    borderRightColor: colors.border,
+    borderRightColor: colors.borderStrong,
   },
 });

@@ -523,11 +523,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flexGrow: 1,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,
     gap: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -556,7 +555,7 @@ const styles = StyleSheet.create({
   strikeButton: {
     height: 40,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: 'transparent',
     alignItems: 'center',

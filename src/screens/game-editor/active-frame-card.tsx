@@ -58,7 +58,6 @@ export function ActiveFrameCard({
 
 const styles = StyleSheet.create({
   card: {
-    flexGrow: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
     padding: spacing.sm,
