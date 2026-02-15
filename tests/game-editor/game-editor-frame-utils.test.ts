@@ -6,6 +6,7 @@ import {
   EMPTY_FRAMES,
   getFrameSymbolParts,
   getFrameSymbolSummary,
+  getSettledRunningTotals,
   getNextCursorAfterEntry,
   getStandingMaskForField,
   getTenthFrameHint,
@@ -14,6 +15,18 @@ import {
   toFrameDrafts,
   type FrameDraft,
 } from '../../src/screens/game-editor/game-editor-frame-utils';
+
+function toMask(count: number | null) {
+  if (count === null) {
+    return null;
+  }
+
+  if (count === 0) {
+    return 0;
+  }
+
+  return (1 << count) - 1;
+}
 
 function withFrame(
   frameIndex: number,
@@ -277,4 +290,88 @@ test('getTenthFrameHint returns contextual hints for frame 10 rolls', () => {
   );
   assert.equal(getTenthFrameHint(9, frame, 'roll3Mask'), 'Bonus roll.');
   assert.equal(getTenthFrameHint(8, frame, 'roll1Mask'), null);
+});
+
+test('getSettledRunningTotals returns cumulative totals for open frames', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+  drafts[0] = { roll1Mask: toMask(8), roll2Mask: toMask(1), roll3Mask: null };
+  drafts[1] = { roll1Mask: toMask(3), roll2Mask: toMask(5), roll3Mask: null };
+
+  assert.deepEqual(getSettledRunningTotals(drafts), [
+    9,
+    17,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
+});
+
+test('getSettledRunningTotals settles strike chains when bonus rolls exist', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+  drafts[0] = { roll1Mask: toMask(10), roll2Mask: null, roll3Mask: null };
+  drafts[1] = { roll1Mask: toMask(10), roll2Mask: null, roll3Mask: null };
+  drafts[2] = { roll1Mask: toMask(3), roll2Mask: toMask(4), roll3Mask: null };
+
+  assert.deepEqual(getSettledRunningTotals(drafts), [
+    23,
+    40,
+    47,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
+});
+
+test('getSettledRunningTotals settles spare with next roll and leaves partial frame blank', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+  drafts[0] = { roll1Mask: toMask(7), roll2Mask: toMask(3), roll3Mask: null };
+  drafts[1] = { roll1Mask: toMask(4), roll2Mask: null, roll3Mask: null };
+
+  assert.deepEqual(getSettledRunningTotals(drafts), [
+    14,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
+});
+
+test('getSettledRunningTotals keeps tenth blank until bonus roll is entered', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+
+  for (let index = 0; index < 9; index += 1) {
+    drafts[index] = {
+      roll1Mask: toMask(0),
+      roll2Mask: toMask(0),
+      roll3Mask: null,
+    };
+  }
+
+  drafts[9] = { roll1Mask: toMask(10), roll2Mask: toMask(10), roll3Mask: null };
+  const withoutRoll3 = getSettledRunningTotals(drafts);
+
+  assert.equal(withoutRoll3[9], null);
+
+  drafts[9] = {
+    roll1Mask: toMask(10),
+    roll2Mask: toMask(10),
+    roll3Mask: toMask(10),
+  };
+  const withRoll3 = getSettledRunningTotals(drafts);
+
+  assert.equal(withRoll3[9], 30);
 });

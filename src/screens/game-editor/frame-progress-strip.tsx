@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   Pressable,
@@ -10,6 +10,7 @@ import {
 
 import {
   type FrameDraft,
+  getSettledRunningTotals,
   getFrameSymbolParts,
   type RollField,
 } from './game-editor-frame-utils';
@@ -42,13 +43,13 @@ export function FrameProgressStrip({
   const isExtraLargePhone = width >= 500 && height >= 920;
   const regularCellWidth = isExtraLargePhone ? 94 : isLargePhone ? 83 : 68;
   const tenthCellWidth = isExtraLargePhone ? 120 : isLargePhone ? 107 : 88;
-  const regularCellHeight = isExtraLargePhone ? 88 : isLargePhone ? 78 : 62;
+  const regularCellHeight = isExtraLargePhone ? 84 : isLargePhone ? 74 : 60;
   const regularSymbolFontSize = isExtraLargePhone ? 21 : isLargePhone ? 19 : 17;
   const regularFrameIndexFontSize = isExtraLargePhone
-    ? 19
+    ? 14
     : isLargePhone
-      ? 17
-      : 15;
+      ? 13
+      : 12;
   const compactAvailableWidth = Math.max(0, trackWidth - 2);
   const compactRegularCellWidth = Math.max(
     30,
@@ -62,10 +63,18 @@ export function FrameProgressStrip({
     layoutMode === 'compact' ? compactRegularCellWidth : regularCellWidth;
   const symbolCellTenthWidth =
     layoutMode === 'compact' ? compactTenthCellWidth : tenthCellWidth;
-  const symbolCellHeight = layoutMode === 'compact' ? 48 : regularCellHeight;
-  const symbolFontSize = layoutMode === 'compact' ? 15 : regularSymbolFontSize;
+  const symbolCellHeight = layoutMode === 'compact' ? 53 : regularCellHeight;
+  const symbolFontSize = layoutMode === 'compact' ? 14 : regularSymbolFontSize;
   const frameIndexFontSize =
-    layoutMode === 'compact' ? 13 : regularFrameIndexFontSize;
+    layoutMode === 'compact' ? 10 : regularFrameIndexFontSize;
+  const frameScoreFontSize = layoutMode === 'compact' ? 11 : 13;
+  const frameNumberRowHeight = layoutMode === 'compact' ? 13 : 14;
+  const markRowHeight = layoutMode === 'compact' ? 24 : 30;
+  const scoreRowHeight = layoutMode === 'compact' ? 15 : 18;
+  const runningTotals = useMemo(
+    () => getSettledRunningTotals(frameDrafts),
+    [frameDrafts]
+  );
 
   useEffect(() => {
     if (layoutMode === 'compact' || trackWidth === 0) {
@@ -118,16 +127,20 @@ export function FrameProgressStrip({
           pressed ? styles.pillPressed : null,
         ]}
       >
-        <Text
-          style={[
-            styles.symbolFrameIndex,
-            { fontSize: frameIndexFontSize },
-            isActive ? styles.symbolFrameIndexActive : null,
-          ]}
+        <View
+          style={[styles.frameNumberRow, { minHeight: frameNumberRowHeight }]}
         >
-          {index + 1}
-        </Text>
-        <View style={styles.symbolPartsRow}>
+          <Text
+            style={[
+              styles.symbolFrameIndex,
+              { fontSize: frameIndexFontSize },
+              isActive ? styles.symbolFrameIndexActive : null,
+            ]}
+          >
+            {index + 1}
+          </Text>
+        </View>
+        <View style={[styles.symbolPartsRow, { minHeight: markRowHeight }]}>
           {Array.from({ length: slotCount }, (_, slotIndex) => {
             const part = summaryParts[slotIndex] ?? '';
 
@@ -157,6 +170,13 @@ export function FrameProgressStrip({
               </View>
             );
           })}
+        </View>
+        <View style={[styles.frameScoreRow, { minHeight: scoreRowHeight }]}>
+          <Text
+            style={[styles.frameScoreText, { fontSize: frameScoreFontSize }]}
+          >
+            {runningTotals[index] === null ? '' : runningTotals[index]}
+          </Text>
         </View>
       </Pressable>
     );
@@ -206,9 +226,8 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   symbolCell: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
     backgroundColor: colors.surfaceSubtle,
     borderRightWidth: 1,
     borderColor: colors.border,
@@ -220,7 +239,7 @@ const styles = StyleSheet.create({
     width: 58,
   },
   symbolCellActive: {
-    backgroundColor: colors.accentMuted,
+    backgroundColor: '#F0F5FF',
   },
   symbolText: {
     fontWeight: '700',
@@ -234,12 +253,17 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   symbolFrameIndex: {
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.textSecondary,
   },
   symbolFrameIndexActive: {
     color: colors.accent,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  frameNumberRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   symbolPartsRow: {
     flexDirection: 'row',
@@ -248,11 +272,24 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 0,
   },
+  frameScoreRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 0,
+    paddingBottom: 1,
+  },
+  frameScoreText: {
+    fontWeight: '500',
+    color: colors.textPrimary,
+    opacity: 0.68,
+    fontVariant: ['tabular-nums'],
+  },
   symbolPartSlot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 5,
+    paddingBottom: 4,
     position: 'relative',
   },
   symbolPartSlotWithDivider: {
@@ -262,11 +299,12 @@ const styles = StyleSheet.create({
   symbolPartMarker: {
     position: 'absolute',
     left: '50%',
-    marginLeft: -8,
-    bottom: 1,
-    width: 16,
-    height: 4,
+    marginLeft: -7,
+    bottom: 4,
+    width: 14,
+    height: 3,
     borderRadius: 2,
     backgroundColor: colors.accent,
+    opacity: 0.72,
   },
 });
