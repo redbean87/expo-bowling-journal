@@ -104,7 +104,7 @@ export function FrameProgressStrip({
                         style={[
                           styles.symbolPartSlot,
                           slotIndex < slotCount - 1
-                            ? styles.symbolPartSlotDivider
+                            ? styles.symbolPartSlotWithDivider
                             : null,
                         ]}
                       >
@@ -117,6 +117,9 @@ export function FrameProgressStrip({
                         >
                           {part}
                         </Text>
+                        {slotIndex < slotCount - 1 ? (
+                          <View style={styles.symbolPartDivider} />
+                        ) : null}
                         {isActive && slotIndex === activeSlotIndex ? (
                           <View style={styles.symbolPartMarker} />
                         ) : null}
@@ -190,28 +193,32 @@ const styles = StyleSheet.create({
   symbolPartsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
     gap: 0,
   },
   symbolPartSlot: {
-    width: 12,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: 2,
     paddingBottom: 5,
     position: 'relative',
   },
+  symbolPartSlotWithDivider: {
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
   symbolPartMarker: {
     position: 'absolute',
+    left: '50%',
+    marginLeft: -6,
     bottom: 1,
     width: 12,
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.accent,
   },
-  symbolPartSlotDivider: {
-    marginRight: 3,
-    borderRightWidth: 1,
-    borderRightColor: colors.borderStrong,
+  symbolPartDivider: {
+    display: 'none',
   },
 });

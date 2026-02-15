@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   },
   strikeButtonLabel: {
     fontSize: typeScale.body,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.accent,
   },
 });
