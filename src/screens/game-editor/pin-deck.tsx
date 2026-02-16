@@ -21,6 +21,7 @@ function isPinSet(mask: number, pinNumber: number) {
 type PinDeckProps = {
   selectedMask: number;
   standingMask: number;
+  availableHeight?: number;
   onSetPinKnocked: (pinNumber: number) => void;
   onSetPinStanding: (pinNumber: number) => void;
   onTogglePin: (pinNumber: number) => void;
@@ -65,12 +66,24 @@ function distanceBetween(left: Point, right: Point) {
 export function PinDeck({
   selectedMask,
   standingMask,
+  availableHeight,
   onSetPinKnocked,
   onSetPinStanding,
   onTogglePin,
 }: PinDeckProps) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const topRowWidth = useMemo(() => width - spacing.sm * 4, [width]);
+  const deckHeight = useMemo(() => {
+    const maxDeckHeight = 420;
+    const minDeckHeight = 240;
+    const fallbackHeight = Math.round(height * 0.46);
+    const measuredHeight =
+      typeof availableHeight === 'number' && availableHeight > 0
+        ? Math.round(availableHeight - spacing.sm * 2)
+        : fallbackHeight;
+
+    return Math.min(maxDeckHeight, Math.max(minDeckHeight, measuredHeight));
+  }, [availableHeight, height]);
   const slotWidth = topRowWidth / 4;
   const isWeb = Platform.OS === 'web';
 
@@ -232,7 +245,7 @@ export function PinDeck({
 
   return (
     <View
-      style={[styles.deck, { width: topRowWidth }]}
+      style={[styles.deck, { width: topRowWidth, height: deckHeight }]}
       onStartShouldSetResponder={isWeb ? () => false : undefined}
       onMoveShouldSetResponder={isWeb ? () => true : undefined}
       onResponderGrant={isWeb ? onResponderGrant : undefined}
@@ -298,7 +311,6 @@ export function PinDeck({
 
 const styles = StyleSheet.create({
   deck: {
-    flexGrow: 1,
     justifyContent: 'space-between',
     alignSelf: 'center',
   },

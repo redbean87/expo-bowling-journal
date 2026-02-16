@@ -6,10 +6,12 @@ import {
   EMPTY_FRAMES,
   getFrameSymbolParts,
   getFrameSymbolSummary,
+  getFrameSplitFlags,
   getSettledRunningTotals,
   getNextCursorAfterEntry,
   getStandingMaskForField,
   getVisibleRollFields,
+  isSplitLeaveMask,
   sanitizeFrameDraftsForEntry,
   toFrameDrafts,
   type FrameDraft,
@@ -39,6 +41,10 @@ function withFrame(
   };
 
   return next;
+}
+
+function maskFromPins(...pins: number[]): number {
+  return pins.reduce((mask, pinNumber) => mask | (1 << (pinNumber - 1)), 0);
 }
 
 test('buildFramesPayload maps pin masks to roll values', () => {
@@ -354,4 +360,77 @@ test('getSettledRunningTotals keeps tenth blank until bonus roll is entered', ()
   const withRoll3 = getSettledRunningTotals(drafts);
 
   assert.equal(withRoll3[9], 30);
+});
+
+test('classic split leave is detected', () => {
+  const leaveMask = maskFromPins(7, 10);
+
+  assert.equal(isSplitLeaveMask(leaveMask), true);
+
+  const frame = {
+    roll1Mask: 0x3ff & ~leaveMask,
+    roll2Mask: null,
+    roll3Mask: null,
+  } satisfies FrameDraft;
+
+  const splitFlags = getFrameSplitFlags(0, frame);
+
+  assert.deepEqual(splitFlags, {
+    roll1: true,
+    roll2: false,
+    roll3: false,
+  });
+});
+
+test('non-split leaves are not flagged', () => {
+  const connectedLeave = maskFromPins(2, 4, 5);
+
+  assert.equal(isSplitLeaveMask(connectedLeave), false);
+
+  const frame = {
+    roll1Mask: 0x3ff & ~connectedLeave,
+    roll2Mask: null,
+    roll3Mask: null,
+  } satisfies FrameDraft;
+
+  assert.equal(getFrameSplitFlags(0, frame).roll1, false);
+});
+
+test('no split marker when first ball missing, strike, or full rack leave', () => {
+  const missingRollFrame: FrameDraft = {
+    roll1Mask: null,
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+  const strikeFrame: FrameDraft = {
+    roll1Mask: 0x3ff,
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+  const fullRackLeaveFrame: FrameDraft = {
+    roll1Mask: 0,
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+
+  assert.equal(getFrameSplitFlags(0, missingRollFrame).roll1, false);
+  assert.equal(getFrameSplitFlags(0, strikeFrame).roll1, false);
+  assert.equal(getFrameSplitFlags(0, fullRackLeaveFrame).roll1, false);
+});
+
+test('frame 10 bonus rolls can be flagged as split leaves', () => {
+  const splitLeave = maskFromPins(7, 10);
+  const frame: FrameDraft = {
+    roll1Mask: 0x3ff,
+    roll2Mask: 0x3ff & ~splitLeave,
+    roll3Mask: 0x3ff & ~splitLeave,
+  };
+
+  const splitFlags = getFrameSplitFlags(9, frame);
+
+  assert.deepEqual(splitFlags, {
+    roll1: false,
+    roll2: true,
+    roll3: true,
+  });
 });

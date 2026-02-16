@@ -10,8 +10,9 @@ import {
 
 import {
   type FrameDraft,
-  getSettledRunningTotals,
+  getFrameSplitFlags,
   getFrameSymbolParts,
+  getSettledRunningTotals,
   type RollField,
 } from './game-editor-frame-utils';
 
@@ -92,19 +93,25 @@ export function FrameProgressStrip({
     scrollRef.current?.scrollTo({ x: targetX, animated: true });
   }, [activeFrameIndex, layoutMode, trackWidth]);
 
-  const rowContent = frameDrafts.map((frame, index) => {
-    const summaryParts = getFrameSymbolParts(index, frame);
-    const slotCount = index === 9 ? 3 : 2;
-    const isTenthFrame = index === 9;
-    const isLastFrame = index === frameDrafts.length - 1;
-    const isActive = index === activeFrameIndex;
+  const frameStripData = frameDrafts.map((frame, index) => ({
+    frameIndex: index,
+    summaryParts: getFrameSymbolParts(index, frame),
+    splitFlags: getFrameSplitFlags(index, frame),
+  }));
+
+  const rowContent = frameStripData.map((frameData) => {
+    const { frameIndex, summaryParts, splitFlags } = frameData;
+    const slotCount = frameIndex === 9 ? 3 : 2;
+    const isTenthFrame = frameIndex === 9;
+    const isLastFrame = frameIndex === frameDrafts.length - 1;
+    const isActive = frameIndex === activeFrameIndex;
     const activeSlotIndex =
       activeField === 'roll1Mask' ? 0 : activeField === 'roll2Mask' ? 1 : 2;
 
     return (
       <Pressable
-        key={`frame-symbol-${index + 1}`}
-        onPress={() => onSelectFrame(index)}
+        key={`frame-symbol-${frameIndex + 1}`}
+        onPress={() => onSelectFrame(frameIndex)}
         hitSlop={8}
         onLayout={(event) => {
           if (layoutMode === 'compact') {
@@ -112,7 +119,7 @@ export function FrameProgressStrip({
           }
 
           const { x, width: cellWidth } = event.nativeEvent.layout;
-          cellLayoutsRef.current[index] = { x, width: cellWidth };
+          cellLayoutsRef.current[frameIndex] = { x, width: cellWidth };
         }}
         style={({ pressed }) => [
           styles.symbolCell,
@@ -137,16 +144,24 @@ export function FrameProgressStrip({
               isActive ? styles.symbolFrameIndexActive : null,
             ]}
           >
-            {index + 1}
+            {frameIndex + 1}
           </Text>
         </View>
         <View style={[styles.symbolPartsRow, { minHeight: markRowHeight }]}>
           {Array.from({ length: slotCount }, (_, slotIndex) => {
             const part = summaryParts[slotIndex] ?? '';
+            const splitRingSize =
+              symbolFontSize + (layoutMode === 'compact' ? 3 : 6);
+            const hasSplit =
+              slotIndex === 0
+                ? splitFlags.roll1
+                : slotIndex === 1
+                  ? splitFlags.roll2
+                  : splitFlags.roll3;
 
             return (
               <View
-                key={`symbol-part-${index + 1}-${slotIndex + 1}`}
+                key={`symbol-part-${frameIndex + 1}-${slotIndex + 1}`}
                 style={[
                   styles.symbolPartSlot,
                   slotIndex < slotCount - 1
@@ -154,16 +169,42 @@ export function FrameProgressStrip({
                     : null,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.symbolText,
-                    { fontSize: symbolFontSize },
-                    part ? null : styles.symbolTextEmpty,
-                    isActive ? styles.symbolTextActive : null,
-                  ]}
-                >
-                  {part}
-                </Text>
+                <View style={styles.symbolTextWrap}>
+                  <View
+                    style={[
+                      styles.symbolTextBadge,
+                      {
+                        width: splitRingSize,
+                        height: splitRingSize,
+                        borderRadius: splitRingSize / 2,
+                      },
+                    ]}
+                  >
+                    {hasSplit ? (
+                      <View
+                        style={[
+                          styles.splitRing,
+                          {
+                            width: splitRingSize,
+                            height: splitRingSize,
+                            borderRadius: splitRingSize / 2,
+                          },
+                          isActive ? styles.splitRingActive : null,
+                        ]}
+                      />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.symbolText,
+                        { fontSize: symbolFontSize },
+                        part ? null : styles.symbolTextEmpty,
+                        isActive ? styles.symbolTextActive : null,
+                      ]}
+                    >
+                      {part}
+                    </Text>
+                  </View>
+                </View>
                 {isActive && slotIndex === activeSlotIndex ? (
                   <View style={styles.symbolPartMarker} />
                 ) : null}
@@ -175,7 +216,9 @@ export function FrameProgressStrip({
           <Text
             style={[styles.frameScoreText, { fontSize: frameScoreFontSize }]}
           >
-            {runningTotals[index] === null ? '' : runningTotals[index]}
+            {runningTotals[frameIndex] === null
+              ? ''
+              : runningTotals[frameIndex]}
           </Text>
         </View>
       </Pressable>
@@ -292,9 +335,29 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     position: 'relative',
   },
+  symbolTextWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 18,
+  },
+  symbolTextBadge: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   symbolPartSlotWithDivider: {
     borderRightWidth: 1,
     borderRightColor: colors.border,
+  },
+  splitRing: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 54, 54, 0.7)',
+    backgroundColor: 'transparent',
+  },
+  splitRingActive: {
+    borderWidth: 1,
+    borderColor: 'rgba(201, 54, 54, 0.8)',
   },
   symbolPartMarker: {
     position: 'absolute',

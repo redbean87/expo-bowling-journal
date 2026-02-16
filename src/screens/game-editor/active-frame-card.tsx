@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PinDeck } from './pin-deck';
@@ -25,12 +26,20 @@ export function ActiveFrameCard({
   onSetPinStanding,
   onTogglePin,
 }: ActiveFrameCardProps) {
+  const [deckAreaHeight, setDeckAreaHeight] = useState(0);
+
   return (
     <View style={styles.container}>
-      <View style={styles.deckArea}>
+      <View
+        style={styles.deckArea}
+        onLayout={(event) => {
+          setDeckAreaHeight(event.nativeEvent.layout.height);
+        }}
+      >
         <PinDeck
           selectedMask={activeRollMask ?? 0}
           standingMask={activeStandingMask}
+          availableHeight={deckAreaHeight}
           onSetPinKnocked={onSetPinKnocked}
           onSetPinStanding={onSetPinStanding}
           onTogglePin={onTogglePin}
@@ -68,6 +77,7 @@ const styles = StyleSheet.create({
   deckArea: {
     flex: 1,
     position: 'relative',
+    justifyContent: 'center',
   },
   autosaveOverlay: {
     position: 'absolute',

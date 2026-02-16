@@ -12,6 +12,7 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Next
 
+- [ ] Design and implement custom app header/footer navigation shell
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
