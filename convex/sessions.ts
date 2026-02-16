@@ -10,12 +10,20 @@ export const listByLeague = query({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
-    return ctx.db
+    const sessions = await ctx.db
       .query('sessions')
       .withIndex('by_user_league', (q) =>
         q.eq('userId', userId).eq('leagueId', args.leagueId)
       )
       .collect();
+
+    return sessions.sort((left, right) => {
+      if (left.date !== right.date) {
+        return right.date.localeCompare(left.date);
+      }
+
+      return right._creationTime - left._creationTime;
+    });
   },
 });
 

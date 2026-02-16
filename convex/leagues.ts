@@ -8,10 +8,22 @@ export const list = query({
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
 
-    return ctx.db
+    const leagues = await ctx.db
       .query('leagues')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
+
+    return leagues.sort((left, right) => {
+      if (left.createdAt !== right.createdAt) {
+        return right.createdAt - left.createdAt;
+      }
+
+      if (left._creationTime !== right._creationTime) {
+        return right._creationTime - left._creationTime;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
   },
 });
 

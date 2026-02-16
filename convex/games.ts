@@ -10,12 +10,20 @@ export const listBySession = query({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
-    return ctx.db
+    const games = await ctx.db
       .query('games')
       .withIndex('by_user_session', (q) =>
         q.eq('userId', userId).eq('sessionId', args.sessionId)
       )
       .collect();
+
+    return games.sort((left, right) => {
+      if (left.date !== right.date) {
+        return right.date.localeCompare(left.date);
+      }
+
+      return right._creationTime - left._creationTime;
+    });
   },
 });
 
