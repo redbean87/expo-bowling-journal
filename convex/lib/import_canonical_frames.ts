@@ -45,6 +45,8 @@ type DecodedFrameRow = {
 
 const FULL_PIN_MASK = 0x3ff;
 const SECOND_ROLL_SHIFT = 10;
+const THIRD_ROLL_SHIFT = 20;
+const MANUAL_PIN_PACK_MARKER = 1 << 30;
 const STRIKE_FLAG = 193;
 export const DEFAULT_CANONICAL_FRAME_CHUNK_SIZE = 180;
 
@@ -70,6 +72,51 @@ function toNullableNumber(value: number | null | undefined) {
   }
 
   return value;
+}
+
+function maskFromCount(value: number | null | undefined) {
+  if (value === undefined || value === null || value <= 0) {
+    return 0;
+  }
+
+  if (value >= 10) {
+    return FULL_PIN_MASK;
+  }
+
+  return (1 << value) - 1;
+}
+
+function packManualPinsMasks(
+  roll1Mask: number,
+  roll2Mask: number,
+  roll3Mask: number
+) {
+  return (
+    MANUAL_PIN_PACK_MARKER |
+    (roll1Mask & FULL_PIN_MASK) |
+    ((roll2Mask & FULL_PIN_MASK) << SECOND_ROLL_SHIFT) |
+    ((roll3Mask & FULL_PIN_MASK) << THIRD_ROLL_SHIFT)
+  );
+}
+
+function buildManualPinsPayload(
+  source: ImportedCanonicalFrameRow,
+  roll1: number,
+  roll2: number | null,
+  roll3: number | null
+) {
+  const packedPins =
+    source.pins ?? FULL_PIN_MASK | (FULL_PIN_MASK << SECOND_ROLL_SHIFT);
+  const standingAfterRoll1Mask = packedPins & FULL_PIN_MASK;
+  const standingAfterRoll2Mask =
+    (packedPins >> SECOND_ROLL_SHIFT) & FULL_PIN_MASK;
+  const roll1Mask =
+    roll1 === 10 ? FULL_PIN_MASK : FULL_PIN_MASK & ~standingAfterRoll1Mask;
+  const roll2Mask =
+    roll2 === null ? 0 : standingAfterRoll1Mask & ~standingAfterRoll2Mask;
+  const roll3Mask = maskFromCount(roll3);
+
+  return packManualPinsMasks(roll1Mask, roll2Mask, roll3Mask);
 }
 
 function decodeFrameRow(source: ImportedCanonicalFrameRow): DecodedFrameRow {
@@ -111,7 +158,7 @@ function appendFrame(
       source.ballFk === undefined || source.ballFk === null
         ? null
         : (ballIdBySqlite.get(source.ballFk) ?? null),
-    pins: toNullableNumber(source.pins),
+    pins: buildManualPinsPayload(source, roll1, roll2, roll3),
     scores: toNullableNumber(source.scores),
     score: toNullableNumber(source.score),
     flags: toNullableNumber(source.flags),

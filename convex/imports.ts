@@ -11,6 +11,7 @@ import {
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
+import { buildLeagueCreatedAtByEarliestWeekDate } from './lib/import_dates';
 import { computeImportedGameStats } from './lib/import_game_stats';
 import {
   laneContextFromLane,
@@ -1267,6 +1268,9 @@ async function runSqliteSnapshotImportCore(
   }
 
   const leagueIdMap = new Map<number, Id<'leagues'>>();
+  const leagueCreatedAtBySqliteId = buildLeagueCreatedAtByEarliestWeekDate(
+    args.weeks
+  );
 
   for (const row of args.leagues) {
     if (shouldPersistRawMirrors) {
@@ -1292,7 +1296,7 @@ async function runSqliteSnapshotImportCore(
       houseName,
       startDate: null,
       endDate: null,
-      createdAt: importedAt,
+      createdAt: leagueCreatedAtBySqliteId.get(row.sqliteId) ?? importedAt,
     });
     leagueIdMap.set(row.sqliteId, leagueId);
   }

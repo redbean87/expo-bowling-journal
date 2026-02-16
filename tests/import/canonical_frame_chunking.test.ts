@@ -9,6 +9,9 @@ import {
 
 import type { Id } from '../../convex/_generated/dataModel';
 
+const FULL_PIN_MASK = 0x3ff;
+const MANUAL_PIN_PACK_MARKER = 1 << 30;
+
 function asGameId(value: string) {
   return value as Id<'games'>;
 }
@@ -107,6 +110,8 @@ test('buildCanonicalFrameInserts derives 10 canonical frames per complete game',
   assert.equal(inserts[9].roll2, 10);
   assert.equal(inserts[9].roll3, 10);
   assert.equal(inserts[9].ballId, asBallId('ball_7'));
+  assert.equal((inserts[0].pins ?? 0) >= MANUAL_PIN_PACK_MARKER, true);
+  assert.equal((inserts[0].pins ?? 0) & FULL_PIN_MASK, FULL_PIN_MASK);
 });
 
 test('large import frame plan yields multiple default-size chunks', () => {

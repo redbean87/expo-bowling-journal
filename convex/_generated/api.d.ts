@@ -18,6 +18,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_import_callback_hmac from "../lib/import_callback_hmac.js";
 import type * as lib_import_callback_validation from "../lib/import_callback_validation.js";
 import type * as lib_import_canonical_frames from "../lib/import_canonical_frames.js";
+import type * as lib_import_dates from "../lib/import_dates.js";
 import type * as lib_import_game_stats from "../lib/import_game_stats.js";
 import type * as lib_import_raw_frames from "../lib/import_raw_frames.js";
 import type * as lib_import_refinement from "../lib/import_refinement.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "lib/import_callback_hmac": typeof lib_import_callback_hmac;
   "lib/import_callback_validation": typeof lib_import_callback_validation;
   "lib/import_canonical_frames": typeof lib_import_canonical_frames;
+  "lib/import_dates": typeof lib_import_dates;
   "lib/import_game_stats": typeof lib_import_game_stats;
   "lib/import_raw_frames": typeof lib_import_raw_frames;
   "lib/import_refinement": typeof lib_import_refinement;
