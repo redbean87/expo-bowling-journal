@@ -346,19 +346,22 @@ export default function GameEditorScreen() {
     }
 
     updateActiveFrame((frame) => {
-      const resetFrame = clearDownstreamRolls(frame, activeField);
       const standingMask = getStandingMaskForField(
         activeFrameIndex,
-        resetFrame,
+        frame,
         activeField
       );
       const currentMask =
-        resetFrame[activeField] ??
+        frame[activeField] ??
         getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
       const nextMask = togglePinInMask(currentMask, pinNumber);
+      const nextBaseFrame =
+        nextMask === currentMask
+          ? frame
+          : clearDownstreamRolls(frame, activeField);
 
       return {
-        ...resetFrame,
+        ...nextBaseFrame,
         [activeField]: nextMask,
       };
     });
@@ -368,7 +371,18 @@ export default function GameEditorScreen() {
     let committedFrame: FrameDraft | null = null;
 
     updateActiveFrame((frame) => {
-      const resetFrame = clearDownstreamRolls(frame, activeField);
+      const standingMask = getStandingMaskForField(
+        activeFrameIndex,
+        frame,
+        activeField
+      );
+      const currentMask =
+        frame[activeField] ??
+        getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
+      const resetFrame =
+        currentMask === nextMask
+          ? frame
+          : clearDownstreamRolls(frame, activeField);
       const nextFrame = {
         ...resetFrame,
         [activeField]: nextMask,
