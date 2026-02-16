@@ -200,6 +200,7 @@ export type StartImportInput = {
   fileSize: number;
   checksum?: string | null;
   idempotencyKey: string;
+  timezoneOffsetMinutes?: number | null;
 };
 
 export type StartImportResult = {

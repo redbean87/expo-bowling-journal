@@ -283,6 +283,7 @@ export const importsStartImportMutation = makeFunctionReference<
     fileSize: number;
     checksum?: string | null;
     idempotencyKey: string;
+    timezoneOffsetMinutes?: number | null;
   },
   {
     batchId: Id<'importBatches'>;

@@ -86,6 +86,7 @@ const submitParsedSnapshotForCallbackMutation = makeFunctionReference<
     parserVersion?: string | null;
     skipReplaceAllCleanup?: boolean;
     skipRawMirrorPersistence?: boolean;
+    timezoneOffsetMinutes?: number | null;
     snapshot: unknown;
   },
   {
@@ -130,6 +131,7 @@ const submitParsedSnapshotJsonForCallbackMutation = makeFunctionReference<
     parserVersion?: string | null;
     skipReplaceAllCleanup?: boolean;
     skipRawMirrorPersistence?: boolean;
+    timezoneOffsetMinutes?: number | null;
     snapshotJson: string;
   },
   {
@@ -266,6 +268,7 @@ type CallbackPayload = {
   stage: 'parsing' | 'importing' | 'completed' | 'failed';
   errorMessage?: string | null;
   parserVersion?: string | null;
+  timezoneOffsetMinutes?: number | null;
   snapshot?: unknown;
   snapshotJson?: string;
 };
@@ -452,6 +455,7 @@ http.route({
               parserVersion: payload.parserVersion ?? null,
               skipReplaceAllCleanup: true,
               skipRawMirrorPersistence: true,
+              timezoneOffsetMinutes: payload.timezoneOffsetMinutes ?? null,
               snapshotJson: payload.snapshotJson as string,
             })
           : await ctx.runMutation(submitParsedSnapshotForCallbackMutation, {
@@ -459,6 +463,7 @@ http.route({
               parserVersion: payload.parserVersion ?? null,
               skipReplaceAllCleanup: true,
               skipRawMirrorPersistence: true,
+              timezoneOffsetMinutes: payload.timezoneOffsetMinutes ?? null,
               snapshot: payload.snapshot,
             });
 

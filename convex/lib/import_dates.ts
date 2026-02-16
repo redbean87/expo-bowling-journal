@@ -5,8 +5,28 @@ export type SqliteWeekLike = {
   date?: SqliteDateInput;
 };
 
+const MIN_TZ_OFFSET_MINUTES = -840;
+const MAX_TZ_OFFSET_MINUTES = 840;
+
+export function normalizeTimezoneOffsetMinutes(
+  value: number | null | undefined
+): number | null {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  const minutes = Math.trunc(value);
+
+  if (minutes < MIN_TZ_OFFSET_MINUTES || minutes > MAX_TZ_OFFSET_MINUTES) {
+    return null;
+  }
+
+  return minutes;
+}
+
 export function normalizeImportDateStrict(
-  value: SqliteDateInput
+  value: SqliteDateInput,
+  timezoneOffsetMinutes?: number | null
 ): string | null {
   if (value === undefined || value === null) {
     return null;
@@ -28,7 +48,10 @@ export function normalizeImportDateStrict(
     timestampMs = value * 1000;
   }
 
-  const parsed = new Date(timestampMs);
+  const offsetMinutes = normalizeTimezoneOffsetMinutes(timezoneOffsetMinutes);
+  const shiftedTimestampMs =
+    offsetMinutes === null ? timestampMs : timestampMs - offsetMinutes * 60_000;
+  const parsed = new Date(shiftedTimestampMs);
 
   if (Number.isNaN(parsed.getTime())) {
     return null;
@@ -42,7 +65,8 @@ export function dateStringToUtcTimestamp(date: string): number {
 }
 
 export function buildLeagueCreatedAtByEarliestWeekDate(
-  weeks: SqliteWeekLike[]
+  weeks: SqliteWeekLike[],
+  timezoneOffsetMinutes?: number | null
 ): Map<number, number> {
   const createdAtByLeague = new Map<number, number>();
 
@@ -51,7 +75,10 @@ export function buildLeagueCreatedAtByEarliestWeekDate(
       continue;
     }
 
-    const normalizedDate = normalizeImportDateStrict(week.date);
+    const normalizedDate = normalizeImportDateStrict(
+      week.date,
+      timezoneOffsetMinutes
+    );
 
     if (!normalizedDate) {
       continue;

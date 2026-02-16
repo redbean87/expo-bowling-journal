@@ -18,6 +18,13 @@ test('normalizeImportDateStrict parses sqlite date formats without fallback', ()
   assert.equal(normalizeImportDateStrict(undefined), null);
 });
 
+test('normalizeImportDateStrict applies importer timezone offset for numeric dates', () => {
+  const utcMidnight = Date.parse('2025-09-11T00:00:00.000Z');
+
+  assert.equal(normalizeImportDateStrict(utcMidnight, 360), '2025-09-10');
+  assert.equal(normalizeImportDateStrict(utcMidnight, 0), '2025-09-11');
+});
+
 test('buildLeagueCreatedAtByEarliestWeekDate chooses earliest valid week date per league', () => {
   const createdAtByLeague = buildLeagueCreatedAtByEarliestWeekDate([
     { leagueFk: 101, date: '2025-10-01' },

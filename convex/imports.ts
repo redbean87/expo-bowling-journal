@@ -11,7 +11,11 @@ import {
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
-import { buildLeagueCreatedAtByEarliestWeekDate } from './lib/import_dates';
+import {
+  buildLeagueCreatedAtByEarliestWeekDate,
+  normalizeImportDateStrict,
+  normalizeTimezoneOffsetMinutes,
+} from './lib/import_dates';
 import { computeImportedGameStats } from './lib/import_game_stats';
 import {
   laneContextFromLane,
@@ -321,6 +325,7 @@ const dispatchImportQueueActionReference = makeFunctionReference<
     batchId: Id<'importBatches'>;
     userId: Id<'users'>;
     r2Key: string;
+    timezoneOffsetMinutes?: number | null;
   },
   void
 >('imports:dispatchImportQueue');
@@ -345,7 +350,8 @@ function validateR2KeyOwnership(userId: Id<'users'>, r2Key: string) {
 function normalizeDate(
   value: number | string | null | undefined,
   label: string,
-  fallbackDate: string
+  fallbackDate: string,
+  timezoneOffsetMinutes: number | null
 ): { date: string; warning: string | null } {
   if (value === undefined || value === null) {
     return { date: fallbackDate, warning: null };
@@ -367,15 +373,12 @@ function normalizeDate(
     };
   }
 
-  let timestampMs = value;
+  const normalizedDate = normalizeImportDateStrict(
+    value,
+    timezoneOffsetMinutes
+  );
 
-  if (Math.abs(value) < 10_000_000_000) {
-    timestampMs = value * 1000;
-  }
-
-  const parsed = new Date(timestampMs);
-
-  if (Number.isNaN(parsed.getTime())) {
+  if (!normalizedDate) {
     return {
       date: fallbackDate,
       warning: `${label}: invalid numeric date, used fallback`,
@@ -383,7 +386,7 @@ function normalizeDate(
   }
 
   return {
-    date: parsed.toISOString().slice(0, 10),
+    date: normalizedDate,
     warning: null,
   };
 }
@@ -727,6 +730,7 @@ export const startImport = mutation({
     fileSize: v.number(),
     checksum: v.optional(v.union(v.string(), v.null())),
     idempotencyKey: v.string(),
+    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -742,6 +746,9 @@ export const startImport = mutation({
     }
 
     validateR2KeyOwnership(userId, args.r2Key);
+    const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
+      args.timezoneOffsetMinutes
+    );
 
     const existingBatch = await ctx.db
       .query('importBatches')
@@ -776,6 +783,7 @@ export const startImport = mutation({
       batchId,
       userId,
       r2Key: args.r2Key,
+      timezoneOffsetMinutes,
     });
 
     return {
@@ -790,6 +798,7 @@ export const dispatchImportQueue = internalAction({
     batchId: v.id('importBatches'),
     userId: v.id('users'),
     r2Key: v.string(),
+    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     const batch = await ctx.runQuery(getBatchByIdForDispatchQuery, {
@@ -848,6 +857,9 @@ export const dispatchImportQueue = internalAction({
       batchId: args.batchId,
       userId: args.userId,
       r2Key: args.r2Key,
+      timezoneOffsetMinutes: normalizeTimezoneOffsetMinutes(
+        args.timezoneOffsetMinutes
+      ),
     });
     const timestampSeconds = Math.floor(Date.now() / 1000);
     const nonce = crypto.randomUUID();
@@ -1062,10 +1074,16 @@ async function runSqliteSnapshotImportCore(
   options?: {
     skipReplaceAllCleanup?: boolean;
     skipRawMirrorPersistence?: boolean;
+    timezoneOffsetMinutes?: number | null;
   }
 ): Promise<SnapshotImportCoreResult> {
   const importedAt = Date.now();
-  const today = new Date(importedAt).toISOString().slice(0, 10);
+  const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
+    options?.timezoneOffsetMinutes
+  );
+  const today =
+    normalizeImportDateStrict(importedAt, timezoneOffsetMinutes) ??
+    new Date(importedAt).toISOString().slice(0, 10);
   const importWarnings: RefinementWarning[] = [];
   const shouldPersistRawMirrors = !options?.skipRawMirrorPersistence;
 
@@ -1269,7 +1287,8 @@ async function runSqliteSnapshotImportCore(
 
   const leagueIdMap = new Map<number, Id<'leagues'>>();
   const leagueCreatedAtBySqliteId = buildLeagueCreatedAtByEarliestWeekDate(
-    args.weeks
+    args.weeks,
+    timezoneOffsetMinutes
   );
 
   for (const row of args.leagues) {
@@ -1339,7 +1358,8 @@ async function runSqliteSnapshotImportCore(
     const weekDate = normalizeDate(
       row.date,
       `week ${String(row.sqliteId)}`,
-      today
+      today,
+      timezoneOffsetMinutes
     );
 
     if (weekDate.warning) {
@@ -1432,7 +1452,8 @@ async function runSqliteSnapshotImportCore(
     const gameDate = normalizeDate(
       row.date,
       `game ${String(row.sqliteId)}`,
-      sessionDateMap.get(row.weekFk) ?? today
+      sessionDateMap.get(row.weekFk) ?? today,
+      timezoneOffsetMinutes
     );
 
     if (gameDate.warning) {
@@ -1861,6 +1882,7 @@ export const submitParsedSnapshotForCallback = internalMutation({
     parserVersion: v.optional(v.union(v.string(), v.null())),
     skipReplaceAllCleanup: v.optional(v.boolean()),
     skipRawMirrorPersistence: v.optional(v.boolean()),
+    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
     snapshot: v.object(sqliteSnapshotArgs),
   },
   handler: async (ctx, args) => {
@@ -1878,6 +1900,7 @@ export const submitParsedSnapshotForCallback = internalMutation({
       {
         skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
         skipRawMirrorPersistence: args.skipRawMirrorPersistence ?? false,
+        timezoneOffsetMinutes: args.timezoneOffsetMinutes ?? null,
       }
     );
   },
@@ -1889,6 +1912,7 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     parserVersion: v.optional(v.union(v.string(), v.null())),
     skipReplaceAllCleanup: v.optional(v.boolean()),
     skipRawMirrorPersistence: v.optional(v.boolean()),
+    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
     snapshotJson: v.string(),
   },
   handler: async (ctx, args) => {
@@ -1904,6 +1928,7 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     return runSqliteSnapshotImportCore(ctx, batch.userId, snapshot, batch._id, {
       skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
       skipRawMirrorPersistence: args.skipRawMirrorPersistence ?? false,
+      timezoneOffsetMinutes: args.timezoneOffsetMinutes ?? null,
     });
   },
 });

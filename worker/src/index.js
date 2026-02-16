@@ -117,6 +117,20 @@ function isSafeBatchId(batchId) {
   return typeof batchId === 'string' && /^[a-zA-Z0-9_-]{8,128}$/.test(batchId);
 }
 
+function normalizeTimezoneOffsetMinutes(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  const minutes = Math.trunc(value);
+
+  if (minutes < -840 || minutes > 840) {
+    return null;
+  }
+
+  return minutes;
+}
+
 function isSafeR2Key(r2Key, userId) {
   return (
     typeof r2Key === 'string' &&
@@ -252,6 +266,9 @@ async function postConvexCallback(env, payload) {
 
 async function processQueueMessage(env, body) {
   const { batchId, r2Key } = body;
+  const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
+    body.timezoneOffsetMinutes
+  );
 
   try {
     await postConvexCallback(env, {
@@ -339,7 +356,11 @@ async function processQueueMessage(env, body) {
 
   await postConvexCallback(
     env,
-    buildImportingSnapshotJsonCallbackPayload(batchId, parsedSnapshot)
+    buildImportingSnapshotJsonCallbackPayload(
+      batchId,
+      parsedSnapshot,
+      timezoneOffsetMinutes
+    )
   );
 }
 
@@ -528,6 +549,9 @@ export default {
       const batchId = body.batchId;
       const userId = body.userId;
       const r2Key = body.r2Key;
+      const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
+        body.timezoneOffsetMinutes
+      );
 
       if (!isSafeBatchId(batchId)) {
         return badRequest(request, env, 'Invalid batchId');
@@ -553,6 +577,7 @@ export default {
             batchId,
             userId,
             r2Key,
+            timezoneOffsetMinutes,
           });
 
           return json(
@@ -592,6 +617,7 @@ export default {
         batchId,
         userId,
         r2Key,
+        timezoneOffsetMinutes,
       });
 
       return json(
