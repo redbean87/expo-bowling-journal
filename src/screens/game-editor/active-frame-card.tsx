@@ -10,6 +10,8 @@ type ActiveFrameCardProps = {
   autosaveMessage: string;
   autosaveState: 'idle' | 'saving' | 'saved' | 'error';
   inlineError: string | null;
+  onSetPinKnocked: (pinNumber: number) => void;
+  onSetPinStanding: (pinNumber: number) => void;
   onTogglePin: (pinNumber: number) => void;
 };
 
@@ -19,6 +21,8 @@ export function ActiveFrameCard({
   autosaveMessage,
   autosaveState,
   inlineError,
+  onSetPinKnocked,
+  onSetPinStanding,
   onTogglePin,
 }: ActiveFrameCardProps) {
   return (
@@ -27,6 +31,8 @@ export function ActiveFrameCard({
         <PinDeck
           selectedMask={activeRollMask ?? 0}
           standingMask={activeStandingMask}
+          onSetPinKnocked={onSetPinKnocked}
+          onSetPinStanding={onSetPinStanding}
           onTogglePin={onTogglePin}
         />
 

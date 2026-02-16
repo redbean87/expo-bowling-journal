@@ -48,6 +48,16 @@ function togglePinInMask(mask: number, pinNumber: number) {
   return mask ^ (1 << (pinNumber - 1));
 }
 
+function setPinState(mask: number, pinNumber: number, shouldKnock: boolean) {
+  const pinBit = 1 << (pinNumber - 1);
+
+  if (shouldKnock) {
+    return mask | pinBit;
+  }
+
+  return mask & ~pinBit;
+}
+
 function maskHasPin(mask: number, pinNumber: number) {
   return (mask & (1 << (pinNumber - 1))) !== 0;
 }
@@ -367,6 +377,60 @@ export default function GameEditorScreen() {
     });
   };
 
+  const onSetPinKnocked = (pinNumber: number) => {
+    if (!maskHasPin(activeStandingMask, pinNumber)) {
+      return;
+    }
+
+    updateActiveFrame((frame) => {
+      const standingMask = getStandingMaskForField(
+        activeFrameIndex,
+        frame,
+        activeField
+      );
+      const currentMask =
+        frame[activeField] ??
+        getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
+      const nextMask = setPinState(currentMask, pinNumber, true);
+      const nextBaseFrame =
+        nextMask === currentMask
+          ? frame
+          : clearDownstreamRolls(frame, activeField);
+
+      return {
+        ...nextBaseFrame,
+        [activeField]: nextMask,
+      };
+    });
+  };
+
+  const onSetPinStanding = (pinNumber: number) => {
+    if (!maskHasPin(activeStandingMask, pinNumber)) {
+      return;
+    }
+
+    updateActiveFrame((frame) => {
+      const standingMask = getStandingMaskForField(
+        activeFrameIndex,
+        frame,
+        activeField
+      );
+      const currentMask =
+        frame[activeField] ??
+        getDefaultMaskForField(activeFrameIndex, activeField, standingMask);
+      const nextMask = setPinState(currentMask, pinNumber, false);
+      const nextBaseFrame =
+        nextMask === currentMask
+          ? frame
+          : clearDownstreamRolls(frame, activeField);
+
+      return {
+        ...nextBaseFrame,
+        [activeField]: nextMask,
+      };
+    });
+  };
+
   const commitActiveRoll = (nextMask: number) => {
     let committedFrame: FrameDraft | null = null;
 
@@ -615,6 +679,8 @@ export default function GameEditorScreen() {
           autosaveMessage={autosaveMessage}
           autosaveState={autosaveState}
           inlineError={inlineError}
+          onSetPinKnocked={onSetPinKnocked}
+          onSetPinStanding={onSetPinStanding}
           onTogglePin={onTogglePin}
         />
       </View>
