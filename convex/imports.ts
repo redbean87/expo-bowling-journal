@@ -1311,6 +1311,7 @@ async function runSqliteSnapshotImportCore(
     const leagueId = await ctx.db.insert('leagues', {
       userId,
       name,
+      gamesPerSession: normalizeNullableInteger(row.games, 1, 12),
       houseId,
       houseName,
       startDate: null,

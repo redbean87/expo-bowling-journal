@@ -13,6 +13,7 @@ export type PatternId = Id<'patterns'>;
 
 export type CreateLeagueInput = {
   name: string;
+  gamesPerSession?: number | null;
   houseId?: Id<'houses'> | null;
   houseName?: string | null;
   startDate?: string | null;

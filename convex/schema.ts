@@ -7,6 +7,7 @@ export default defineSchema({
   leagues: defineTable({
     userId: v.id('users'),
     name: v.string(),
+    gamesPerSession: v.optional(v.union(v.number(), v.null())),
     houseId: v.optional(v.union(v.id('houses'), v.null())),
     houseName: v.optional(v.union(v.string(), v.null())),
     startDate: v.optional(v.union(v.string(), v.null())),

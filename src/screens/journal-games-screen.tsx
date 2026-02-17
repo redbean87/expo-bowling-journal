@@ -1,11 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+
+import { buildSessionNightSummary } from './journal-games-night-summary';
 
 import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Button, Card } from '@/components/ui';
-import { useGames } from '@/hooks/journal';
+import { useGames, useLeagues } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
@@ -25,6 +28,23 @@ export default function JournalGamesScreen() {
   const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
   const sessionId = getFirstParam(params.sessionId) as SessionId | null;
   const { games, isLoading: isGamesLoading } = useGames(sessionId);
+  const { leagues } = useLeagues();
+
+  const league = useMemo(() => {
+    if (!leagueId) {
+      return null;
+    }
+
+    return leagues.find((candidate) => candidate._id === leagueId) ?? null;
+  }, [leagueId, leagues]);
+
+  const nightSummary = useMemo(
+    () => buildSessionNightSummary(games, league?.gamesPerSession),
+    [games, league?.gamesPerSession]
+  );
+  const addGameLabel = nightSummary.isNightComplete
+    ? 'Add extra game'
+    : 'Add game';
 
   return (
     <ScreenLayout
@@ -35,7 +55,7 @@ export default function JournalGamesScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Button
           disabled={!leagueId || !sessionId}
-          label="Add game"
+          label={addGameLabel}
           onPress={() =>
             router.push({
               pathname:
@@ -48,6 +68,51 @@ export default function JournalGamesScreen() {
             })
           }
         />
+
+        {sessionId ? (
+          <Card muted>
+            <Text style={styles.summaryTitle}>Night progress</Text>
+            <Text style={styles.meta}>
+              {nightSummary.targetGames === null
+                ? `Games: ${String(nightSummary.gamesPlayed)}`
+                : `Games: ${String(nightSummary.gamesPlayed)} / ${String(nightSummary.targetGames)}`}
+            </Text>
+            {nightSummary.targetGames !== null ? (
+              <Text style={styles.meta}>
+                {nightSummary.isNightComplete
+                  ? 'Night complete. Add extra game anytime.'
+                  : `${String(nightSummary.remainingGames ?? 0)} game${
+                      nightSummary.remainingGames === 1 ? '' : 's'
+                    } remaining`}
+              </Text>
+            ) : (
+              <Text style={styles.meta}>
+                Set a league game target to track completion.
+              </Text>
+            )}
+            {nightSummary.gamesPlayed > 0 ? (
+              <>
+                <Text style={styles.summaryTitle}>Night stats</Text>
+                <Text style={styles.meta}>
+                  Series: {nightSummary.totalPins}
+                </Text>
+                <Text style={styles.meta}>
+                  Average: {nightSummary.average.toFixed(2)}
+                </Text>
+                <Text style={styles.meta}>
+                  High game: {nightSummary.highGame ?? '-'}
+                </Text>
+                <Text style={styles.meta}>
+                  Low game: {nightSummary.lowGame ?? '-'}
+                </Text>
+                <Text style={styles.meta}>
+                  Strikes {nightSummary.strikes} | Spares {nightSummary.spares}{' '}
+                  | Opens {nightSummary.opens}
+                </Text>
+              </>
+            ) : null}
+          </Card>
+        ) : null}
 
         {isGamesLoading ? (
           <Text style={styles.meta}>Loading games...</Text>
@@ -102,5 +167,10 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
+  },
+  summaryTitle: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
 });

@@ -45,6 +45,7 @@ export const leaguesCreateMutation = makeFunctionReference<
   'mutation',
   {
     name: string;
+    gamesPerSession?: number | null;
     houseId?: Id<'houses'> | null;
     houseName?: string | null;
     startDate?: string | null;

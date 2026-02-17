@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
@@ -30,6 +30,7 @@ export const list = query({
 export const create = mutation({
   args: {
     name: v.string(),
+    gamesPerSession: v.optional(v.union(v.number(), v.null())),
     houseId: v.optional(v.union(v.id('houses'), v.null())),
     houseName: v.optional(v.union(v.string(), v.null())),
     startDate: v.optional(v.union(v.string(), v.null())),
@@ -38,9 +39,22 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
+    if (
+      args.gamesPerSession !== undefined &&
+      args.gamesPerSession !== null &&
+      (!Number.isInteger(args.gamesPerSession) ||
+        args.gamesPerSession < 1 ||
+        args.gamesPerSession > 12)
+    ) {
+      throw new ConvexError(
+        'Games per session must be a whole number between 1 and 12'
+      );
+    }
+
     return ctx.db.insert('leagues', {
       userId,
       name: args.name,
+      gamesPerSession: args.gamesPerSession ?? null,
       houseId: args.houseId ?? null,
       houseName: args.houseName ?? null,
       startDate: args.startDate ?? null,

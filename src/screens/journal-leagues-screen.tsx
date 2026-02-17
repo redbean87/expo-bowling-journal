@@ -16,6 +16,7 @@ export default function JournalLeaguesScreen() {
     isCreating: isCreatingLeague,
   } = useLeagues();
   const [leagueName, setLeagueName] = useState('');
+  const [leagueGamesPerSession, setLeagueGamesPerSession] = useState('');
   const [leagueError, setLeagueError] = useState<string | null>(null);
 
   const onCreateLeague = async () => {
@@ -27,9 +28,26 @@ export default function JournalLeaguesScreen() {
       return;
     }
 
+    let gamesPerSession: number | null | undefined = undefined;
+    const targetGamesInput = leagueGamesPerSession.trim();
+
+    if (targetGamesInput.length > 0) {
+      const parsed = Number(targetGamesInput);
+
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) {
+        setLeagueError(
+          'Games per session must be a whole number from 1 to 12.'
+        );
+        return;
+      }
+
+      gamesPerSession = parsed;
+    }
+
     try {
-      const leagueId = await createLeague({ name });
+      const leagueId = await createLeague({ name, gamesPerSession });
       setLeagueName('');
+      setLeagueGamesPerSession('');
       router.push({
         pathname: '/journal/[leagueId]/sessions' as never,
         params: { leagueId } as never,
@@ -55,6 +73,14 @@ export default function JournalLeaguesScreen() {
             onChangeText={setLeagueName}
             placeholder="League name"
             value={leagueName}
+          />
+          <Input
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="number-pad"
+            onChangeText={setLeagueGamesPerSession}
+            placeholder="Games per session (optional)"
+            value={leagueGamesPerSession}
           />
           {leagueError ? (
             <Text style={styles.errorText}>{leagueError}</Text>
@@ -88,6 +114,9 @@ export default function JournalLeaguesScreen() {
             <Text style={styles.rowTitle}>{league.name}</Text>
             <Text style={styles.meta}>
               {league.houseName ?? 'No house set'}
+            </Text>
+            <Text style={styles.meta}>
+              Target games: {league.gamesPerSession ?? 'Not set'}
             </Text>
           </PressableCard>
         ))}
