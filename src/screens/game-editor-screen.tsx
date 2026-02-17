@@ -1,10 +1,12 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   StyleSheet,
   Text,
+  type AppStateStatus,
   View,
 } from 'react-native';
 
@@ -29,6 +31,21 @@ import {
   type FrameDraft,
   type RollField,
 } from './game-editor/game-editor-frame-utils';
+import {
+  buildGameSaveQueueId,
+  createQueuedGameSaveEntry,
+  getDueQueuedGameSaveEntries,
+  isRetryableSaveError,
+  markQueuedGameSaveEntryRetry,
+  migrateQueuedEntryToGameId,
+  removeQueuedGameSaveEntry,
+  replaceQueuedGameSaveEntry,
+  upsertQueuedGameSaveEntry,
+} from './game-editor/game-save-queue';
+import {
+  loadGameSaveQueue,
+  persistGameSaveQueue,
+} from './game-editor/game-save-queue-storage';
 
 import type { GameId, SessionId } from '@/services/journal';
 
@@ -42,7 +59,13 @@ type CursorTarget = {
   field: RollField;
 };
 
-type AutosaveState = 'idle' | 'saving' | 'saved' | 'error';
+type AutosaveState =
+  | 'idle'
+  | 'saving'
+  | 'saved'
+  | 'queued'
+  | 'syncingQueued'
+  | 'error';
 
 function togglePinInMask(mask: number, pinNumber: number) {
   return mask ^ (1 << (pinNumber - 1));
@@ -170,6 +193,7 @@ export default function GameEditorScreen() {
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
 
   const isAutosaveInFlightRef = useRef(false);
+  const isQueuedFlushInFlightRef = useRef(false);
   const hasQueuedAutosaveRef = useRef(false);
   const lastSavedSignatureRef = useRef<string | null>(null);
   const lastAppliedServerSignatureRef = useRef<string | null>(null);
@@ -199,21 +223,178 @@ export default function GameEditorScreen() {
       return 'Saving...';
     }
 
+    if (autosaveState === 'queued') {
+      return 'Saved locally. Will sync when online.';
+    }
+
+    if (autosaveState === 'syncingQueued') {
+      return 'Syncing offline saves...';
+    }
+
     if (autosaveState === 'error') {
+      if (autosaveError && autosaveError === frameRuleError) {
+        return '';
+      }
+
       return autosaveError ?? 'Auto-save failed. Keep editing to retry.';
     }
 
     return '';
-  }, [autosaveError, autosaveState]);
+  }, [autosaveError, autosaveState, frameRuleError]);
 
   const moveCursor = ({ frameIndex, field }: CursorTarget) => {
     setActiveFrameIndex(frameIndex);
     setActiveField(field);
   };
 
+  const flushQueuedSaves = useCallback(async () => {
+    if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
+      return;
+    }
+
+    isQueuedFlushInFlightRef.current = true;
+
+    try {
+      let queueEntries = await loadGameSaveQueue();
+      const dueEntries = getDueQueuedGameSaveEntries(queueEntries, Date.now());
+
+      if (dueEntries.length === 0) {
+        return;
+      }
+
+      setAutosaveState((currentState) =>
+        currentState === 'saving' ? currentState : 'syncingQueued'
+      );
+
+      for (const dueEntry of dueEntries) {
+        let queueEntry = dueEntry;
+
+        try {
+          let targetGameId = queueEntry.gameId;
+
+          if (!targetGameId) {
+            const createdGameId = await createGame({
+              sessionId: queueEntry.sessionId as SessionId,
+              date: queueEntry.date,
+            });
+            const now = Date.now();
+
+            queueEntry = migrateQueuedEntryToGameId(
+              queueEntry,
+              createdGameId,
+              now
+            );
+            queueEntries = replaceQueuedGameSaveEntry(
+              queueEntries,
+              dueEntry.queueId,
+              queueEntry
+            );
+            await persistGameSaveQueue(queueEntries);
+            targetGameId = createdGameId;
+            setDraftGameId(createdGameId);
+          } else {
+            await updateGame({
+              gameId: targetGameId as GameId,
+              date: queueEntry.date,
+            });
+          }
+
+          await replaceFramesForGame({
+            gameId: targetGameId as GameId,
+            frames: queueEntry.frames,
+          });
+
+          queueEntries = removeQueuedGameSaveEntry(
+            queueEntries,
+            queueEntry.queueId
+          );
+          await persistGameSaveQueue(queueEntries);
+
+          lastSavedSignatureRef.current = JSON.stringify({
+            gameId: targetGameId,
+            date: queueEntry.date,
+            frames: queueEntry.frames,
+          });
+
+          if (
+            sessionId &&
+            queueEntry.queueId ===
+              buildGameSaveQueueId(String(sessionId), draftGameId ?? gameId)
+          ) {
+            setAutosaveError(null);
+            setAutosaveState('saved');
+          }
+        } catch (caught) {
+          const errorMessage =
+            caught instanceof Error
+              ? caught.message
+              : 'Unable to sync saved game.';
+
+          if (!isRetryableSaveError(caught)) {
+            queueEntries = removeQueuedGameSaveEntry(
+              queueEntries,
+              queueEntry.queueId
+            );
+            await persistGameSaveQueue(queueEntries);
+            continue;
+          }
+
+          queueEntries = markQueuedGameSaveEntryRetry(
+            queueEntries,
+            queueEntry.queueId,
+            errorMessage,
+            Date.now()
+          );
+          await persistGameSaveQueue(queueEntries);
+        }
+      }
+
+      const remainingEntries = await loadGameSaveQueue();
+
+      if (remainingEntries.length > 0) {
+        setAutosaveState('queued');
+      } else {
+        setAutosaveState((currentState) =>
+          currentState === 'syncingQueued' ? 'saved' : currentState
+        );
+      }
+    } finally {
+      isQueuedFlushInFlightRef.current = false;
+    }
+  }, [
+    createGame,
+    draftGameId,
+    gameId,
+    replaceFramesForGame,
+    sessionId,
+    updateGame,
+  ]);
+
   useEffect(() => {
     navigation.setOptions({ title: screenTitle });
   }, [navigation, screenTitle]);
+
+  useEffect(() => {
+    if (!didHydrate) {
+      return;
+    }
+
+    void flushQueuedSaves();
+  }, [didHydrate, flushQueuedSaves]);
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        void flushQueuedSaves();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [flushQueuedSaves]);
 
   useEffect(() => {
     if (didHydrate) {
@@ -571,6 +752,7 @@ export default function GameEditorScreen() {
       setAutosaveError(null);
       const saveSequence = saveSequenceRef.current + 1;
       saveSequenceRef.current = saveSequence;
+      let attemptedGameId = activeGameId;
 
       try {
         let nextGameId = activeGameId;
@@ -598,6 +780,8 @@ export default function GameEditorScreen() {
           throw new Error('Game not found.');
         }
 
+        attemptedGameId = nextGameId;
+
         await replaceFramesForGame({
           gameId: nextGameId,
           frames: payloadFrames,
@@ -619,11 +803,43 @@ export default function GameEditorScreen() {
           );
         }
       } catch (caught) {
+        const errorMessage =
+          caught instanceof Error ? caught.message : 'Unable to save game.';
+
+        if (isRetryableSaveError(caught)) {
+          const queueSessionId = sessionId ?? game?.sessionId;
+
+          if (queueSessionId) {
+            const now = Date.now();
+            const queueEntry = createQueuedGameSaveEntry(
+              {
+                sessionId: String(queueSessionId),
+                gameId: attemptedGameId ? String(attemptedGameId) : null,
+                date: trimmedDate,
+                frames: payloadFrames,
+                signature,
+              },
+              now
+            );
+            const queueEntries = upsertQueuedGameSaveEntry(
+              await loadGameSaveQueue(),
+              queueEntry
+            );
+
+            await persistGameSaveQueue(queueEntries);
+
+            if (saveSequenceRef.current === saveSequence) {
+              setAutosaveState('queued');
+              setAutosaveError(null);
+            }
+
+            return;
+          }
+        }
+
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('error');
-          setAutosaveError(
-            caught instanceof Error ? caught.message : 'Unable to save game.'
-          );
+          setAutosaveError(errorMessage);
         }
       } finally {
         isAutosaveInFlightRef.current = false;
@@ -646,6 +862,7 @@ export default function GameEditorScreen() {
     didHydrate,
     draftGameId,
     frameDrafts,
+    game,
     isAuthenticated,
     isCreateMode,
     replaceFramesForGame,

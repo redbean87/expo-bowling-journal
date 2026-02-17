@@ -278,6 +278,32 @@ test('sanitizeFrameDraftsForEntry preserves frame 10 roll3', () => {
   assert.equal(result.drafts[9]?.roll3Mask, 0b0000000011);
 });
 
+test('sanitizeFrameDraftsForEntry clears frame 10 roll3 when open after roll 2', () => {
+  const drafts = withFrame(9, {
+    roll1Mask: 0b0000000111,
+    roll2Mask: 0b0000000111,
+    roll3Mask: 0b0000010000,
+  });
+
+  const result = sanitizeFrameDraftsForEntry(drafts);
+
+  assert.equal(result.changed, true);
+  assert.equal(result.drafts[9]?.roll3Mask, null);
+});
+
+test('sanitizeFrameDraftsForEntry clears frame 10 roll3 when roll 2 is missing', () => {
+  const drafts = withFrame(9, {
+    roll1Mask: 0x3ff,
+    roll2Mask: null,
+    roll3Mask: 0b0000010000,
+  });
+
+  const result = sanitizeFrameDraftsForEntry(drafts);
+
+  assert.equal(result.changed, true);
+  assert.equal(result.drafts[9]?.roll3Mask, null);
+});
+
 test('getSettledRunningTotals returns cumulative totals for open frames', () => {
   const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
   drafts[0] = { roll1Mask: toMask(8), roll2Mask: toMask(1), roll3Mask: null };

@@ -825,15 +825,33 @@ export function sanitizeFrameDraftsForEntry(frameDrafts: FrameDraft[]): {
   let changed = false;
 
   const drafts = frameDrafts.map((frame, index) => {
-    if (index === 9) {
-      return frame;
+    if (index < 9) {
+      const roll1 = getRollValue(frame.roll1Mask);
+      const shouldClearRoll2 = roll1 === 10;
+      const nextRoll2Mask = shouldClearRoll2 ? null : frame.roll2Mask;
+
+      if (nextRoll2Mask === frame.roll2Mask && frame.roll3Mask === null) {
+        return frame;
+      }
+
+      changed = true;
+
+      return {
+        ...frame,
+        roll2Mask: nextRoll2Mask,
+        roll3Mask: null,
+      };
     }
 
     const roll1 = getRollValue(frame.roll1Mask);
-    const shouldClearRoll2 = roll1 === 10;
-    const nextRoll2Mask = shouldClearRoll2 ? null : frame.roll2Mask;
+    const roll2 = getRollValue(frame.roll2Mask);
+    const canHaveRoll3 =
+      roll1 === 10 ||
+      (roll1 !== null && roll2 !== null && roll1 < 10 && roll1 + roll2 === 10);
+    const shouldClearRoll3 = frame.roll2Mask === null || !canHaveRoll3;
+    const nextRoll3Mask = shouldClearRoll3 ? null : frame.roll3Mask;
 
-    if (nextRoll2Mask === frame.roll2Mask && frame.roll3Mask === null) {
+    if (nextRoll3Mask === frame.roll3Mask) {
       return frame;
     }
 
@@ -841,8 +859,7 @@ export function sanitizeFrameDraftsForEntry(frameDrafts: FrameDraft[]): {
 
     return {
       ...frame,
-      roll2Mask: nextRoll2Mask,
-      roll3Mask: null,
+      roll3Mask: nextRoll3Mask,
     };
   });
 

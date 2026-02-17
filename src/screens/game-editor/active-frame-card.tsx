@@ -9,7 +9,13 @@ type ActiveFrameCardProps = {
   activeRollMask: number | null;
   activeStandingMask: number;
   autosaveMessage: string;
-  autosaveState: 'idle' | 'saving' | 'saved' | 'error';
+  autosaveState:
+    | 'idle'
+    | 'saving'
+    | 'saved'
+    | 'queued'
+    | 'syncingQueued'
+    | 'error';
   inlineError: string | null;
   onSetPinKnocked: (pinNumber: number) => void;
   onSetPinStanding: (pinNumber: number) => void;
