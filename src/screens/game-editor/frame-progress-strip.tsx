@@ -150,8 +150,6 @@ export function FrameProgressStrip({
         <View style={[styles.symbolPartsRow, { minHeight: markRowHeight }]}>
           {Array.from({ length: slotCount }, (_, slotIndex) => {
             const part = summaryParts[slotIndex] ?? '';
-            const splitRingSize =
-              symbolFontSize + (layoutMode === 'compact' ? 3 : 6);
             const hasSplit =
               slotIndex === 0
                 ? splitFlags.roll1
@@ -170,40 +168,20 @@ export function FrameProgressStrip({
                 ]}
               >
                 <View style={styles.symbolTextWrap}>
-                  <View
+                  <Text
                     style={[
-                      styles.symbolTextBadge,
-                      {
-                        width: splitRingSize,
-                        height: splitRingSize,
-                        borderRadius: splitRingSize / 2,
-                      },
+                      styles.symbolText,
+                      { fontSize: symbolFontSize },
+                      part ? null : styles.symbolTextEmpty,
+                      isActive ? styles.symbolTextActive : null,
+                      hasSplit ? styles.symbolTextSplit : null,
+                      hasSplit && isActive
+                        ? styles.symbolTextSplitActive
+                        : null,
                     ]}
                   >
-                    {hasSplit ? (
-                      <View
-                        style={[
-                          styles.splitRing,
-                          {
-                            width: splitRingSize,
-                            height: splitRingSize,
-                            borderRadius: splitRingSize / 2,
-                          },
-                          isActive ? styles.splitRingActive : null,
-                        ]}
-                      />
-                    ) : null}
-                    <Text
-                      style={[
-                        styles.symbolText,
-                        { fontSize: symbolFontSize },
-                        part ? null : styles.symbolTextEmpty,
-                        isActive ? styles.symbolTextActive : null,
-                      ]}
-                    >
-                      {part}
-                    </Text>
-                  </View>
+                    {part}
+                  </Text>
                 </View>
                 {isActive && slotIndex === activeSlotIndex ? (
                   <View style={styles.symbolPartMarker} />
@@ -340,24 +318,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 18,
   },
-  symbolTextBadge: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   symbolPartSlotWithDivider: {
     borderRightWidth: 1,
     borderRightColor: colors.border,
   },
-  splitRing: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(201, 54, 54, 0.7)',
-    backgroundColor: 'transparent',
+  symbolTextSplit: {
+    color: 'rgba(201, 54, 54, 0.82)',
   },
-  splitRingActive: {
-    borderWidth: 1,
-    borderColor: 'rgba(201, 54, 54, 0.8)',
+  symbolTextSplitActive: {
+    color: 'rgba(201, 54, 54, 0.92)',
   },
   symbolPartMarker: {
     position: 'absolute',
