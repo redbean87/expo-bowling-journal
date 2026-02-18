@@ -25,6 +25,25 @@ Thanks for contributing to the Bowling Journal app.
 - `npm test`
 - `npm run test:import`
 - `npm --prefix worker run check`
+- `npm run build:web`
+- `npm run deploy:web`
+- `npm run deploy:web:prod`
+
+## Web deploy workflow (EAS Hosting)
+
+- Preview deploy:
+  1. `eas env:pull --environment preview`
+  2. `npm run build:web`
+  3. `npm run deploy:web`
+- Production deploy:
+  1. `eas env:pull --environment production`
+  2. `npm run build:web`
+  3. `npm run deploy:web:prod`
+
+Environment policy:
+
+- `preview` includes `EXPO_PUBLIC_CONVEX_URL` only
+- `production` includes `EXPO_PUBLIC_CONVEX_URL` and `EXPO_PUBLIC_IMPORT_WORKER_URL`
 
 ## Engineering conventions
 

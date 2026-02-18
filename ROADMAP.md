@@ -16,6 +16,8 @@ This roadmap keeps work scoped to small, precise commits.
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
+- [ ] Split preview/production Convex deployments for web hosting environments
+- [ ] Add CI automation for Expo web preview/production deploys
 
 ## Later
 
@@ -58,6 +60,9 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Split journal flow into leagues, sessions, and games screens
 - [x] Add theme primitives/tokens foundation (`Button`, `Card`, `Input`, `ScreenLayout`)
 - [x] Normalize screen file layout with root-level prefixed journal screen files
+- [x] Add persistent offline autosave queue for game editor (durable storage + retry/backoff + foreground flush)
+- [x] Sanitize frame 10 bonus-roll state during edits to prevent stale roll-3 validation noise
+- [x] Configure Expo web deployment on EAS Hosting (preview + production) with production-only import access
 
 ## Decision Log
 
@@ -71,6 +76,7 @@ This roadmap keeps work scoped to small, precise commits.
 - Replace-all import cleanup for callback/direct snapshot paths is chunked in bounded mutations to avoid Convex read-cap regressions
 - Raw import mirror persistence for callback/direct snapshot paths is chunked across all `importRaw*` tables before normalized import execution
 - Prioritize mobile-first data capture and offline resiliency ahead of analytics/reporting polish
+- Offline editor autosave queue dedupe key is `sessionId + (gameId || "new")` with latest-local-edit-wins behavior
 
 ## Risks / Unknowns
 

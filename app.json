@@ -6,9 +6,20 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "output": "single"
+    },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "74309c94-69e7-45fd-9fc0-024287d7624a"
+      }
+    },
+    "owner": "redbean"
   }
 }

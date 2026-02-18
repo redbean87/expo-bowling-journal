@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 CONVEX_URL = "https://different-lynx-597.convex.site"
 CONVEX_IMPORT_CALLBACK_PATH = "/api/import-callback"
-CORS_ALLOWED_ORIGINS = "http://localhost:8081"
+CORS_ALLOWED_ORIGINS = "http://localhost:8081,http://127.0.0.1:8081,https://expo-bowling-journal.expo.app"
 
 [[r2_buckets]]
 binding = "R2_IMPORTS"

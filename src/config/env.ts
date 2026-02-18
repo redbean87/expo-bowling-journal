@@ -1,15 +1,17 @@
-function getRequiredEnv(name: 'EXPO_PUBLIC_CONVEX_URL'): string {
-  const value = process.env[name];
+function getRequiredConvexUrl(): string {
+  const value = process.env.EXPO_PUBLIC_CONVEX_URL;
 
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(
+      'Missing required environment variable: EXPO_PUBLIC_CONVEX_URL'
+    );
   }
 
   return value;
 }
 
-function getOptionalEnv(name: 'EXPO_PUBLIC_IMPORT_WORKER_URL') {
-  const value = process.env[name];
+function getOptionalImportWorkerUrl() {
+  const value = process.env.EXPO_PUBLIC_IMPORT_WORKER_URL;
 
   if (!value) {
     return null;
@@ -19,6 +21,6 @@ function getOptionalEnv(name: 'EXPO_PUBLIC_IMPORT_WORKER_URL') {
 }
 
 export const env = {
-  convexUrl: getRequiredEnv('EXPO_PUBLIC_CONVEX_URL'),
-  importWorkerUrl: getOptionalEnv('EXPO_PUBLIC_IMPORT_WORKER_URL'),
+  convexUrl: getRequiredConvexUrl(),
+  importWorkerUrl: getOptionalImportWorkerUrl(),
 };

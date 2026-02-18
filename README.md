@@ -141,6 +141,9 @@ npm start                     # Start Expo dev server
 npm run android               # Run Android target
 npm run ios                   # Run iOS target
 npm run web                   # Run web target
+npm run build:web             # Export web bundle to dist/
+npm run deploy:web            # Deploy preview web build (EAS Hosting)
+npm run deploy:web:prod       # Deploy production web build (EAS Hosting)
 npm run typecheck             # TypeScript checks
 npm run lint                  # Lint code
 npm run lint:fix              # Lint with autofix
@@ -149,6 +152,40 @@ npm run format:check          # Check formatting
 npm test                      # Run full test suite
 npm run test:import           # Run import-focused tests
 npm --prefix worker run check # Validate worker TypeScript/lint setup
+```
+
+## Web Deployment (EAS Hosting)
+
+This project supports web deployments through EAS Hosting with separate preview and production environments.
+
+### One-time setup
+
+```bash
+eas login
+eas init
+```
+
+### Environment variable policy
+
+- **preview**: `EXPO_PUBLIC_CONVEX_URL` only
+- **production**: `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_IMPORT_WORKER_URL`
+
+Preview intentionally omits `EXPO_PUBLIC_IMPORT_WORKER_URL` so import uploads are disabled outside production.
+
+### Deploy preview
+
+```bash
+eas env:pull --environment preview
+npm run build:web
+npm run deploy:web
+```
+
+### Deploy production
+
+```bash
+eas env:pull --environment production
+npm run build:web
+npm run deploy:web:prod
 ```
 
 ### Making Changes
@@ -172,6 +209,8 @@ Convex Auth is integrated into app flows:
 
 - Ensure `.env` exists and includes `EXPO_PUBLIC_CONVEX_URL`
 - Restart Expo after env changes
+- For web deploys, run `eas env:pull --environment <preview|production>` before `npm run build:web`
+- If a deploy still serves an old bundle, hard refresh (`Ctrl+Shift+R`) and reload
 
 **"Missing EXPO_PUBLIC_IMPORT_WORKER_URL"**
 

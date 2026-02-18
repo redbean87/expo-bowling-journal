@@ -61,6 +61,17 @@ If you hit local dev port conflicts or stale runtime issues, start worker with:
 - `CONVEX_IMPORT_CALLBACK_PATH` (var, callback path)
 - `CORS_ALLOWED_ORIGINS` (var, comma-separated list)
 
+## Hosted web CORS policy
+
+Current expected `CORS_ALLOWED_ORIGINS` should include:
+
+- Local development origins (`http://localhost:8081`, `http://127.0.0.1:8081`)
+- Production web URL (`https://expo-bowling-journal.expo.app`)
+
+Preview web imports are intentionally disabled right now, so preview EAS URLs are not included in worker CORS.
+
+If preview imports are enabled later, add the preview origin(s) and set preview `EXPO_PUBLIC_IMPORT_WORKER_URL` in EAS.
+
 ## Deploy
 
 Manual deploy:
