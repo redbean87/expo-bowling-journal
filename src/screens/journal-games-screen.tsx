@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
+import { resolveGameEntryGameId } from './journal-fast-lane-utils';
 import { buildSessionNightSummary } from './journal-games-night-summary';
 
 import type { LeagueId, SessionId } from '@/services/journal';
@@ -24,11 +25,14 @@ export default function JournalGamesScreen() {
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
     sessionId?: string | string[];
+    startEntry?: string | string[];
   }>();
   const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
   const sessionId = getFirstParam(params.sessionId) as SessionId | null;
+  const startEntry = getFirstParam(params.startEntry) === '1';
   const { games, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
+  const hasHandledStartEntryRef = useRef(false);
 
   const league = useMemo(() => {
     if (!leagueId) {
@@ -46,6 +50,45 @@ export default function JournalGamesScreen() {
     ? 'Add extra game'
     : 'Add game';
 
+  useEffect(() => {
+    if (!startEntry || hasHandledStartEntryRef.current) {
+      return;
+    }
+
+    if (!leagueId || !sessionId || isGamesLoading) {
+      return;
+    }
+
+    hasHandledStartEntryRef.current = true;
+    const gameId = resolveGameEntryGameId(games);
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+      params: {
+        leagueId,
+        sessionId,
+        gameId,
+      },
+    });
+  }, [games, isGamesLoading, leagueId, router, sessionId, startEntry]);
+
+  const onContinueEntry = () => {
+    if (!leagueId || !sessionId) {
+      return;
+    }
+
+    const gameId = resolveGameEntryGameId(games);
+
+    router.push({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+      params: {
+        leagueId,
+        sessionId,
+        gameId,
+      },
+    });
+  };
+
   return (
     <ScreenLayout
       title="Games"
@@ -53,21 +96,30 @@ export default function JournalGamesScreen() {
       fillCard
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Button
-          disabled={!leagueId || !sessionId}
-          label={addGameLabel}
-          onPress={() =>
-            router.push({
-              pathname:
-                '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-              params: {
-                leagueId: leagueId ?? '',
-                sessionId: sessionId ?? '',
-                gameId: 'new',
-              },
-            })
-          }
-        />
+        <Card>
+          <Text style={styles.summaryTitle}>League night entry</Text>
+          <Button
+            disabled={!leagueId || !sessionId}
+            label="Continue entry"
+            onPress={onContinueEntry}
+          />
+          <Button
+            disabled={!leagueId || !sessionId}
+            label={addGameLabel}
+            onPress={() =>
+              router.push({
+                pathname:
+                  '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+                params: {
+                  leagueId: leagueId ?? '',
+                  sessionId: sessionId ?? '',
+                  gameId: 'new',
+                },
+              })
+            }
+            variant="secondary"
+          />
+        </Card>
 
         {sessionId ? (
           <Card muted>

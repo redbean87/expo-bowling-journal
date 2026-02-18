@@ -4,14 +4,14 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [ ] Mobile-first league night flow (fast league -> session -> game entry)
+- [x] Mobile-first league night flow (fast league -> session -> game entry)
+
+## Next
+
 - [ ] Simplify game entry interactions for one-hand use (bigger targets, fewer fields)
 - [ ] Reduce game-entry feedback noise while keeping autosave/error recovery clear
 - [ ] Offline-first game capture with prior sign-in requirement
 - [ ] Queue + sync status UX for weak-signal bowling alleys
-
-## Next
-
 - [ ] Design and implement custom app header/footer navigation shell
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)

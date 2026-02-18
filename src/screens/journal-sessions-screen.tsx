@@ -1,6 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
+
+import {
+  findSessionIdForDate,
+  formatIsoDateForToday,
+} from './journal-fast-lane-utils';
 
 import type { LeagueId } from '@/services/journal';
 
@@ -19,8 +24,12 @@ function getFirstParam(value: string | string[] | undefined): string | null {
 
 export default function JournalSessionsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ leagueId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    leagueId?: string | string[];
+    startTonight?: string | string[];
+  }>();
   const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
+  const startTonight = getFirstParam(params.startTonight) === '1';
   const { leagues } = useLeagues();
   const {
     sessions,
@@ -34,6 +43,7 @@ export default function JournalSessionsScreen() {
   );
   const [sessionWeekNumber, setSessionWeekNumber] = useState('');
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const hasHandledStartTonightRef = useRef(false);
 
   const leagueName = useMemo(() => {
     if (!leagueId) {
@@ -89,6 +99,63 @@ export default function JournalSessionsScreen() {
       );
     }
   };
+
+  useEffect(() => {
+    if (!startTonight || hasHandledStartTonightRef.current) {
+      return;
+    }
+
+    if (!leagueId || isSessionsLoading || isCreatingSession) {
+      return;
+    }
+
+    hasHandledStartTonightRef.current = true;
+    const today = formatIsoDateForToday();
+    const existingSessionId = findSessionIdForDate(sessions, today);
+
+    if (existingSessionId) {
+      router.replace({
+        pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+        params: {
+          leagueId,
+          sessionId: existingSessionId,
+          startEntry: '1',
+        } as never,
+      } as never);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const sessionId = await createSession({
+          leagueId,
+          date: today,
+        });
+        router.replace({
+          pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+          params: {
+            leagueId,
+            sessionId,
+            startEntry: '1',
+          } as never,
+        } as never);
+      } catch (caught) {
+        setSessionError(
+          caught instanceof Error
+            ? caught.message
+            : 'Unable to start league night.'
+        );
+      }
+    })();
+  }, [
+    createSession,
+    isCreatingSession,
+    isSessionsLoading,
+    leagueId,
+    router,
+    sessions,
+    startTonight,
+  ]);
 
   return (
     <ScreenLayout

@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card, Input, PressableCard } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { useLeagues } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -18,6 +18,24 @@ export default function JournalLeaguesScreen() {
   const [leagueName, setLeagueName] = useState('');
   const [leagueGamesPerSession, setLeagueGamesPerSession] = useState('');
   const [leagueError, setLeagueError] = useState<string | null>(null);
+  const defaultLeagueId = leagues[0]?._id ?? null;
+
+  const navigateToLeagueSessions = (leagueId: string) => {
+    router.push({
+      pathname: '/journal/[leagueId]/sessions' as never,
+      params: { leagueId } as never,
+    } as never);
+  };
+
+  const startLeagueNight = (leagueId: string) => {
+    router.push({
+      pathname: '/journal/[leagueId]/sessions' as never,
+      params: {
+        leagueId,
+        startTonight: '1',
+      } as never,
+    } as never);
+  };
 
   const onCreateLeague = async () => {
     setLeagueError(null);
@@ -64,6 +82,9 @@ export default function JournalLeaguesScreen() {
       title="Journal"
       subtitle="Start with a league, then drill into sessions and games."
       fillCard
+      hideHeader
+      compact
+      chromeless
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Card muted>
@@ -101,24 +122,44 @@ export default function JournalLeaguesScreen() {
           </Text>
         ) : null}
 
-        {leagues.map((league) => (
-          <PressableCard
-            key={league._id}
-            onPress={() =>
-              router.push({
-                pathname: '/journal/[leagueId]/sessions' as never,
-                params: { leagueId: league._id } as never,
-              } as never)
+        <Button
+          disabled={!defaultLeagueId || isLeaguesLoading}
+          label="Continue tonight"
+          onPress={() => {
+            if (!defaultLeagueId) {
+              return;
             }
-          >
-            <Text style={styles.rowTitle}>{league.name}</Text>
-            <Text style={styles.meta}>
-              {league.houseName ?? 'No house set'}
-            </Text>
-            <Text style={styles.meta}>
-              Target games: {league.gamesPerSession ?? 'Not set'}
-            </Text>
-          </PressableCard>
+
+            startLeagueNight(defaultLeagueId);
+          }}
+        />
+
+        {leagues.map((league) => (
+          <Card key={league._id}>
+            <Pressable
+              onPress={() => navigateToLeagueSessions(league._id)}
+              style={({ pressed }) => [
+                styles.leagueContent,
+                pressed ? styles.leagueContentPressed : null,
+              ]}
+            >
+              <Text style={styles.rowTitle}>{league.name}</Text>
+              <Text style={styles.meta}>
+                {league.houseName ?? 'No house set'}
+              </Text>
+              <Text style={styles.meta}>
+                Target games: {league.gamesPerSession ?? 'Not set'}
+              </Text>
+            </Pressable>
+
+            <View style={styles.rowActions}>
+              <Button
+                label="Quick start"
+                onPress={() => startLeagueNight(league._id)}
+                variant="ghost"
+              />
+            </View>
+          </Card>
         ))}
       </ScrollView>
     </ScreenLayout>
@@ -127,8 +168,8 @@ export default function JournalLeaguesScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   scroll: {
     flex: 1,
@@ -141,6 +182,16 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  leagueContent: {
+    gap: spacing.xs,
+  },
+  leagueContentPressed: {
+    opacity: 0.82,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   meta: {
     fontSize: typeScale.bodySm,

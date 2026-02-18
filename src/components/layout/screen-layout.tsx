@@ -7,19 +7,41 @@ type ScreenLayoutProps = PropsWithChildren<{
   title: string;
   subtitle: string;
   fillCard?: boolean;
+  hideHeader?: boolean;
+  compact?: boolean;
+  chromeless?: boolean;
 }>;
 
 export function ScreenLayout({
   title,
   subtitle,
   fillCard = false,
+  hideHeader = false,
+  compact = false,
+  chromeless = false,
   children,
 }: ScreenLayoutProps) {
   return (
-    <View style={[styles.container, fillCard ? styles.containerTop : null]}>
-      <View style={[styles.card, fillCard ? styles.cardFill : null]}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+    <View
+      style={[
+        styles.container,
+        fillCard ? styles.containerTop : null,
+        compact ? styles.containerCompact : null,
+      ]}
+    >
+      <View
+        style={[
+          chromeless ? styles.content : styles.card,
+          fillCard ? styles.cardFill : null,
+          compact ? styles.cardCompact : null,
+        ]}
+      >
+        {!hideHeader ? (
+          <>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </>
+        ) : null}
         {children}
       </View>
     </View>
@@ -41,12 +63,22 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
+  content: {
+    gap: spacing.md,
+  },
   containerTop: {
     justifyContent: 'flex-start',
   },
   cardFill: {
     flex: 1,
     minHeight: 0,
+  },
+  containerCompact: {
+    padding: spacing.sm,
+  },
+  cardCompact: {
+    gap: spacing.sm,
+    padding: spacing.md,
   },
   title: {
     fontSize: typeScale.hero,
