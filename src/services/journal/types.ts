@@ -3,6 +3,15 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel';
 export type League = Doc<'leagues'>;
 export type Session = Doc<'sessions'>;
 export type Game = Doc<'games'>;
+
+export type FramePreviewItem = {
+  text: string;
+  hasSplit: boolean;
+};
+
+export type GameListItem = Game & {
+  framePreview?: FramePreviewItem[];
+};
 export type Frame = Doc<'frames'>;
 
 export type LeagueId = Id<'leagues'>;

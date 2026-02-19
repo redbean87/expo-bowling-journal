@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  formatIsoDateLabel,
   formatGameSequenceLabel,
+  formatSessionWeekLabel,
   findSessionIdForDate,
   formatIsoDateForToday,
   resolveGameEntryGameId,
@@ -88,4 +90,14 @@ test('toOldestFirstGames returns a reversed copy without mutating input', () => 
 test('formatGameSequenceLabel returns Game N labels', () => {
   assert.equal(formatGameSequenceLabel(1), 'Game 1');
   assert.equal(formatGameSequenceLabel(4), 'Game 4');
+});
+
+test('formatSessionWeekLabel returns Week N labels', () => {
+  assert.equal(formatSessionWeekLabel(1), 'Week 1');
+  assert.equal(formatSessionWeekLabel(12), 'Week 12');
+});
+
+test('formatIsoDateLabel formats YYYY-MM-DD labels safely', () => {
+  assert.equal(formatIsoDateLabel('2026-02-11'), 'Feb 11, 2026');
+  assert.equal(formatIsoDateLabel('invalid-date'), 'invalid-date');
 });

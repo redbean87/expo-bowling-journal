@@ -39,3 +39,24 @@ export function toOldestFirstGames<T>(games: T[]): T[] {
 export function formatGameSequenceLabel(position: number): string {
   return `Game ${String(position)}`;
 }
+
+export function formatSessionWeekLabel(weekNumber: number): string {
+  return `Week ${String(weekNumber)}`;
+}
+
+export function formatIsoDateLabel(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map((part) => Number(part));
+
+  if (!year || !month || !day) {
+    return isoDate;
+  }
+
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(utcDate);
+}

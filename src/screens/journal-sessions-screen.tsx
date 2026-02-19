@@ -4,7 +4,9 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import {
   findSessionIdForDate,
+  formatIsoDateLabel,
   formatIsoDateForToday,
+  formatSessionWeekLabel,
 } from './journal-fast-lane-utils';
 
 import type { LeagueId } from '@/services/journal';
@@ -52,6 +54,14 @@ export default function JournalSessionsScreen() {
 
     return leagues.find((league) => league._id === leagueId)?.name ?? null;
   }, [leagueId, leagues]);
+
+  const derivedWeekNumberBySessionId = useMemo(() => {
+    const oldestFirstSessions = [...sessions].reverse();
+
+    return new Map(
+      oldestFirstSessions.map((session, index) => [session._id, index + 1])
+    );
+  }, [sessions]);
 
   const onCreateSession = async () => {
     setSessionError(null);
@@ -226,8 +236,14 @@ export default function JournalSessionsScreen() {
               } as never)
             }
           >
-            <Text style={styles.rowTitle}>{session.date}</Text>
-            <Text style={styles.meta}>Week {session.weekNumber ?? '-'}</Text>
+            <Text style={styles.rowTitle}>
+              {formatSessionWeekLabel(
+                session.weekNumber ??
+                  derivedWeekNumberBySessionId.get(session._id) ??
+                  1
+              )}
+            </Text>
+            <Text style={styles.meta}>{formatIsoDateLabel(session.date)}</Text>
           </PressableCard>
         ))}
       </ScrollView>

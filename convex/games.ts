@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { buildGameFramePreview } from './lib/game_frame_preview';
 
 export const listBySession = query({
   args: {
@@ -17,13 +18,33 @@ export const listBySession = query({
       )
       .collect();
 
-    return games.sort((left, right) => {
+    const sortedGames = games.sort((left, right) => {
       if (left.date !== right.date) {
         return right.date.localeCompare(left.date);
       }
 
       return right._creationTime - left._creationTime;
     });
+
+    return Promise.all(
+      sortedGames.map(async (game) => {
+        const frames = await ctx.db
+          .query('frames')
+          .withIndex('by_user_game', (q) =>
+            q.eq('userId', userId).eq('gameId', game._id)
+          )
+          .collect();
+
+        const sortedFrames = frames.sort(
+          (left, right) => left.frameNumber - right.frameNumber
+        );
+
+        return {
+          ...game,
+          framePreview: buildGameFramePreview(sortedFrames),
+        };
+      })
+    );
   },
 });
 

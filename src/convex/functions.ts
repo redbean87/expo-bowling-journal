@@ -14,6 +14,13 @@ type SessionDoc = Doc<'sessions'>;
 type GameDoc = Doc<'games'>;
 type FrameDoc = Doc<'frames'>;
 
+export type GameListItem = GameDoc & {
+  framePreview?: Array<{
+    text: string;
+    hasSplit: boolean;
+  }>;
+};
+
 export type ImportLaneContextInput = {
   leftLane?: number | null;
   rightLane?: number | null;
@@ -77,7 +84,7 @@ export const gamesListBySessionQuery = makeFunctionReference<
   {
     sessionId: Id<'sessions'>;
   },
-  GameDoc[]
+  GameListItem[]
 >('games:listBySession');
 
 export const gamesCreateMutation = makeFunctionReference<

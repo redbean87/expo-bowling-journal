@@ -15,6 +15,7 @@ import type * as http from "../http.js";
 import type * as imports from "../imports.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_game_frame_preview from "../lib/game_frame_preview.js";
 import type * as lib_import_callback_hmac from "../lib/import_callback_hmac.js";
 import type * as lib_import_callback_validation from "../lib/import_callback_validation.js";
 import type * as lib_import_canonical_frames from "../lib/import_canonical_frames.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   imports: typeof imports;
   leagues: typeof leagues;
   "lib/auth": typeof lib_auth;
+  "lib/game_frame_preview": typeof lib_game_frame_preview;
   "lib/import_callback_hmac": typeof lib_import_callback_hmac;
   "lib/import_callback_validation": typeof lib_import_callback_validation;
   "lib/import_canonical_frames": typeof lib_import_canonical_frames;
