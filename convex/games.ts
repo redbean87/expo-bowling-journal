@@ -95,24 +95,28 @@ export const create = mutation({
 
 export const backfillMissingFramePreview = mutation({
   args: {
-    limit: v.optional(v.number()),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    pageSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    const limit =
-      args.limit && Number.isInteger(args.limit) && args.limit > 0
-        ? Math.min(args.limit, 200)
+    const pageSize =
+      args.pageSize && Number.isInteger(args.pageSize) && args.pageSize > 0
+        ? Math.min(args.pageSize, 200)
         : 100;
 
-    const games = await ctx.db
+    const page = await ctx.db
       .query('games')
       .withIndex('by_user', (q) => q.eq('userId', userId))
-      .take(limit);
+      .paginate({
+        numItems: pageSize,
+        cursor: args.cursor ?? null,
+      });
 
     let patched = 0;
     let skipped = 0;
 
-    for (const game of games) {
+    for (const game of page.page) {
       if (Array.isArray(game.framePreview) && game.framePreview.length > 0) {
         skipped += 1;
         continue;
@@ -135,10 +139,11 @@ export const backfillMissingFramePreview = mutation({
     }
 
     return {
-      scanned: games.length,
+      scanned: page.page.length,
       patched,
       skipped,
-      hasMore: games.length === limit,
+      hasMore: !page.isDone,
+      continueCursor: page.continueCursor,
     };
   },
 });
