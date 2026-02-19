@@ -79,6 +79,17 @@ export default defineSchema({
         v.null()
       )
     ),
+    framePreview: v.optional(
+      v.union(
+        v.array(
+          v.object({
+            text: v.string(),
+            hasSplit: v.boolean(),
+          })
+        ),
+        v.null()
+      )
+    ),
   })
     .index('by_user', ['userId'])
     .index('by_session', ['sessionId'])

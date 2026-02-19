@@ -26,25 +26,7 @@ export const listBySession = query({
       return right._creationTime - left._creationTime;
     });
 
-    return Promise.all(
-      sortedGames.map(async (game) => {
-        const frames = await ctx.db
-          .query('frames')
-          .withIndex('by_user_game', (q) =>
-            q.eq('userId', userId).eq('gameId', game._id)
-          )
-          .collect();
-
-        const sortedFrames = frames.sort(
-          (left, right) => left.frameNumber - right.frameNumber
-        );
-
-        return {
-          ...game,
-          framePreview: buildGameFramePreview(sortedFrames),
-        };
-      })
-    );
+    return sortedGames;
   },
 });
 
@@ -106,7 +88,58 @@ export const create = mutation({
       opens: 0,
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
+      framePreview: buildGameFramePreview([]),
     });
+  },
+});
+
+export const backfillMissingFramePreview = mutation({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const limit =
+      args.limit && Number.isInteger(args.limit) && args.limit > 0
+        ? Math.min(args.limit, 200)
+        : 100;
+
+    const games = await ctx.db
+      .query('games')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(limit);
+
+    let patched = 0;
+    let skipped = 0;
+
+    for (const game of games) {
+      if (Array.isArray(game.framePreview) && game.framePreview.length > 0) {
+        skipped += 1;
+        continue;
+      }
+
+      const frames = await ctx.db
+        .query('frames')
+        .withIndex('by_user_game', (q) =>
+          q.eq('userId', userId).eq('gameId', game._id)
+        )
+        .collect();
+      const sortedFrames = frames.sort(
+        (left, right) => left.frameNumber - right.frameNumber
+      );
+
+      await ctx.db.patch(game._id, {
+        framePreview: buildGameFramePreview(sortedFrames),
+      });
+      patched += 1;
+    }
+
+    return {
+      scanned: games.length,
+      patched,
+      skipped,
+      hasMore: games.length === limit,
+    };
   },
 });
 

@@ -1,3 +1,5 @@
+import { buildGameFramePreview } from './game_frame_preview';
+
 export type ImportedFrameRow = {
   sqliteId: number;
   frameNum?: number | null;
@@ -10,6 +12,14 @@ export type ComputedGameStats = {
   strikes: number;
   spares: number;
   opens: number;
+};
+
+type ImportedPreviewFrame = {
+  frameNumber: number;
+  roll1: number;
+  roll2: number | null;
+  roll3: number | null;
+  pins: null;
 };
 
 type DecodedFrameRow = {
@@ -209,4 +219,20 @@ export function computeImportedGameStats(
     spares,
     opens,
   };
+}
+
+export function buildImportedGameFramePreview(rows: ImportedFrameRow[]) {
+  const parsed = parseFrames(rows);
+
+  const previewFrames: ImportedPreviewFrame[] = parsed.frames.map(
+    (frame, index) => ({
+      frameNumber: index + 1,
+      roll1: frame.frameRolls[0] ?? 0,
+      roll2: frame.frameRolls.length > 1 ? (frame.frameRolls[1] ?? null) : null,
+      roll3: frame.frameRolls.length > 2 ? (frame.frameRolls[2] ?? null) : null,
+      pins: null,
+    })
+  );
+
+  return buildGameFramePreview(previewFrames);
 }

@@ -16,7 +16,10 @@ import {
   normalizeImportDateStrict,
   normalizeTimezoneOffsetMinutes,
 } from './lib/import_dates';
-import { computeImportedGameStats } from './lib/import_game_stats';
+import {
+  buildImportedGameFramePreview,
+  computeImportedGameStats,
+} from './lib/import_game_stats';
 import {
   laneContextFromLane,
   normalizeBallSwitches,
@@ -1470,6 +1473,9 @@ async function runSqliteSnapshotImportCore(
       framesByGame.get(row.sqliteId) ?? [],
       fallbackScore
     );
+    const framePreview = buildImportedGameFramePreview(
+      framesByGame.get(row.sqliteId) ?? []
+    );
 
     const gameId = await ctx.db.insert('games', {
       userId,
@@ -1480,6 +1486,7 @@ async function runSqliteSnapshotImportCore(
       strikes: computedStats.strikes,
       spares: computedStats.spares,
       opens: computedStats.opens,
+      framePreview,
       ballId: row.ballFk ? (ballIdMap.get(row.ballFk) ?? null) : null,
       patternId: row.patternFk
         ? (patternIdMap.get(row.patternFk) ?? null)

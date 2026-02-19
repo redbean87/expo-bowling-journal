@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { buildGameFramePreview } from './lib/game_frame_preview';
 
 import type { Doc } from './_generated/dataModel';
 
@@ -304,7 +305,10 @@ export const replaceForGame = mutation({
 
     const stats = computeGameStats(normalizedFrames);
 
-    await ctx.db.patch(args.gameId, stats);
+    await ctx.db.patch(args.gameId, {
+      ...stats,
+      framePreview: buildGameFramePreview(normalizedFrames),
+    });
 
     return args.gameId;
   },
