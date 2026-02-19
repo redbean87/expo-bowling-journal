@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   autosaveText: {
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
-    opacity: 0.75,
+    opacity: 0.62,
   },
   autosaveTextError: {
     color: colors.danger,

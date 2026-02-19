@@ -916,7 +916,7 @@ export default function GameEditorScreen() {
             </Pressable>
           </View>
           <View style={styles.stickyActionButton}>
-            <Button label="Next" onPress={onCommitRoll} />
+            <Button label="Next" onPress={onCommitRoll} size="lg" />
           </View>
         </View>
       </View>
@@ -952,7 +952,8 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -962,7 +963,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   strikeButton: {
-    height: 40,
+    height: 52,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.accent,

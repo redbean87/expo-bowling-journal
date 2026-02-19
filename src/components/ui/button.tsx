@@ -7,6 +7,7 @@ type ButtonProps = {
   onPress: () => void;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'ghost';
+  size?: 'md' | 'lg';
 };
 
 export function Button({
@@ -14,6 +15,7 @@ export function Button({
   onPress,
   disabled,
   variant = 'primary',
+  size = 'md',
 }: ButtonProps) {
   return (
     <Pressable
@@ -21,6 +23,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
+        size === 'lg' ? styles.baseLarge : null,
         variant === 'primary' ? styles.primary : null,
         variant === 'secondary' ? styles.secondary : null,
         variant === 'ghost' ? styles.ghost : null,
@@ -48,6 +51,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  baseLarge: {
+    height: 52,
   },
   primary: {
     backgroundColor: colors.accent,

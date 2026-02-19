@@ -64,7 +64,7 @@ export function FrameProgressStrip({
     layoutMode === 'compact' ? compactRegularCellWidth : regularCellWidth;
   const symbolCellTenthWidth =
     layoutMode === 'compact' ? compactTenthCellWidth : tenthCellWidth;
-  const symbolCellHeight = layoutMode === 'compact' ? 53 : regularCellHeight;
+  const symbolCellHeight = layoutMode === 'compact' ? 58 : regularCellHeight;
   const symbolFontSize = layoutMode === 'compact' ? 14 : regularSymbolFontSize;
   const frameIndexFontSize =
     layoutMode === 'compact' ? 10 : regularFrameIndexFontSize;
@@ -112,7 +112,7 @@ export function FrameProgressStrip({
       <Pressable
         key={`frame-symbol-${frameIndex + 1}`}
         onPress={() => onSelectFrame(frameIndex)}
-        hitSlop={8}
+        hitSlop={12}
         onLayout={(event) => {
           if (layoutMode === 'compact') {
             return;

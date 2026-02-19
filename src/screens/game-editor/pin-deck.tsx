@@ -74,9 +74,9 @@ export function PinDeck({
   const { width, height } = useWindowDimensions();
   const topRowWidth = useMemo(() => width - spacing.sm * 4, [width]);
   const deckHeight = useMemo(() => {
-    const maxDeckHeight = 420;
-    const minDeckHeight = 240;
-    const fallbackHeight = Math.round(height * 0.46);
+    const maxDeckHeight = 380;
+    const minDeckHeight = 220;
+    const fallbackHeight = Math.round(height * 0.42);
     const measuredHeight =
       typeof availableHeight === 'number' && availableHeight > 0
         ? Math.round(availableHeight - spacing.sm * 2)
