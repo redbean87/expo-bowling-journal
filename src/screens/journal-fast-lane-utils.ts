@@ -31,3 +31,11 @@ export function resolveGameEntryGameId(games: GameRecord[]): GameId | 'new' {
 
   return mostRecentGameId ?? 'new';
 }
+
+export function toOldestFirstGames<T>(games: T[]): T[] {
+  return [...games].reverse();
+}
+
+export function formatGameSequenceLabel(position: number): string {
+  return `Game ${String(position)}`;
+}

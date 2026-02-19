@@ -2,13 +2,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
-import { resolveGameEntryGameId } from './journal-fast-lane-utils';
+import {
+  formatGameSequenceLabel,
+  resolveGameEntryGameId,
+  toOldestFirstGames,
+} from './journal-fast-lane-utils';
 import { buildSessionNightSummary } from './journal-games-night-summary';
 
 import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, PressableCard } from '@/components/ui';
 import { useGames, useLeagues } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -49,6 +53,7 @@ export default function JournalGamesScreen() {
   const addGameLabel = nightSummary.isNightComplete
     ? 'Add extra game'
     : 'Add game';
+  const displayGames = useMemo(() => toOldestFirstGames(games), [games]);
 
   useEffect(() => {
     if (!startEntry || hasHandledStartEntryRef.current) {
@@ -94,8 +99,15 @@ export default function JournalGamesScreen() {
       title="Games"
       subtitle="Review games for this session, then add or edit frame data."
       fillCard
+      hideHeader
+      compact
+      chromeless
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+      >
         <Card>
           <Text style={styles.summaryTitle}>League night entry</Text>
           <Button
@@ -176,26 +188,26 @@ export default function JournalGamesScreen() {
           <Text style={styles.meta}>No games in this session yet.</Text>
         ) : null}
 
-        {games.map((game) => (
-          <Card key={game._id}>
-            <Text style={styles.rowTitle}>{game.date}</Text>
-            <Text style={styles.meta}>Score {game.totalScore}</Text>
-            <Button
-              label="Edit game"
-              onPress={() =>
-                router.push({
-                  pathname:
-                    '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-                  params: {
-                    leagueId: leagueId ?? '',
-                    sessionId: sessionId ?? '',
-                    gameId: game._id,
-                  },
-                })
-              }
-              variant="secondary"
-            />
-          </Card>
+        {displayGames.map((game, index) => (
+          <PressableCard
+            key={game._id}
+            style={styles.rowCard}
+            onPress={() =>
+              router.push({
+                pathname:
+                  '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+                params: {
+                  leagueId: leagueId ?? '',
+                  sessionId: sessionId ?? '',
+                  gameId: game._id,
+                },
+              })
+            }
+          >
+            <Text style={styles.rowTitle}>
+              {formatGameSequenceLabel(index + 1)} - {game.totalScore}
+            </Text>
+          </PressableCard>
         ))}
       </ScrollView>
     </ScreenLayout>
@@ -204,8 +216,9 @@ export default function JournalGamesScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   scroll: {
     flex: 1,
@@ -224,5 +237,11 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  rowCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
+    gap: 2,
   },
 });

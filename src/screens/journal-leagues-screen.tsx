@@ -86,7 +86,11 @@ export default function JournalLeaguesScreen() {
       compact
       chromeless
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+      >
         <Card muted>
           <Input
             autoCapitalize="words"
@@ -125,6 +129,7 @@ export default function JournalLeaguesScreen() {
         <Button
           disabled={!defaultLeagueId || isLeaguesLoading}
           label="Continue tonight"
+          variant="secondary"
           onPress={() => {
             if (!defaultLeagueId) {
               return;
@@ -135,7 +140,7 @@ export default function JournalLeaguesScreen() {
         />
 
         {leagues.map((league) => (
-          <Card key={league._id}>
+          <Card key={league._id} style={styles.rowCard}>
             <Pressable
               onPress={() => navigateToLeagueSessions(league._id)}
               style={({ pressed }) => [
@@ -153,11 +158,15 @@ export default function JournalLeaguesScreen() {
             </Pressable>
 
             <View style={styles.rowActions}>
-              <Button
-                label="Quick start"
+              <Pressable
                 onPress={() => startLeagueNight(league._id)}
-                variant="ghost"
-              />
+                style={({ pressed }) => [
+                  styles.quickStartLink,
+                  pressed ? styles.quickStartLinkPressed : null,
+                ]}
+              >
+                <Text style={styles.quickStartLabel}>Quick start</Text>
+              </Pressable>
             </View>
           </Card>
         ))}
@@ -169,6 +178,7 @@ export default function JournalLeaguesScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
     paddingBottom: spacing.xs,
   },
   scroll: {
@@ -184,7 +194,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   leagueContent: {
-    gap: spacing.xs,
+    gap: 2,
   },
   leagueContentPressed: {
     opacity: 0.82,
@@ -193,9 +203,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
   },
+  quickStartLink: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  quickStartLinkPressed: {
+    opacity: 0.75,
+  },
+  quickStartLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.accent,
+  },
   meta: {
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
+  },
+  rowCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
   },
 });

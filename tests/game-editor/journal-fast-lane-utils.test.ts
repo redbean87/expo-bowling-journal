@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  formatGameSequenceLabel,
   findSessionIdForDate,
   formatIsoDateForToday,
   resolveGameEntryGameId,
+  toOldestFirstGames,
 } from '../../src/screens/journal-fast-lane-utils';
 
 import type { GameId, SessionId } from '../../src/services/journal';
@@ -61,4 +63,29 @@ test('resolveGameEntryGameId prefers most recent game and falls back to new', ()
   );
 
   assert.equal(resolveGameEntryGameId([]), 'new');
+});
+
+test('toOldestFirstGames returns a reversed copy without mutating input', () => {
+  const newestFirst = [
+    { _id: 'game-4' as GameId },
+    { _id: 'game-3' as GameId },
+    { _id: 'game-2' as GameId },
+    { _id: 'game-1' as GameId },
+  ];
+
+  const oldestFirst = toOldestFirstGames(newestFirst);
+
+  assert.deepEqual(
+    oldestFirst.map((game) => game._id),
+    ['game-1', 'game-2', 'game-3', 'game-4']
+  );
+  assert.deepEqual(
+    newestFirst.map((game) => game._id),
+    ['game-4', 'game-3', 'game-2', 'game-1']
+  );
+});
+
+test('formatGameSequenceLabel returns Game N labels', () => {
+  assert.equal(formatGameSequenceLabel(1), 'Game 1');
+  assert.equal(formatGameSequenceLabel(4), 'Game 4');
 });

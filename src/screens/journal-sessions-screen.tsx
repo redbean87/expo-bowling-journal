@@ -164,8 +164,15 @@ export default function JournalSessionsScreen() {
         leagueName ? `League: ${leagueName}` : 'Review and create sessions.'
       }
       fillCard
+      hideHeader
+      compact
+      chromeless
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+      >
         <Card muted>
           <Input
             autoCapitalize="none"
@@ -207,6 +214,7 @@ export default function JournalSessionsScreen() {
         {sessions.map((session) => (
           <PressableCard
             key={session._id}
+            style={styles.rowCard}
             onPress={() =>
               router.push({
                 pathname:
@@ -218,10 +226,8 @@ export default function JournalSessionsScreen() {
               } as never)
             }
           >
-            <Text style={styles.rowTitle}>Date: {session.date}</Text>
-            <Text style={styles.meta}>
-              Week {session.weekNumber ?? 'not set'}
-            </Text>
+            <Text style={styles.rowTitle}>{session.date}</Text>
+            <Text style={styles.meta}>Week {session.weekNumber ?? '-'}</Text>
           </PressableCard>
         ))}
       </ScrollView>
@@ -231,8 +237,9 @@ export default function JournalSessionsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   scroll: {
     flex: 1,
@@ -250,5 +257,11 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
+  },
+  rowCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
+    gap: 2,
   },
 });

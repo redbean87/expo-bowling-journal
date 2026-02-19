@@ -51,7 +51,7 @@ export function ScreenLayout({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.xl,
+    padding: spacing.lg,
     backgroundColor: colors.background,
     justifyContent: 'center',
   },
@@ -64,6 +64,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   content: {
+    flex: 1,
+    alignSelf: 'stretch',
     gap: spacing.md,
   },
   containerTop: {
@@ -74,7 +76,9 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   containerCompact: {
-    padding: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingHorizontal: 0,
+    paddingBottom: spacing.sm,
   },
   cardCompact: {
     gap: spacing.sm,
