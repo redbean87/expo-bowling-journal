@@ -40,7 +40,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add profile import UI entry point with backup file upload and status display
 - [x] Add worker deployment pipeline from `main` via GitHub Actions
 - [x] Add signed queue + callback endpoints with HMAC verification
-- [x] Add worker SQLite parser for `Backup.db` and map to Convex snapshot schema
+- [x] Add worker SQLite parser for `Backup.pinpal` and map to Convex snapshot schema
 - [x] Add worker callback integration (`parsing` -> `importing`) with explicit failure messaging
 - [x] Add Convex callback import path that completes batches on successful snapshot import
 - [x] Switch callback transport to `snapshotJson` to handle large frame payloads

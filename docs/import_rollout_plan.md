@@ -1,6 +1,6 @@
 # SQLite Import Architecture + Runbook (v1/v2)
 
-Goal: Keep the import pipeline stable for large `Backup.db` files while avoiding Convex arg and write-cap regressions.
+Goal: Keep the import pipeline stable for large backup database files while avoiding Convex arg and write-cap regressions.
 
 ## import architecture
 
@@ -71,5 +71,5 @@ The import regression suite verifies:
 
 - callback payload/transition rules (`snapshotJson`, mutual exclusion, stage restrictions)
 - snapshot JSON parsing failure behavior
-- large `Backup.db` frame scale path (`16416` frames) using `snapshotJson` transport
+- large `Backup.pinpal` frame scale path (`16476` frames) using `snapshotJson` transport
 - `importRawFrames` and canonical `frames` persistence are both chunked and bounded for large imports

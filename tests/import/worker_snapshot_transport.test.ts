@@ -26,21 +26,21 @@ async function loadSqlWasmModule() {
   return new WebAssembly.Module(toArrayBuffer(wasmBytes));
 }
 
-test('Backup.db parse path handles expected large frame count and callback transport uses snapshotJson', async () => {
-  const dbPath = resolve(process.cwd(), 'Backup.db');
+test('Backup.pinpal parse path handles expected large frame count and callback transport uses snapshotJson', async () => {
+  const dbPath = resolve(process.cwd(), 'Backup.pinpal');
   const dbBytes = await readFile(dbPath);
   const wasmModule = await loadSqlWasmModule();
 
   const parsedSnapshot = await parseBackupDatabaseToSnapshot(
     toArrayBuffer(dbBytes),
     {
-      sourceFileName: 'Backup.db',
+      sourceFileName: 'Backup.pinpal',
       sourceHash: null,
       wasmModule,
     }
   );
 
-  assert.equal(parsedSnapshot.snapshot.frames.length, 16416);
+  assert.equal(parsedSnapshot.snapshot.frames.length, 16476);
 
   const callbackPayload = buildImportingSnapshotJsonCallbackPayload(
     'test_batch_12345678',
@@ -52,6 +52,6 @@ test('Backup.db parse path handles expected large frame count and callback trans
   assert.equal('snapshot' in callbackPayload, false);
 
   const decodedSnapshot = JSON.parse(callbackPayload.snapshotJson);
-  assert.equal(decodedSnapshot.frames.length, 16416);
+  assert.equal(decodedSnapshot.frames.length, 16476);
   assert.equal(callbackPayload.snapshotJson.length > 100_000, true);
 });
