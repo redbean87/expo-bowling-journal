@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   findSessionIdForDate,
@@ -12,7 +12,7 @@ import {
 import type { LeagueId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card, Input, PressableCard } from '@/components/ui';
+import { Button, Input, PressableCard } from '@/components/ui';
 import { useLeagues, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -183,7 +183,7 @@ export default function JournalSessionsScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <Card muted>
+        <View style={styles.createSection}>
           <Input
             autoCapitalize="none"
             autoCorrect={false}
@@ -207,7 +207,7 @@ export default function JournalSessionsScreen() {
             label={isCreatingSession ? 'Creating...' : 'Create session'}
             onPress={onCreateSession}
           />
-        </Card>
+        </View>
 
         {isSessionsLoading ? (
           <Text style={styles.meta}>Loading sessions...</Text>
@@ -254,8 +254,9 @@ export default function JournalSessionsScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
@@ -263,6 +264,9 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: typeScale.bodySm,
     color: colors.danger,
+  },
+  createSection: {
+    gap: spacing.sm,
   },
   rowTitle: {
     fontSize: typeScale.body,
@@ -278,6 +282,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
-    gap: 2,
+    gap: spacing.xs,
   },
 });

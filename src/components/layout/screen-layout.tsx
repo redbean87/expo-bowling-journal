@@ -33,7 +33,11 @@ export function ScreenLayout({
         style={[
           chromeless ? styles.content : styles.card,
           fillCard ? styles.cardFill : null,
-          compact ? styles.cardCompact : null,
+          compact
+            ? chromeless
+              ? styles.contentCompact
+              : styles.cardCompact
+            : null,
         ]}
       >
         {!hideHeader ? (
@@ -83,6 +87,9 @@ const styles = StyleSheet.create({
   cardCompact: {
     gap: spacing.sm,
     padding: spacing.md,
+  },
+  contentCompact: {
+    gap: spacing.sm,
   },
   title: {
     fontSize: typeScale.hero,

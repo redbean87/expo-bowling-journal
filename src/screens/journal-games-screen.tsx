@@ -130,9 +130,6 @@ export default function JournalGamesScreen() {
     () => buildSessionNightSummary(games, league?.gamesPerSession),
     [games, league?.gamesPerSession]
   );
-  const addGameLabel = nightSummary.isNightComplete
-    ? 'Add extra game'
-    : 'Add game';
   const displayGames = useMemo(() => toOldestFirstGames(games), [games]);
 
   useEffect(() => {
@@ -157,23 +154,6 @@ export default function JournalGamesScreen() {
     });
   }, [games, isGamesLoading, leagueId, router, sessionId, startEntry]);
 
-  const onContinueEntry = () => {
-    if (!leagueId || !sessionId) {
-      return;
-    }
-
-    const gameId = resolveGameEntryGameId(games);
-
-    router.push({
-      pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-      params: {
-        leagueId,
-        sessionId,
-        gameId,
-      },
-    });
-  };
-
   return (
     <ScreenLayout
       title="Games"
@@ -188,30 +168,21 @@ export default function JournalGamesScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <Card>
-          <Text style={styles.summaryTitle}>League night entry</Text>
-          <Button
-            disabled={!leagueId || !sessionId}
-            label="Continue entry"
-            onPress={onContinueEntry}
-          />
-          <Button
-            disabled={!leagueId || !sessionId}
-            label={addGameLabel}
-            onPress={() =>
-              router.push({
-                pathname:
-                  '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-                params: {
-                  leagueId: leagueId ?? '',
-                  sessionId: sessionId ?? '',
-                  gameId: 'new',
-                },
-              })
-            }
-            variant="secondary"
-          />
-        </Card>
+        <Button
+          disabled={!leagueId || !sessionId}
+          label="Add game"
+          onPress={() =>
+            router.push({
+              pathname:
+                '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+              params: {
+                leagueId: leagueId ?? '',
+                sessionId: sessionId ?? '',
+                gameId: 'new',
+              },
+            })
+          }
+        />
 
         {sessionId ? (
           <Card muted>
@@ -345,8 +316,9 @@ export default function JournalGamesScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
@@ -368,7 +340,7 @@ const styles = StyleSheet.create({
   },
   previewGrid: {
     gap: spacing.xs,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   previewRow: {
     flexDirection: 'row',

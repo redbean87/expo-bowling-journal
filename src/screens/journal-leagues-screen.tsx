@@ -91,7 +91,7 @@ export default function JournalLeaguesScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <Card muted>
+        <View style={styles.createSection}>
           <Input
             autoCapitalize="words"
             autoCorrect={false}
@@ -115,7 +115,7 @@ export default function JournalLeaguesScreen() {
             label={isCreatingLeague ? 'Creating...' : 'Create league'}
             onPress={onCreateLeague}
           />
-        </Card>
+        </View>
 
         {isLeaguesLoading ? (
           <Text style={styles.meta}>Loading leagues...</Text>
@@ -178,8 +178,9 @@ export default function JournalLeaguesScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
@@ -188,13 +189,16 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     color: colors.danger,
   },
+  createSection: {
+    gap: spacing.sm,
+  },
   rowTitle: {
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   leagueContent: {
-    gap: 2,
+    gap: spacing.xs,
   },
   leagueContentPressed: {
     opacity: 0.82,
@@ -202,18 +206,20 @@ const styles = StyleSheet.create({
   rowActions: {
     flexDirection: 'row',
     gap: spacing.xs,
+    alignItems: 'flex-start',
+    marginTop: 2,
   },
   quickStartLink: {
     paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: 0,
   },
   quickStartLinkPressed: {
     opacity: 0.75,
   },
   quickStartLabel: {
     fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.accent,
+    fontWeight: '500',
+    color: 'rgba(27, 110, 243, 0.9)',
   },
   meta: {
     fontSize: typeScale.bodySm,
@@ -221,8 +227,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   rowCard: {
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
+    gap: spacing.xs,
   },
 });
