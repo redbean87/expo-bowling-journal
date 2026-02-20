@@ -29,10 +29,30 @@ export type CreateLeagueInput = {
   endDate?: string | null;
 };
 
+export type UpdateLeagueInput = {
+  leagueId: LeagueId;
+  name: string;
+  gamesPerSession?: number | null;
+};
+
+export type RemoveLeagueInput = {
+  leagueId: LeagueId;
+};
+
 export type CreateSessionInput = {
   leagueId: LeagueId;
   weekNumber?: number | null;
   date: string;
+};
+
+export type UpdateSessionInput = {
+  sessionId: SessionId;
+  weekNumber?: number | null;
+  date: string;
+};
+
+export type RemoveSessionInput = {
+  sessionId: SessionId;
 };
 
 export type CreateGameInput = {
@@ -40,6 +60,10 @@ export type CreateGameInput = {
   date: string;
   ballId?: BallId | null;
   patternId?: PatternId | null;
+};
+
+export type RemoveGameInput = {
+  gameId: GameId;
 };
 
 export type UpdateGameInput = {

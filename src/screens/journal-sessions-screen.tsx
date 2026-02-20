@@ -1,6 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import {
   findSessionIdForDate,
@@ -9,10 +17,10 @@ import {
   formatSessionWeekLabel,
 } from './journal-fast-lane-utils';
 
-import type { LeagueId } from '@/services/journal';
+import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Input, PressableCard } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { useLeagues, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -37,6 +45,8 @@ export default function JournalSessionsScreen() {
     sessions,
     isLoading: isSessionsLoading,
     createSession,
+    updateSession,
+    removeSession,
     isCreating: isCreatingSession,
   } = useSessions(leagueId);
 
@@ -45,6 +55,16 @@ export default function JournalSessionsScreen() {
   );
   const [sessionWeekNumber, setSessionWeekNumber] = useState('');
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [sessionActionError, setSessionActionError] = useState<string | null>(
+    null
+  );
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionDate, setEditingSessionDate] = useState('');
+  const [editingSessionWeekNumber, setEditingSessionWeekNumber] = useState('');
+  const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null
+  );
   const hasHandledStartTonightRef = useRef(false);
 
   const leagueName = useMemo(() => {
@@ -62,6 +82,29 @@ export default function JournalSessionsScreen() {
       oldestFirstSessions.map((session, index) => [session._id, index + 1])
     );
   }, [sessions]);
+
+  const confirmDeleteSession = async (date: string) => {
+    const message = `Delete session ${date} and all its games?`;
+
+    if (Platform.OS === 'web') {
+      return globalThis.confirm(message);
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert('Delete session?', message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
+  };
 
   const onCreateSession = async () => {
     setSessionError(null);
@@ -107,6 +150,93 @@ export default function JournalSessionsScreen() {
       setSessionError(
         caught instanceof Error ? caught.message : 'Unable to create session.'
       );
+    }
+  };
+
+  const startEditingSession = (
+    sessionId: string,
+    date: string,
+    weekNumber: number | null
+  ) => {
+    setSessionActionError(null);
+    setEditingSessionId(sessionId);
+    setEditingSessionDate(date);
+    setEditingSessionWeekNumber(weekNumber === null ? '' : String(weekNumber));
+  };
+
+  const cancelEditingSession = () => {
+    setEditingSessionId(null);
+    setEditingSessionDate('');
+    setEditingSessionWeekNumber('');
+  };
+
+  const onSaveSessionEdit = async () => {
+    if (!editingSessionId) {
+      return;
+    }
+
+    setSessionActionError(null);
+    const date = editingSessionDate.trim();
+
+    if (date.length === 0) {
+      setSessionActionError('Session date is required.');
+      return;
+    }
+
+    let weekNumber: number | null | undefined = undefined;
+    const weekInput = editingSessionWeekNumber.trim();
+
+    if (weekInput.length > 0) {
+      const parsed = Number(weekInput);
+
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        setSessionActionError('Week number must be a positive whole number.');
+        return;
+      }
+
+      weekNumber = parsed;
+    }
+
+    setIsSavingSessionEdit(true);
+
+    try {
+      await updateSession({
+        sessionId: editingSessionId as SessionId,
+        date,
+        weekNumber,
+      });
+      cancelEditingSession();
+    } catch (caught) {
+      setSessionActionError(
+        caught instanceof Error ? caught.message : 'Unable to update session.'
+      );
+    } finally {
+      setIsSavingSessionEdit(false);
+    }
+  };
+
+  const onDeleteSession = async (sessionId: string, date: string) => {
+    setSessionActionError(null);
+    const isConfirmed = await confirmDeleteSession(date);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setDeletingSessionId(sessionId);
+
+    try {
+      await removeSession({ sessionId: sessionId as SessionId });
+
+      if (editingSessionId === sessionId) {
+        cancelEditingSession();
+      }
+    } catch (caught) {
+      setSessionActionError(
+        caught instanceof Error ? caught.message : 'Unable to delete session.'
+      );
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -209,6 +339,10 @@ export default function JournalSessionsScreen() {
           />
         </View>
 
+        {sessionActionError ? (
+          <Text style={styles.errorText}>{sessionActionError}</Text>
+        ) : null}
+
         {isSessionsLoading ? (
           <Text style={styles.meta}>Loading sessions...</Text>
         ) : null}
@@ -222,29 +356,100 @@ export default function JournalSessionsScreen() {
         ) : null}
 
         {sessions.map((session) => (
-          <PressableCard
-            key={session._id}
-            style={styles.rowCard}
-            onPress={() =>
-              router.push({
-                pathname:
-                  '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                params: {
-                  leagueId: leagueId ?? '',
-                  sessionId: session._id,
-                } as never,
-              } as never)
-            }
-          >
-            <Text style={styles.rowTitle}>
-              {formatSessionWeekLabel(
-                session.weekNumber ??
-                  derivedWeekNumberBySessionId.get(session._id) ??
-                  1
-              )}
-            </Text>
-            <Text style={styles.meta}>{formatIsoDateLabel(session.date)}</Text>
-          </PressableCard>
+          <Card key={session._id} style={styles.rowCard}>
+            <Pressable
+              style={({ pressed }) => [pressed ? styles.rowPressed : null]}
+              onPress={() =>
+                router.push({
+                  pathname:
+                    '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+                  params: {
+                    leagueId: leagueId ?? '',
+                    sessionId: session._id,
+                  } as never,
+                } as never)
+              }
+            >
+              <Text style={styles.rowTitle}>
+                {formatSessionWeekLabel(
+                  session.weekNumber ??
+                    derivedWeekNumberBySessionId.get(session._id) ??
+                    1
+                )}
+              </Text>
+              <Text style={styles.meta}>
+                {formatIsoDateLabel(session.date)}
+              </Text>
+            </Pressable>
+
+            <View style={styles.rowActions}>
+              <Pressable
+                onPress={() =>
+                  startEditingSession(
+                    session._id,
+                    session.date,
+                    session.weekNumber ?? null
+                  )
+                }
+                style={({ pressed }) => [
+                  styles.linkAction,
+                  pressed ? styles.linkActionPressed : null,
+                ]}
+              >
+                <Text style={styles.linkActionLabel}>Edit</Text>
+              </Pressable>
+              <Pressable
+                disabled={deletingSessionId === session._id}
+                onPress={() => void onDeleteSession(session._id, session.date)}
+                style={({ pressed }) => [
+                  styles.linkAction,
+                  pressed ? styles.linkActionPressed : null,
+                ]}
+              >
+                <Text style={styles.deleteLabel}>
+                  {deletingSessionId === session._id ? 'Deleting...' : 'Delete'}
+                </Text>
+              </Pressable>
+            </View>
+
+            {editingSessionId === session._id ? (
+              <View style={styles.editSection}>
+                <Input
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={setEditingSessionDate}
+                  placeholder="YYYY-MM-DD"
+                  value={editingSessionDate}
+                />
+                <Input
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="number-pad"
+                  onChangeText={setEditingSessionWeekNumber}
+                  placeholder="Week number (optional)"
+                  value={editingSessionWeekNumber}
+                />
+                <View style={styles.editActionsRow}>
+                  <View style={styles.editActionButton}>
+                    <Button
+                      disabled={isSavingSessionEdit}
+                      label={isSavingSessionEdit ? 'Saving...' : 'Save'}
+                      onPress={() => void onSaveSessionEdit()}
+                      variant="secondary"
+                    />
+                  </View>
+                  <View style={styles.editActionButton}>
+                    <Button
+                      disabled={isSavingSessionEdit}
+                      label="Cancel"
+                      onPress={cancelEditingSession}
+                      variant="ghost"
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
+          </Card>
         ))}
       </ScrollView>
     </ScreenLayout>
@@ -272,6 +477,42 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  rowPressed: {
+    opacity: 0.82,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  linkAction: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 0,
+  },
+  linkActionPressed: {
+    opacity: 0.75,
+  },
+  linkActionLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: 'rgba(27, 110, 243, 0.9)',
+  },
+  deleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.danger,
+  },
+  editSection: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  editActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  editActionButton: {
+    flex: 1,
   },
   meta: {
     fontSize: typeScale.bodySm,

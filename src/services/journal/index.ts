@@ -4,6 +4,9 @@ export type {
   Frame,
   CreateGameInput,
   CreateLeagueInput,
+  RemoveGameInput,
+  RemoveLeagueInput,
+  RemoveSessionInput,
   CreateSessionInput,
   ApplyPostImportRefinementInput,
   ApplyPostImportRefinementResult,
@@ -24,4 +27,6 @@ export type {
   StartImportInput,
   StartImportResult,
   UpdateGameInput,
+  UpdateLeagueInput,
+  UpdateSessionInput,
 } from './types';

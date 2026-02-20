@@ -1,6 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import {
   formatGameSequenceLabel,
@@ -9,10 +17,10 @@ import {
 } from './journal-fast-lane-utils';
 import { buildSessionNightSummary } from './journal-games-night-summary';
 
-import type { LeagueId, SessionId } from '@/services/journal';
+import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card, PressableCard } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { useGames, useLeagues } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -114,8 +122,10 @@ export default function JournalGamesScreen() {
   const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
   const sessionId = getFirstParam(params.sessionId) as SessionId | null;
   const startEntry = getFirstParam(params.startEntry) === '1';
-  const { games, isLoading: isGamesLoading } = useGames(sessionId);
+  const { games, removeGame, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
+  const [gameActionError, setGameActionError] = useState<string | null>(null);
+  const [deletingGameId, setDeletingGameId] = useState<string | null>(null);
   const hasHandledStartEntryRef = useRef(false);
 
   const league = useMemo(() => {
@@ -131,6 +141,50 @@ export default function JournalGamesScreen() {
     [games, league?.gamesPerSession]
   );
   const displayGames = useMemo(() => toOldestFirstGames(games), [games]);
+
+  const confirmDeleteGame = async (label: string) => {
+    const message = `Delete ${label} and all frame entries?`;
+
+    if (Platform.OS === 'web') {
+      return globalThis.confirm(message);
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert('Delete game?', message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
+  };
+
+  const onDeleteGame = async (gameId: string, label: string) => {
+    setGameActionError(null);
+    const isConfirmed = await confirmDeleteGame(label);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setDeletingGameId(gameId);
+
+    try {
+      await removeGame({ gameId: gameId as GameId });
+    } catch (caught) {
+      setGameActionError(
+        caught instanceof Error ? caught.message : 'Unable to delete game.'
+      );
+    } finally {
+      setDeletingGameId(null);
+    }
+  };
 
   useEffect(() => {
     if (!startEntry || hasHandledStartEntryRef.current) {
@@ -184,6 +238,10 @@ export default function JournalGamesScreen() {
           }
         />
 
+        {gameActionError ? (
+          <Text style={styles.errorText}>{gameActionError}</Text>
+        ) : null}
+
         {sessionId ? (
           <Card muted>
             <Text style={styles.summaryTitle}>Night stats</Text>
@@ -232,80 +290,101 @@ export default function JournalGamesScreen() {
           const previewRowOne = framePreviewItems.slice(0, 5);
           const previewRowTwo = framePreviewItems.slice(5, 10);
           const previewMarkSummary = summarizePreviewMarks(framePreviewItems);
+          const gameLabel = formatGameSequenceLabel(index + 1);
 
           return (
-            <PressableCard
-              key={game._id}
-              style={styles.rowCard}
-              onPress={() =>
-                router.push({
-                  pathname:
-                    '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-                  params: {
-                    leagueId: leagueId ?? '',
-                    sessionId: sessionId ?? '',
-                    gameId: game._id,
-                  },
-                })
-              }
-            >
-              <Text style={styles.rowTitle}>
-                {formatGameSequenceLabel(index + 1)} - {game.totalScore}
-              </Text>
-              <Text style={styles.meta}>
-                {framePreviewItems.length > 0
-                  ? `Strikes ${String(previewMarkSummary.strikeMarks)} | Spares ${String(previewMarkSummary.spareMarks)} | Opens ${String(previewMarkSummary.openFrames)}`
-                  : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
-              </Text>
-              {framePreviewItems.length > 0 ? (
-                <View style={styles.previewGrid}>
-                  <View style={styles.previewRow}>
-                    {previewRowOne.map((item, itemIndex) => (
-                      <View
-                        key={`${game._id}-row-1-${String(itemIndex)}`}
-                        style={[
-                          styles.previewChip,
-                          item.hasSplit ? styles.previewChipSplit : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.previewChipText,
-                            item.hasSplit ? styles.previewChipTextSplit : null,
-                          ]}
-                        >
-                          {item.text}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.previewRow}>
-                    {previewRowTwo.map((item, itemIndex) => (
-                      <View
-                        key={`${game._id}-row-2-${String(itemIndex)}`}
-                        style={[
-                          styles.previewChip,
-                          item.hasSplit ? styles.previewChipSplit : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.previewChipText,
-                            item.hasSplit ? styles.previewChipTextSplit : null,
-                          ]}
-                        >
-                          {item.text}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <Text style={styles.previewUnavailableText}>
-                  Frame-by-frame preview unavailable
+            <Card key={game._id} style={styles.rowCard}>
+              <Pressable
+                style={({ pressed }) => [pressed ? styles.rowPressed : null]}
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+                    params: {
+                      leagueId: leagueId ?? '',
+                      sessionId: sessionId ?? '',
+                      gameId: game._id,
+                    },
+                  })
+                }
+              >
+                <Text style={styles.rowTitle}>
+                  {gameLabel} - {game.totalScore}
                 </Text>
-              )}
-            </PressableCard>
+                <Text style={styles.meta}>
+                  {framePreviewItems.length > 0
+                    ? `Strikes ${String(previewMarkSummary.strikeMarks)} | Spares ${String(previewMarkSummary.spareMarks)} | Opens ${String(previewMarkSummary.openFrames)}`
+                    : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
+                </Text>
+                {framePreviewItems.length > 0 ? (
+                  <View style={styles.previewGrid}>
+                    <View style={styles.previewRow}>
+                      {previewRowOne.map((item, itemIndex) => (
+                        <View
+                          key={`${game._id}-row-1-${String(itemIndex)}`}
+                          style={[
+                            styles.previewChip,
+                            item.hasSplit ? styles.previewChipSplit : null,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.previewChipText,
+                              item.hasSplit
+                                ? styles.previewChipTextSplit
+                                : null,
+                            ]}
+                          >
+                            {item.text}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.previewRow}>
+                      {previewRowTwo.map((item, itemIndex) => (
+                        <View
+                          key={`${game._id}-row-2-${String(itemIndex)}`}
+                          style={[
+                            styles.previewChip,
+                            item.hasSplit ? styles.previewChipSplit : null,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.previewChipText,
+                              item.hasSplit
+                                ? styles.previewChipTextSplit
+                                : null,
+                            ]}
+                          >
+                            {item.text}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.previewUnavailableText}>
+                    Frame-by-frame preview unavailable
+                  </Text>
+                )}
+              </Pressable>
+
+              <View style={styles.rowActions}>
+                <Pressable
+                  disabled={deletingGameId === game._id}
+                  onPress={() => void onDeleteGame(game._id, gameLabel)}
+                  style={({ pressed }) => [
+                    styles.deleteAction,
+                    pressed ? styles.linkActionPressed : null,
+                  ]}
+                >
+                  <Text style={styles.deleteLabel}>
+                    {deletingGameId === game._id ? 'Deleting...' : 'Delete'}
+                  </Text>
+                </Pressable>
+              </View>
+            </Card>
           );
         })}
       </ScrollView>
@@ -327,6 +406,30 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  rowPressed: {
+    opacity: 0.82,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  deleteAction: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 0,
+  },
+  linkActionPressed: {
+    opacity: 0.75,
+  },
+  deleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.danger,
+  },
+  errorText: {
+    fontSize: typeScale.bodySm,
+    color: colors.danger,
   },
   meta: {
     fontSize: typeScale.bodySm,

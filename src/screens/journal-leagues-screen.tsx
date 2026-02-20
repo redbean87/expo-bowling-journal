@@ -1,6 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Button, Card, Input } from '@/components/ui';
@@ -13,11 +21,22 @@ export default function JournalLeaguesScreen() {
     leagues,
     isLoading: isLeaguesLoading,
     createLeague,
+    updateLeague,
+    removeLeague,
     isCreating: isCreatingLeague,
   } = useLeagues();
   const [leagueName, setLeagueName] = useState('');
   const [leagueGamesPerSession, setLeagueGamesPerSession] = useState('');
   const [leagueError, setLeagueError] = useState<string | null>(null);
+  const [leagueActionError, setLeagueActionError] = useState<string | null>(
+    null
+  );
+  const [editingLeagueId, setEditingLeagueId] = useState<string | null>(null);
+  const [editingLeagueName, setEditingLeagueName] = useState('');
+  const [editingLeagueGamesPerSession, setEditingLeagueGamesPerSession] =
+    useState('');
+  const [isSavingLeagueEdit, setIsSavingLeagueEdit] = useState(false);
+  const [deletingLeagueId, setDeletingLeagueId] = useState<string | null>(null);
   const defaultLeagueId = leagues[0]?._id ?? null;
 
   const navigateToLeagueSessions = (leagueId: string) => {
@@ -35,6 +54,29 @@ export default function JournalLeaguesScreen() {
         startTonight: '1',
       } as never,
     } as never);
+  };
+
+  const confirmDeleteLeague = async (name: string) => {
+    const message = `Delete ${name}, all sessions, and all games?`;
+
+    if (Platform.OS === 'web') {
+      return globalThis.confirm(message);
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert('Delete league?', message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => resolve(false),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
   };
 
   const onCreateLeague = async () => {
@@ -77,6 +119,97 @@ export default function JournalLeaguesScreen() {
     }
   };
 
+  const startEditingLeague = (
+    leagueId: string,
+    name: string,
+    gamesPerSession: number | null
+  ) => {
+    setLeagueActionError(null);
+    setEditingLeagueId(leagueId);
+    setEditingLeagueName(name);
+    setEditingLeagueGamesPerSession(
+      gamesPerSession === null ? '' : String(gamesPerSession)
+    );
+  };
+
+  const cancelEditingLeague = () => {
+    setEditingLeagueId(null);
+    setEditingLeagueName('');
+    setEditingLeagueGamesPerSession('');
+  };
+
+  const onSaveLeagueEdit = async () => {
+    if (!editingLeagueId) {
+      return;
+    }
+
+    setLeagueActionError(null);
+    const name = editingLeagueName.trim();
+
+    if (name.length === 0) {
+      setLeagueActionError('League name is required.');
+      return;
+    }
+
+    let gamesPerSession: number | null | undefined = undefined;
+    const targetGamesInput = editingLeagueGamesPerSession.trim();
+
+    if (targetGamesInput.length > 0) {
+      const parsed = Number(targetGamesInput);
+
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) {
+        setLeagueActionError(
+          'Games per session must be a whole number from 1 to 12.'
+        );
+        return;
+      }
+
+      gamesPerSession = parsed;
+    }
+
+    setIsSavingLeagueEdit(true);
+
+    try {
+      await updateLeague({
+        leagueId: editingLeagueId as never,
+        name,
+        gamesPerSession,
+      });
+      cancelEditingLeague();
+    } catch (caught) {
+      setLeagueActionError(
+        caught instanceof Error ? caught.message : 'Unable to update league.'
+      );
+    } finally {
+      setIsSavingLeagueEdit(false);
+    }
+  };
+
+  const onDeleteLeague = async (leagueId: string, name: string) => {
+    setLeagueActionError(null);
+    const isConfirmed = await confirmDeleteLeague(name);
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setDeletingLeagueId(leagueId);
+
+    try {
+      await removeLeague({ leagueId: leagueId as never });
+
+      if (editingLeagueId === leagueId) {
+        cancelEditingLeague();
+      }
+    } catch (caught) {
+      setLeagueActionError(
+        caught instanceof Error ? caught.message : 'Unable to delete league.'
+      );
+    } finally {
+      setDeletingLeagueId(null);
+    }
+  };
+
   return (
     <ScreenLayout
       title="Journal"
@@ -116,6 +249,10 @@ export default function JournalLeaguesScreen() {
             onPress={onCreateLeague}
           />
         </View>
+
+        {leagueActionError ? (
+          <Text style={styles.errorText}>{leagueActionError}</Text>
+        ) : null}
 
         {isLeaguesLoading ? (
           <Text style={styles.meta}>Loading leagues...</Text>
@@ -167,7 +304,72 @@ export default function JournalLeaguesScreen() {
               >
                 <Text style={styles.quickStartLabel}>Quick start</Text>
               </Pressable>
+              <Pressable
+                onPress={() =>
+                  startEditingLeague(
+                    league._id,
+                    league.name,
+                    league.gamesPerSession ?? null
+                  )
+                }
+                style={({ pressed }) => [
+                  styles.quickStartLink,
+                  pressed ? styles.quickStartLinkPressed : null,
+                ]}
+              >
+                <Text style={styles.quickStartLabel}>Edit</Text>
+              </Pressable>
+              <Pressable
+                disabled={deletingLeagueId === league._id}
+                onPress={() => void onDeleteLeague(league._id, league.name)}
+                style={({ pressed }) => [
+                  styles.quickStartLink,
+                  pressed ? styles.quickStartLinkPressed : null,
+                ]}
+              >
+                <Text style={styles.deleteLabel}>
+                  {deletingLeagueId === league._id ? 'Deleting...' : 'Delete'}
+                </Text>
+              </Pressable>
             </View>
+
+            {editingLeagueId === league._id ? (
+              <View style={styles.editSection}>
+                <Input
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  onChangeText={setEditingLeagueName}
+                  placeholder="League name"
+                  value={editingLeagueName}
+                />
+                <Input
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="number-pad"
+                  onChangeText={setEditingLeagueGamesPerSession}
+                  placeholder="Games per session (optional)"
+                  value={editingLeagueGamesPerSession}
+                />
+                <View style={styles.editActionsRow}>
+                  <View style={styles.editActionButton}>
+                    <Button
+                      disabled={isSavingLeagueEdit}
+                      label={isSavingLeagueEdit ? 'Saving...' : 'Save'}
+                      onPress={() => void onSaveLeagueEdit()}
+                      variant="secondary"
+                    />
+                  </View>
+                  <View style={styles.editActionButton}>
+                    <Button
+                      disabled={isSavingLeagueEdit}
+                      label="Cancel"
+                      onPress={cancelEditingLeague}
+                      variant="ghost"
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
           </Card>
         ))}
       </ScrollView>
@@ -220,6 +422,22 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '500',
     color: 'rgba(27, 110, 243, 0.9)',
+  },
+  deleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.danger,
+  },
+  editSection: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  editActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  editActionButton: {
+    flex: 1,
   },
   meta: {
     fontSize: typeScale.bodySm,

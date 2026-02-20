@@ -188,3 +188,32 @@ export const update = mutation({
     return args.gameId;
   },
 });
+
+export const remove = mutation({
+  args: {
+    gameId: v.id('games'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const game = await ctx.db.get(args.gameId);
+
+    if (!game || game.userId !== userId) {
+      throw new ConvexError('Game not found');
+    }
+
+    const frames = await ctx.db
+      .query('frames')
+      .withIndex('by_user_game', (q) =>
+        q.eq('userId', userId).eq('gameId', args.gameId)
+      )
+      .collect();
+
+    for (const frame of frames) {
+      await ctx.db.delete(frame._id);
+    }
+
+    await ctx.db.delete(args.gameId);
+
+    return args.gameId;
+  },
+});

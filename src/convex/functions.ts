@@ -61,6 +61,24 @@ export const leaguesCreateMutation = makeFunctionReference<
   Id<'leagues'>
 >('leagues:create');
 
+export const leaguesUpdateMutation = makeFunctionReference<
+  'mutation',
+  {
+    leagueId: Id<'leagues'>;
+    name: string;
+    gamesPerSession?: number | null;
+  },
+  Id<'leagues'>
+>('leagues:update');
+
+export const leaguesRemoveMutation = makeFunctionReference<
+  'mutation',
+  {
+    leagueId: Id<'leagues'>;
+  },
+  Id<'leagues'>
+>('leagues:remove');
+
 export const sessionsListByLeagueQuery = makeFunctionReference<
   'query',
   {
@@ -78,6 +96,24 @@ export const sessionsCreateMutation = makeFunctionReference<
   },
   Id<'sessions'>
 >('sessions:create');
+
+export const sessionsUpdateMutation = makeFunctionReference<
+  'mutation',
+  {
+    sessionId: Id<'sessions'>;
+    weekNumber?: number | null;
+    date: string;
+  },
+  Id<'sessions'>
+>('sessions:update');
+
+export const sessionsRemoveMutation = makeFunctionReference<
+  'mutation',
+  {
+    sessionId: Id<'sessions'>;
+  },
+  Id<'sessions'>
+>('sessions:remove');
 
 export const gamesListBySessionQuery = makeFunctionReference<
   'query',
@@ -116,6 +152,14 @@ export const gamesUpdateMutation = makeFunctionReference<
   },
   Id<'games'>
 >('games:update');
+
+export const gamesRemoveMutation = makeFunctionReference<
+  'mutation',
+  {
+    gameId: Id<'games'>;
+  },
+  Id<'games'>
+>('games:remove');
 
 export const framesListByGameQuery = makeFunctionReference<
   'query',

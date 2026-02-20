@@ -63,3 +63,89 @@ export const create = mutation({
     });
   },
 });
+
+export const update = mutation({
+  args: {
+    leagueId: v.id('leagues'),
+    name: v.string(),
+    gamesPerSession: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const league = await ctx.db.get(args.leagueId);
+
+    if (!league || league.userId !== userId) {
+      throw new ConvexError('League not found');
+    }
+
+    if (
+      args.gamesPerSession !== undefined &&
+      args.gamesPerSession !== null &&
+      (!Number.isInteger(args.gamesPerSession) ||
+        args.gamesPerSession < 1 ||
+        args.gamesPerSession > 12)
+    ) {
+      throw new ConvexError(
+        'Games per session must be a whole number between 1 and 12'
+      );
+    }
+
+    await ctx.db.patch(args.leagueId, {
+      name: args.name,
+      gamesPerSession: args.gamesPerSession ?? null,
+    });
+
+    return args.leagueId;
+  },
+});
+
+export const remove = mutation({
+  args: {
+    leagueId: v.id('leagues'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const league = await ctx.db.get(args.leagueId);
+
+    if (!league || league.userId !== userId) {
+      throw new ConvexError('League not found');
+    }
+
+    const sessions = await ctx.db
+      .query('sessions')
+      .withIndex('by_user_league', (q) =>
+        q.eq('userId', userId).eq('leagueId', args.leagueId)
+      )
+      .collect();
+
+    for (const session of sessions) {
+      const games = await ctx.db
+        .query('games')
+        .withIndex('by_user_session', (q) =>
+          q.eq('userId', userId).eq('sessionId', session._id)
+        )
+        .collect();
+
+      for (const game of games) {
+        const frames = await ctx.db
+          .query('frames')
+          .withIndex('by_user_game', (q) =>
+            q.eq('userId', userId).eq('gameId', game._id)
+          )
+          .collect();
+
+        for (const frame of frames) {
+          await ctx.db.delete(frame._id);
+        }
+
+        await ctx.db.delete(game._id);
+      }
+
+      await ctx.db.delete(session._id);
+    }
+
+    await ctx.db.delete(args.leagueId);
+
+    return args.leagueId;
+  },
+});

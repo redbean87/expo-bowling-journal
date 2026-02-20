@@ -65,6 +65,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Reduce game-editor autosave feedback noise to queued/sync/error-only status
 - [x] Persist game frame previews on write paths and backfill existing games to remove list-query N+1 frame reads
 - [x] Enable offline game capture after prior sign-in with queue-first saves and reconnect sync, including duplicate-create prevention
+- [x] Add league/session edit and cascade delete flows with game-level delete controls
 
 ## Decision Log
 

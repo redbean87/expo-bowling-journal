@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import {
   convexJournalService,
   type CreateGameInput,
+  type RemoveGameInput,
   type SessionId,
 } from '@/services/journal';
 
@@ -14,6 +15,7 @@ export function useGames(sessionId: SessionId | null) {
     isAuthenticated && sessionId ? { sessionId } : 'skip'
   );
   const createGameMutation = useMutation(convexJournalService.createGame);
+  const removeGameMutation = useMutation(convexJournalService.removeGame);
   const [isCreating, setIsCreating] = useState(false);
 
   const createGame = useCallback(
@@ -29,12 +31,20 @@ export function useGames(sessionId: SessionId | null) {
     [createGameMutation]
   );
 
+  const removeGame = useCallback(
+    async (input: RemoveGameInput) => {
+      return await removeGameMutation(input);
+    },
+    [removeGameMutation]
+  );
+
   return {
     games: games ?? [],
     isLoading:
       isAuthLoading ||
       (isAuthenticated && sessionId !== null && games === undefined),
     createGame,
+    removeGame,
     isCreating,
   };
 }
