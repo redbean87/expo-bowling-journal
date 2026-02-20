@@ -39,6 +39,18 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
+    let houseName = args.houseName ?? null;
+
+    if (args.houseId) {
+      const house = await ctx.db.get(args.houseId);
+
+      if (!house) {
+        throw new ConvexError('House not found');
+      }
+
+      houseName = house.name;
+    }
+
     if (
       args.gamesPerSession !== undefined &&
       args.gamesPerSession !== null &&
@@ -56,7 +68,7 @@ export const create = mutation({
       name: args.name,
       gamesPerSession: args.gamesPerSession ?? null,
       houseId: args.houseId ?? null,
-      houseName: args.houseName ?? null,
+      houseName,
       startDate: args.startDate ?? null,
       endDate: args.endDate ?? null,
       createdAt: Date.now(),
@@ -69,6 +81,7 @@ export const update = mutation({
     leagueId: v.id('leagues'),
     name: v.string(),
     gamesPerSession: v.optional(v.union(v.number(), v.null())),
+    houseId: v.optional(v.union(v.id('houses'), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -90,9 +103,23 @@ export const update = mutation({
       );
     }
 
+    let houseName: string | null = null;
+
+    if (args.houseId) {
+      const house = await ctx.db.get(args.houseId);
+
+      if (!house) {
+        throw new ConvexError('House not found');
+      }
+
+      houseName = house.name;
+    }
+
     await ctx.db.patch(args.leagueId, {
       name: args.name,
       gamesPerSession: args.gamesPerSession ?? null,
+      houseId: args.houseId ?? null,
+      houseName,
     });
 
     return args.leagueId;

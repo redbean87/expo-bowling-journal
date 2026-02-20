@@ -32,6 +32,9 @@ export const create = mutation({
     leagueId: v.id('leagues'),
     weekNumber: v.optional(v.union(v.number(), v.null())),
     date: v.string(),
+    houseId: v.optional(v.union(v.id('houses'), v.null())),
+    ballId: v.optional(v.union(v.id('balls'), v.null())),
+    patternId: v.optional(v.union(v.id('patterns'), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -41,11 +44,38 @@ export const create = mutation({
       throw new ConvexError('League not found');
     }
 
+    if (args.houseId) {
+      const house = await ctx.db.get(args.houseId);
+
+      if (!house) {
+        throw new ConvexError('House not found');
+      }
+    }
+
+    if (args.ballId) {
+      const ball = await ctx.db.get(args.ballId);
+
+      if (!ball || ball.userId !== userId) {
+        throw new ConvexError('Ball not found');
+      }
+    }
+
+    if (args.patternId) {
+      const pattern = await ctx.db.get(args.patternId);
+
+      if (!pattern) {
+        throw new ConvexError('Pattern not found');
+      }
+    }
+
     return ctx.db.insert('sessions', {
       userId,
       leagueId: args.leagueId,
       weekNumber: args.weekNumber ?? null,
       date: args.date,
+      houseId: args.houseId ?? null,
+      ballId: args.ballId ?? null,
+      patternId: args.patternId ?? null,
     });
   },
 });
@@ -55,6 +85,9 @@ export const update = mutation({
     sessionId: v.id('sessions'),
     weekNumber: v.optional(v.union(v.number(), v.null())),
     date: v.string(),
+    houseId: v.optional(v.union(v.id('houses'), v.null())),
+    ballId: v.optional(v.union(v.id('balls'), v.null())),
+    patternId: v.optional(v.union(v.id('patterns'), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -72,9 +105,36 @@ export const update = mutation({
       throw new ConvexError('Week number must be a positive whole number');
     }
 
+    if (args.houseId) {
+      const house = await ctx.db.get(args.houseId);
+
+      if (!house) {
+        throw new ConvexError('House not found');
+      }
+    }
+
+    if (args.ballId) {
+      const ball = await ctx.db.get(args.ballId);
+
+      if (!ball || ball.userId !== userId) {
+        throw new ConvexError('Ball not found');
+      }
+    }
+
+    if (args.patternId) {
+      const pattern = await ctx.db.get(args.patternId);
+
+      if (!pattern) {
+        throw new ConvexError('Pattern not found');
+      }
+    }
+
     await ctx.db.patch(args.sessionId, {
       date: args.date,
       weekNumber: args.weekNumber ?? null,
+      houseId: args.houseId ?? null,
+      ballId: args.ballId ?? null,
+      patternId: args.patternId ?? null,
     });
 
     return args.sessionId;

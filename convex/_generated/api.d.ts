@@ -9,8 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as balls from "../balls.js";
 import type * as frames from "../frames.js";
 import type * as games from "../games.js";
+import type * as houses from "../houses.js";
 import type * as http from "../http.js";
 import type * as imports from "../imports.js";
 import type * as leagues from "../leagues.js";
@@ -25,6 +27,7 @@ import type * as lib_import_raw_frames from "../lib/import_raw_frames.js";
 import type * as lib_import_refinement from "../lib/import_refinement.js";
 import type * as lib_import_snapshot from "../lib/import_snapshot.js";
 import type * as lib_import_warning_summary from "../lib/import_warning_summary.js";
+import type * as patterns from "../patterns.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -36,8 +39,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  balls: typeof balls;
   frames: typeof frames;
   games: typeof games;
+  houses: typeof houses;
   http: typeof http;
   imports: typeof imports;
   leagues: typeof leagues;
@@ -52,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "lib/import_refinement": typeof lib_import_refinement;
   "lib/import_snapshot": typeof lib_import_snapshot;
   "lib/import_warning_summary": typeof lib_import_warning_summary;
+  patterns: typeof patterns;
   sessions: typeof sessions;
   users: typeof users;
 }>;

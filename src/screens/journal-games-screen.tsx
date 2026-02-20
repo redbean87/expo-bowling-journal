@@ -20,7 +20,7 @@ import { buildSessionNightSummary } from './journal-games-night-summary';
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card } from '@/components/ui';
+import { Card, FloatingActionButton } from '@/components/ui';
 import { useGames, useLeagues } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -228,14 +228,156 @@ export default function JournalGamesScreen() {
       compact
       chromeless
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-      >
-        <Button
+      <View style={styles.screenBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
+          {gameActionError ? (
+            <Text style={styles.errorText}>{gameActionError}</Text>
+          ) : null}
+
+          {sessionId ? (
+            <Card muted>
+              <Text style={styles.summaryTitle}>Night stats</Text>
+              <Text style={styles.meta}>
+                {nightSummary.targetGames === null
+                  ? `Games: ${String(nightSummary.gamesPlayed)}`
+                  : `Games: ${String(nightSummary.gamesPlayed)} / ${String(nightSummary.targetGames)}`}
+              </Text>
+              {nightSummary.gamesPlayed > 0 ? (
+                <>
+                  <Text style={styles.meta}>
+                    Series: {nightSummary.totalPins}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Average: {nightSummary.average.toFixed(2)}
+                  </Text>
+                  <Text style={styles.meta}>
+                    High game: {nightSummary.highGame ?? '-'}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Low game: {nightSummary.lowGame ?? '-'}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Strikes {nightSummary.strikes} | Spares{' '}
+                    {nightSummary.spares} | Opens {nightSummary.opens}
+                  </Text>
+                </>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {isGamesLoading ? (
+            <Text style={styles.meta}>Loading games...</Text>
+          ) : null}
+          {!isGamesLoading && !sessionId ? (
+            <Text style={styles.meta}>Session not found.</Text>
+          ) : null}
+          {!isGamesLoading && sessionId && games.length === 0 ? (
+            <Text style={styles.meta}>No games in this session yet.</Text>
+          ) : null}
+
+          {displayGames.map((game, index) => {
+            const framePreviewItems = normalizeFramePreviewItems(
+              game.framePreview
+            );
+            const previewRowOne = framePreviewItems.slice(0, 5);
+            const previewRowTwo = framePreviewItems.slice(5, 10);
+            const previewMarkSummary = summarizePreviewMarks(framePreviewItems);
+            const gameLabel = formatGameSequenceLabel(index + 1);
+
+            return (
+              <Card key={game._id} style={styles.rowCard}>
+                <Pressable
+                  style={({ pressed }) => [pressed ? styles.rowPressed : null]}
+                  onPress={() => openGameEditor(game._id)}
+                >
+                  <Text style={styles.rowTitle}>
+                    {gameLabel} - {game.totalScore}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {framePreviewItems.length > 0
+                      ? `Strikes ${String(previewMarkSummary.strikeMarks)} | Spares ${String(previewMarkSummary.spareMarks)} | Opens ${String(previewMarkSummary.openFrames)}`
+                      : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
+                  </Text>
+                  {framePreviewItems.length > 0 ? (
+                    <View style={styles.previewGrid}>
+                      <View style={styles.previewRow}>
+                        {previewRowOne.map((item, itemIndex) => (
+                          <View
+                            key={`${game._id}-row-1-${String(itemIndex)}`}
+                            style={[
+                              styles.previewChip,
+                              item.hasSplit ? styles.previewChipSplit : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.previewChipText,
+                                item.hasSplit
+                                  ? styles.previewChipTextSplit
+                                  : null,
+                              ]}
+                            >
+                              {item.text}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.previewRow}>
+                        {previewRowTwo.map((item, itemIndex) => (
+                          <View
+                            key={`${game._id}-row-2-${String(itemIndex)}`}
+                            style={[
+                              styles.previewChip,
+                              item.hasSplit ? styles.previewChipSplit : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.previewChipText,
+                                item.hasSplit
+                                  ? styles.previewChipTextSplit
+                                  : null,
+                              ]}
+                            >
+                              {item.text}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.previewUnavailableText}>
+                      Frame-by-frame preview unavailable
+                    </Text>
+                  )}
+                </Pressable>
+
+                <View style={styles.rowActions}>
+                  <Pressable
+                    disabled={deletingGameId === game._id}
+                    onPress={() => void onDeleteGame(game._id, gameLabel)}
+                    style={({ pressed }) => [
+                      styles.linkAction,
+                      pressed ? styles.linkActionPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.deleteLabel}>
+                      {deletingGameId === game._id ? 'Deleting...' : 'Delete'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </Card>
+            );
+          })}
+        </ScrollView>
+
+        <FloatingActionButton
+          accessibilityLabel="Add game"
           disabled={!leagueId || !sessionId}
-          label="Add game"
           onPress={() =>
             router.push({
               pathname:
@@ -248,147 +390,7 @@ export default function JournalGamesScreen() {
             })
           }
         />
-
-        {gameActionError ? (
-          <Text style={styles.errorText}>{gameActionError}</Text>
-        ) : null}
-
-        {sessionId ? (
-          <Card muted>
-            <Text style={styles.summaryTitle}>Night stats</Text>
-            <Text style={styles.meta}>
-              {nightSummary.targetGames === null
-                ? `Games: ${String(nightSummary.gamesPlayed)}`
-                : `Games: ${String(nightSummary.gamesPlayed)} / ${String(nightSummary.targetGames)}`}
-            </Text>
-            {nightSummary.gamesPlayed > 0 ? (
-              <>
-                <Text style={styles.meta}>
-                  Series: {nightSummary.totalPins}
-                </Text>
-                <Text style={styles.meta}>
-                  Average: {nightSummary.average.toFixed(2)}
-                </Text>
-                <Text style={styles.meta}>
-                  High game: {nightSummary.highGame ?? '-'}
-                </Text>
-                <Text style={styles.meta}>
-                  Low game: {nightSummary.lowGame ?? '-'}
-                </Text>
-                <Text style={styles.meta}>
-                  Strikes {nightSummary.strikes} | Spares {nightSummary.spares}{' '}
-                  | Opens {nightSummary.opens}
-                </Text>
-              </>
-            ) : null}
-          </Card>
-        ) : null}
-
-        {isGamesLoading ? (
-          <Text style={styles.meta}>Loading games...</Text>
-        ) : null}
-        {!isGamesLoading && !sessionId ? (
-          <Text style={styles.meta}>Session not found.</Text>
-        ) : null}
-        {!isGamesLoading && sessionId && games.length === 0 ? (
-          <Text style={styles.meta}>No games in this session yet.</Text>
-        ) : null}
-
-        {displayGames.map((game, index) => {
-          const framePreviewItems = normalizeFramePreviewItems(
-            game.framePreview
-          );
-          const previewRowOne = framePreviewItems.slice(0, 5);
-          const previewRowTwo = framePreviewItems.slice(5, 10);
-          const previewMarkSummary = summarizePreviewMarks(framePreviewItems);
-          const gameLabel = formatGameSequenceLabel(index + 1);
-
-          return (
-            <Card key={game._id} style={styles.rowCard}>
-              <Pressable
-                style={({ pressed }) => [pressed ? styles.rowPressed : null]}
-                onPress={() => openGameEditor(game._id)}
-              >
-                <Text style={styles.rowTitle}>
-                  {gameLabel} - {game.totalScore}
-                </Text>
-                <Text style={styles.meta}>
-                  {framePreviewItems.length > 0
-                    ? `Strikes ${String(previewMarkSummary.strikeMarks)} | Spares ${String(previewMarkSummary.spareMarks)} | Opens ${String(previewMarkSummary.openFrames)}`
-                    : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
-                </Text>
-                {framePreviewItems.length > 0 ? (
-                  <View style={styles.previewGrid}>
-                    <View style={styles.previewRow}>
-                      {previewRowOne.map((item, itemIndex) => (
-                        <View
-                          key={`${game._id}-row-1-${String(itemIndex)}`}
-                          style={[
-                            styles.previewChip,
-                            item.hasSplit ? styles.previewChipSplit : null,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.previewChipText,
-                              item.hasSplit
-                                ? styles.previewChipTextSplit
-                                : null,
-                            ]}
-                          >
-                            {item.text}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                    <View style={styles.previewRow}>
-                      {previewRowTwo.map((item, itemIndex) => (
-                        <View
-                          key={`${game._id}-row-2-${String(itemIndex)}`}
-                          style={[
-                            styles.previewChip,
-                            item.hasSplit ? styles.previewChipSplit : null,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.previewChipText,
-                              item.hasSplit
-                                ? styles.previewChipTextSplit
-                                : null,
-                            ]}
-                          >
-                            {item.text}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ) : (
-                  <Text style={styles.previewUnavailableText}>
-                    Frame-by-frame preview unavailable
-                  </Text>
-                )}
-              </Pressable>
-
-              <View style={styles.rowActions}>
-                <Pressable
-                  disabled={deletingGameId === game._id}
-                  onPress={() => void onDeleteGame(game._id, gameLabel)}
-                  style={({ pressed }) => [
-                    styles.linkAction,
-                    pressed ? styles.linkActionPressed : null,
-                  ]}
-                >
-                  <Text style={styles.deleteLabel}>
-                    {deletingGameId === game._id ? 'Deleting...' : 'Delete'}
-                  </Text>
-                </Pressable>
-              </View>
-            </Card>
-          );
-        })}
-      </ScrollView>
+      </View>
     </ScreenLayout>
   );
 }
@@ -398,7 +400,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xxl + 72,
+  },
+  screenBody: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

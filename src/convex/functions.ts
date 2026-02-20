@@ -13,6 +13,9 @@ type LeagueDoc = Doc<'leagues'>;
 type SessionDoc = Doc<'sessions'>;
 type GameDoc = Doc<'games'>;
 type FrameDoc = Doc<'frames'>;
+type BallDoc = Doc<'balls'>;
+type PatternDoc = Doc<'patterns'>;
+type HouseDoc = Doc<'houses'>;
 
 export type GameListItem = GameDoc & {
   framePreview?: Array<{
@@ -67,6 +70,7 @@ export const leaguesUpdateMutation = makeFunctionReference<
     leagueId: Id<'leagues'>;
     name: string;
     gamesPerSession?: number | null;
+    houseId?: Id<'houses'> | null;
   },
   Id<'leagues'>
 >('leagues:update');
@@ -93,6 +97,9 @@ export const sessionsCreateMutation = makeFunctionReference<
     leagueId: Id<'leagues'>;
     weekNumber?: number | null;
     date: string;
+    houseId?: Id<'houses'> | null;
+    ballId?: Id<'balls'> | null;
+    patternId?: Id<'patterns'> | null;
   },
   Id<'sessions'>
 >('sessions:create');
@@ -103,6 +110,9 @@ export const sessionsUpdateMutation = makeFunctionReference<
     sessionId: Id<'sessions'>;
     weekNumber?: number | null;
     date: string;
+    houseId?: Id<'houses'> | null;
+    ballId?: Id<'balls'> | null;
+    patternId?: Id<'patterns'> | null;
   },
   Id<'sessions'>
 >('sessions:update');
@@ -130,6 +140,7 @@ export const gamesCreateMutation = makeFunctionReference<
     date: string;
     ballId?: Id<'balls'> | null;
     patternId?: Id<'patterns'> | null;
+    houseId?: Id<'houses'> | null;
   },
   Id<'games'>
 >('games:create');
@@ -149,9 +160,70 @@ export const gamesUpdateMutation = makeFunctionReference<
     date: string;
     ballId?: Id<'balls'> | null;
     patternId?: Id<'patterns'> | null;
+    houseId?: Id<'houses'> | null;
   },
   Id<'games'>
 >('games:update');
+
+export const ballsListQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  BallDoc[]
+>('balls:list');
+
+export const ballsListRecentQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  BallDoc[]
+>('balls:listRecent');
+
+export const ballsCreateMutation = makeFunctionReference<
+  'mutation',
+  {
+    name: string;
+  },
+  Id<'balls'>
+>('balls:create');
+
+export const patternsListQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  PatternDoc[]
+>('patterns:list');
+
+export const patternsListRecentQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  PatternDoc[]
+>('patterns:listRecent');
+
+export const patternsCreateMutation = makeFunctionReference<
+  'mutation',
+  {
+    name: string;
+  },
+  Id<'patterns'>
+>('patterns:create');
+
+export const housesListQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  HouseDoc[]
+>('houses:list');
+
+export const housesListRecentQuery = makeFunctionReference<
+  'query',
+  Record<string, never>,
+  HouseDoc[]
+>('houses:listRecent');
+
+export const housesCreateMutation = makeFunctionReference<
+  'mutation',
+  {
+    name: string;
+  },
+  Id<'houses'>
+>('houses:create');
 
 export const gamesRemoveMutation = makeFunctionReference<
   'mutation',

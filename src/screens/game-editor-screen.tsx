@@ -182,6 +182,7 @@ export default function GameEditorScreen() {
     sessionId?: string | string[];
   }>();
 
+  const leagueId = getFirstParam(params.leagueId);
   const gameIdParam = getFirstParam(params.gameId);
   const isCreateMode = gameIdParam === 'new';
   const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
@@ -208,6 +209,7 @@ export default function GameEditorScreen() {
   const [didHydrate, setDidHydrate] = useState(false);
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
   const [hasSignedInBefore, setHasSignedInBefore] = useState(false);
+  const [isCanonicalizingRoute, setIsCanonicalizingRoute] = useState(false);
 
   const isAutosaveInFlightRef = useRef(false);
   const isQueuedFlushInFlightRef = useRef(false);
@@ -293,6 +295,28 @@ export default function GameEditorScreen() {
     await removeLocalGameDraft(localDraftId);
   }, [localDraftId]);
 
+  const replaceNewRouteWithGameId = useCallback(
+    (nextGameId: GameId) => {
+      if (gameIdParam !== 'new') {
+        return;
+      }
+
+      setIsCanonicalizingRoute(true);
+      navigation.setParams({
+        leagueId: leagueId ?? '',
+        sessionId: sessionId ?? '',
+        gameId: nextGameId,
+      } as never);
+    },
+    [gameIdParam, leagueId, navigation, sessionId]
+  );
+
+  useEffect(() => {
+    if (gameIdParam !== 'new') {
+      setIsCanonicalizingRoute(false);
+    }
+  }, [gameIdParam]);
+
   const flushQueuedSaves = useCallback(async () => {
     if (!isAuthenticated) {
       return;
@@ -340,6 +364,7 @@ export default function GameEditorScreen() {
         }) => {
           if (wasCreated) {
             setDraftGameId(targetGameId);
+            replaceNewRouteWithGameId(targetGameId);
           }
 
           lastSavedSignatureRef.current = JSON.stringify({
@@ -388,6 +413,7 @@ export default function GameEditorScreen() {
     draftGameId,
     gameId,
     isAuthenticated,
+    replaceNewRouteWithGameId,
     replaceFramesForGame,
     sessionId,
     updateGame,
@@ -985,6 +1011,7 @@ export default function GameEditorScreen() {
           if (!nextGameId) {
             nextGameId = await createGame({ sessionId, date: trimmedDate });
             setDraftGameId(nextGameId);
+            replaceNewRouteWithGameId(nextGameId);
           } else {
             await updateGame({ gameId: nextGameId, date: trimmedDate });
           }
@@ -1063,13 +1090,14 @@ export default function GameEditorScreen() {
     hasSignedInBefore,
     isAuthenticated,
     isCreateMode,
+    replaceNewRouteWithGameId,
     replaceFramesForGame,
     sessionId,
     updateGame,
     clearLocalDraft,
   ]);
 
-  if (!isCreateMode && isLoading && !didHydrate) {
+  if (!isCreateMode && isLoading && !didHydrate && !isCanonicalizingRoute) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={colors.accent} />

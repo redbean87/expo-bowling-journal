@@ -3,6 +3,9 @@ import type { Doc, Id } from '../../../convex/_generated/dataModel';
 export type League = Doc<'leagues'>;
 export type Session = Doc<'sessions'>;
 export type Game = Doc<'games'>;
+export type Ball = Doc<'balls'>;
+export type Pattern = Doc<'patterns'>;
+export type House = Doc<'houses'>;
 
 export type FramePreviewItem = {
   text: string;
@@ -33,6 +36,7 @@ export type UpdateLeagueInput = {
   leagueId: LeagueId;
   name: string;
   gamesPerSession?: number | null;
+  houseId?: Id<'houses'> | null;
 };
 
 export type RemoveLeagueInput = {
@@ -43,12 +47,18 @@ export type CreateSessionInput = {
   leagueId: LeagueId;
   weekNumber?: number | null;
   date: string;
+  houseId?: Id<'houses'> | null;
+  ballId?: BallId | null;
+  patternId?: PatternId | null;
 };
 
 export type UpdateSessionInput = {
   sessionId: SessionId;
   weekNumber?: number | null;
   date: string;
+  houseId?: Id<'houses'> | null;
+  ballId?: BallId | null;
+  patternId?: PatternId | null;
 };
 
 export type RemoveSessionInput = {
@@ -60,6 +70,7 @@ export type CreateGameInput = {
   date: string;
   ballId?: BallId | null;
   patternId?: PatternId | null;
+  houseId?: Id<'houses'> | null;
 };
 
 export type RemoveGameInput = {
@@ -71,6 +82,19 @@ export type UpdateGameInput = {
   date: string;
   ballId?: BallId | null;
   patternId?: PatternId | null;
+  houseId?: Id<'houses'> | null;
+};
+
+export type CreateBallInput = {
+  name: string;
+};
+
+export type CreatePatternInput = {
+  name: string;
+};
+
+export type CreateHouseInput = {
+  name: string;
 };
 
 export type EditableFrameInput = {

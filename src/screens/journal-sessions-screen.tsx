@@ -2,14 +2,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
   findSessionIdForDate,
   formatIsoDateLabel,
@@ -20,8 +23,9 @@ import {
 import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { Button, Card, Input } from '@/components/ui';
-import { useLeagues, useSessions } from '@/hooks/journal';
+import { ReferenceCombobox } from '@/components/reference-combobox';
+import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
+import { useLeagues, useReferenceData, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
@@ -33,6 +37,7 @@ function getFirstParam(value: string | string[] | undefined): string | null {
 }
 
 export default function JournalSessionsScreen() {
+  const { width: windowWidth } = useWindowDimensions();
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
@@ -54,18 +59,44 @@ export default function JournalSessionsScreen() {
     new Date().toISOString().slice(0, 10)
   );
   const [sessionWeekNumber, setSessionWeekNumber] = useState('');
+  const [sessionHouseId, setSessionHouseId] = useState<string | null>(null);
+  const [sessionPatternId, setSessionPatternId] = useState<string | null>(null);
+  const [sessionBallId, setSessionBallId] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [sessionActionError, setSessionActionError] = useState<string | null>(
     null
   );
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingSessionDate, setEditingSessionDate] = useState('');
   const [editingSessionWeekNumber, setEditingSessionWeekNumber] = useState('');
+  const [editingSessionHouseId, setEditingSessionHouseId] = useState<
+    string | null
+  >(null);
+  const [editingSessionPatternId, setEditingSessionPatternId] = useState<
+    string | null
+  >(null);
+  const [editingSessionBallId, setEditingSessionBallId] = useState<
+    string | null
+  >(null);
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null
   );
   const hasHandledStartTonightRef = useRef(false);
+  const modalTranslateY = getCreateModalTranslateY(windowWidth);
+  const {
+    ballOptions,
+    patternOptions,
+    houseOptions,
+    recentBallOptions,
+    recentPatternOptions,
+    recentHouseOptions,
+    buildSuggestions,
+    createBall,
+    createPattern,
+    createHouse,
+  } = useReferenceData();
 
   const leagueName = useMemo(() => {
     if (!leagueId) {
@@ -140,8 +171,16 @@ export default function JournalSessionsScreen() {
         leagueId,
         date,
         weekNumber,
+        houseId: sessionHouseId as never,
+        ballId: sessionBallId as never,
+        patternId: sessionPatternId as never,
       });
+      setSessionError(null);
+      setIsCreateModalVisible(false);
       setSessionWeekNumber('');
+      setSessionHouseId(null);
+      setSessionBallId(null);
+      setSessionPatternId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
         params: { leagueId, sessionId } as never,
@@ -156,18 +195,27 @@ export default function JournalSessionsScreen() {
   const startEditingSession = (
     sessionId: string,
     date: string,
-    weekNumber: number | null
+    weekNumber: number | null,
+    houseId: string | null,
+    patternId: string | null,
+    ballId: string | null
   ) => {
     setSessionActionError(null);
     setEditingSessionId(sessionId);
     setEditingSessionDate(date);
     setEditingSessionWeekNumber(weekNumber === null ? '' : String(weekNumber));
+    setEditingSessionHouseId(houseId);
+    setEditingSessionPatternId(patternId);
+    setEditingSessionBallId(ballId);
   };
 
   const cancelEditingSession = () => {
     setEditingSessionId(null);
     setEditingSessionDate('');
     setEditingSessionWeekNumber('');
+    setEditingSessionHouseId(null);
+    setEditingSessionPatternId(null);
+    setEditingSessionBallId(null);
   };
 
   const onSaveSessionEdit = async () => {
@@ -204,6 +252,9 @@ export default function JournalSessionsScreen() {
         sessionId: editingSessionId as SessionId,
         date,
         weekNumber,
+        houseId: editingSessionHouseId as never,
+        patternId: editingSessionPatternId as never,
+        ballId: editingSessionBallId as never,
       });
       cancelEditingSession();
     } catch (caught) {
@@ -308,150 +359,273 @@ export default function JournalSessionsScreen() {
       compact
       chromeless
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.createSection}>
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={setSessionDate}
-            placeholder="YYYY-MM-DD"
-            value={sessionDate}
-          />
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="number-pad"
-            onChangeText={setSessionWeekNumber}
-            placeholder="Week number (optional)"
-            value={sessionWeekNumber}
-          />
-          {sessionError ? (
-            <Text style={styles.errorText}>{sessionError}</Text>
+      <View style={styles.screenBody}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
+          {sessionActionError ? (
+            <Text style={styles.errorText}>{sessionActionError}</Text>
           ) : null}
-          <Button
-            disabled={isCreatingSession || !leagueId}
-            label={isCreatingSession ? 'Creating...' : 'Create session'}
-            onPress={onCreateSession}
-          />
-        </View>
 
-        {sessionActionError ? (
-          <Text style={styles.errorText}>{sessionActionError}</Text>
-        ) : null}
+          {isSessionsLoading ? (
+            <Text style={styles.meta}>Loading sessions...</Text>
+          ) : null}
+          {!isSessionsLoading && !leagueId ? (
+            <Text style={styles.meta}>League not found.</Text>
+          ) : null}
+          {!isSessionsLoading && leagueId && sessions.length === 0 ? (
+            <Text style={styles.meta}>
+              No sessions yet. Tap + to create one.
+            </Text>
+          ) : null}
 
-        {isSessionsLoading ? (
-          <Text style={styles.meta}>Loading sessions...</Text>
-        ) : null}
-        {!isSessionsLoading && !leagueId ? (
-          <Text style={styles.meta}>League not found.</Text>
-        ) : null}
-        {!isSessionsLoading && leagueId && sessions.length === 0 ? (
-          <Text style={styles.meta}>
-            No sessions yet. Create one to continue.
-          </Text>
-        ) : null}
-
-        {sessions.map((session) => (
-          <Card key={session._id} style={styles.rowCard}>
-            <Pressable
-              style={({ pressed }) => [pressed ? styles.rowPressed : null]}
-              onPress={() =>
-                router.push({
-                  pathname:
-                    '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                  params: {
-                    leagueId: leagueId ?? '',
-                    sessionId: session._id,
-                  } as never,
-                } as never)
-              }
-            >
-              <Text style={styles.rowTitle}>
-                {formatSessionWeekLabel(
-                  session.weekNumber ??
-                    derivedWeekNumberBySessionId.get(session._id) ??
-                    1
-                )}
-              </Text>
-              <Text style={styles.meta}>
-                {formatIsoDateLabel(session.date)}
-              </Text>
-            </Pressable>
-
-            <View style={styles.rowActions}>
+          {sessions.map((session) => (
+            <Card key={session._id} style={styles.rowCard}>
               <Pressable
+                style={({ pressed }) => [pressed ? styles.rowPressed : null]}
                 onPress={() =>
-                  startEditingSession(
-                    session._id,
-                    session.date,
-                    session.weekNumber ?? null
-                  )
+                  router.push({
+                    pathname:
+                      '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+                    params: {
+                      leagueId: leagueId ?? '',
+                      sessionId: session._id,
+                    } as never,
+                  } as never)
                 }
-                style={({ pressed }) => [
-                  styles.linkAction,
-                  pressed ? styles.linkActionPressed : null,
-                ]}
               >
-                <Text style={styles.linkActionLabel}>Edit</Text>
-              </Pressable>
-              <Pressable
-                disabled={deletingSessionId === session._id}
-                onPress={() => void onDeleteSession(session._id, session.date)}
-                style={({ pressed }) => [
-                  styles.linkAction,
-                  pressed ? styles.linkActionPressed : null,
-                ]}
-              >
-                <Text style={styles.deleteLabel}>
-                  {deletingSessionId === session._id ? 'Deleting...' : 'Delete'}
+                <Text style={styles.rowTitle}>
+                  {formatSessionWeekLabel(
+                    session.weekNumber ??
+                      derivedWeekNumberBySessionId.get(session._id) ??
+                      1
+                  )}
+                </Text>
+                <Text style={styles.meta}>
+                  {formatIsoDateLabel(session.date)}
                 </Text>
               </Pressable>
-            </View>
 
-            {editingSessionId === session._id ? (
-              <View style={styles.editSection}>
-                <Input
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  onChangeText={setEditingSessionDate}
-                  placeholder="YYYY-MM-DD"
-                  value={editingSessionDate}
-                />
-                <Input
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="number-pad"
-                  onChangeText={setEditingSessionWeekNumber}
-                  placeholder="Week number (optional)"
-                  value={editingSessionWeekNumber}
-                />
-                <View style={styles.editActionsRow}>
-                  <View style={styles.editActionButton}>
-                    <Button
-                      disabled={isSavingSessionEdit}
-                      label={isSavingSessionEdit ? 'Saving...' : 'Save'}
-                      onPress={() => void onSaveSessionEdit()}
-                      variant="secondary"
-                    />
-                  </View>
-                  <View style={styles.editActionButton}>
-                    <Button
-                      disabled={isSavingSessionEdit}
-                      label="Cancel"
-                      onPress={cancelEditingSession}
-                      variant="ghost"
-                    />
+              <View style={styles.rowActions}>
+                <Pressable
+                  onPress={() =>
+                    startEditingSession(
+                      session._id,
+                      session.date,
+                      session.weekNumber ?? null,
+                      session.houseId ? String(session.houseId) : null,
+                      session.patternId ? String(session.patternId) : null,
+                      session.ballId ? String(session.ballId) : null
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.linkAction,
+                    pressed ? styles.linkActionPressed : null,
+                  ]}
+                >
+                  <Text style={styles.linkActionLabel}>Edit</Text>
+                </Pressable>
+                <Pressable
+                  disabled={deletingSessionId === session._id}
+                  onPress={() =>
+                    void onDeleteSession(session._id, session.date)
+                  }
+                  style={({ pressed }) => [
+                    styles.linkAction,
+                    pressed ? styles.linkActionPressed : null,
+                  ]}
+                >
+                  <Text style={styles.deleteLabel}>
+                    {deletingSessionId === session._id
+                      ? 'Deleting...'
+                      : 'Delete'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {editingSessionId === session._id ? (
+                <View style={styles.editSection}>
+                  <Input
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onChangeText={setEditingSessionDate}
+                    placeholder="YYYY-MM-DD"
+                    value={editingSessionDate}
+                  />
+                  <Input
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="number-pad"
+                    onChangeText={setEditingSessionWeekNumber}
+                    placeholder="Week number (optional)"
+                    value={editingSessionWeekNumber}
+                  />
+                  <ReferenceCombobox
+                    allOptions={houseOptions}
+                    createLabel="Add house"
+                    getSuggestions={buildSuggestions}
+                    onQuickAdd={createHouse}
+                    onSelect={(option) => setEditingSessionHouseId(option.id)}
+                    placeholder="House (optional)"
+                    recentOptions={recentHouseOptions}
+                    valueId={editingSessionHouseId}
+                  />
+                  <ReferenceCombobox
+                    allOptions={patternOptions}
+                    createLabel="Add pattern"
+                    getSuggestions={buildSuggestions}
+                    onQuickAdd={createPattern}
+                    onSelect={(option) => setEditingSessionPatternId(option.id)}
+                    placeholder="Pattern (optional)"
+                    recentOptions={recentPatternOptions}
+                    valueId={editingSessionPatternId}
+                  />
+                  <ReferenceCombobox
+                    allOptions={ballOptions}
+                    createLabel="Add ball"
+                    getSuggestions={buildSuggestions}
+                    onQuickAdd={createBall}
+                    onSelect={(option) => setEditingSessionBallId(option.id)}
+                    placeholder="Ball (optional)"
+                    recentOptions={recentBallOptions}
+                    valueId={editingSessionBallId}
+                  />
+                  <View style={styles.editActionsRow}>
+                    <View style={styles.editActionButton}>
+                      <Button
+                        disabled={isSavingSessionEdit}
+                        label={isSavingSessionEdit ? 'Saving...' : 'Save'}
+                        onPress={() => void onSaveSessionEdit()}
+                        variant="secondary"
+                      />
+                    </View>
+                    <View style={styles.editActionButton}>
+                      <Button
+                        disabled={isSavingSessionEdit}
+                        label="Cancel"
+                        onPress={cancelEditingSession}
+                        variant="ghost"
+                      />
+                    </View>
                   </View>
                 </View>
+              ) : null}
+            </Card>
+          ))}
+        </ScrollView>
+
+        <FloatingActionButton
+          accessibilityLabel="Create session"
+          disabled={!leagueId}
+          onPress={() => {
+            setSessionError(null);
+            setIsCreateModalVisible(true);
+          }}
+        />
+
+        <Modal
+          animationType="slide"
+          transparent
+          visible={isCreateModalVisible}
+          onRequestClose={() => setIsCreateModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalBackdropHitbox}
+              onPress={() => setIsCreateModalVisible(false)}
+            />
+            <View
+              style={[
+                styles.modalCard,
+                { transform: [{ translateY: modalTranslateY }] },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create session</Text>
+                <Pressable
+                  accessibilityLabel="Close create session dialog"
+                  accessibilityRole="button"
+                  onPress={() => setIsCreateModalVisible(false)}
+                  style={({ pressed }) => [
+                    styles.modalCloseButton,
+                    pressed ? styles.modalCloseButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.modalCloseLabel}>X</Text>
+                </Pressable>
               </View>
-            ) : null}
-          </Card>
-        ))}
-      </ScrollView>
+              <Input
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setSessionDate}
+                placeholder="YYYY-MM-DD"
+                value={sessionDate}
+              />
+              <Input
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="number-pad"
+                onChangeText={setSessionWeekNumber}
+                placeholder="Week number (optional)"
+                value={sessionWeekNumber}
+              />
+              <ReferenceCombobox
+                allOptions={houseOptions}
+                createLabel="Add house"
+                getSuggestions={buildSuggestions}
+                onQuickAdd={createHouse}
+                onSelect={(option) => setSessionHouseId(option.id)}
+                placeholder="House (optional)"
+                recentOptions={recentHouseOptions}
+                valueId={sessionHouseId}
+              />
+              <ReferenceCombobox
+                allOptions={patternOptions}
+                createLabel="Add pattern"
+                getSuggestions={buildSuggestions}
+                onQuickAdd={createPattern}
+                onSelect={(option) => setSessionPatternId(option.id)}
+                placeholder="Pattern (optional)"
+                recentOptions={recentPatternOptions}
+                valueId={sessionPatternId}
+              />
+              <ReferenceCombobox
+                allOptions={ballOptions}
+                createLabel="Add ball"
+                getSuggestions={buildSuggestions}
+                onQuickAdd={createBall}
+                onSelect={(option) => setSessionBallId(option.id)}
+                placeholder="Ball (optional)"
+                recentOptions={recentBallOptions}
+                valueId={sessionBallId}
+              />
+              {sessionError ? (
+                <Text style={styles.errorText}>{sessionError}</Text>
+              ) : null}
+              <View style={styles.modalActions}>
+                <View style={styles.modalActionButton}>
+                  <Button
+                    disabled={isCreatingSession || !leagueId}
+                    label={isCreatingSession ? 'Creating...' : 'Create'}
+                    onPress={onCreateSession}
+                    variant="secondary"
+                  />
+                </View>
+                <View style={styles.modalActionButton}>
+                  <Button
+                    disabled={isCreatingSession}
+                    label="Cancel"
+                    onPress={() => setIsCreateModalVisible(false)}
+                    variant="ghost"
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </ScreenLayout>
   );
 }
@@ -461,7 +635,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xxl + 72,
+  },
+  screenBody: {
+    flex: 1,
   },
   scroll: {
     flex: 1,
@@ -469,9 +646,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: typeScale.bodySm,
     color: colors.danger,
-  },
-  createSection: {
-    gap: spacing.sm,
   },
   rowTitle: {
     fontSize: typeScale.body,
@@ -524,5 +698,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
     gap: spacing.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(26, 31, 43, 0.35)',
+  },
+  modalBackdropHitbox: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 520,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: typeScale.titleSm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCloseButtonPressed: {
+    opacity: 0.8,
+  },
+  modalCloseLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  modalActionButton: {
+    flex: 1,
   },
 });
