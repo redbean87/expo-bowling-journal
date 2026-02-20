@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:web": "npx expo export --platform web",
-    "deploy:web": "eas deploy --environment preview",
+    "deploy:web": "eas deploy --environment preview --alias dev",
     "deploy:web:prod": "eas deploy --prod --environment production",
     "convex:dev": "convex dev",
     "convex:codegen": "convex codegen",

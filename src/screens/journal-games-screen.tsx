@@ -142,6 +142,17 @@ export default function JournalGamesScreen() {
   );
   const displayGames = useMemo(() => toOldestFirstGames(games), [games]);
 
+  const openGameEditor = (gameId: string) => {
+    router.push({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+      params: {
+        leagueId: leagueId ?? '',
+        sessionId: sessionId ?? '',
+        gameId,
+      },
+    });
+  };
+
   const confirmDeleteGame = async (label: string) => {
     const message = `Delete ${label} and all frame entries?`;
 
@@ -296,17 +307,7 @@ export default function JournalGamesScreen() {
             <Card key={game._id} style={styles.rowCard}>
               <Pressable
                 style={({ pressed }) => [pressed ? styles.rowPressed : null]}
-                onPress={() =>
-                  router.push({
-                    pathname:
-                      '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-                    params: {
-                      leagueId: leagueId ?? '',
-                      sessionId: sessionId ?? '',
-                      gameId: game._id,
-                    },
-                  })
-                }
+                onPress={() => openGameEditor(game._id)}
               >
                 <Text style={styles.rowTitle}>
                   {gameLabel} - {game.totalScore}
@@ -375,7 +376,7 @@ export default function JournalGamesScreen() {
                   disabled={deletingGameId === game._id}
                   onPress={() => void onDeleteGame(game._id, gameLabel)}
                   style={({ pressed }) => [
-                    styles.deleteAction,
+                    styles.linkAction,
                     pressed ? styles.linkActionPressed : null,
                   ]}
                 >
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: 2,
   },
-  deleteAction: {
+  linkAction: {
     paddingVertical: spacing.xs,
     paddingHorizontal: 0,
   },
