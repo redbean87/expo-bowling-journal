@@ -52,7 +52,6 @@ export const create = mutation({
     date: v.string(),
     ballId: v.optional(v.union(v.id('balls'), v.null())),
     patternId: v.optional(v.union(v.id('patterns'), v.null())),
-    houseId: v.optional(v.union(v.id('houses'), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -78,14 +77,6 @@ export const create = mutation({
       }
     }
 
-    if (args.houseId) {
-      const house = await ctx.db.get(args.houseId);
-
-      if (!house) {
-        throw new ConvexError('House not found');
-      }
-    }
-
     return ctx.db.insert('games', {
       userId,
       sessionId: args.sessionId,
@@ -97,7 +88,6 @@ export const create = mutation({
       opens: 0,
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
-      houseId: args.houseId ?? null,
       framePreview: buildGameFramePreview([]),
     });
   },
@@ -164,7 +154,6 @@ export const update = mutation({
     date: v.string(),
     ballId: v.optional(v.union(v.id('balls'), v.null())),
     patternId: v.optional(v.union(v.id('patterns'), v.null())),
-    houseId: v.optional(v.union(v.id('houses'), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -190,19 +179,10 @@ export const update = mutation({
       }
     }
 
-    if (args.houseId) {
-      const house = await ctx.db.get(args.houseId);
-
-      if (!house) {
-        throw new ConvexError('House not found');
-      }
-    }
-
     await ctx.db.patch(args.gameId, {
       date: args.date,
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
-      houseId: args.houseId ?? null,
     });
 
     return args.gameId;

@@ -30,23 +30,8 @@ export const listRecent = query({
       .query('sessions')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
-    const games = await ctx.db
-      .query('games')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
 
     const byId = new Map<string, { id: string; usedAt: number }>();
-
-    for (const game of games) {
-      if (!game.houseId) {
-        continue;
-      }
-
-      byId.set(String(game.houseId), {
-        id: String(game.houseId),
-        usedAt: game._creationTime,
-      });
-    }
 
     for (const session of sessions) {
       if (!session.houseId) {

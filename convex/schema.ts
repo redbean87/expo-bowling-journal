@@ -51,7 +51,6 @@ export default defineSchema({
     opens: v.number(),
     ballId: v.optional(v.union(v.id('balls'), v.null())),
     patternId: v.optional(v.union(v.id('patterns'), v.null())),
-    houseId: v.optional(v.union(v.id('houses'), v.null())),
     handicap: v.optional(v.union(v.number(), v.null())),
     notes: v.optional(v.union(v.string(), v.null())),
     laneContext: v.optional(

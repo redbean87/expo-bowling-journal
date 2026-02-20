@@ -140,7 +140,6 @@ export const gamesCreateMutation = makeFunctionReference<
     date: string;
     ballId?: Id<'balls'> | null;
     patternId?: Id<'patterns'> | null;
-    houseId?: Id<'houses'> | null;
   },
   Id<'games'>
 >('games:create');
@@ -160,7 +159,6 @@ export const gamesUpdateMutation = makeFunctionReference<
     date: string;
     ballId?: Id<'balls'> | null;
     patternId?: Id<'patterns'> | null;
-    houseId?: Id<'houses'> | null;
   },
   Id<'games'>
 >('games:update');

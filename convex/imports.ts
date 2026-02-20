@@ -1491,7 +1491,6 @@ async function runSqliteSnapshotImportCore(
       patternId: row.patternFk
         ? (patternIdMap.get(row.patternFk) ?? null)
         : null,
-      houseId: row.houseFk ? (houseIdMap.get(row.houseFk) ?? null) : null,
       handicap: null,
       notes: null,
       laneContext: null,

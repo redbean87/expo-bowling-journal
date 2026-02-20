@@ -22,7 +22,6 @@ function createGame(overrides: Partial<Game>): Game {
     opens: 0,
     ballId: null,
     patternId: null,
-    houseId: null,
     handicap: null,
     notes: null,
     laneContext: null,

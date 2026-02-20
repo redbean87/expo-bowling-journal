@@ -70,7 +70,6 @@ export type CreateGameInput = {
   date: string;
   ballId?: BallId | null;
   patternId?: PatternId | null;
-  houseId?: Id<'houses'> | null;
 };
 
 export type RemoveGameInput = {
@@ -82,7 +81,6 @@ export type UpdateGameInput = {
   date: string;
   ballId?: BallId | null;
   patternId?: PatternId | null;
-  houseId?: Id<'houses'> | null;
 };
 
 export type CreateBallInput = {
