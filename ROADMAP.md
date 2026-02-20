@@ -13,7 +13,7 @@ This roadmap keeps work scoped to small, precise commits.
 ## Later
 
 - [ ] Queue + sync status UX for weak-signal bowling alleys
-- [ ] Polish reference selectors with clearer combobox affordances (picker cue, recent/matches grouping, smoother dropdown reveal)
+- [ ] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
 - [ ] Design and implement custom app header/footer navigation shell
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
@@ -67,6 +67,10 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Persist game frame previews on write paths and backfill existing games to remove list-query N+1 frame reads
 - [x] Enable offline game capture after prior sign-in with queue-first saves and reconnect sync, including duplicate-create prevention
 - [x] Add league/session edit and cascade delete flows with game-level delete controls
+- [x] Add FAB-first create UX across journal screens (league/session modal create, game quick-start create)
+- [x] Add reference selectors with inline quick add and top-10 recent suggestions for leagues and sessions
+- [x] Add optional game details section for pattern/ball metadata with hidden-by-default toggle
+- [x] Remove game-level house from schema, mutations, imports, and client game contracts (house now league/session scoped)
 
 ## Decision Log
 
