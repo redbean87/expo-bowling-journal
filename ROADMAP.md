@@ -8,9 +8,10 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Next
 
-- [ ] Simplify game entry interactions for one-hand use (bigger targets, fewer fields)
-- [ ] Reduce game-entry feedback noise while keeping autosave/error recovery clear
 - [ ] Offline-first game capture with prior sign-in requirement
+
+## Later
+
 - [ ] Queue + sync status UX for weak-signal bowling alleys
 - [ ] Design and implement custom app header/footer navigation shell
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
@@ -18,9 +19,6 @@ This roadmap keeps work scoped to small, precise commits.
 - [ ] Data export and backup tooling
 - [ ] Split preview/production Convex deployments for web hosting environments
 - [ ] Add CI automation for Expo web preview/production deploys
-
-## Later
-
 - [ ] Team/coach sharing model
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 
@@ -63,6 +61,9 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add persistent offline autosave queue for game editor (durable storage + retry/backoff + foreground flush)
 - [x] Sanitize frame 10 bonus-roll state during edits to prevent stale roll-3 validation noise
 - [x] Configure Expo web deployment on EAS Hosting (preview + production) with production-only import access
+- [x] Improve one-hand game entry ergonomics (larger footer actions, denser frame strip targeting, reduced pin-deck travel)
+- [x] Reduce game-editor autosave feedback noise to queued/sync/error-only status
+- [x] Persist game frame previews on write paths and backfill existing games to remove list-query N+1 frame reads
 
 ## Decision Log
 
