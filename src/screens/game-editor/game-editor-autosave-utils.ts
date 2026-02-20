@@ -8,6 +8,7 @@ import type { EditableFrameInput } from '@/services/journal';
 
 type AutosaveGuardInput = {
   isAuthenticated: boolean;
+  hasSignedInBefore?: boolean;
   date: string;
   frameDrafts: FrameDraft[];
   isCreateMode: boolean;
@@ -46,15 +47,16 @@ export function hasAnyFrameValue(frameDrafts: FrameDraft[]): boolean {
 
 export function buildAutosaveGuardResult({
   isAuthenticated,
+  hasSignedInBefore = false,
   date,
   frameDrafts,
   isCreateMode,
   currentGameId,
 }: AutosaveGuardInput): AutosaveGuardResult {
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !hasSignedInBefore) {
     return {
       status: 'blocked',
-      message: 'Sign in to auto-save changes.',
+      message: 'Sign in once online before using offline capture.',
     };
   }
 

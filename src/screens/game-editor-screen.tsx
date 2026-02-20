@@ -49,6 +49,7 @@ import {
 
 import type { GameId, SessionId } from '@/services/journal';
 
+import { loadHasSignedInBefore } from '@/auth/prior-sign-in-storage';
 import { Button } from '@/components/ui';
 import { useGameEditor } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
@@ -191,6 +192,7 @@ export default function GameEditorScreen() {
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
   const [didHydrate, setDidHydrate] = useState(false);
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
+  const [hasSignedInBefore, setHasSignedInBefore] = useState(false);
 
   const isAutosaveInFlightRef = useRef(false);
   const isQueuedFlushInFlightRef = useRef(false);
@@ -243,7 +245,37 @@ export default function GameEditorScreen() {
     setActiveField(field);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateSignInHistory = async () => {
+      const hasSignedIn = await loadHasSignedInBefore();
+
+      if (isMounted) {
+        setHasSignedInBefore(hasSignedIn);
+      }
+    };
+
+    void hydrateSignInHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    setHasSignedInBefore(true);
+  }, [isAuthenticated]);
+
   const flushQueuedSaves = useCallback(async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
       return;
     }
@@ -361,6 +393,7 @@ export default function GameEditorScreen() {
     createGame,
     draftGameId,
     gameId,
+    isAuthenticated,
     replaceFramesForGame,
     sessionId,
     updateGame,
@@ -704,7 +737,7 @@ export default function GameEditorScreen() {
     }
 
     const persist = async () => {
-      if (isAutosaveInFlightRef.current) {
+      if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
         hasQueuedAutosaveRef.current = true;
         return;
       }
@@ -719,6 +752,7 @@ export default function GameEditorScreen() {
 
       const autosavePlan = buildAutosaveGuardResult({
         isAuthenticated,
+        hasSignedInBefore,
         date,
         frameDrafts: sanitizedDrafts,
         isCreateMode,
@@ -750,7 +784,46 @@ export default function GameEditorScreen() {
       saveSequenceRef.current = saveSequence;
       let attemptedGameId = activeGameId;
 
+      const queueEntryForLocalSave = async () => {
+        const queueSessionId = sessionId ?? game?.sessionId;
+
+        if (!queueSessionId) {
+          return false;
+        }
+
+        const now = Date.now();
+        const queueEntry = createQueuedGameSaveEntry(
+          {
+            sessionId: String(queueSessionId),
+            gameId: attemptedGameId ? String(attemptedGameId) : null,
+            date: trimmedDate,
+            frames: payloadFrames,
+            signature,
+          },
+          now
+        );
+        const queueEntries = upsertQueuedGameSaveEntry(
+          await loadGameSaveQueue(),
+          queueEntry
+        );
+
+        await persistGameSaveQueue(queueEntries);
+
+        if (saveSequenceRef.current === saveSequence) {
+          setAutosaveState('queued');
+          setAutosaveError(null);
+        }
+
+        return true;
+      };
+
       try {
+        if (!isAuthenticated && hasSignedInBefore) {
+          if (await queueEntryForLocalSave()) {
+            return;
+          }
+        }
+
         let nextGameId = activeGameId;
 
         if (isCreateMode) {
@@ -803,32 +876,7 @@ export default function GameEditorScreen() {
           caught instanceof Error ? caught.message : 'Unable to save game.';
 
         if (isRetryableSaveError(caught)) {
-          const queueSessionId = sessionId ?? game?.sessionId;
-
-          if (queueSessionId) {
-            const now = Date.now();
-            const queueEntry = createQueuedGameSaveEntry(
-              {
-                sessionId: String(queueSessionId),
-                gameId: attemptedGameId ? String(attemptedGameId) : null,
-                date: trimmedDate,
-                frames: payloadFrames,
-                signature,
-              },
-              now
-            );
-            const queueEntries = upsertQueuedGameSaveEntry(
-              await loadGameSaveQueue(),
-              queueEntry
-            );
-
-            await persistGameSaveQueue(queueEntries);
-
-            if (saveSequenceRef.current === saveSequence) {
-              setAutosaveState('queued');
-              setAutosaveError(null);
-            }
-
+          if (await queueEntryForLocalSave()) {
             return;
           }
         }
@@ -859,6 +907,7 @@ export default function GameEditorScreen() {
     draftGameId,
     frameDrafts,
     game,
+    hasSignedInBefore,
     isAuthenticated,
     isCreateMode,
     replaceFramesForGame,

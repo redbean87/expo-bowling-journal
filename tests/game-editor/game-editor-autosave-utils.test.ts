@@ -24,9 +24,10 @@ function withFrame(
   return next;
 }
 
-test('blocks autosave when user is not authenticated', () => {
+test('blocks autosave when user has never signed in', () => {
   const result = buildAutosaveGuardResult({
     isAuthenticated: false,
+    hasSignedInBefore: false,
     date: '2026-02-12',
     frameDrafts: EMPTY_FRAMES,
     isCreateMode: true,
@@ -35,8 +36,25 @@ test('blocks autosave when user is not authenticated', () => {
 
   assert.deepEqual(result, {
     status: 'blocked',
-    message: 'Sign in to auto-save changes.',
+    message: 'Sign in once online before using offline capture.',
   });
+});
+
+test('allows autosave when user signed in previously but is currently offline', () => {
+  const frameDrafts = withFrame(0, {
+    roll1Mask: 0x3ff,
+  });
+
+  const result = buildAutosaveGuardResult({
+    isAuthenticated: false,
+    hasSignedInBefore: true,
+    date: '2026-02-12',
+    frameDrafts,
+    isCreateMode: true,
+    currentGameId: null,
+  });
+
+  assert.equal(result.status, 'ready');
 });
 
 test('blocks autosave when date is empty', () => {

@@ -1,8 +1,9 @@
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
-import { ConvexReactClient } from 'convex/react';
-import { PropsWithChildren } from 'react';
+import { ConvexReactClient, useConvexAuth } from 'convex/react';
+import { PropsWithChildren, useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { persistHasSignedInBefore } from '@/auth/prior-sign-in-storage';
 import { tokenStorage } from '@/auth/token-storage';
 import { env } from '@/config/env';
 import { PreferencesProvider } from '@/providers/preferences-provider';
@@ -14,9 +15,24 @@ export function AppProvider({ children }: PropsWithChildren) {
     <SafeAreaProvider>
       <PreferencesProvider>
         <ConvexAuthProvider client={convex} storage={tokenStorage}>
+          <SignInHistoryTracker />
           {children}
         </ConvexAuthProvider>
       </PreferencesProvider>
     </SafeAreaProvider>
   );
+}
+
+function SignInHistoryTracker() {
+  const { isAuthenticated } = useConvexAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    void persistHasSignedInBefore();
+  }, [isAuthenticated]);
+
+  return null;
 }
