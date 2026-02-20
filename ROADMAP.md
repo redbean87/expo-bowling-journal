@@ -13,6 +13,7 @@ This roadmap keeps work scoped to small, precise commits.
 ## Later
 
 - [ ] Queue + sync status UX for weak-signal bowling alleys
+- [ ] Polish reference selectors with clearer combobox affordances (picker cue, recent/matches grouping, smoother dropdown reveal)
 - [ ] Design and implement custom app header/footer navigation shell
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
@@ -86,3 +87,4 @@ This roadmap keeps work scoped to small, precise commits.
 - Import edge cases from older SQLite variants may require mapping adjustments
 - Final analytics scope may change after core journaling flows are stable
 - Offline queue conflict semantics should stay simple for single-user, single-device use (latest local edit wins)
+- Houses and patterns remain global tables for now; selector UX should prioritize user-recent usage without changing global storage scope
