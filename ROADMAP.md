@@ -8,7 +8,7 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Next
 
-- [ ] Offline-first game capture with prior sign-in requirement
+- [ ] Queue + sync error UX for weak-signal bowling alleys (silent happy path)
 
 ## Later
 
@@ -64,6 +64,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Improve one-hand game entry ergonomics (larger footer actions, denser frame strip targeting, reduced pin-deck travel)
 - [x] Reduce game-editor autosave feedback noise to queued/sync/error-only status
 - [x] Persist game frame previews on write paths and backfill existing games to remove list-query N+1 frame reads
+- [x] Enable offline game capture after prior sign-in with queue-first saves and reconnect sync, including duplicate-create prevention
 
 ## Decision Log
 
