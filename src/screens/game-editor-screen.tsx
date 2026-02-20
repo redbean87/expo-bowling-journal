@@ -221,14 +221,6 @@ export default function GameEditorScreen() {
   const shortcutLabel =
     activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
   const autosaveMessage = useMemo(() => {
-    if (autosaveState === 'queued') {
-      return 'Saved locally. Will sync when online.';
-    }
-
-    if (autosaveState === 'syncingQueued') {
-      return 'Syncing offline saves...';
-    }
-
     if (autosaveState === 'error') {
       if (autosaveError && autosaveError === frameRuleError) {
         return '';
