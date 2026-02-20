@@ -127,12 +127,7 @@ export function markQueuedGameSaveEntryRetry(
 }
 
 export function isRetryableSaveError(caught: unknown): boolean {
-  const message =
-    caught instanceof Error
-      ? caught.message
-      : typeof caught === 'string'
-        ? caught
-        : '';
+  const message = getSaveErrorMessage(caught);
 
   if (!message) {
     return false;
@@ -162,4 +157,52 @@ export function isRetryableSaveError(caught: unknown): boolean {
     normalized.includes('econn') ||
     normalized.includes('temporarily unavailable')
   );
+}
+
+function getSaveErrorMessage(caught: unknown): string {
+  if (caught instanceof Error) {
+    return caught.message;
+  }
+
+  if (typeof caught === 'string') {
+    return caught;
+  }
+
+  return '';
+}
+
+export function getActionableSaveErrorMessage(caught: unknown): string | null {
+  const message = getSaveErrorMessage(caught).trim();
+
+  if (message.length === 0) {
+    return 'Unable to save game. Keep editing to retry.';
+  }
+
+  const normalized = message.toLowerCase();
+
+  if (isRetryableSaveError(caught)) {
+    return null;
+  }
+
+  if (
+    normalized.includes('unauthorized') ||
+    normalized.includes('forbidden') ||
+    normalized.includes('token') ||
+    normalized.includes('auth') ||
+    normalized.includes('sign in') ||
+    normalized.includes('sign-in')
+  ) {
+    return 'Session expired. Sign in again to continue syncing.';
+  }
+
+  if (
+    normalized.includes('required') ||
+    normalized.includes('invalid') ||
+    normalized.includes('must ') ||
+    normalized.includes('not found')
+  ) {
+    return message;
+  }
+
+  return 'Unable to save game. Keep editing to retry.';
 }

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
+  getActionableSaveErrorMessage,
   getDueQueuedGameSaveEntries,
   isRetryableSaveError,
   markQueuedGameSaveEntryRetry,
@@ -183,4 +184,32 @@ test('isRetryableSaveError identifies network failures only', () => {
     false
   );
   assert.equal(isRetryableSaveError(new Error('Game not found.')), false);
+});
+
+test('getActionableSaveErrorMessage hides retryable weak-signal failures', () => {
+  assert.equal(
+    getActionableSaveErrorMessage(new Error('Network request failed')),
+    null
+  );
+});
+
+test('getActionableSaveErrorMessage maps auth failures to sign-in guidance', () => {
+  assert.equal(
+    getActionableSaveErrorMessage(new Error('Unauthorized')),
+    'Session expired. Sign in again to continue syncing.'
+  );
+});
+
+test('getActionableSaveErrorMessage keeps validation errors actionable', () => {
+  assert.equal(
+    getActionableSaveErrorMessage(new Error('Date is required to save.')),
+    'Date is required to save.'
+  );
+});
+
+test('getActionableSaveErrorMessage uses fallback for unknown failures', () => {
+  assert.equal(
+    getActionableSaveErrorMessage(new Error('Unexpected server response')),
+    'Unable to save game. Keep editing to retry.'
+  );
 });

@@ -8,7 +8,7 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Next
 
-- [ ] Queue + sync error UX for weak-signal bowling alleys (silent happy path)
+- [x] Queue + sync error UX for weak-signal bowling alleys (silent happy path)
 
 ## Later
 

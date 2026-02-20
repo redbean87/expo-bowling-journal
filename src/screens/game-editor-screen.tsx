@@ -32,20 +32,26 @@ import {
   type RollField,
 } from './game-editor/game-editor-frame-utils';
 import {
+  loadLocalGameDraft,
+  removeLocalGameDraft,
+  upsertLocalGameDraft,
+} from './game-editor/game-local-draft-storage';
+import { shouldRestoreLocalDraft } from './game-editor/game-local-draft-utils';
+import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
-  getDueQueuedGameSaveEntries,
+  getActionableSaveErrorMessage,
   isRetryableSaveError,
-  markQueuedGameSaveEntryRetry,
-  migrateQueuedEntryToGameId,
-  removeQueuedGameSaveEntry,
-  replaceQueuedGameSaveEntry,
   upsertQueuedGameSaveEntry,
 } from './game-editor/game-save-queue';
 import {
   loadGameSaveQueue,
   persistGameSaveQueue,
 } from './game-editor/game-save-queue-storage';
+import {
+  flushQueuedGameSavesWithLock,
+  isQueuedGameSaveFlushInFlight,
+} from './game-editor/game-save-queue-sync';
 
 import type { GameId, SessionId } from '@/services/journal';
 
@@ -114,6 +120,15 @@ function buildPersistedSignature(
   } catch {
     return null;
   }
+}
+
+function hasAnyFrameDraftValue(frameDrafts: FrameDraft[]) {
+  return frameDrafts.some(
+    (frame) =>
+      frame.roll1Mask !== null ||
+      frame.roll2Mask !== null ||
+      frame.roll3Mask !== null
+  );
 }
 
 function getDefaultMaskForField(
@@ -205,6 +220,13 @@ export default function GameEditorScreen() {
     () => (isCreateMode ? 'Add Game' : 'Edit Game'),
     [isCreateMode]
   );
+  const localDraftId = useMemo(() => {
+    if (!sessionId) {
+      return null;
+    }
+
+    return buildGameSaveQueueId(String(sessionId), gameId);
+  }, [gameId, sessionId]);
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
@@ -263,6 +285,14 @@ export default function GameEditorScreen() {
     setHasSignedInBefore(true);
   }, [isAuthenticated]);
 
+  const clearLocalDraft = useCallback(async () => {
+    if (!localDraftId) {
+      return;
+    }
+
+    await removeLocalGameDraft(localDraftId);
+  }, [localDraftId]);
+
   const flushQueuedSaves = useCallback(async () => {
     if (!isAuthenticated) {
       return;
@@ -275,8 +305,10 @@ export default function GameEditorScreen() {
     isQueuedFlushInFlightRef.current = true;
 
     try {
-      let queueEntries = await loadGameSaveQueue();
-      const dueEntries = getDueQueuedGameSaveEntries(queueEntries, Date.now());
+      const queueEntries = await loadGameSaveQueue();
+      const dueEntries = queueEntries
+        .filter((entry) => entry.nextRetryAt <= Date.now())
+        .sort((left, right) => left.updatedAt - right.updatedAt);
 
       if (dueEntries.length === 0) {
         return;
@@ -286,90 +318,59 @@ export default function GameEditorScreen() {
         currentState === 'saving' ? currentState : 'syncingQueued'
       );
 
-      for (const dueEntry of dueEntries) {
-        let queueEntry = dueEntry;
+      const activeQueueIds = new Set<string>();
 
-        try {
-          let targetGameId = queueEntry.gameId;
+      if (sessionId) {
+        const activeSessionId = String(sessionId);
+        activeQueueIds.add(
+          buildGameSaveQueueId(activeSessionId, draftGameId ?? gameId)
+        );
+        activeQueueIds.add(buildGameSaveQueueId(activeSessionId, null));
+      }
 
-          if (!targetGameId) {
-            const createdGameId = await createGame({
-              sessionId: queueEntry.sessionId as SessionId,
-              date: queueEntry.date,
-            });
-            const now = Date.now();
-
-            queueEntry = migrateQueuedEntryToGameId(
-              queueEntry,
-              createdGameId,
-              now
-            );
-            queueEntries = replaceQueuedGameSaveEntry(
-              queueEntries,
-              dueEntry.queueId,
-              queueEntry
-            );
-            await persistGameSaveQueue(queueEntries);
-            targetGameId = createdGameId;
-            setDraftGameId(createdGameId);
-          } else {
-            await updateGame({
-              gameId: targetGameId as GameId,
-              date: queueEntry.date,
-            });
+      const { remainingEntries } = await flushQueuedGameSavesWithLock({
+        createGame,
+        updateGame,
+        replaceFramesForGame,
+        onEntrySynced: ({
+          entry,
+          originalQueueId,
+          targetGameId,
+          wasCreated,
+        }) => {
+          if (wasCreated) {
+            setDraftGameId(targetGameId);
           }
-
-          await replaceFramesForGame({
-            gameId: targetGameId as GameId,
-            frames: queueEntry.frames,
-          });
-
-          queueEntries = removeQueuedGameSaveEntry(
-            queueEntries,
-            queueEntry.queueId
-          );
-          await persistGameSaveQueue(queueEntries);
 
           lastSavedSignatureRef.current = JSON.stringify({
             gameId: targetGameId,
-            date: queueEntry.date,
-            frames: queueEntry.frames,
+            date: entry.date,
+            frames: entry.frames,
           });
 
           if (
             sessionId &&
-            queueEntry.queueId ===
-              buildGameSaveQueueId(String(sessionId), draftGameId ?? gameId)
+            (activeQueueIds.has(entry.queueId) ||
+              activeQueueIds.has(originalQueueId))
           ) {
             setAutosaveError(null);
             setAutosaveState('saved');
+            void clearLocalDraft();
           }
-        } catch (caught) {
-          const errorMessage =
-            caught instanceof Error
-              ? caught.message
-              : 'Unable to sync saved game.';
+        },
+        onEntryFailedNonRetryable: ({ entry, originalQueueId, error }) => {
+          const actionableMessage = getActionableSaveErrorMessage(error);
 
-          if (!isRetryableSaveError(caught)) {
-            queueEntries = removeQueuedGameSaveEntry(
-              queueEntries,
-              queueEntry.queueId
-            );
-            await persistGameSaveQueue(queueEntries);
-            continue;
+          if (
+            actionableMessage &&
+            (activeQueueIds.has(entry.queueId) ||
+              activeQueueIds.has(originalQueueId))
+          ) {
+            setAutosaveState('error');
+            setAutosaveError(actionableMessage);
           }
-
-          queueEntries = markQueuedGameSaveEntryRetry(
-            queueEntries,
-            queueEntry.queueId,
-            errorMessage,
-            Date.now()
-          );
-          await persistGameSaveQueue(queueEntries);
-        }
-      }
-
-      const remainingEntries = await loadGameSaveQueue();
+        },
+      });
 
       if (remainingEntries.length > 0) {
         setAutosaveState('queued');
@@ -382,6 +383,7 @@ export default function GameEditorScreen() {
       isQueuedFlushInFlightRef.current = false;
     }
   }, [
+    clearLocalDraft,
     createGame,
     draftGameId,
     gameId,
@@ -422,45 +424,197 @@ export default function GameEditorScreen() {
       return;
     }
 
-    if (isCreateMode) {
-      setDate(new Date().toISOString().slice(0, 10));
-      setActiveFrameIndex(0);
-      setActiveField('roll1Mask');
-      setDraftGameId(null);
+    let cancelled = false;
+
+    const hydrateEditor = async () => {
+      if (isCreateMode) {
+        const defaultDate = new Date().toISOString().slice(0, 10);
+        const defaultDrafts = EMPTY_FRAMES;
+        const incomingServerSignature = buildSyncSignature(
+          null,
+          defaultDate,
+          defaultDrafts
+        );
+        let nextDate = defaultDate;
+        let nextDrafts = defaultDrafts;
+
+        if (localDraftId) {
+          const localDraft = await loadLocalGameDraft(localDraftId);
+
+          if (localDraft) {
+            const sanitizedDate = normalizeDateValue(localDraft.date);
+            const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
+              localDraft.frameDrafts
+            );
+            const localSignature = buildSyncSignature(
+              null,
+              sanitizedDate,
+              sanitizedDrafts
+            );
+
+            if (
+              shouldRestoreLocalDraft({
+                isCreateMode: true,
+                incomingServerSignature,
+                localDraftSignature: localSignature,
+                localDraftBaseServerSignature: localDraft.baseServerSignature,
+              })
+            ) {
+              nextDate = sanitizedDate;
+              nextDrafts = sanitizedDrafts;
+            }
+          }
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
+        const suggestedField = getPreferredRollField(
+          suggestedFrameIndex,
+          nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
+        );
+
+        setDate(nextDate);
+        setFrameDrafts(nextDrafts);
+        setActiveFrameIndex(suggestedFrameIndex);
+        setActiveField(suggestedField);
+        setDraftGameId(null);
+        lastAppliedServerSignatureRef.current = incomingServerSignature;
+        lastSavedSignatureRef.current = buildPersistedSignature(
+          null,
+          defaultDate,
+          defaultDrafts
+        );
+        setDidHydrate(true);
+        return;
+      }
+
+      if (!game || frames === undefined) {
+        return;
+      }
+
+      const hydratedDrafts = toFrameDrafts(frames);
+      const { drafts: incomingDrafts } =
+        sanitizeFrameDraftsForEntry(hydratedDrafts);
+      const incomingDate = normalizeDateValue(game.date);
+      const incomingServerSignature = buildSyncSignature(
+        gameId,
+        incomingDate,
+        incomingDrafts
+      );
+      let nextDate = incomingDate;
+      let nextDrafts = incomingDrafts;
+
+      if (localDraftId) {
+        const localDraft = await loadLocalGameDraft(localDraftId);
+
+        if (localDraft) {
+          const sanitizedDate = normalizeDateValue(localDraft.date);
+          const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
+            localDraft.frameDrafts
+          );
+          const localSignature = buildSyncSignature(
+            gameId,
+            sanitizedDate,
+            sanitizedDrafts
+          );
+
+          if (
+            shouldRestoreLocalDraft({
+              isCreateMode: false,
+              incomingServerSignature,
+              localDraftSignature: localSignature,
+              localDraftBaseServerSignature: localDraft.baseServerSignature,
+            })
+          ) {
+            nextDate = sanitizedDate;
+            nextDrafts = sanitizedDrafts;
+          } else if (localSignature === incomingServerSignature) {
+            void removeLocalGameDraft(localDraftId);
+          }
+        }
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
+      const suggestedField = getPreferredRollField(
+        suggestedFrameIndex,
+        nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
+      );
+
+      setDate(nextDate);
+      setFrameDrafts(nextDrafts);
+      setActiveFrameIndex(suggestedFrameIndex);
+      setActiveField(suggestedField);
+      setDraftGameId(gameId);
+      lastAppliedServerSignatureRef.current = incomingServerSignature;
+      lastSavedSignatureRef.current = buildPersistedSignature(
+        gameId,
+        incomingDate,
+        incomingDrafts
+      );
       setDidHydrate(true);
+    };
+
+    void hydrateEditor();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [didHydrate, frames, game, gameId, isCreateMode, localDraftId]);
+
+  useEffect(() => {
+    if (!didHydrate || !localDraftId) {
       return;
     }
 
-    if (!game || frames === undefined) {
-      return;
-    }
+    let cancelled = false;
 
-    const hydratedDrafts = toFrameDrafts(frames);
-    const { drafts: nextDrafts } = sanitizeFrameDraftsForEntry(hydratedDrafts);
-    const hydratedDate = normalizeDateValue(game.date);
-    const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
-    const suggestedField = getPreferredRollField(
-      suggestedFrameIndex,
-      nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
-    );
+    const timer = setTimeout(() => {
+      void (async () => {
+        const normalizedDate = normalizeDateValue(date);
+        const { drafts: sanitizedDrafts } =
+          sanitizeFrameDraftsForEntry(frameDrafts);
+        const currentSignature = buildSyncSignature(
+          gameId,
+          normalizedDate,
+          sanitizedDrafts
+        );
+        const baselineSignature = lastAppliedServerSignatureRef.current;
 
-    setDate(hydratedDate);
-    setFrameDrafts(nextDrafts);
-    setActiveFrameIndex(suggestedFrameIndex);
-    setActiveField(suggestedField);
-    setDraftGameId(gameId);
-    lastAppliedServerSignatureRef.current = buildSyncSignature(
-      gameId,
-      hydratedDate,
-      nextDrafts
-    );
-    lastSavedSignatureRef.current = buildPersistedSignature(
-      gameId,
-      hydratedDate,
-      nextDrafts
-    );
-    setDidHydrate(true);
-  }, [didHydrate, frames, game, gameId, isCreateMode]);
+        if (
+          currentSignature === baselineSignature ||
+          (isCreateMode && !hasAnyFrameDraftValue(sanitizedDrafts))
+        ) {
+          await removeLocalGameDraft(localDraftId);
+          return;
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        await upsertLocalGameDraft({
+          draftId: localDraftId,
+          date: normalizedDate,
+          frameDrafts: sanitizedDrafts,
+          signature: currentSignature,
+          baseServerSignature: baselineSignature,
+          updatedAt: Date.now(),
+        });
+      })();
+    }, 50);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [date, didHydrate, frameDrafts, gameId, isCreateMode, localDraftId]);
 
   useEffect(() => {
     if (!didHydrate || isCreateMode || !game || frames === undefined) {
@@ -734,6 +888,11 @@ export default function GameEditorScreen() {
         return;
       }
 
+      if (isQueuedGameSaveFlushInFlight()) {
+        hasQueuedAutosaveRef.current = true;
+        return;
+      }
+
       const activeGameId = draftGameId;
       const { drafts: sanitizedDrafts, changed } =
         sanitizeFrameDraftsForEntry(frameDrafts);
@@ -857,6 +1016,7 @@ export default function GameEditorScreen() {
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('saved');
           setAutosaveError(null);
+          void clearLocalDraft();
           lastAppliedServerSignatureRef.current = buildSyncSignature(
             nextGameId,
             trimmedDate,
@@ -864,8 +1024,7 @@ export default function GameEditorScreen() {
           );
         }
       } catch (caught) {
-        const errorMessage =
-          caught instanceof Error ? caught.message : 'Unable to save game.';
+        const actionableMessage = getActionableSaveErrorMessage(caught);
 
         if (isRetryableSaveError(caught)) {
           if (await queueEntryForLocalSave()) {
@@ -875,7 +1034,9 @@ export default function GameEditorScreen() {
 
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('error');
-          setAutosaveError(errorMessage);
+          setAutosaveError(
+            actionableMessage ?? 'Unable to save game. Keep editing to retry.'
+          );
         }
       } finally {
         isAutosaveInFlightRef.current = false;
@@ -905,6 +1066,7 @@ export default function GameEditorScreen() {
     replaceFramesForGame,
     sessionId,
     updateGame,
+    clearLocalDraft,
   ]);
 
   if (!isCreateMode && isLoading && !didHydrate) {
