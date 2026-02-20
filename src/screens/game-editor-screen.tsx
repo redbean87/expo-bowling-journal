@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
+  LayoutAnimation,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -56,8 +58,9 @@ import {
 import type { GameId, SessionId } from '@/services/journal';
 
 import { loadHasSignedInBefore } from '@/auth/prior-sign-in-storage';
+import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button } from '@/components/ui';
-import { useGameEditor } from '@/hooks/journal';
+import { useGameEditor, useReferenceData } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
@@ -95,19 +98,25 @@ function maskHasPin(mask: number, pinNumber: number) {
 function buildSyncSignature(
   gameId: GameId | null,
   date: string,
-  frameDrafts: FrameDraft[]
+  frameDrafts: FrameDraft[],
+  patternId: string | null,
+  ballId: string | null
 ) {
   return JSON.stringify({
     gameId,
     date: date.trim(),
     frameDrafts,
+    patternId,
+    ballId,
   });
 }
 
 function buildPersistedSignature(
   gameId: GameId | null,
   date: string,
-  frameDrafts: FrameDraft[]
+  frameDrafts: FrameDraft[],
+  patternId: string | null,
+  ballId: string | null
 ) {
   try {
     const payloadFrames = buildFramesPayload(frameDrafts);
@@ -116,6 +125,8 @@ function buildPersistedSignature(
       gameId: gameId ?? 'new',
       date: date.trim(),
       frames: payloadFrames,
+      patternId,
+      ballId,
     });
   } catch {
     return null;
@@ -210,6 +221,11 @@ export default function GameEditorScreen() {
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
   const [hasSignedInBefore, setHasSignedInBefore] = useState(false);
   const [isCanonicalizingRoute, setIsCanonicalizingRoute] = useState(false);
+  const [selectedPatternId, setSelectedPatternId] = useState<string | null>(
+    null
+  );
+  const [selectedBallId, setSelectedBallId] = useState<string | null>(null);
+  const [isDetailsVisible, setIsDetailsVisible] = useState(false);
 
   const isAutosaveInFlightRef = useRef(false);
   const isQueuedFlushInFlightRef = useRef(false);
@@ -217,6 +233,15 @@ export default function GameEditorScreen() {
   const lastSavedSignatureRef = useRef<string | null>(null);
   const lastAppliedServerSignatureRef = useRef<string | null>(null);
   const saveSequenceRef = useRef(0);
+  const {
+    ballOptions,
+    patternOptions,
+    recentBallOptions,
+    recentPatternOptions,
+    buildSuggestions,
+    createBall,
+    createPattern,
+  } = useReferenceData();
 
   const screenTitle = useMemo(
     () => (isCreateMode ? 'Add Game' : 'Edit Game'),
@@ -456,13 +481,19 @@ export default function GameEditorScreen() {
       if (isCreateMode) {
         const defaultDate = new Date().toISOString().slice(0, 10);
         const defaultDrafts = EMPTY_FRAMES;
+        const defaultPatternId = null;
+        const defaultBallId = null;
         const incomingServerSignature = buildSyncSignature(
           null,
           defaultDate,
-          defaultDrafts
+          defaultDrafts,
+          defaultPatternId,
+          defaultBallId
         );
         let nextDate = defaultDate;
         let nextDrafts = defaultDrafts;
+        let nextPatternId: string | null = defaultPatternId;
+        let nextBallId: string | null = defaultBallId;
 
         if (localDraftId) {
           const localDraft = await loadLocalGameDraft(localDraftId);
@@ -475,7 +506,9 @@ export default function GameEditorScreen() {
             const localSignature = buildSyncSignature(
               null,
               sanitizedDate,
-              sanitizedDrafts
+              sanitizedDrafts,
+              localDraft.patternId,
+              localDraft.ballId
             );
 
             if (
@@ -488,6 +521,8 @@ export default function GameEditorScreen() {
             ) {
               nextDate = sanitizedDate;
               nextDrafts = sanitizedDrafts;
+              nextPatternId = localDraft.patternId;
+              nextBallId = localDraft.ballId;
             }
           }
         }
@@ -504,6 +539,8 @@ export default function GameEditorScreen() {
 
         setDate(nextDate);
         setFrameDrafts(nextDrafts);
+        setSelectedPatternId(nextPatternId);
+        setSelectedBallId(nextBallId);
         setActiveFrameIndex(suggestedFrameIndex);
         setActiveField(suggestedField);
         setDraftGameId(null);
@@ -511,7 +548,9 @@ export default function GameEditorScreen() {
         lastSavedSignatureRef.current = buildPersistedSignature(
           null,
           defaultDate,
-          defaultDrafts
+          defaultDrafts,
+          defaultPatternId,
+          defaultBallId
         );
         setDidHydrate(true);
         return;
@@ -528,10 +567,14 @@ export default function GameEditorScreen() {
       const incomingServerSignature = buildSyncSignature(
         gameId,
         incomingDate,
-        incomingDrafts
+        incomingDrafts,
+        game.patternId ? String(game.patternId) : null,
+        game.ballId ? String(game.ballId) : null
       );
       let nextDate = incomingDate;
       let nextDrafts = incomingDrafts;
+      let nextPatternId = game.patternId ? String(game.patternId) : null;
+      let nextBallId = game.ballId ? String(game.ballId) : null;
 
       if (localDraftId) {
         const localDraft = await loadLocalGameDraft(localDraftId);
@@ -544,7 +587,9 @@ export default function GameEditorScreen() {
           const localSignature = buildSyncSignature(
             gameId,
             sanitizedDate,
-            sanitizedDrafts
+            sanitizedDrafts,
+            localDraft.patternId,
+            localDraft.ballId
           );
 
           if (
@@ -557,6 +602,8 @@ export default function GameEditorScreen() {
           ) {
             nextDate = sanitizedDate;
             nextDrafts = sanitizedDrafts;
+            nextPatternId = localDraft.patternId;
+            nextBallId = localDraft.ballId;
           } else if (localSignature === incomingServerSignature) {
             void removeLocalGameDraft(localDraftId);
           }
@@ -575,6 +622,8 @@ export default function GameEditorScreen() {
 
       setDate(nextDate);
       setFrameDrafts(nextDrafts);
+      setSelectedPatternId(nextPatternId);
+      setSelectedBallId(nextBallId);
       setActiveFrameIndex(suggestedFrameIndex);
       setActiveField(suggestedField);
       setDraftGameId(gameId);
@@ -582,7 +631,9 @@ export default function GameEditorScreen() {
       lastSavedSignatureRef.current = buildPersistedSignature(
         gameId,
         incomingDate,
-        incomingDrafts
+        incomingDrafts,
+        game.patternId ? String(game.patternId) : null,
+        game.ballId ? String(game.ballId) : null
       );
       setDidHydrate(true);
     };
@@ -609,7 +660,9 @@ export default function GameEditorScreen() {
         const currentSignature = buildSyncSignature(
           gameId,
           normalizedDate,
-          sanitizedDrafts
+          sanitizedDrafts,
+          selectedPatternId,
+          selectedBallId
         );
         const baselineSignature = lastAppliedServerSignatureRef.current;
 
@@ -629,6 +682,8 @@ export default function GameEditorScreen() {
           draftId: localDraftId,
           date: normalizedDate,
           frameDrafts: sanitizedDrafts,
+          patternId: selectedPatternId,
+          ballId: selectedBallId,
           signature: currentSignature,
           baseServerSignature: baselineSignature,
           updatedAt: Date.now(),
@@ -640,7 +695,16 @@ export default function GameEditorScreen() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [date, didHydrate, frameDrafts, gameId, isCreateMode, localDraftId]);
+  }, [
+    date,
+    didHydrate,
+    frameDrafts,
+    gameId,
+    isCreateMode,
+    localDraftId,
+    selectedBallId,
+    selectedPatternId,
+  ]);
 
   useEffect(() => {
     if (!didHydrate || isCreateMode || !game || frames === undefined) {
@@ -654,7 +718,9 @@ export default function GameEditorScreen() {
     const incomingSignature = buildSyncSignature(
       gameId,
       incomingDate,
-      incomingDrafts
+      incomingDrafts,
+      game.patternId ? String(game.patternId) : null,
+      game.ballId ? String(game.ballId) : null
     );
 
     if (incomingSignature === lastAppliedServerSignatureRef.current) {
@@ -662,7 +728,13 @@ export default function GameEditorScreen() {
     }
 
     const { drafts: localDrafts } = sanitizeFrameDraftsForEntry(frameDrafts);
-    const localSignature = buildSyncSignature(gameId, date, localDrafts);
+    const localSignature = buildSyncSignature(
+      gameId,
+      date,
+      localDrafts,
+      selectedPatternId,
+      selectedBallId
+    );
 
     if (localSignature === incomingSignature) {
       lastAppliedServerSignatureRef.current = incomingSignature;
@@ -676,11 +748,15 @@ export default function GameEditorScreen() {
     if (isLocalClean) {
       setDate(incomingDate);
       setFrameDrafts(incomingDrafts);
+      setSelectedPatternId(game.patternId ? String(game.patternId) : null);
+      setSelectedBallId(game.ballId ? String(game.ballId) : null);
       lastAppliedServerSignatureRef.current = incomingSignature;
       lastSavedSignatureRef.current = buildPersistedSignature(
         gameId,
         incomingDate,
-        incomingDrafts
+        incomingDrafts,
+        game.patternId ? String(game.patternId) : null,
+        game.ballId ? String(game.ballId) : null
       );
     }
   }, [
@@ -692,6 +768,8 @@ export default function GameEditorScreen() {
     game,
     gameId,
     isCreateMode,
+    selectedBallId,
+    selectedPatternId,
   ]);
 
   useEffect(() => {
@@ -903,6 +981,14 @@ export default function GameEditorScreen() {
     commitActiveRoll(activeRollMask);
   };
 
+  const onToggleDetails = () => {
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+
+    setIsDetailsVisible((current) => !current);
+  };
+
   useEffect(() => {
     if (!didHydrate) {
       return;
@@ -949,7 +1035,13 @@ export default function GameEditorScreen() {
 
       const { trimmedDate, payloadFrames, signature } = autosavePlan;
 
-      if (signature === lastSavedSignatureRef.current) {
+      const saveSignature = JSON.stringify({
+        signature,
+        patternId: selectedPatternId,
+        ballId: selectedBallId,
+      });
+
+      if (saveSignature === lastSavedSignatureRef.current) {
         setAutosaveState('saved');
         return;
       }
@@ -975,7 +1067,7 @@ export default function GameEditorScreen() {
             gameId: attemptedGameId ? String(attemptedGameId) : null,
             date: trimmedDate,
             frames: payloadFrames,
-            signature,
+            signature: saveSignature,
           },
           now
         );
@@ -1009,18 +1101,33 @@ export default function GameEditorScreen() {
           }
 
           if (!nextGameId) {
-            nextGameId = await createGame({ sessionId, date: trimmedDate });
+            nextGameId = await createGame({
+              sessionId,
+              date: trimmedDate,
+              patternId: selectedPatternId as never,
+              ballId: selectedBallId as never,
+            });
             setDraftGameId(nextGameId);
             replaceNewRouteWithGameId(nextGameId);
           } else {
-            await updateGame({ gameId: nextGameId, date: trimmedDate });
+            await updateGame({
+              gameId: nextGameId,
+              date: trimmedDate,
+              patternId: selectedPatternId as never,
+              ballId: selectedBallId as never,
+            });
           }
         } else {
           if (!nextGameId) {
             throw new Error('Game not found.');
           }
 
-          await updateGame({ gameId: nextGameId, date: trimmedDate });
+          await updateGame({
+            gameId: nextGameId,
+            date: trimmedDate,
+            patternId: selectedPatternId as never,
+            ballId: selectedBallId as never,
+          });
         }
 
         if (!nextGameId) {
@@ -1038,6 +1145,8 @@ export default function GameEditorScreen() {
           gameId: nextGameId,
           date: trimmedDate,
           frames: payloadFrames,
+          patternId: selectedPatternId,
+          ballId: selectedBallId,
         });
 
         if (saveSequenceRef.current === saveSequence) {
@@ -1047,7 +1156,9 @@ export default function GameEditorScreen() {
           lastAppliedServerSignatureRef.current = buildSyncSignature(
             nextGameId,
             trimmedDate,
-            sanitizedDrafts
+            sanitizedDrafts,
+            selectedPatternId,
+            selectedBallId
           );
         }
       } catch (caught) {
@@ -1095,6 +1206,8 @@ export default function GameEditorScreen() {
     sessionId,
     updateGame,
     clearLocalDraft,
+    selectedBallId,
+    selectedPatternId,
   ]);
 
   if (!isCreateMode && isLoading && !didHydrate && !isCanonicalizingRoute) {
@@ -1116,6 +1229,45 @@ export default function GameEditorScreen() {
           layoutMode={scoreboardLayout}
           onSelectFrame={onSelectFrame}
         />
+
+        <View style={styles.detailsSection}>
+          <Pressable
+            onPress={onToggleDetails}
+            style={({ pressed }) => [
+              styles.detailsToggle,
+              pressed ? styles.detailsTogglePressed : null,
+            ]}
+          >
+            <Text style={styles.detailsToggleLabel}>
+              {isDetailsVisible ? 'Hide details' : 'Add details'}
+            </Text>
+          </Pressable>
+
+          {isDetailsVisible ? (
+            <View style={styles.detailsFields}>
+              <ReferenceCombobox
+                allOptions={patternOptions}
+                createLabel="Add pattern"
+                getSuggestions={buildSuggestions}
+                onQuickAdd={createPattern}
+                onSelect={(option) => setSelectedPatternId(option.id)}
+                placeholder="Pattern (optional)"
+                recentOptions={recentPatternOptions}
+                valueId={selectedPatternId}
+              />
+              <ReferenceCombobox
+                allOptions={ballOptions}
+                createLabel="Add ball"
+                getSuggestions={buildSuggestions}
+                onQuickAdd={createBall}
+                onSelect={(option) => setSelectedBallId(option.id)}
+                placeholder="Ball (optional)"
+                recentOptions={recentBallOptions}
+                valueId={selectedBallId}
+              />
+            </View>
+          ) : null}
+        </View>
 
         <ActiveFrameCard
           activeRollMask={activeRollMask}
@@ -1162,6 +1314,25 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     gap: spacing.sm,
     paddingBottom: spacing.sm,
+  },
+  detailsSection: {
+    gap: spacing.xs,
+  },
+  detailsToggle: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  detailsTogglePressed: {
+    opacity: 0.75,
+  },
+  detailsToggleLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.accent,
+  },
+  detailsFields: {
+    gap: spacing.xs,
   },
   loadingContainer: {
     flex: 1,

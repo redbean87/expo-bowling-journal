@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
@@ -38,6 +38,8 @@ export function ReferenceCombobox({
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const dropdownOpacity = useRef(new Animated.Value(0)).current;
+  const dropdownTranslateY = useRef(new Animated.Value(-4)).current;
 
   const selected = useMemo(
     () => allOptions.find((option) => option.id === valueId) ?? null,
@@ -58,26 +60,56 @@ export function ReferenceCombobox({
       (option) => normalizeName(option.label) === normalizedQuery
     );
   }, [allOptions, query]);
+  const hasQuery = query.trim().length > 0;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dropdownOpacity, {
+        toValue: isOpen ? 1 : 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dropdownTranslateY, {
+        toValue: isOpen ? 0 : -4,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [dropdownOpacity, dropdownTranslateY, isOpen]);
 
   return (
     <View style={styles.container}>
-      <Input
-        autoCapitalize="words"
-        autoCorrect={false}
-        onBlur={() => {
-          setTimeout(() => setIsOpen(false), 120);
-        }}
-        onChangeText={(nextValue) => {
-          setQuery(nextValue);
-          setIsOpen(true);
-        }}
-        onFocus={() => setIsOpen(true)}
-        placeholder={placeholder}
-        value={isOpen ? query : (selected?.label ?? query)}
-      />
+      <View style={styles.inputShell}>
+        <Input
+          autoCapitalize="words"
+          autoCorrect={false}
+          onBlur={() => {
+            setTimeout(() => setIsOpen(false), 120);
+          }}
+          onChangeText={(nextValue) => {
+            setQuery(nextValue);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          value={isOpen ? query : (selected?.label ?? query)}
+        />
+        <Text style={styles.chevron}>v</Text>
+      </View>
 
       {isOpen ? (
-        <View style={styles.dropdown}>
+        <Animated.View
+          style={[
+            styles.dropdown,
+            {
+              opacity: dropdownOpacity,
+              transform: [{ translateY: dropdownTranslateY }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionLabel}>
+            {hasQuery ? 'Matches' : 'Recent'}
+          </Text>
           {suggestions.map((option) => (
             <Pressable
               key={option.id}
@@ -100,7 +132,11 @@ export function ReferenceCombobox({
             </Pressable>
           ))}
 
-          {query.trim().length > 0 ? (
+          {suggestions.length === 0 ? (
+            <Text style={styles.emptyText}>No matches yet.</Text>
+          ) : null}
+
+          {hasQuery ? (
             <Pressable
               disabled={isCreating}
               onPress={() => {
@@ -133,7 +169,7 @@ export function ReferenceCombobox({
           {hasExactMatch ? (
             <Text style={styles.hintText}>Existing match available.</Text>
           ) : null}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -143,6 +179,17 @@ const styles = StyleSheet.create({
   container: {
     gap: spacing.xs,
   },
+  inputShell: {
+    position: 'relative',
+  },
+  chevron: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: 11,
+    fontSize: typeScale.bodySm,
+    color: colors.textSecondary,
+    pointerEvents: 'none',
+  },
   dropdown: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -150,6 +197,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     maxHeight: 220,
     overflow: 'hidden',
+  },
+  sectionLabel: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    fontSize: typeScale.bodySm,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   option: {
     paddingVertical: spacing.sm,
@@ -178,6 +233,12 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.accent,
+  },
+  emptyText: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    fontSize: typeScale.bodySm,
+    color: colors.textSecondary,
   },
   hintText: {
     paddingHorizontal: spacing.md,

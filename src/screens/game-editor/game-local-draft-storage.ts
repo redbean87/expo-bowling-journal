@@ -11,6 +11,9 @@ export type LocalGameDraftEntry = {
   draftId: string;
   date: string;
   frameDrafts: FrameDraft[];
+  houseId?: string | null;
+  patternId: string | null;
+  ballId: string | null;
   signature: string;
   baseServerSignature: string | null;
   updatedAt: number;
@@ -44,6 +47,11 @@ function isLocalGameDraftEntry(value: unknown): value is LocalGameDraftEntry {
     typeof candidate.draftId === 'string' &&
     typeof candidate.date === 'string' &&
     isFrameDraftArray(candidate.frameDrafts) &&
+    (typeof candidate.houseId === 'string' ||
+      candidate.houseId === null ||
+      candidate.houseId === undefined) &&
+    (typeof candidate.patternId === 'string' || candidate.patternId === null) &&
+    (typeof candidate.ballId === 'string' || candidate.ballId === null) &&
     typeof candidate.signature === 'string' &&
     (typeof candidate.baseServerSignature === 'string' ||
       candidate.baseServerSignature === null) &&
