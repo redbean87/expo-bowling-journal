@@ -26,6 +26,7 @@ export function ScreenLayout({
       style={[
         styles.container,
         fillCard ? styles.containerTop : null,
+        hideHeader ? styles.containerTop : null,
         compact ? styles.containerCompact : null,
       ]}
     >

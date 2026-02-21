@@ -34,7 +34,10 @@ export function AppTabBar({
 
   return (
     <View
-      style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}
+      style={[
+        styles.container,
+        { paddingBottom: Math.max(insets.bottom, spacing.sm) },
+      ]}
     >
       <View style={styles.row}>
         {state.routes.map((route, index) => {
@@ -104,32 +107,43 @@ export function AppTabBar({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSubtle,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderStrong,
     paddingTop: spacing.xs,
+    elevation: 8,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
   },
   row: {
     flexDirection: 'row',
+    paddingHorizontal: spacing.xs,
+    gap: spacing.xs,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     gap: spacing.xs,
-    minHeight: 44,
+    minHeight: 48,
+    borderRadius: 12,
   },
   tabFocused: {
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.accentMuted,
   },
   tabPressed: {
     opacity: 0.85,
   },
   indicator: {
-    width: 22,
-    height: 3,
+    width: 26,
+    height: 4,
     borderRadius: 99,
   },
   indicatorVisible: {
@@ -140,12 +154,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typeScale.bodySm,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   labelFocused: {
     color: colors.accent,
   },
   labelUnfocused: {
-    color: colors.textSecondary,
+    color: colors.textPrimary,
+    opacity: 0.72,
   },
 });

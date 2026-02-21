@@ -65,37 +65,48 @@ export function AppHeader({ navigation, options, route }: AppHeaderProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSubtle,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderStrong,
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
   },
   row: {
-    minHeight: 56,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
   },
   sideSlot: {
-    width: 40,
+    width: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
   backButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   backButtonPressed: {
     backgroundColor: colors.accentMuted,
   },
   backButtonLabel: {
-    fontSize: 24,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 16,
     color: colors.textPrimary,
-    fontWeight: '400',
+    fontWeight: '600',
   },
   title: {
     flex: 1,
