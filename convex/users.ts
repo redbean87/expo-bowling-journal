@@ -11,11 +11,20 @@ export const viewer = queryGeneric({
       return null;
     }
 
+    const user = await ctx.db.get(userId);
+
+    const resolvedEmail =
+      identity.email ??
+      user?.email ??
+      (identity.tokenIdentifier.includes('@')
+        ? identity.tokenIdentifier
+        : null);
+
     return {
       userId,
       subject: identity.subject,
       name: identity.name ?? null,
-      email: identity.email ?? null,
+      email: resolvedEmail,
     };
   },
 });
