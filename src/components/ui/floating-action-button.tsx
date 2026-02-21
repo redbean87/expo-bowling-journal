@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 
 type FloatingActionButtonProps = {
   onPress: () => void;
@@ -26,7 +27,7 @@ export function FloatingActionButton({
           disabled ? styles.disabled : null,
         ]}
       >
-        <Text style={styles.plusLabel}>+</Text>
+        <MaterialIcons name="add" size={28} color={colors.accentText} />
       </Pressable>
     </View>
   );
@@ -53,13 +54,6 @@ const styles = StyleSheet.create({
       height: 4,
     },
     elevation: 6,
-  },
-  plusLabel: {
-    color: colors.accentText,
-    fontSize: typeScale.hero,
-    lineHeight: typeScale.hero,
-    fontWeight: '500',
-    marginTop: -2,
   },
   pressed: {
     opacity: 0.85,

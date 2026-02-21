@@ -33,6 +33,7 @@
     "@auth/core": "^0.37.4",
     "@convex-dev/auth": "^0.0.90",
     "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "babel-preset-expo": "~54.0.10",
     "convex": "^1.31.7",

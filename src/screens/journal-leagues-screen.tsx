@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
+  ActionSheetIOS,
   Alert,
   Modal,
   Platform,
@@ -77,6 +79,13 @@ function formatRetryTime(timestamp: number | null, now: number) {
   return `in ${String(hours)}h`;
 }
 
+type LeagueActionTarget = {
+  leagueId: string;
+  name: string;
+  gamesPerSession: number | null;
+  houseId: string | null;
+};
+
 export default function JournalLeaguesScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const router = useRouter();
@@ -105,6 +114,9 @@ export default function JournalLeaguesScreen() {
   >(null);
   const [isSavingLeagueEdit, setIsSavingLeagueEdit] = useState(false);
   const [deletingLeagueId, setDeletingLeagueId] = useState<string | null>(null);
+  const [isLeagueActionsVisible, setIsLeagueActionsVisible] = useState(false);
+  const [leagueActionTarget, setLeagueActionTarget] =
+    useState<LeagueActionTarget | null>(null);
   const [isSyncStatusVisible, setIsSyncStatusVisible] = useState(false);
   const defaultLeagueId = leagues[0]?._id ?? null;
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
@@ -309,6 +321,90 @@ export default function JournalLeaguesScreen() {
     }
   };
 
+  const closeLeagueActions = () => {
+    setIsLeagueActionsVisible(false);
+    setLeagueActionTarget(null);
+  };
+
+  const runLeagueAction = (
+    action: 'quick-start' | 'edit' | 'delete',
+    target: LeagueActionTarget
+  ) => {
+    if (action === 'quick-start') {
+      startLeagueNight(target.leagueId);
+      return;
+    }
+
+    if (action === 'edit') {
+      startEditingLeague(
+        target.leagueId,
+        target.name,
+        target.gamesPerSession,
+        target.houseId
+      );
+      return;
+    }
+
+    void onDeleteLeague(target.leagueId, target.name);
+  };
+
+  const openLeagueActions = (target: LeagueActionTarget) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Quick start', 'Edit league', 'Delete league', 'Cancel'],
+          cancelButtonIndex: 3,
+          destructiveButtonIndex: 2,
+          title: target.name,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            runLeagueAction('quick-start', target);
+            return;
+          }
+
+          if (buttonIndex === 1) {
+            runLeagueAction('edit', target);
+            return;
+          }
+
+          if (buttonIndex === 2) {
+            runLeagueAction('delete', target);
+          }
+        }
+      );
+
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      Alert.alert(target.name, undefined, [
+        {
+          text: 'Quick start',
+          onPress: () => runLeagueAction('quick-start', target),
+        },
+        {
+          text: 'Edit league',
+          onPress: () => runLeagueAction('edit', target),
+        },
+        {
+          text: 'Delete league',
+          style: 'destructive',
+          onPress: () => runLeagueAction('delete', target),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+
+      return;
+    }
+
+    setLeagueActionTarget(target);
+    setIsLeagueActionsVisible(true);
+  };
+
   return (
     <ScreenLayout
       title="Journal"
@@ -369,59 +465,45 @@ export default function JournalLeaguesScreen() {
                 editingLeagueId === league._id ? styles.rowCardActive : null,
               ]}
             >
-              <Pressable
-                onPress={() => navigateToLeagueSessions(league._id)}
-                style={({ pressed }) => [
-                  styles.leagueContent,
-                  pressed ? styles.leagueContentPressed : null,
-                ]}
-              >
-                <Text style={styles.rowTitle}>{league.name}</Text>
-                <Text style={styles.meta}>
-                  {league.houseName ?? 'No house set'}
-                </Text>
-                <Text style={styles.meta}>
-                  Target games: {league.gamesPerSession ?? 'Not set'}
-                </Text>
-              </Pressable>
-
-              <View style={styles.rowActions}>
+              <View style={styles.rowHeader}>
                 <Pressable
-                  onPress={() => startLeagueNight(league._id)}
+                  onPress={() => navigateToLeagueSessions(league._id)}
                   style={({ pressed }) => [
-                    styles.quickStartLink,
-                    pressed ? styles.quickStartLinkPressed : null,
+                    styles.leagueContent,
+                    pressed ? styles.leagueContentPressed : null,
                   ]}
                 >
-                  <Text style={styles.quickStartLabel}>Quick start</Text>
+                  <Text style={styles.rowTitle}>{league.name}</Text>
+                  <Text style={styles.meta}>
+                    {league.houseName ?? 'No house set'}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Target games: {league.gamesPerSession ?? 'Not set'}
+                  </Text>
                 </Pressable>
+
                 <Pressable
+                  accessibilityLabel={`League actions for ${league.name}`}
+                  disabled={deletingLeagueId === league._id}
+                  hitSlop={8}
                   onPress={() =>
-                    startEditingLeague(
-                      league._id,
-                      league.name,
-                      league.gamesPerSession ?? null,
-                      league.houseId ? String(league.houseId) : null
-                    )
+                    openLeagueActions({
+                      leagueId: league._id,
+                      name: league.name,
+                      gamesPerSession: league.gamesPerSession ?? null,
+                      houseId: league.houseId ? String(league.houseId) : null,
+                    })
                   }
                   style={({ pressed }) => [
-                    styles.quickStartLink,
-                    pressed ? styles.quickStartLinkPressed : null,
+                    styles.menuButton,
+                    pressed ? styles.menuButtonPressed : null,
                   ]}
                 >
-                  <Text style={styles.quickStartLabel}>Edit</Text>
-                </Pressable>
-                <Pressable
-                  disabled={deletingLeagueId === league._id}
-                  onPress={() => void onDeleteLeague(league._id, league.name)}
-                  style={({ pressed }) => [
-                    styles.quickStartLink,
-                    pressed ? styles.quickStartLinkPressed : null,
-                  ]}
-                >
-                  <Text style={styles.deleteLabel}>
-                    {deletingLeagueId === league._id ? 'Deleting...' : 'Delete'}
-                  </Text>
+                  <MaterialIcons
+                    name="more-vert"
+                    size={22}
+                    color={colors.textPrimary}
+                  />
                 </Pressable>
               </View>
 
@@ -568,6 +650,98 @@ export default function JournalLeaguesScreen() {
         <Modal
           animationType="fade"
           transparent
+          visible={isLeagueActionsVisible}
+          onRequestClose={closeLeagueActions}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalBackdropHitbox}
+              onPress={closeLeagueActions}
+            />
+            <View
+              style={[
+                styles.modalCard,
+                styles.actionModalCard,
+                { transform: [{ translateY: modalTranslateY }] },
+              ]}
+            >
+              <View style={styles.actionModalHeader}>
+                <Text numberOfLines={1} style={styles.actionModalTitle}>
+                  {leagueActionTarget?.name ?? 'League'}
+                </Text>
+              </View>
+              <View style={styles.actionList}>
+                <Pressable
+                  onPress={() => {
+                    if (!leagueActionTarget) {
+                      return;
+                    }
+
+                    closeLeagueActions();
+                    runLeagueAction('quick-start', leagueActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemLabel}>Quick start</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (!leagueActionTarget) {
+                      return;
+                    }
+
+                    closeLeagueActions();
+                    runLeagueAction('edit', leagueActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemLabel}>Edit league</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (!leagueActionTarget) {
+                      return;
+                    }
+
+                    closeLeagueActions();
+                    runLeagueAction('delete', leagueActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemDeleteLabel}>
+                    Delete league
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={closeLeagueActions}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemCancel,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          transparent
           visible={isSyncStatusVisible}
           onRequestClose={() => setIsSyncStatusVisible(false)}
         >
@@ -670,32 +844,26 @@ const styles = StyleSheet.create({
   },
   leagueContent: {
     gap: spacing.xs,
+    flex: 1,
   },
   leagueContentPressed: {
     opacity: 0.82,
   },
-  rowActions: {
+  rowHeader: {
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
     alignItems: 'flex-start',
-    marginTop: 2,
   },
-  quickStartLink: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 0,
+  menuButton: {
+    width: 40,
+    height: 44,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
-  quickStartLinkPressed: {
-    opacity: 0.75,
-  },
-  quickStartLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: 'rgba(27, 110, 243, 0.9)',
-  },
-  deleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.danger,
+  menuButtonPressed: {
+    backgroundColor: colors.surfaceMuted,
   },
   editSection: {
     gap: spacing.sm,
@@ -778,5 +946,56 @@ const styles = StyleSheet.create({
   },
   modalActionButton: {
     flex: 1,
+  },
+  actionModalCard: {
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  actionModalHeader: {
+    paddingTop: 2,
+  },
+  actionModalTitle: {
+    fontSize: typeScale.titleSm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  actionList: {
+    marginTop: spacing.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSubtle,
+  },
+  actionItem: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  actionItemWithDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  actionItemCancel: {
+    backgroundColor: colors.surface,
+  },
+  actionItemPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  actionItemLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  actionItemDeleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  actionItemCancelLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 });

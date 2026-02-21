@@ -8,6 +8,7 @@ Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
+- [ ] Polish offline games-list reconciliation on reconnect to eliminate remaining queued-to-synced visual churn
 - [ ] Expand guaranteed offline coverage to league/session/reference CRUD with deterministic replay and latest-local-edit-wins policy
 - [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] Data export and backup tooling
@@ -74,6 +75,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Add viewer email fallback from auth identity/users table for account display
 - [x] Add and run legacy games.houseId cleanup migration; restore strict games schema
 - [x] Document offline support contract v1 and align contributor/agent docs
+- [x] Polish journal list cards with overflow action menus and consistent icon-based navigation affordances
 
 ## Decision Log
 

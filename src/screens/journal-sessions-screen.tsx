@@ -1,6 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
+  ActionSheetIOS,
   Alert,
   Modal,
   Platform,
@@ -35,6 +37,16 @@ function getFirstParam(value: string | string[] | undefined): string | null {
 
   return value ?? null;
 }
+
+type SessionActionTarget = {
+  sessionId: string;
+  date: string;
+  weekNumber: number | null;
+  houseId: string | null;
+  patternId: string | null;
+  ballId: string | null;
+  title: string;
+};
 
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
@@ -83,6 +95,9 @@ export default function JournalSessionsScreen() {
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null
   );
+  const [isSessionActionsVisible, setIsSessionActionsVisible] = useState(false);
+  const [sessionActionTarget, setSessionActionTarget] =
+    useState<SessionActionTarget | null>(null);
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const {
@@ -295,6 +310,78 @@ export default function JournalSessionsScreen() {
     }
   };
 
+  const closeSessionActions = () => {
+    setIsSessionActionsVisible(false);
+    setSessionActionTarget(null);
+  };
+
+  const runSessionAction = (
+    action: 'edit' | 'delete',
+    target: SessionActionTarget
+  ) => {
+    if (action === 'edit') {
+      startEditingSession(
+        target.sessionId,
+        target.date,
+        target.weekNumber,
+        target.houseId,
+        target.patternId,
+        target.ballId
+      );
+      return;
+    }
+
+    void onDeleteSession(target.sessionId, target.date);
+  };
+
+  const openSessionActions = (target: SessionActionTarget) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Edit session', 'Delete session', 'Cancel'],
+          cancelButtonIndex: 2,
+          destructiveButtonIndex: 1,
+          title: target.title,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            runSessionAction('edit', target);
+            return;
+          }
+
+          if (buttonIndex === 1) {
+            runSessionAction('delete', target);
+          }
+        }
+      );
+
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      Alert.alert(target.title, undefined, [
+        {
+          text: 'Edit session',
+          onPress: () => runSessionAction('edit', target),
+        },
+        {
+          text: 'Delete session',
+          style: 'destructive',
+          onPress: () => runSessionAction('delete', target),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+
+      return;
+    }
+
+    setSessionActionTarget(target);
+    setIsSessionActionsVisible(true);
+  };
+
   const openCreateModal = () => {
     setSessionError(null);
     setSessionHouseId(defaultSessionHouseId);
@@ -399,65 +486,65 @@ export default function JournalSessionsScreen() {
                 editingSessionId === session._id ? styles.rowCardActive : null,
               ]}
             >
-              <Pressable
-                style={({ pressed }) => [pressed ? styles.rowPressed : null]}
-                onPress={() =>
-                  router.push({
-                    pathname:
-                      '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                    params: {
-                      leagueId: leagueId ?? '',
-                      sessionId: session._id,
-                    } as never,
-                  } as never)
-                }
-              >
-                <Text style={styles.rowTitle}>
-                  {formatSessionWeekLabel(
-                    session.weekNumber ??
-                      derivedWeekNumberBySessionId.get(session._id) ??
-                      1
-                  )}
-                </Text>
-                <Text style={styles.meta}>
-                  {formatIsoDateLabel(session.date)}
-                </Text>
-              </Pressable>
-
-              <View style={styles.rowActions}>
+              <View style={styles.rowHeader}>
                 <Pressable
-                  onPress={() =>
-                    startEditingSession(
-                      session._id,
-                      session.date,
-                      session.weekNumber ?? null,
-                      session.houseId ? String(session.houseId) : null,
-                      session.patternId ? String(session.patternId) : null,
-                      session.ballId ? String(session.ballId) : null
-                    )
-                  }
                   style={({ pressed }) => [
-                    styles.linkAction,
-                    pressed ? styles.linkActionPressed : null,
+                    styles.sessionContent,
+                    pressed ? styles.rowPressed : null,
                   ]}
+                  onPress={() =>
+                    router.push({
+                      pathname:
+                        '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+                      params: {
+                        leagueId: leagueId ?? '',
+                        sessionId: session._id,
+                      } as never,
+                    } as never)
+                  }
                 >
-                  <Text style={styles.linkActionLabel}>Edit</Text>
+                  <Text style={styles.rowTitle}>
+                    {formatSessionWeekLabel(
+                      session.weekNumber ??
+                        derivedWeekNumberBySessionId.get(session._id) ??
+                        1
+                    )}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {formatIsoDateLabel(session.date)}
+                  </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityLabel={`Session actions for ${formatIsoDateLabel(session.date)}`}
                   disabled={deletingSessionId === session._id}
+                  hitSlop={8}
                   onPress={() =>
-                    void onDeleteSession(session._id, session.date)
+                    openSessionActions({
+                      sessionId: session._id,
+                      date: session.date,
+                      weekNumber: session.weekNumber ?? null,
+                      houseId: session.houseId ? String(session.houseId) : null,
+                      patternId: session.patternId
+                        ? String(session.patternId)
+                        : null,
+                      ballId: session.ballId ? String(session.ballId) : null,
+                      title: `${formatSessionWeekLabel(
+                        session.weekNumber ??
+                          derivedWeekNumberBySessionId.get(session._id) ??
+                          1
+                      )} - ${formatIsoDateLabel(session.date)}`,
+                    })
                   }
                   style={({ pressed }) => [
-                    styles.linkAction,
-                    pressed ? styles.linkActionPressed : null,
+                    styles.menuButton,
+                    pressed ? styles.menuButtonPressed : null,
                   ]}
                 >
-                  <Text style={styles.deleteLabel}>
-                    {deletingSessionId === session._id
-                      ? 'Deleting...'
-                      : 'Delete'}
-                  </Text>
+                  <MaterialIcons
+                    name="more-vert"
+                    size={22}
+                    color={colors.textPrimary}
+                  />
                 </Pressable>
               </View>
 
@@ -537,6 +624,81 @@ export default function JournalSessionsScreen() {
           disabled={!leagueId}
           onPress={openCreateModal}
         />
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={isSessionActionsVisible}
+          onRequestClose={closeSessionActions}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalBackdropHitbox}
+              onPress={closeSessionActions}
+            />
+            <View
+              style={[
+                styles.modalCard,
+                styles.actionModalCard,
+                { transform: [{ translateY: modalTranslateY }] },
+              ]}
+            >
+              <View style={styles.actionModalHeader}>
+                <Text numberOfLines={1} style={styles.actionModalTitle}>
+                  {sessionActionTarget?.title ?? 'Session'}
+                </Text>
+              </View>
+              <View style={styles.actionList}>
+                <Pressable
+                  onPress={() => {
+                    if (!sessionActionTarget) {
+                      return;
+                    }
+
+                    closeSessionActions();
+                    runSessionAction('edit', sessionActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemLabel}>Edit session</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (!sessionActionTarget) {
+                      return;
+                    }
+
+                    closeSessionActions();
+                    runSessionAction('delete', sessionActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemDeleteLabel}>
+                    Delete session
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={closeSessionActions}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemCancel,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <Modal
           animationType="slide"
@@ -668,27 +830,24 @@ const styles = StyleSheet.create({
   rowPressed: {
     opacity: 0.82,
   },
-  rowActions: {
+  rowHeader: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: 2,
+    gap: spacing.sm,
+    alignItems: 'flex-start',
   },
-  linkAction: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 0,
+  sessionContent: {
+    flex: 1,
   },
-  linkActionPressed: {
-    opacity: 0.75,
+  menuButton: {
+    width: 40,
+    height: 44,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
-  linkActionLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: 'rgba(27, 110, 243, 0.9)',
-  },
-  deleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.danger,
+  menuButtonPressed: {
+    backgroundColor: colors.surfaceMuted,
   },
   editSection: {
     gap: spacing.sm,
@@ -771,5 +930,56 @@ const styles = StyleSheet.create({
   },
   modalActionButton: {
     flex: 1,
+  },
+  actionModalCard: {
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  actionModalHeader: {
+    paddingTop: 2,
+  },
+  actionModalTitle: {
+    fontSize: typeScale.titleSm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  actionList: {
+    marginTop: spacing.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSubtle,
+  },
+  actionItem: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  actionItemWithDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  actionItemCancel: {
+    backgroundColor: colors.surface,
+  },
+  actionItemPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  actionItemLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  actionItemDeleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  actionItemCancelLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 });

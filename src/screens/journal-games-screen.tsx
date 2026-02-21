@@ -1,7 +1,11 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
+  ActionSheetIOS,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,11 +15,25 @@ import {
 } from 'react-native';
 
 import {
+  getFrameSplitFlags,
+  getFrameSymbolParts,
+  getSettledRunningTotals,
+  toFrameDrafts,
+} from './game-editor/game-editor-frame-utils';
+import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
+import {
+  removeQueuedGameSaveEntry,
+  type QueuedGameSaveEntry,
+} from './game-editor/game-save-queue';
+import {
+  loadGameSaveQueue,
+  persistGameSaveQueue,
+} from './game-editor/game-save-queue-storage';
+import {
   formatGameSequenceLabel,
-  resolveGameEntryGameId,
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
-import { buildSessionNightSummary } from './journal-games-night-summary';
+import { normalizeGamesPerSession } from './journal-games-night-summary';
 
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
@@ -41,6 +59,46 @@ type PreviewMarkSummary = {
   strikeMarks: number;
   spareMarks: number;
   openFrames: number;
+};
+
+type DisplayGameItem = {
+  key: string;
+  date: string;
+  routeGameId: string;
+  routeDraftNonce: string | null;
+  deleteGameId: string | null;
+  deleteQueueId: string | null;
+  createdAt: number;
+  totalScore: number;
+  strikes: number;
+  spares: number;
+  opens: number;
+  framePreviewItems: PreviewItem[];
+};
+
+type QueueDerivedGame = {
+  queueId: string;
+  date: string;
+  gameId: string | null;
+  draftNonce: string | null;
+  createdAt: number;
+  totalScore: number;
+  strikes: number;
+  spares: number;
+  opens: number;
+  framePreviewItems: PreviewItem[];
+};
+
+type StartEntryTarget = {
+  gameId: string;
+  draftNonce: string | null;
+};
+
+type GameActionTarget = {
+  gameId: string | null;
+  queueId: string | null;
+  label: string;
+  title: string;
 };
 
 function normalizeFramePreviewItems(framePreview: unknown): PreviewItem[] {
@@ -112,6 +170,147 @@ function summarizePreviewMarks(
   };
 }
 
+function toTotalScoreFromRunningTotals(values: Array<number | null>) {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index];
+
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return 0;
+}
+
+function buildQueueDerivedGame(entry: QueuedGameSaveEntry): QueueDerivedGame {
+  const frameDrafts = toFrameDrafts(entry.frames);
+  const framePreviewItems = frameDrafts
+    .map((frame, frameIndex) => {
+      const text = getFrameSymbolParts(frameIndex, frame).join(' ');
+      const splitFlags = getFrameSplitFlags(frameIndex, frame);
+
+      return {
+        text,
+        hasSplit: splitFlags.roll1 || splitFlags.roll2 || splitFlags.roll3,
+      } satisfies PreviewItem;
+    })
+    .filter((item) => item.text.trim().length > 0);
+
+  const previewMarks = summarizePreviewMarks(framePreviewItems);
+  const runningTotals = getSettledRunningTotals(frameDrafts);
+
+  return {
+    queueId: entry.queueId,
+    date: entry.date,
+    gameId: entry.gameId,
+    draftNonce: entry.draftNonce,
+    createdAt: entry.createdAt,
+    totalScore: toTotalScoreFromRunningTotals(runningTotals),
+    strikes: previewMarks.strikeMarks,
+    spares: previewMarks.spareMarks,
+    opens: previewMarks.openFrames,
+    framePreviewItems,
+  };
+}
+
+function buildGameFingerprint(game: {
+  date: string;
+  totalScore: number;
+  strikes: number;
+  spares: number;
+  opens: number;
+  framePreviewItems: PreviewItem[];
+}) {
+  const preview = game.framePreviewItems
+    .map((item) => `${item.text}|${item.hasSplit ? '1' : '0'}`)
+    .join('||');
+
+  return `${game.date}|${String(game.totalScore)}|${String(game.strikes)}|${String(game.spares)}|${String(game.opens)}|${preview}`;
+}
+
+function findRecentlySyncedEquivalentGameId(
+  queuedGame: QueueDerivedGame,
+  serverGames: DisplayGameItem[]
+) {
+  const queuedFingerprint = buildGameFingerprint(queuedGame);
+  const matchWindowMs = 5 * 60 * 1000;
+
+  const matchedServerGame = serverGames.find((serverGame) => {
+    if (Math.abs(serverGame.createdAt - queuedGame.createdAt) > matchWindowMs) {
+      return false;
+    }
+
+    return buildGameFingerprint(serverGame) === queuedFingerprint;
+  });
+
+  return matchedServerGame?.routeGameId ?? null;
+}
+
+function buildStartEntryTarget(
+  displayGames: DisplayGameItem[]
+): StartEntryTarget {
+  const latestGame = [...displayGames].sort(
+    (left, right) => right.createdAt - left.createdAt
+  )[0];
+
+  if (!latestGame) {
+    return {
+      gameId: 'new',
+      draftNonce: null,
+    };
+  }
+
+  return {
+    gameId: latestGame.routeGameId,
+    draftNonce: latestGame.routeDraftNonce,
+  };
+}
+
+function buildDisplayNightSummary(
+  games: Array<
+    Pick<DisplayGameItem, 'totalScore' | 'strikes' | 'spares' | 'opens'>
+  >,
+  gamesPerSession: number | null | undefined
+) {
+  const gamesPlayed = games.length;
+  const targetGames = normalizeGamesPerSession(gamesPerSession);
+  const totalPins = games.reduce((total, game) => total + game.totalScore, 0);
+  const strikes = games.reduce((total, game) => total + game.strikes, 0);
+  const spares = games.reduce((total, game) => total + game.spares, 0);
+  const opens = games.reduce((total, game) => total + game.opens, 0);
+
+  let highGame: number | null = null;
+  let lowGame: number | null = null;
+
+  for (const game of games) {
+    if (highGame === null || game.totalScore > highGame) {
+      highGame = game.totalScore;
+    }
+
+    if (lowGame === null || game.totalScore < lowGame) {
+      lowGame = game.totalScore;
+    }
+  }
+
+  const isNightComplete = targetGames !== null && gamesPlayed >= targetGames;
+  const remainingGames =
+    targetGames === null ? null : Math.max(targetGames - gamesPlayed, 0);
+
+  return {
+    gamesPlayed,
+    targetGames,
+    remainingGames,
+    isNightComplete,
+    totalPins,
+    average: gamesPlayed === 0 ? 0 : totalPins / gamesPlayed,
+    highGame,
+    lowGame,
+    strikes,
+    spares,
+    opens,
+  };
+}
+
 function createDraftNonce() {
   const timestampPart = Date.now().toString(36);
   const randomPart = Math.random().toString(36).slice(2, 10);
@@ -130,9 +329,57 @@ export default function JournalGamesScreen() {
   const startEntry = getFirstParam(params.startEntry) === '1';
   const { games, removeGame, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
+  const [queuedSessionEntries, setQueuedSessionEntries] = useState<
+    QueuedGameSaveEntry[]
+  >([]);
   const [gameActionError, setGameActionError] = useState<string | null>(null);
   const [deletingGameId, setDeletingGameId] = useState<string | null>(null);
+  const [isGameActionsVisible, setIsGameActionsVisible] = useState(false);
+  const [gameActionTarget, setGameActionTarget] =
+    useState<GameActionTarget | null>(null);
   const hasHandledStartEntryRef = useRef(false);
+  const isRefreshingQueueRef = useRef(false);
+
+  const refreshQueuedEntries = useCallback(async () => {
+    if (isRefreshingQueueRef.current) {
+      return;
+    }
+
+    isRefreshingQueueRef.current = true;
+
+    if (!sessionId) {
+      setQueuedSessionEntries([]);
+      isRefreshingQueueRef.current = false;
+      return;
+    }
+
+    try {
+      const queueEntries = await loadGameSaveQueue();
+      setQueuedSessionEntries(
+        queueEntries.filter((entry) => entry.sessionId === sessionId)
+      );
+    } finally {
+      isRefreshingQueueRef.current = false;
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    void refreshQueuedEntries();
+  }, [refreshQueuedEntries]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshQueuedEntries();
+
+      const intervalId = setInterval(() => {
+        void refreshQueuedEntries();
+      }, 1000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }, [refreshQueuedEntries])
+  );
 
   const league = useMemo(() => {
     if (!leagueId) {
@@ -142,19 +389,108 @@ export default function JournalGamesScreen() {
     return leagues.find((candidate) => candidate._id === leagueId) ?? null;
   }, [leagueId, leagues]);
 
-  const nightSummary = useMemo(
-    () => buildSessionNightSummary(games, league?.gamesPerSession),
-    [games, league?.gamesPerSession]
-  );
-  const displayGames = useMemo(() => toOldestFirstGames(games), [games]);
+  const displayGames = useMemo(() => {
+    const queuedDerivedGames = queuedSessionEntries.map(buildQueueDerivedGame);
+    const queuedByGameId = new Map<string, QueueDerivedGame>();
+    const queuedNewGames: QueueDerivedGame[] = [];
 
-  const openGameEditor = (gameId: string) => {
+    queuedDerivedGames.forEach((queuedGame) => {
+      if (queuedGame.gameId) {
+        queuedByGameId.set(queuedGame.gameId, queuedGame);
+      } else {
+        queuedNewGames.push(queuedGame);
+      }
+    });
+
+    const mergedServerGames: DisplayGameItem[] = toOldestFirstGames(games).map(
+      (game) => {
+        const queuedGame = queuedByGameId.get(game._id);
+
+        if (queuedGame) {
+          return {
+            key: game._id,
+            date: game.date,
+            routeGameId: game._id,
+            routeDraftNonce: null,
+            deleteGameId: game._id,
+            deleteQueueId: queuedGame.queueId,
+            createdAt: game._creationTime,
+            totalScore: queuedGame.totalScore,
+            strikes: queuedGame.strikes,
+            spares: queuedGame.spares,
+            opens: queuedGame.opens,
+            framePreviewItems: queuedGame.framePreviewItems,
+          };
+        }
+
+        return {
+          key: game._id,
+          date: game.date,
+          routeGameId: game._id,
+          routeDraftNonce: null,
+          deleteGameId: game._id,
+          deleteQueueId: null,
+          createdAt: game._creationTime,
+          totalScore: game.totalScore,
+          strikes: game.strikes,
+          spares: game.spares,
+          opens: game.opens,
+          framePreviewItems: normalizeFramePreviewItems(game.framePreview),
+        };
+      }
+    );
+
+    const suppressedServerGameIds = new Set<string>();
+    const newQueuedItems: DisplayGameItem[] = queuedNewGames.map(
+      (queuedGame) => {
+        const equivalentServerGameId = findRecentlySyncedEquivalentGameId(
+          queuedGame,
+          mergedServerGames
+        );
+
+        if (equivalentServerGameId) {
+          suppressedServerGameIds.add(equivalentServerGameId);
+        }
+
+        return {
+          key: queuedGame.queueId,
+          date: queuedGame.date,
+          routeGameId: 'new',
+          routeDraftNonce: queuedGame.draftNonce,
+          deleteGameId: null,
+          deleteQueueId: queuedGame.queueId,
+          createdAt: queuedGame.createdAt,
+          totalScore: queuedGame.totalScore,
+          strikes: queuedGame.strikes,
+          spares: queuedGame.spares,
+          opens: queuedGame.opens,
+          framePreviewItems: queuedGame.framePreviewItems,
+        };
+      }
+    );
+
+    const filteredServerGames = mergedServerGames.filter(
+      (game) => !suppressedServerGameIds.has(game.routeGameId)
+    );
+
+    return [...filteredServerGames, ...newQueuedItems].sort(
+      (left, right) => left.createdAt - right.createdAt
+    );
+  }, [games, queuedSessionEntries]);
+
+  const nightSummary = useMemo(
+    () => buildDisplayNightSummary(displayGames, league?.gamesPerSession),
+    [displayGames, league?.gamesPerSession]
+  );
+
+  const openGameEditor = (gameId: string, draftNonce: string | null = null) => {
     router.push({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
       params: {
         leagueId: leagueId ?? '',
         sessionId: sessionId ?? '',
         gameId,
+        ...(draftNonce ? { draftNonce } : {}),
       },
     });
   };
@@ -182,7 +518,15 @@ export default function JournalGamesScreen() {
     });
   };
 
-  const onDeleteGame = async (gameId: string, label: string) => {
+  const onDeleteGame = async ({
+    gameId,
+    queueId,
+    label,
+  }: {
+    gameId: string | null;
+    queueId: string | null;
+    label: string;
+  }) => {
     setGameActionError(null);
     const isConfirmed = await confirmDeleteGame(label);
 
@@ -190,10 +534,20 @@ export default function JournalGamesScreen() {
       return;
     }
 
-    setDeletingGameId(gameId);
+    setDeletingGameId(gameId ?? queueId);
 
     try {
-      await removeGame({ gameId: gameId as GameId });
+      if (gameId) {
+        await removeGame({ gameId: gameId as GameId });
+      }
+
+      if (queueId) {
+        const queueEntries = await loadGameSaveQueue();
+        const nextEntries = removeQueuedGameSaveEntry(queueEntries, queueId);
+        await persistGameSaveQueue(nextEntries);
+        await removeLocalGameDraft(queueId);
+        await refreshQueuedEntries();
+      }
     } catch (caught) {
       setGameActionError(
         caught instanceof Error ? caught.message : 'Unable to delete game.'
@@ -201,6 +555,58 @@ export default function JournalGamesScreen() {
     } finally {
       setDeletingGameId(null);
     }
+  };
+
+  const closeGameActions = () => {
+    setIsGameActionsVisible(false);
+    setGameActionTarget(null);
+  };
+
+  const runGameAction = (target: GameActionTarget) => {
+    void onDeleteGame({
+      gameId: target.gameId,
+      queueId: target.queueId,
+      label: target.label,
+    });
+  };
+
+  const openGameActions = (target: GameActionTarget) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Delete game', 'Cancel'],
+          cancelButtonIndex: 1,
+          destructiveButtonIndex: 0,
+          title: target.title,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            runGameAction(target);
+          }
+        }
+      );
+
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      Alert.alert(target.title, undefined, [
+        {
+          text: 'Delete game',
+          style: 'destructive',
+          onPress: () => runGameAction(target),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+
+      return;
+    }
+
+    setGameActionTarget(target);
+    setIsGameActionsVisible(true);
   };
 
   useEffect(() => {
@@ -213,17 +619,20 @@ export default function JournalGamesScreen() {
     }
 
     hasHandledStartEntryRef.current = true;
-    const gameId = resolveGameEntryGameId(games);
+    const startEntryTarget = buildStartEntryTarget(displayGames);
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
       params: {
         leagueId,
         sessionId,
-        gameId,
+        gameId: startEntryTarget.gameId,
+        ...(startEntryTarget.draftNonce
+          ? { draftNonce: startEntryTarget.draftNonce }
+          : {}),
       },
     });
-  }, [games, isGamesLoading, leagueId, router, sessionId, startEntry]);
+  }, [displayGames, isGamesLoading, leagueId, router, sessionId, startEntry]);
 
   return (
     <ScreenLayout
@@ -287,39 +696,80 @@ export default function JournalGamesScreen() {
           {!isGamesLoading && !sessionId ? (
             <Text style={styles.meta}>Session not found.</Text>
           ) : null}
-          {!isGamesLoading && sessionId && games.length === 0 ? (
+          {!isGamesLoading && sessionId && displayGames.length === 0 ? (
             <Text style={styles.meta}>No games in this session yet.</Text>
           ) : null}
 
           {displayGames.map((game, index) => {
-            const framePreviewItems = normalizeFramePreviewItems(
-              game.framePreview
-            );
+            const framePreviewItems = game.framePreviewItems;
             const previewRowOne = framePreviewItems.slice(0, 5);
             const previewRowTwo = framePreviewItems.slice(5, 10);
-            const previewMarkSummary = summarizePreviewMarks(framePreviewItems);
             const gameLabel = formatGameSequenceLabel(index + 1);
 
             return (
-              <Card key={game._id} style={styles.rowCard}>
+              <Card key={game.key} style={styles.rowCard}>
+                <View style={styles.rowHeader}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.gameHeaderContent,
+                      pressed ? styles.rowPressed : null,
+                    ]}
+                    onPress={() =>
+                      openGameEditor(game.routeGameId, game.routeDraftNonce)
+                    }
+                  >
+                    <Text style={styles.rowTitle}>
+                      {gameLabel} - {game.totalScore}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {framePreviewItems.length > 0
+                        ? `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`
+                        : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    accessibilityLabel={`Game actions for ${gameLabel}`}
+                    disabled={
+                      deletingGameId === (game.deleteGameId ?? game.key)
+                    }
+                    hitSlop={8}
+                    onPress={() =>
+                      openGameActions({
+                        gameId: game.deleteGameId,
+                        queueId: game.deleteQueueId,
+                        label: gameLabel,
+                        title: `${gameLabel} - ${game.totalScore}`,
+                      })
+                    }
+                    style={({ pressed }) => [
+                      styles.menuButton,
+                      pressed ? styles.menuButtonPressed : null,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="more-vert"
+                      size={22}
+                      color={colors.textPrimary}
+                    />
+                  </Pressable>
+                </View>
+
                 <Pressable
-                  style={({ pressed }) => [pressed ? styles.rowPressed : null]}
-                  onPress={() => openGameEditor(game._id)}
+                  style={({ pressed }) => [
+                    styles.gameContent,
+                    pressed ? styles.rowPressed : null,
+                  ]}
+                  onPress={() =>
+                    openGameEditor(game.routeGameId, game.routeDraftNonce)
+                  }
                 >
-                  <Text style={styles.rowTitle}>
-                    {gameLabel} - {game.totalScore}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {framePreviewItems.length > 0
-                      ? `Strikes ${String(previewMarkSummary.strikeMarks)} | Spares ${String(previewMarkSummary.spareMarks)} | Opens ${String(previewMarkSummary.openFrames)}`
-                      : `Strikes ${String(game.strikes)} | Spares ${String(game.spares)} | Opens ${String(game.opens)}`}
-                  </Text>
                   {framePreviewItems.length > 0 ? (
                     <View style={styles.previewGrid}>
                       <View style={styles.previewRow}>
                         {previewRowOne.map((item, itemIndex) => (
                           <View
-                            key={`${game._id}-row-1-${String(itemIndex)}`}
+                            key={`${game.key}-row-1-${String(itemIndex)}`}
                             style={[
                               styles.previewChip,
                               item.hasSplit ? styles.previewChipSplit : null,
@@ -341,7 +791,7 @@ export default function JournalGamesScreen() {
                       <View style={styles.previewRow}>
                         {previewRowTwo.map((item, itemIndex) => (
                           <View
-                            key={`${game._id}-row-2-${String(itemIndex)}`}
+                            key={`${game.key}-row-2-${String(itemIndex)}`}
                             style={[
                               styles.previewChip,
                               item.hasSplit ? styles.previewChipSplit : null,
@@ -367,21 +817,6 @@ export default function JournalGamesScreen() {
                     </Text>
                   )}
                 </Pressable>
-
-                <View style={styles.rowActions}>
-                  <Pressable
-                    disabled={deletingGameId === game._id}
-                    onPress={() => void onDeleteGame(game._id, gameLabel)}
-                    style={({ pressed }) => [
-                      styles.linkAction,
-                      pressed ? styles.linkActionPressed : null,
-                    ]}
-                  >
-                    <Text style={styles.deleteLabel}>
-                      {deletingGameId === game._id ? 'Deleting...' : 'Delete'}
-                    </Text>
-                  </Pressable>
-                </View>
               </Card>
             );
           })}
@@ -403,6 +838,56 @@ export default function JournalGamesScreen() {
             })
           }
         />
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={isGameActionsVisible}
+          onRequestClose={closeGameActions}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalBackdropHitbox}
+              onPress={closeGameActions}
+            />
+            <View style={[styles.modalCard, styles.actionModalCard]}>
+              <View style={styles.actionModalHeader}>
+                <Text numberOfLines={1} style={styles.actionModalTitle}>
+                  {gameActionTarget?.title ?? 'Game'}
+                </Text>
+              </View>
+              <View style={styles.actionList}>
+                <Pressable
+                  onPress={() => {
+                    if (!gameActionTarget) {
+                      return;
+                    }
+
+                    closeGameActions();
+                    runGameAction(gameActionTarget);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemWithDivider,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemDeleteLabel}>Delete game</Text>
+                </Pressable>
+                <Pressable
+                  onPress={closeGameActions}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    styles.actionItemCancel,
+                    pressed ? styles.actionItemPressed : null,
+                  ]}
+                >
+                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </ScreenLayout>
   );
@@ -429,22 +914,28 @@ const styles = StyleSheet.create({
   rowPressed: {
     opacity: 0.82,
   },
-  rowActions: {
+  rowHeader: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: 2,
+    gap: spacing.sm,
+    alignItems: 'flex-start',
   },
-  linkAction: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 0,
+  gameHeaderContent: {
+    flex: 1,
   },
-  linkActionPressed: {
-    opacity: 0.75,
+  gameContent: {
+    flex: 1,
+    marginTop: spacing.xs,
   },
-  deleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.danger,
+  menuButton: {
+    width: 40,
+    height: 44,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  menuButtonPressed: {
+    backgroundColor: colors.surfaceMuted,
   },
   errorText: {
     fontSize: typeScale.bodySm,
@@ -522,5 +1013,71 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
     gap: spacing.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(26, 31, 43, 0.35)',
+  },
+  modalBackdropHitbox: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 520,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionModalCard: {
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  actionModalHeader: {
+    paddingTop: 2,
+  },
+  actionModalTitle: {
+    fontSize: typeScale.titleSm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  actionList: {
+    marginTop: spacing.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSubtle,
+  },
+  actionItem: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  actionItemWithDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  actionItemCancel: {
+    backgroundColor: colors.surface,
+  },
+  actionItemPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  actionItemDeleteLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  actionItemCancelLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 });

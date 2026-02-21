@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
@@ -57,7 +58,11 @@ export function AppHeader({ options, route }: AppHeaderProps) {
                 pressed ? styles.backButtonPressed : null,
               ]}
             >
-              <Text style={styles.backButtonLabel}>{'<'}</Text>
+              <MaterialIcons
+                name="arrow-back"
+                size={22}
+                color={colors.textPrimary}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -99,23 +104,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 44,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
   },
   backButtonPressed: {
     backgroundColor: colors.accentMuted,
-  },
-  backButtonLabel: {
-    fontSize: 16,
-    lineHeight: 16,
-    color: colors.textPrimary,
-    fontWeight: '600',
   },
   title: {
     flex: 1,
