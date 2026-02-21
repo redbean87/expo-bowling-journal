@@ -24,7 +24,9 @@ worker/.wrangler/
 Backup.pinpal
 
 # Local UX reference screenshots (keep folders, ignore images/files)
+docs/ux-reference/competitor-app/*
 docs/ux-reference/current-app/*
 docs/ux-reference/next-app/*
+!docs/ux-reference/competitor-app/.gitkeep
 !docs/ux-reference/current-app/.gitkeep
 !docs/ux-reference/next-app/.gitkeep

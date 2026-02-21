@@ -161,6 +161,9 @@ npm --prefix worker run check # Validate worker TypeScript/lint setup
 
 This project supports web deployments through EAS Hosting with separate preview and production environments.
 
+The web build includes installable PWA metadata (manifest, icons, theme color) for home-screen installs.
+Service-worker caching is intentionally not enabled yet, so offline first-load behavior is unchanged.
+
 ### One-time setup
 
 ```bash

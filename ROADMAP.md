@@ -16,6 +16,7 @@ When an item is complete, move it to `## Completed`.
 - [ ] Split preview/production Convex deployments for web hosting environments
 - [ ] Add CI automation for Expo web preview/production deploys
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
+- [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
 - [ ] Team/coach sharing model
 
 ## Completed
@@ -76,6 +77,8 @@ When an item is complete, move it to `## Completed`.
 - [x] Add and run legacy games.houseId cleanup migration; restore strict games schema
 - [x] Document offline support contract v1 and align contributor/agent docs
 - [x] Polish journal list cards with overflow action menus and consistent icon-based navigation affordances
+- [x] Add contextual journal headers (league/week/date/game-name) with hierarchy-aware title/subtitle behavior
+- [x] Add installable web app metadata/icons for PWA-ready home-screen installs (no service-worker caching yet)
 
 ## Decision Log
 

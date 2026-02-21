@@ -5,11 +5,13 @@ Use this folder to keep visual references that future sessions can reuse without
 ## Folder Structure
 
 - `docs/ux-reference/competitor-app/`: screenshots from competitor app flows used for UX benchmarking
+- `docs/ux-reference/current-app/`: screenshots of the current app state (used as before/after baseline)
 - `docs/ux-reference/next-app/`: target visual direction references (including trading journal screenshots)
 
 ## Reference Intent
 
 - `competitor-app` captures workflows to compare against and learn from.
+- `current-app` captures the latest shipped UX so future iterations can compare deltas quickly.
 - `next-app` captures look-and-feel references to adapt into bowling context.
 - Visual inspiration can come from non-bowling apps, but interaction design should map to bowling flow (`league -> session -> game`).
 
@@ -24,6 +26,12 @@ Use a date-first format so screenshots sort chronologically:
 Example:
 
 - `2026-02-12-journal-main.png`
+
+For curated reference sets (like `competitor-app`, `current-app`, and `next-app`), numeric ordering is also acceptable:
+
+- `01-home.png`
+- `02-sessions.png`
+- `03-games.png`
 
 ## Capture Guidance
 
