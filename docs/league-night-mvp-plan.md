@@ -22,7 +22,7 @@ Ship a simple, mobile-first flow that is reliable during league play, including 
 - Simplified journal flow focused on league-night entry
 - Fast game entry screen with larger touch targets and reduced text input
 - Local draft persistence for in-progress frame input
-- Local mutation queue for game/session/league writes while offline
+- Local mutation queue guarantees game capture/edit replay while offline; league/session CRUD offline parity is a later phase
 - Automatic retry when connectivity returns
 
 ## Out of Scope (for this phase)

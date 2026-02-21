@@ -91,6 +91,11 @@ For roadmap execution updates, report in this order:
 5. Run `npm --prefix worker run check` if worker files changed
 6. Update `ROADMAP.md` when a roadmap item is completed
 
+## Offline contract docs
+
+- Source of truth: `docs/offline-support-contract.md`
+- When offline behavior changes, update both `docs/offline-support-contract.md` and `ROADMAP.md` in the same workstream
+
 ## Commit style
 
 - Keep commits small and scoped to one logical change

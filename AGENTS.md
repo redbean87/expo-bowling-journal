@@ -131,3 +131,8 @@ Before marking a feature complete:
 6. Validate app behavior on device/simulator for UI changes
 7. Update `ROADMAP.md`
 8. Keep commits small and descriptive
+
+## Offline Contract Documentation
+
+- Source of truth: `docs/offline-support-contract.md`
+- When offline behavior changes, update both `docs/offline-support-contract.md` and `ROADMAP.md` in the same workstream

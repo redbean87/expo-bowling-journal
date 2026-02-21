@@ -6,6 +6,7 @@ A mobile bowling journal app built with Expo/React Native for tracking league pl
 
 - Track leagues, sessions, and games with live Convex-backed data
 - Create and edit game frames with per-frame roll entry
+- Guaranteed offline game entry/editing with reconnect replay (see `docs/offline-support-contract.md`)
 - **SQLite backup import pipeline** with signed uploads and callback processing
 - Monitor import progress and counts (`queued`/`parsing`/`importing`/`completed`/`failed`)
 - Cloud sync across devices with Convex
@@ -129,6 +130,7 @@ docs/
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Architecture and data flow overview
 - [AGENTS.md](AGENTS.md) - Agent-specific workflow and guardrails
 - [docs/libraries.md](docs/libraries.md) - Library stack and project conventions
+- [docs/offline-support-contract.md](docs/offline-support-contract.md) - Current offline guarantee matrix and conflict policy
 - [worker/README.md](worker/README.md) - Import worker endpoints and local setup
 - [convex_data_schema_locked.md](convex_data_schema_locked.md) - Locked Convex data model reference
 - [sqlite_to_convex_mapping.md](sqlite_to_convex_mapping.md) - SQLite-to-Convex import mapping notes
