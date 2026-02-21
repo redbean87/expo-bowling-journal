@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
 
+import { AppHeader } from '@/components/navigation/app-header';
+
 export default function JournalLayout() {
   return (
-    <Stack screenOptions={{ headerTitleAlign: 'center' }}>
+    <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
       <Stack.Screen
         name="index"
         options={{

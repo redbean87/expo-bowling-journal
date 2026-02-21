@@ -1,10 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput as RNTextInput,
+  View,
+} from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { Input } from '@/components/ui';
 import { colors, spacing, typeScale } from '@/theme/tokens';
+import {
+  findExactReferenceOption,
+  getReferenceComboboxEmptyState,
+  moveReferenceHighlightIndex,
+  shouldShowReferenceQuickAdd,
+} from '@/utils/reference-combobox-utils';
 
 type ReferenceComboboxProps = {
   valueId: string | null;
@@ -21,10 +34,6 @@ type ReferenceComboboxProps = {
   ) => ReferenceOption<string>[];
 };
 
-function normalizeName(value: string) {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
 export function ReferenceCombobox({
   valueId,
   allOptions,
@@ -37,7 +46,9 @@ export function ReferenceCombobox({
 }: ReferenceComboboxProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isCreating, setIsCreating] = useState(false);
+  const inputRef = useRef<RNTextInput>(null);
   const dropdownOpacity = useRef(new Animated.Value(0)).current;
   const dropdownTranslateY = useRef(new Animated.Value(-4)).current;
 
@@ -49,18 +60,37 @@ export function ReferenceCombobox({
     () => getSuggestions(allOptions, recentOptions, query),
     [allOptions, getSuggestions, query, recentOptions]
   );
-  const hasExactMatch = useMemo(() => {
-    const normalizedQuery = normalizeName(query);
-
-    if (normalizedQuery.length === 0) {
-      return false;
-    }
-
-    return allOptions.some(
-      (option) => normalizeName(option.label) === normalizedQuery
-    );
-  }, [allOptions, query]);
+  const exactMatchOption = useMemo(
+    () => findExactReferenceOption(allOptions, query),
+    [allOptions, query]
+  );
+  const hasExactMatch = exactMatchOption !== null;
   const hasQuery = query.trim().length > 0;
+  const shouldShowQuickAdd = shouldShowReferenceQuickAdd(query, hasExactMatch);
+  const emptyState = getReferenceComboboxEmptyState(query, suggestions.length);
+
+  const selectOption = (option: ReferenceOption<string>) => {
+    setQuery(option.label);
+    onSelect(option);
+    closeDropdown();
+  };
+
+  const closeDropdown = (shouldBlur = false) => {
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+
+    if (shouldBlur) {
+      inputRef.current?.blur();
+    }
+  };
+
+  const openDropdown = (shouldFocus = false) => {
+    setIsOpen(true);
+
+    if (shouldFocus) {
+      inputRef.current?.focus();
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -77,24 +107,100 @@ export function ReferenceCombobox({
     ]).start();
   }, [dropdownOpacity, dropdownTranslateY, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || suggestions.length === 0) {
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    if (highlightedIndex >= suggestions.length) {
+      setHighlightedIndex(suggestions.length - 1);
+    }
+  }, [highlightedIndex, isOpen, suggestions.length]);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isOpen ? styles.containerOpen : null]}>
       <View style={styles.inputShell}>
         <Input
+          ref={inputRef}
           autoCapitalize="words"
           autoCorrect={false}
           onBlur={() => {
-            setTimeout(() => setIsOpen(false), 120);
+            setTimeout(() => closeDropdown(), 120);
           }}
           onChangeText={(nextValue) => {
             setQuery(nextValue);
-            setIsOpen(true);
+            openDropdown();
+            setHighlightedIndex(-1);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => openDropdown()}
+          onKeyPress={(event) => {
+            const { key } = event.nativeEvent;
+
+            if (key === 'ArrowDown') {
+              setHighlightedIndex((currentIndex) =>
+                moveReferenceHighlightIndex(
+                  currentIndex,
+                  suggestions.length,
+                  'next'
+                )
+              );
+              return;
+            }
+
+            if (key === 'ArrowUp') {
+              setHighlightedIndex((currentIndex) =>
+                moveReferenceHighlightIndex(
+                  currentIndex,
+                  suggestions.length,
+                  'previous'
+                )
+              );
+              return;
+            }
+
+            if (key === 'Escape') {
+              closeDropdown(true);
+              return;
+            }
+
+            if (key !== 'Enter') {
+              return;
+            }
+
+            if (
+              highlightedIndex >= 0 &&
+              highlightedIndex < suggestions.length
+            ) {
+              selectOption(suggestions[highlightedIndex]);
+              return;
+            }
+
+            if (exactMatchOption) {
+              selectOption(exactMatchOption);
+            }
+          }}
           placeholder={placeholder}
           value={isOpen ? query : (selected?.label ?? query)}
         />
-        <Text style={styles.chevron}>v</Text>
+        <Pressable
+          accessibilityLabel={isOpen ? 'Close options' : 'Open options'}
+          hitSlop={8}
+          onPress={() => {
+            if (isOpen) {
+              closeDropdown(true);
+              return;
+            }
+
+            openDropdown(true);
+          }}
+          style={({ pressed }) => [
+            styles.chevronButton,
+            pressed ? styles.optionPressed : null,
+          ]}
+        >
+          <Text style={styles.chevron}>{isOpen ? '^' : 'v'}</Text>
+        </Pressable>
       </View>
 
       {isOpen ? (
@@ -110,16 +216,15 @@ export function ReferenceCombobox({
           <Text style={styles.sectionLabel}>
             {hasQuery ? 'Matches' : 'Recent'}
           </Text>
-          {suggestions.map((option) => (
+          {suggestions.map((option, index) => (
             <Pressable
               key={option.id}
               onPress={() => {
-                setQuery(option.label);
-                onSelect(option);
-                setIsOpen(false);
+                selectOption(option);
               }}
               style={({ pressed }) => [
                 styles.option,
+                index === highlightedIndex ? styles.optionHighlighted : null,
                 pressed ? styles.optionPressed : null,
               ]}
             >
@@ -132,11 +237,31 @@ export function ReferenceCombobox({
             </Pressable>
           ))}
 
-          {suggestions.length === 0 ? (
-            <Text style={styles.emptyText}>No matches yet.</Text>
+          {emptyState === 'noRecent' ? (
+            <Text style={styles.emptyText}>No recent items yet.</Text>
           ) : null}
 
-          {hasQuery ? (
+          {emptyState === 'noMatches' ? (
+            <Text style={styles.emptyText}>No matches. Add as new.</Text>
+          ) : null}
+
+          {exactMatchOption && query.trim().length > 0 ? (
+            <Pressable
+              onPress={() => {
+                selectOption(exactMatchOption);
+              }}
+              style={({ pressed }) => [
+                styles.useExisting,
+                pressed ? styles.optionPressed : null,
+              ]}
+            >
+              <Text
+                style={styles.useExistingLabel}
+              >{`Use existing "${exactMatchOption.label}"`}</Text>
+            </Pressable>
+          ) : null}
+
+          {shouldShowQuickAdd ? (
             <Pressable
               disabled={isCreating}
               onPress={() => {
@@ -147,7 +272,7 @@ export function ReferenceCombobox({
                     const created = await onQuickAdd(query.trim());
                     setQuery(created.label);
                     onSelect(created);
-                    setIsOpen(false);
+                    closeDropdown();
                   } finally {
                     setIsCreating(false);
                   }
@@ -165,10 +290,6 @@ export function ReferenceCombobox({
               </Text>
             </Pressable>
           ) : null}
-
-          {hasExactMatch ? (
-            <Text style={styles.hintText}>Existing match available.</Text>
-          ) : null}
         </Animated.View>
       ) : null}
     </View>
@@ -177,20 +298,36 @@ export function ReferenceCombobox({
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.xs,
+    position: 'relative',
+  },
+  containerOpen: {
+    zIndex: 20,
   },
   inputShell: {
     position: 'relative',
+    zIndex: 2,
+  },
+  chevronButton: {
+    position: 'absolute',
+    right: spacing.xs,
+    top: 7,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
   },
   chevron: {
-    position: 'absolute',
-    right: spacing.sm,
-    top: 11,
     fontSize: typeScale.bodySm,
     color: colors.textSecondary,
-    pointerEvents: 'none',
   },
   dropdown: {
+    position: 'absolute',
+    top: 46,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+    elevation: 5,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
@@ -216,6 +353,11 @@ const styles = StyleSheet.create({
   optionPressed: {
     backgroundColor: colors.accentMuted,
   },
+  optionHighlighted: {
+    backgroundColor: colors.accentMuted,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.accent,
+  },
   optionLabel: {
     fontSize: typeScale.body,
     fontWeight: '500',
@@ -234,13 +376,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.accent,
   },
-  emptyText: {
+  useExisting: {
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
-  hintText: {
+  useExistingLabel: {
+    fontSize: typeScale.body,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  emptyText: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
     fontSize: typeScale.bodySm,

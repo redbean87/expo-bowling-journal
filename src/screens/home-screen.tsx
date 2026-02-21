@@ -13,6 +13,7 @@ export default function HomeScreen() {
     <ScreenLayout
       title="Bowling Journal"
       subtitle="Home now shows live Convex status while auth and core flows continue to expand."
+      hideHeader
     >
       <Card>
         <Text style={styles.title}>Live Data</Text>

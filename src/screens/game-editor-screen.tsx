@@ -1425,7 +1425,12 @@ export default function GameEditorScreen() {
           onSelectFrame={onSelectFrame}
         />
 
-        <View style={styles.detailsSection}>
+        <View
+          style={[
+            styles.detailsSection,
+            isDetailsVisible ? styles.detailsSectionOpen : null,
+          ]}
+        >
           <Pressable
             onPress={onToggleDetails}
             style={({ pressed }) => [
@@ -1512,6 +1517,11 @@ const styles = StyleSheet.create({
   },
   detailsSection: {
     gap: spacing.xs,
+  },
+  detailsSectionOpen: {
+    position: 'relative',
+    zIndex: 30,
+    elevation: 30,
   },
   detailsToggle: {
     alignSelf: 'flex-start',

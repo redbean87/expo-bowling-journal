@@ -1,12 +1,16 @@
 import { Tabs } from 'expo-router';
 
+import { AppHeader } from '@/components/navigation/app-header';
+import { AppTabBar } from '@/components/navigation/app-tab-bar';
+
 export default function TabsLayout() {
   return (
     <Tabs
       initialRouteName="home"
       screenOptions={{
-        headerTitleAlign: 'center',
+        header: (props) => <AppHeader {...props} />,
       }}
+      tabBar={(props) => <AppTabBar {...props} />}
     >
       <Tabs.Screen
         name="home"

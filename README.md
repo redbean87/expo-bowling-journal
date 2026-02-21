@@ -14,6 +14,7 @@ A mobile bowling journal app built with Expo/React Native for tracking league pl
 - Roadmap-driven delivery for offline-first capture and analytics expansion
 
 See [ROADMAP.md](ROADMAP.md) for planned features and upcoming work.
+Roadmap execution follows the ordered `## Todo` list (top unchecked item first).
 
 ## Tech Stack
 
@@ -124,7 +125,7 @@ docs/
 ## Key Files
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and conventions
-- [ROADMAP.md](ROADMAP.md) - Current priorities and planned milestones
+- [ROADMAP.md](ROADMAP.md) - Ordered `Todo` queue and completed milestones
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Architecture and data flow overview
 - [AGENTS.md](AGENTS.md) - Agent-specific workflow and guardrails
 - [docs/libraries.md](docs/libraries.md) - Library stack and project conventions

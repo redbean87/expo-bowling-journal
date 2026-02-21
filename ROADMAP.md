@@ -2,24 +2,22 @@
 
 This roadmap keeps work scoped to small, precise commits.
 
-## Now
+## Todo
 
-- [ ] Design and implement custom app header/footer navigation shell
-
-## Next
+Todo is strictly ordered; execute the top unchecked item first.
+When an item is complete, move it to `## Completed`.
 
 - [ ] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
-
-## Later
-
-- [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
+- [ ] Design and implement custom app header/footer navigation shell
+- [ ] Polish navigation shell visual design (header affordance, tab active state contrast, and chrome/content separation)
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
-- [ ] Analytics views (trend lines, consistency, spare conversion)
+- [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] Data export and backup tooling
+- [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Split preview/production Convex deployments for web hosting environments
 - [ ] Add CI automation for Expo web preview/production deploys
-- [ ] Team/coach sharing model
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
+- [ ] Team/coach sharing model
 
 ## Completed
 

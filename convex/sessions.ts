@@ -44,8 +44,11 @@ export const create = mutation({
       throw new ConvexError('League not found');
     }
 
-    if (args.houseId) {
-      const house = await ctx.db.get(args.houseId);
+    const resolvedHouseId =
+      args.houseId === undefined ? (league.houseId ?? null) : args.houseId;
+
+    if (resolvedHouseId) {
+      const house = await ctx.db.get(resolvedHouseId);
 
       if (!house) {
         throw new ConvexError('House not found');
@@ -73,7 +76,7 @@ export const create = mutation({
       leagueId: args.leagueId,
       weekNumber: args.weekNumber ?? null,
       date: args.date,
-      houseId: args.houseId ?? null,
+      houseId: resolvedHouseId,
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
     });

@@ -362,7 +362,13 @@ export default function JournalLeaguesScreen() {
           />
 
           {leagues.map((league) => (
-            <Card key={league._id} style={styles.rowCard}>
+            <Card
+              key={league._id}
+              style={[
+                styles.rowCard,
+                editingLeagueId === league._id ? styles.rowCardActive : null,
+              ]}
+            >
               <Pressable
                 onPress={() => navigateToLeagueSessions(league._id)}
                 style={({ pressed }) => [
@@ -712,6 +718,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
     gap: spacing.xs,
+  },
+  rowCardActive: {
+    position: 'relative',
+    zIndex: 30,
+    elevation: 30,
   },
   modalBackdrop: {
     flex: 1,

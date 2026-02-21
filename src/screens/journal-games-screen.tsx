@@ -245,27 +245,33 @@ export default function JournalGamesScreen() {
           ) : null}
 
           {sessionId ? (
-            <Card muted>
-              <Text style={styles.summaryTitle}>Night stats</Text>
-              <Text style={styles.meta}>
-                {nightSummary.targetGames === null
-                  ? `Games: ${String(nightSummary.gamesPlayed)}`
-                  : `Games: ${String(nightSummary.gamesPlayed)} / ${String(nightSummary.targetGames)}`}
-              </Text>
+            <Card muted style={styles.summaryCard}>
+              <View style={styles.summaryHeaderRow}>
+                <Text style={styles.summaryTitle}>Night stats</Text>
+                <Text style={[styles.meta, styles.summaryValueText]}>
+                  {nightSummary.targetGames === null
+                    ? `Games: ${String(nightSummary.gamesPlayed)}`
+                    : `Games: ${String(nightSummary.gamesPlayed)} / ${String(nightSummary.targetGames)}`}
+                </Text>
+              </View>
               {nightSummary.gamesPlayed > 0 ? (
                 <>
-                  <Text style={styles.meta}>
-                    Series: {nightSummary.totalPins}
-                  </Text>
-                  <Text style={styles.meta}>
-                    Average: {nightSummary.average.toFixed(2)}
-                  </Text>
-                  <Text style={styles.meta}>
-                    High game: {nightSummary.highGame ?? '-'}
-                  </Text>
-                  <Text style={styles.meta}>
-                    Low game: {nightSummary.lowGame ?? '-'}
-                  </Text>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.meta}>
+                      Series: {nightSummary.totalPins}
+                    </Text>
+                    <Text style={[styles.meta, styles.summaryValueText]}>
+                      Average: {nightSummary.average.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.meta}>
+                      High game: {nightSummary.highGame ?? '-'}
+                    </Text>
+                    <Text style={[styles.meta, styles.summaryValueText]}>
+                      Low game: {nightSummary.lowGame ?? '-'}
+                    </Text>
+                  </View>
                   <Text style={styles.meta}>
                     Strikes {nightSummary.strikes} | Spares{' '}
                     {nightSummary.spares} | Opens {nightSummary.opens}
@@ -453,6 +459,27 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  summaryCard: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 10,
+    gap: spacing.xs,
+  },
+  summaryHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  summaryValueText: {
+    textAlign: 'right',
+    opacity: 0.8,
   },
   previewGrid: {
     gap: spacing.xs,

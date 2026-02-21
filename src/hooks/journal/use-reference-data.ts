@@ -2,16 +2,13 @@ import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useMemo } from 'react';
 
 import { convexJournalService } from '@/services/journal';
+import { buildRankedReferenceSuggestions } from '@/utils/reference-combobox-utils';
 
 type ReferenceOption<TId extends string> = {
   id: TId;
   label: string;
   secondaryLabel?: string | null;
 };
-
-function normalizeQuery(value: string) {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase();
-}
 
 function toNameSortedOptions<TId extends string>(
   values: Array<{ _id: TId; name: string; brand?: string | null }>
@@ -165,15 +162,7 @@ export function useReferenceData() {
       recent: ReferenceOption<string>[],
       query: string
     ) => {
-      const normalized = normalizeQuery(query);
-
-      if (normalized.length === 0) {
-        return recent.slice(0, 10);
-      }
-
-      return options
-        .filter((option) => normalizeQuery(option.label).includes(normalized))
-        .slice(0, 10);
+      return buildRankedReferenceSuggestions(options, recent, query, 10);
     },
     []
   );

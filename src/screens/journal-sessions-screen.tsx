@@ -98,13 +98,17 @@ export default function JournalSessionsScreen() {
     createHouse,
   } = useReferenceData();
 
-  const leagueName = useMemo(() => {
+  const selectedLeague = useMemo(() => {
     if (!leagueId) {
       return null;
     }
 
-    return leagues.find((league) => league._id === leagueId)?.name ?? null;
+    return leagues.find((league) => league._id === leagueId) ?? null;
   }, [leagueId, leagues]);
+  const leagueName = selectedLeague?.name ?? null;
+  const defaultSessionHouseId = selectedLeague?.houseId
+    ? String(selectedLeague.houseId)
+    : null;
 
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
@@ -291,6 +295,12 @@ export default function JournalSessionsScreen() {
     }
   };
 
+  const openCreateModal = () => {
+    setSessionError(null);
+    setSessionHouseId(defaultSessionHouseId);
+    setIsCreateModalVisible(true);
+  };
+
   useEffect(() => {
     if (!startTonight || hasHandledStartTonightRef.current) {
       return;
@@ -382,7 +392,13 @@ export default function JournalSessionsScreen() {
           ) : null}
 
           {sessions.map((session) => (
-            <Card key={session._id} style={styles.rowCard}>
+            <Card
+              key={session._id}
+              style={[
+                styles.rowCard,
+                editingSessionId === session._id ? styles.rowCardActive : null,
+              ]}
+            >
               <Pressable
                 style={({ pressed }) => [pressed ? styles.rowPressed : null]}
                 onPress={() =>
@@ -519,10 +535,7 @@ export default function JournalSessionsScreen() {
         <FloatingActionButton
           accessibilityLabel="Create session"
           disabled={!leagueId}
-          onPress={() => {
-            setSessionError(null);
-            setIsCreateModalVisible(true);
-          }}
+          onPress={openCreateModal}
         />
 
         <Modal
@@ -698,6 +711,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
     gap: spacing.xs,
+  },
+  rowCardActive: {
+    position: 'relative',
+    zIndex: 30,
+    elevation: 30,
   },
   modalBackdrop: {
     flex: 1,

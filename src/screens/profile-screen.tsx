@@ -63,6 +63,7 @@ export default function ProfileScreen() {
     <ScreenLayout
       title="Profile"
       subtitle="Import your SQLite backup and track import progress here."
+      hideHeader
     >
       <View style={styles.content}>
         <Text style={styles.copy}>

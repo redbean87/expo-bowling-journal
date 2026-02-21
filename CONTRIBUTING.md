@@ -59,7 +59,7 @@ Environment policy:
 Unless a task explicitly says otherwise:
 
 1. Read `AGENTS.md`, `CONTRIBUTING.md`, and `ROADMAP.md`
-2. Continue with the top unchecked item in `## Next` from `ROADMAP.md`
+2. Continue with the top unchecked item in `## Todo` from `ROADMAP.md`
 3. Follow import pipeline guardrails when import code is touched
 
 For frontend iteration, keep competitor-flow screenshots in `docs/ux-reference/competitor-app/` and target visual references in `docs/ux-reference/next-app/`.

@@ -108,7 +108,7 @@ scripts/
 Unless the user explicitly asks for a different workflow, start each coding session by:
 
 1. Reading `AGENTS.md`, `CONTRIBUTING.md`, and `ROADMAP.md`
-2. Continuing with the top unchecked item in `## Next` from `ROADMAP.md`
+2. Continuing with the top unchecked item in `## Todo` from `ROADMAP.md`
 3. Following existing import pipeline guardrails when import code is touched
 
 When reporting progress for roadmap execution, use this response structure:
