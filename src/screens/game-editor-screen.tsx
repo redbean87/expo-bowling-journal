@@ -143,6 +143,12 @@ function hasAnyFrameDraftValue(frameDrafts: FrameDraft[]) {
   );
 }
 
+function createDraftNonce() {
+  const timestampPart = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `${timestampPart}-${randomPart}`;
+}
+
 function isOfflineLikely() {
   if (Platform.OS !== 'web') {
     return false;
@@ -204,10 +210,12 @@ export default function GameEditorScreen() {
     leagueId?: string | string[];
     gameId?: string | string[];
     sessionId?: string | string[];
+    draftNonce?: string | string[];
   }>();
 
   const leagueId = getFirstParam(params.leagueId);
   const gameIdParam = getFirstParam(params.gameId);
+  const draftNonceParam = getFirstParam(params.draftNonce);
   const isCreateMode = gameIdParam === 'new';
   const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
   const sessionId = getFirstParam(params.sessionId) as SessionId | null;
@@ -260,13 +268,22 @@ export default function GameEditorScreen() {
     () => (isCreateMode ? 'Add Game' : 'Edit Game'),
     [isCreateMode]
   );
+  const activeDraftNonce = useMemo(() => {
+    if (!isCreateMode) {
+      return null;
+    }
+
+    return draftNonceParam && draftNonceParam.trim().length > 0
+      ? draftNonceParam
+      : createDraftNonce();
+  }, [draftNonceParam, isCreateMode]);
   const localDraftId = useMemo(() => {
     if (!sessionId) {
       return null;
     }
 
-    return buildGameSaveQueueId(String(sessionId), gameId);
-  }, [gameId, sessionId]);
+    return buildGameSaveQueueId(String(sessionId), gameId, activeDraftNonce);
+  }, [activeDraftNonce, gameId, sessionId]);
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
@@ -377,6 +394,7 @@ export default function GameEditorScreen() {
         {
           sessionId: String(queueSessionId),
           gameId: activeGameId ? String(activeGameId) : null,
+          draftNonce: activeGameId ? null : activeDraftNonce,
           date: autosavePlan.trimmedDate,
           frames: autosavePlan.payloadFrames,
           signature: saveSignature,
@@ -398,6 +416,7 @@ export default function GameEditorScreen() {
       return true;
     },
     [
+      activeDraftNonce,
       date,
       didHydrate,
       draftGameId,
@@ -468,7 +487,14 @@ export default function GameEditorScreen() {
       if (sessionId) {
         const activeSessionId = String(sessionId);
         activeQueueIds.add(
-          buildGameSaveQueueId(activeSessionId, draftGameId ?? gameId)
+          buildGameSaveQueueId(
+            activeSessionId,
+            draftGameId ?? gameId,
+            activeDraftNonce
+          )
+        );
+        activeQueueIds.add(
+          buildGameSaveQueueId(activeSessionId, null, activeDraftNonce)
         );
         activeQueueIds.add(buildGameSaveQueueId(activeSessionId, null));
       }
@@ -527,6 +553,7 @@ export default function GameEditorScreen() {
   }, [
     clearLocalDraft,
     createGame,
+    activeDraftNonce,
     draftGameId,
     gameId,
     isAuthenticated,
@@ -782,7 +809,15 @@ export default function GameEditorScreen() {
     return () => {
       cancelled = true;
     };
-  }, [didHydrate, frames, game, gameId, isCreateMode, localDraftId]);
+  }, [
+    didHydrate,
+    frames,
+    game,
+    gameId,
+    isAuthenticated,
+    isCreateMode,
+    localDraftId,
+  ]);
 
   useEffect(() => {
     if (!didHydrate || !localDraftId) {
@@ -1213,6 +1248,7 @@ export default function GameEditorScreen() {
           {
             sessionId: String(queueSessionId),
             gameId: attemptedGameId ? String(attemptedGameId) : null,
+            draftNonce: attemptedGameId ? null : activeDraftNonce,
             date: trimmedDate,
             frames: payloadFrames,
             signature: saveSignature,
@@ -1253,7 +1289,8 @@ export default function GameEditorScreen() {
             const pendingNewGameEntry = getQueuedGameSaveEntry(
               queueEntries,
               String(sessionId),
-              null
+              null,
+              activeDraftNonce
             );
 
             if (pendingNewGameEntry) {
@@ -1350,6 +1387,7 @@ export default function GameEditorScreen() {
     return () => clearTimeout(timer);
   }, [
     createGame,
+    activeDraftNonce,
     date,
     didHydrate,
     draftGameId,

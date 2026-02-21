@@ -83,7 +83,7 @@ This roadmap keeps work scoped to small, precise commits.
 - Replace-all import cleanup for callback/direct snapshot paths is chunked in bounded mutations to avoid Convex read-cap regressions
 - Raw import mirror persistence for callback/direct snapshot paths is chunked across all `importRaw*` tables before normalized import execution
 - Prioritize mobile-first data capture and offline resiliency ahead of analytics/reporting polish
-- Offline editor autosave queue dedupe key is `sessionId + (gameId || "new")` with latest-local-edit-wins behavior
+- Offline editor autosave queue dedupe key is `sessionId + (gameId || draftNonce)` with latest-local-edit-wins behavior per draft attempt
 
 ## Risks / Unknowns
 

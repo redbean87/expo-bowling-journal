@@ -16,6 +16,9 @@ function isQueuedGameSaveEntry(value: unknown): value is QueuedGameSaveEntry {
     typeof candidate.queueId === 'string' &&
     typeof candidate.sessionId === 'string' &&
     (typeof candidate.gameId === 'string' || candidate.gameId === null) &&
+    (typeof candidate.draftNonce === 'string' ||
+      candidate.draftNonce === null ||
+      typeof candidate.draftNonce === 'undefined') &&
     typeof candidate.date === 'string' &&
     Array.isArray(candidate.frames) &&
     typeof candidate.signature === 'string' &&
@@ -60,7 +63,11 @@ export async function loadGameSaveQueue(): Promise<QueuedGameSaveEntry[]> {
       return [];
     }
 
-    return parsed.filter(isQueuedGameSaveEntry);
+    return parsed.filter(isQueuedGameSaveEntry).map((entry) => ({
+      ...entry,
+      draftNonce:
+        typeof entry.draftNonce === 'string' ? entry.draftNonce : null,
+    }));
   } catch {
     return [];
   }

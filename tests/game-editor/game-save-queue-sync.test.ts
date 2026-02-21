@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildGameSaveQueueId,
   createQueuedGameSaveEntry,
   type QueuedGameSaveEntry,
 } from '../../src/screens/game-editor/game-save-queue';
@@ -74,7 +75,8 @@ test('flushQueuedGameSavesWithLock reuses in-flight queue flush', async () => {
 test('flushQueuedGameSaves creates missing game ids and removes synced entries', async () => {
   const createdEntry = createQueueEntry({
     gameId: null,
-    queueId: 'session-1::new',
+    draftNonce: 'draft-a',
+    queueId: buildGameSaveQueueId('session-1', null, 'draft-a'),
     nextRetryAt: BASE_TIME,
   });
   let queueState: QueuedGameSaveEntry[] = [createdEntry];
@@ -95,6 +97,127 @@ test('flushQueuedGameSaves creates missing game ids and removes synced entries',
   });
 
   assert.equal(syncedTargetGameId, 'game-created');
+  assert.deepEqual(queueState, []);
+});
+
+test('flushQueuedGameSaves syncs two offline new drafts as distinct games', async () => {
+  const firstDraft = createQueuedGameSaveEntry(
+    {
+      sessionId: 'session-1',
+      gameId: null,
+      draftNonce: 'draft-a',
+      date: '2026-02-19',
+      frames: [
+        { frameNumber: 1, roll1: 10, roll2: null, roll3: null, pins: 1 },
+        { frameNumber: 2, roll1: 8, roll2: 1, roll3: null, pins: 2 },
+      ],
+      signature: 'sig-draft-a',
+    },
+    BASE_TIME
+  );
+  const secondDraft = createQueuedGameSaveEntry(
+    {
+      sessionId: 'session-1',
+      gameId: null,
+      draftNonce: 'draft-b',
+      date: '2026-02-19',
+      frames: [
+        { frameNumber: 1, roll1: 9, roll2: 1, roll3: null, pins: 11 },
+        { frameNumber: 2, roll1: 10, roll2: null, roll3: null, pins: 12 },
+      ],
+      signature: 'sig-draft-b',
+    },
+    BASE_TIME + 10
+  );
+  let queueState: QueuedGameSaveEntry[] = [firstDraft, secondDraft];
+  const createCalls: string[] = [];
+  const replaceCalls: Array<{
+    gameId: string;
+    frames: QueuedGameSaveEntry['frames'];
+  }> = [];
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      const nextGameId = `game-created-${createCalls.length + 1}`;
+      createCalls.push(nextGameId);
+      return nextGameId as never;
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async ({ gameId, frames }) => {
+      replaceCalls.push({ gameId: String(gameId), frames });
+      return undefined;
+    },
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  assert.deepEqual(createCalls, ['game-created-1', 'game-created-2']);
+  assert.equal(replaceCalls.length, 2);
+  assert.deepEqual(replaceCalls[0], {
+    gameId: 'game-created-1',
+    frames: firstDraft.frames,
+  });
+  assert.deepEqual(replaceCalls[1], {
+    gameId: 'game-created-2',
+    frames: secondDraft.frames,
+  });
+  assert.deepEqual(queueState, []);
+});
+
+test('flushQueuedGameSaves creates only once for one draft attempt', async () => {
+  const draftEntry = createQueuedGameSaveEntry(
+    {
+      sessionId: 'session-1',
+      gameId: null,
+      draftNonce: 'draft-a',
+      date: '2026-02-19',
+      frames: [
+        { frameNumber: 1, roll1: 10, roll2: null, roll3: null, pins: 1 },
+      ],
+      signature: 'sig-a',
+    },
+    BASE_TIME
+  );
+  let queueState: QueuedGameSaveEntry[] = [draftEntry];
+  let createCount = 0;
+  const replaceCalls: string[] = [];
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      createCount += 1;
+      return 'game-created-1' as never;
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async ({ gameId }) => {
+      replaceCalls.push(String(gameId));
+      return undefined;
+    },
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      createCount += 1;
+      return 'game-created-2' as never;
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async ({ gameId }) => {
+      replaceCalls.push(String(gameId));
+      return undefined;
+    },
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  assert.equal(createCount, 1);
+  assert.deepEqual(replaceCalls, ['game-created-1']);
   assert.deepEqual(queueState, []);
 });
 

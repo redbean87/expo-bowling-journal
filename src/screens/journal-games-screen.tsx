@@ -112,6 +112,12 @@ function summarizePreviewMarks(
   };
 }
 
+function createDraftNonce() {
+  const timestampPart = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).slice(2, 10);
+  return `${timestampPart}-${randomPart}`;
+}
+
 export default function JournalGamesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -386,6 +392,7 @@ export default function JournalGamesScreen() {
                 leagueId: leagueId ?? '',
                 sessionId: sessionId ?? '',
                 gameId: 'new',
+                draftNonce: createDraftNonce(),
               },
             })
           }

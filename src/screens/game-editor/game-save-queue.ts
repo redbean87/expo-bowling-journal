@@ -6,6 +6,7 @@ export type QueuedGameSaveEntry = {
   queueId: string;
   sessionId: string;
   gameId: string | null;
+  draftNonce: string | null;
   date: string;
   frames: EditableFrameInput[];
   signature: string;
@@ -20,23 +21,54 @@ export type QueuedGameSaveEntry = {
 type NewQueuedGameSaveInput = {
   sessionId: string;
   gameId: string | null;
+  draftNonce?: string | null;
   date: string;
   frames: EditableFrameInput[];
   signature: string;
 };
 
-export function buildGameSaveQueueId(sessionId: string, gameId: string | null) {
-  return `${sessionId}::${gameId ?? 'new'}`;
+function normalizeDraftNonce(draftNonce?: string | null) {
+  if (!draftNonce) {
+    return null;
+  }
+
+  const trimmed = draftNonce.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function buildGameSaveQueueId(
+  sessionId: string,
+  gameId: string | null,
+  draftNonce?: string | null
+) {
+  if (gameId) {
+    return `${sessionId}::${gameId}`;
+  }
+
+  const normalizedDraftNonce = normalizeDraftNonce(draftNonce);
+
+  if (normalizedDraftNonce) {
+    return `${sessionId}::new::${normalizedDraftNonce}`;
+  }
+
+  return `${sessionId}::new`;
 }
 
 export function createQueuedGameSaveEntry(
   input: NewQueuedGameSaveInput,
   now: number
 ): QueuedGameSaveEntry {
+  const normalizedDraftNonce = normalizeDraftNonce(input.draftNonce);
+
   return {
-    queueId: buildGameSaveQueueId(input.sessionId, input.gameId),
+    queueId: buildGameSaveQueueId(
+      input.sessionId,
+      input.gameId,
+      normalizedDraftNonce
+    ),
     sessionId: input.sessionId,
     gameId: input.gameId,
+    draftNonce: input.gameId ? null : normalizedDraftNonce,
     date: input.date,
     frames: input.frames,
     signature: input.signature,
@@ -88,9 +120,10 @@ export function getDueQueuedGameSaveEntries(
 export function getQueuedGameSaveEntry(
   entries: QueuedGameSaveEntry[],
   sessionId: string,
-  gameId: string | null
+  gameId: string | null,
+  draftNonce?: string | null
 ) {
-  const queueId = buildGameSaveQueueId(sessionId, gameId);
+  const queueId = buildGameSaveQueueId(sessionId, gameId, draftNonce);
   return entries.find((entry) => entry.queueId === queueId) ?? null;
 }
 
@@ -102,6 +135,7 @@ export function migrateQueuedEntryToGameId(
   return {
     ...entry,
     gameId,
+    draftNonce: null,
     queueId: buildGameSaveQueueId(entry.sessionId, gameId),
     updatedAt: now,
   };
