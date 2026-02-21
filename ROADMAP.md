@@ -4,17 +4,15 @@ This roadmap keeps work scoped to small, precise commits.
 
 ## Now
 
-- [x] Mobile-first league night flow (fast league -> session -> game entry)
+- [ ] Design and implement custom app header/footer navigation shell
 
 ## Next
 
-- [x] Queue + sync error UX for weak-signal bowling alleys (silent happy path)
+- [ ] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
 
 ## Later
 
-- [ ] Queue + sync status UX for weak-signal bowling alleys
-- [ ] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
-- [ ] Design and implement custom app header/footer navigation shell
+- [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Data export and backup tooling
@@ -71,6 +69,7 @@ This roadmap keeps work scoped to small, precise commits.
 - [x] Add reference selectors with inline quick add and top-10 recent suggestions for leagues and sessions
 - [x] Add optional game details section for pattern/ball metadata with hidden-by-default toggle
 - [x] Remove game-level house from schema, mutations, imports, and client game contracts (house now league/session scoped)
+- [x] Add quiet queue/sync status UX on journal root with details modal and retry-now action
 
 ## Decision Log
 

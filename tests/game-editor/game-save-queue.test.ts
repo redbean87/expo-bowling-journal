@@ -5,6 +5,7 @@ import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
   getActionableSaveErrorMessage,
+  getQueuedGameSaveEntry,
   getDueQueuedGameSaveEntries,
   isRetryableSaveError,
   markQueuedGameSaveEntryRetry,
@@ -109,6 +110,36 @@ test('getDueQueuedGameSaveEntries returns due entries oldest-updated first', () 
   assert.deepEqual(
     due.map((entry) => entry.signature),
     ['due-older', 'due-newer']
+  );
+});
+
+test('getQueuedGameSaveEntry finds session/game scoped entry', () => {
+  const queuedNew = createEntry({
+    sessionId: 'session-1',
+    gameId: null,
+    signature: 'queued-new',
+    now: BASE_TIME,
+  });
+  const queuedExisting = createEntry({
+    sessionId: 'session-1',
+    gameId: 'game-2',
+    signature: 'queued-existing',
+    now: BASE_TIME,
+  });
+
+  assert.equal(
+    getQueuedGameSaveEntry([queuedNew, queuedExisting], 'session-1', null)
+      ?.signature,
+    'queued-new'
+  );
+  assert.equal(
+    getQueuedGameSaveEntry([queuedNew, queuedExisting], 'session-1', 'game-2')
+      ?.signature,
+    'queued-existing'
+  );
+  assert.equal(
+    getQueuedGameSaveEntry([queuedNew, queuedExisting], 'session-2', null),
+    null
   );
 });
 

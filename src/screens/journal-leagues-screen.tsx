@@ -16,9 +16,66 @@ import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { ReferenceCombobox } from '@/components/reference-combobox';
+import { SyncStatusChip } from '@/components/sync-status-chip';
 import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
-import { useLeagues, useReferenceData } from '@/hooks/journal';
+import {
+  useLeagues,
+  useQueueSyncStatus,
+  useReferenceData,
+} from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+
+function formatRelativeTime(timestamp: number | null, now: number) {
+  if (!timestamp) {
+    return null;
+  }
+
+  const deltaMs = Math.max(0, now - timestamp);
+  const minutes = Math.floor(deltaMs / 60000);
+
+  if (minutes < 1) {
+    return 'just now';
+  }
+
+  if (minutes < 60) {
+    return `${String(minutes)}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${String(hours)}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${String(days)}d ago`;
+}
+
+function formatRetryTime(timestamp: number | null, now: number) {
+  if (!timestamp) {
+    return null;
+  }
+
+  const deltaMs = Math.max(0, timestamp - now);
+  const seconds = Math.ceil(deltaMs / 1000);
+
+  if (seconds <= 0) {
+    return 'any moment';
+  }
+
+  if (seconds < 60) {
+    return `in ${String(seconds)}s`;
+  }
+
+  const minutes = Math.ceil(seconds / 60);
+
+  if (minutes < 60) {
+    return `in ${String(minutes)}m`;
+  }
+
+  const hours = Math.ceil(minutes / 60);
+  return `in ${String(hours)}h`;
+}
 
 export default function JournalLeaguesScreen() {
   const { width: windowWidth } = useWindowDimensions();
@@ -48,10 +105,27 @@ export default function JournalLeaguesScreen() {
   >(null);
   const [isSavingLeagueEdit, setIsSavingLeagueEdit] = useState(false);
   const [deletingLeagueId, setDeletingLeagueId] = useState<string | null>(null);
+  const [isSyncStatusVisible, setIsSyncStatusVisible] = useState(false);
   const defaultLeagueId = leagues[0]?._id ?? null;
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
     useReferenceData();
+  const {
+    status: queueStatus,
+    refreshStatus,
+    retryNow,
+    isRetryingNow,
+  } = useQueueSyncStatus();
+  const now = Date.now();
+
+  const syncChipLabel =
+    queueStatus.state === 'syncing'
+      ? 'Syncing...'
+      : queueStatus.state === 'attention'
+        ? 'Needs attention'
+        : queueStatus.state === 'retrying'
+          ? 'Retrying soon'
+          : `${String(queueStatus.queuedCount)} queued`;
 
   const navigateToLeagueSessions = (leagueId: string) => {
     router.push({
@@ -250,6 +324,17 @@ export default function JournalLeaguesScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.content}
         >
+          {queueStatus.state !== 'idle' ? (
+            <SyncStatusChip
+              label={syncChipLabel}
+              onPress={() => {
+                void refreshStatus();
+                setIsSyncStatusVisible(true);
+              }}
+              state={queueStatus.state}
+            />
+          ) : null}
+
           {leagueActionError ? (
             <Text style={styles.errorText}>{leagueActionError}</Text>
           ) : null}
@@ -466,6 +551,83 @@ export default function JournalLeaguesScreen() {
                     disabled={isCreatingLeague}
                     label="Cancel"
                     onPress={() => setIsCreateModalVisible(false)}
+                    variant="ghost"
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={isSyncStatusVisible}
+          onRequestClose={() => setIsSyncStatusVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable
+              style={styles.modalBackdropHitbox}
+              onPress={() => setIsSyncStatusVisible(false)}
+            />
+            <View
+              style={[
+                styles.modalCard,
+                { transform: [{ translateY: modalTranslateY }] },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Sync status</Text>
+                <Pressable
+                  accessibilityLabel="Close sync status dialog"
+                  accessibilityRole="button"
+                  onPress={() => setIsSyncStatusVisible(false)}
+                  style={({ pressed }) => [
+                    styles.modalCloseButton,
+                    pressed ? styles.modalCloseButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.modalCloseLabel}>X</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.meta}>
+                Queued saves: {queueStatus.queuedCount}
+              </Text>
+              {queueStatus.oldestPendingAt ? (
+                <Text style={styles.meta}>
+                  Oldest pending:{' '}
+                  {formatRelativeTime(queueStatus.oldestPendingAt, now)}
+                </Text>
+              ) : null}
+              {queueStatus.nextRetryAt ? (
+                <Text style={styles.meta}>
+                  Next retry: {formatRetryTime(queueStatus.nextRetryAt, now)}
+                </Text>
+              ) : null}
+              {queueStatus.latestActionableError ? (
+                <Text style={styles.errorText}>
+                  {queueStatus.latestActionableError}
+                </Text>
+              ) : null}
+              <View style={styles.modalActions}>
+                <View style={styles.modalActionButton}>
+                  <Button
+                    disabled={
+                      isRetryingNow ||
+                      queueStatus.queuedCount === 0 ||
+                      queueStatus.state === 'syncing'
+                    }
+                    label={isRetryingNow ? 'Retrying...' : 'Retry now'}
+                    onPress={() => {
+                      void retryNow();
+                    }}
+                    variant="secondary"
+                  />
+                </View>
+                <View style={styles.modalActionButton}>
+                  <Button
+                    label="Close"
+                    onPress={() => setIsSyncStatusVisible(false)}
                     variant="ghost"
                   />
                 </View>

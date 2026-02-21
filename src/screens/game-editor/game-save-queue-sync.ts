@@ -2,7 +2,6 @@ import {
   isRetryableSaveError,
   markQueuedGameSaveEntryRetry,
   migrateQueuedEntryToGameId,
-  removeQueuedGameSaveEntry,
   replaceQueuedGameSaveEntry,
   type QueuedGameSaveEntry,
 } from './game-save-queue';
@@ -42,7 +41,9 @@ type FlushCallbacks = {
 
 type FlushQueuedGameSavesOptions = QueueMutations &
   QueueStorage &
-  FlushCallbacks;
+  FlushCallbacks & {
+    force?: boolean;
+  };
 
 type FlushQueuedGameSavesResult = {
   remainingEntries: QueuedGameSaveEntry[];
@@ -68,6 +69,31 @@ function getErrorMessage(caught: unknown) {
   return 'Unable to sync saved game.';
 }
 
+function getEntryByQueueId(entries: QueuedGameSaveEntry[], queueId: string) {
+  return entries.find((entry) => entry.queueId === queueId) ?? null;
+}
+
+function removeQueuedEntryIfSignatureMatches(
+  entries: QueuedGameSaveEntry[],
+  queueId: string,
+  signature: string
+) {
+  return entries.filter(
+    (entry) => !(entry.queueId === queueId && entry.signature === signature)
+  );
+}
+
+async function applyQueueMutation(
+  loadQueue: () => Promise<QueuedGameSaveEntry[]>,
+  persistQueue: (entries: QueuedGameSaveEntry[]) => Promise<void>,
+  mutate: (entries: QueuedGameSaveEntry[]) => QueuedGameSaveEntry[]
+) {
+  const latestEntries = await loadQueue();
+  const nextEntries = mutate(latestEntries);
+  await persistQueue(nextEntries);
+  return nextEntries;
+}
+
 export async function flushQueuedGameSaves({
   createGame,
   updateGame,
@@ -76,11 +102,12 @@ export async function flushQueuedGameSaves({
   persistQueue = persistDefaultQueue,
   onEntrySynced,
   onEntryFailedNonRetryable,
+  force = false,
 }: FlushQueuedGameSavesOptions): Promise<FlushQueuedGameSavesResult> {
   let queueEntries = await loadQueue();
   const now = Date.now();
   const dueEntries = queueEntries
-    .filter((entry) => entry.nextRetryAt <= now)
+    .filter((entry) => force || entry.nextRetryAt <= now)
     .sort((left, right) => left.updatedAt - right.updatedAt);
 
   if (dueEntries.length === 0) {
@@ -88,7 +115,14 @@ export async function flushQueuedGameSaves({
   }
 
   for (const dueEntry of dueEntries) {
-    let queueEntry = dueEntry;
+    const latestEntries = await loadQueue();
+    const latestDueEntry = getEntryByQueueId(latestEntries, dueEntry.queueId);
+
+    if (!latestDueEntry) {
+      continue;
+    }
+
+    let queueEntry = latestDueEntry;
     let targetGameId = queueEntry.gameId as GameId | null;
     let wasCreated = false;
 
@@ -98,13 +132,33 @@ export async function flushQueuedGameSaves({
           sessionId: queueEntry.sessionId as SessionId,
           date: queueEntry.date,
         });
-        queueEntry = migrateQueuedEntryToGameId(queueEntry, createdGameId, now);
-        queueEntries = replaceQueuedGameSaveEntry(
-          queueEntries,
-          dueEntry.queueId,
-          queueEntry
+        const migratedAt = Date.now();
+        queueEntries = await applyQueueMutation(
+          loadQueue,
+          persistQueue,
+          (entries) => {
+            const latestQueuedEntry = getEntryByQueueId(
+              entries,
+              dueEntry.queueId
+            );
+
+            if (!latestQueuedEntry) {
+              return entries;
+            }
+
+            queueEntry = migrateQueuedEntryToGameId(
+              latestQueuedEntry,
+              createdGameId,
+              migratedAt
+            );
+
+            return replaceQueuedGameSaveEntry(
+              entries,
+              dueEntry.queueId,
+              queueEntry
+            );
+          }
         );
-        await persistQueue(queueEntries);
         targetGameId = createdGameId;
         wasCreated = true;
       } else {
@@ -119,11 +173,16 @@ export async function flushQueuedGameSaves({
         frames: queueEntry.frames,
       });
 
-      queueEntries = removeQueuedGameSaveEntry(
-        queueEntries,
-        queueEntry.queueId
+      queueEntries = await applyQueueMutation(
+        loadQueue,
+        persistQueue,
+        (entries) =>
+          removeQueuedEntryIfSignatureMatches(
+            entries,
+            queueEntry.queueId,
+            queueEntry.signature
+          )
       );
-      await persistQueue(queueEntries);
 
       onEntrySynced?.({
         entry: queueEntry,
@@ -133,11 +192,16 @@ export async function flushQueuedGameSaves({
       });
     } catch (caught) {
       if (!isRetryableSaveError(caught)) {
-        queueEntries = removeQueuedGameSaveEntry(
-          queueEntries,
-          queueEntry.queueId
+        queueEntries = await applyQueueMutation(
+          loadQueue,
+          persistQueue,
+          (entries) =>
+            removeQueuedEntryIfSignatureMatches(
+              entries,
+              queueEntry.queueId,
+              queueEntry.signature
+            )
         );
-        await persistQueue(queueEntries);
 
         onEntryFailedNonRetryable?.({
           entry: queueEntry,
@@ -147,13 +211,24 @@ export async function flushQueuedGameSaves({
         continue;
       }
 
-      queueEntries = markQueuedGameSaveEntryRetry(
-        queueEntries,
-        queueEntry.queueId,
-        getErrorMessage(caught),
-        Date.now()
+      queueEntries = await applyQueueMutation(
+        loadQueue,
+        persistQueue,
+        (entries) => {
+          const currentEntry = getEntryByQueueId(entries, queueEntry.queueId);
+
+          if (!currentEntry) {
+            return entries;
+          }
+
+          return markQueuedGameSaveEntryRetry(
+            entries,
+            currentEntry.queueId,
+            getErrorMessage(caught),
+            Date.now()
+          );
+        }
       );
-      await persistQueue(queueEntries);
     }
   }
 

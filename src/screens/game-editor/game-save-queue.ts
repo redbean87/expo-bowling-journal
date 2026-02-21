@@ -85,6 +85,15 @@ export function getDueQueuedGameSaveEntries(
     .sort((left, right) => left.updatedAt - right.updatedAt);
 }
 
+export function getQueuedGameSaveEntry(
+  entries: QueuedGameSaveEntry[],
+  sessionId: string,
+  gameId: string | null
+) {
+  const queueId = buildGameSaveQueueId(sessionId, gameId);
+  return entries.find((entry) => entry.queueId === queueId) ?? null;
+}
+
 export function migrateQueuedEntryToGameId(
   entry: QueuedGameSaveEntry,
   gameId: string,

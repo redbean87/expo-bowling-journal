@@ -43,6 +43,7 @@ import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
   getActionableSaveErrorMessage,
+  getQueuedGameSaveEntry,
   isRetryableSaveError,
   upsertQueuedGameSaveEntry,
 } from './game-editor/game-save-queue';
@@ -140,6 +141,18 @@ function hasAnyFrameDraftValue(frameDrafts: FrameDraft[]) {
       frame.roll2Mask !== null ||
       frame.roll3Mask !== null
   );
+}
+
+function isOfflineLikely() {
+  if (Platform.OS !== 'web') {
+    return false;
+  }
+
+  if (typeof globalThis.navigator === 'undefined') {
+    return false;
+  }
+
+  return globalThis.navigator.onLine === false;
 }
 
 function getDefaultMaskForField(
@@ -320,6 +333,85 @@ export default function GameEditorScreen() {
     await removeLocalGameDraft(localDraftId);
   }, [localDraftId]);
 
+  const promoteDraftToQueue = useCallback(
+    async ({ updateUi }: { updateUi: boolean }) => {
+      const shouldQueueLocally =
+        hasSignedInBefore && (!isAuthenticated || isOfflineLikely());
+
+      if (!didHydrate || !shouldQueueLocally) {
+        return false;
+      }
+
+      const activeGameId = draftGameId;
+      const { drafts: sanitizedDrafts } =
+        sanitizeFrameDraftsForEntry(frameDrafts);
+      const autosavePlan = buildAutosaveGuardResult({
+        isAuthenticated,
+        hasSignedInBefore,
+        date,
+        frameDrafts: sanitizedDrafts,
+        isCreateMode,
+        currentGameId: activeGameId,
+      });
+
+      if (autosavePlan.status !== 'ready') {
+        return false;
+      }
+
+      const queueSessionId = sessionId ?? game?.sessionId;
+
+      if (!queueSessionId) {
+        return false;
+      }
+
+      const saveSignature = JSON.stringify({
+        gameId: activeGameId ?? 'new',
+        date: autosavePlan.trimmedDate,
+        frames: autosavePlan.payloadFrames,
+        patternId: selectedPatternId,
+        ballId: selectedBallId,
+      });
+
+      const now = Date.now();
+      const queueEntry = createQueuedGameSaveEntry(
+        {
+          sessionId: String(queueSessionId),
+          gameId: activeGameId ? String(activeGameId) : null,
+          date: autosavePlan.trimmedDate,
+          frames: autosavePlan.payloadFrames,
+          signature: saveSignature,
+        },
+        now
+      );
+      const queueEntries = upsertQueuedGameSaveEntry(
+        await loadGameSaveQueue(),
+        queueEntry
+      );
+
+      await persistGameSaveQueue(queueEntries);
+
+      if (updateUi) {
+        setAutosaveState('queued');
+        setAutosaveError(null);
+      }
+
+      return true;
+    },
+    [
+      date,
+      didHydrate,
+      draftGameId,
+      frameDrafts,
+      game?.sessionId,
+      hasSignedInBefore,
+      isAuthenticated,
+      isCreateMode,
+      selectedBallId,
+      selectedPatternId,
+      sessionId,
+    ]
+  );
+
   const replaceNewRouteWithGameId = useCallback(
     (nextGameId: GameId) => {
       if (gameIdParam !== 'new') {
@@ -344,6 +436,10 @@ export default function GameEditorScreen() {
 
   const flushQueuedSaves = useCallback(async () => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    if (isOfflineLikely()) {
       return;
     }
 
@@ -392,11 +488,7 @@ export default function GameEditorScreen() {
             replaceNewRouteWithGameId(targetGameId);
           }
 
-          lastSavedSignatureRef.current = JSON.stringify({
-            gameId: targetGameId,
-            date: entry.date,
-            frames: entry.frames,
-          });
+          lastSavedSignatureRef.current = entry.signature;
 
           if (
             sessionId &&
@@ -460,7 +552,10 @@ export default function GameEditorScreen() {
     const onAppStateChange = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
         void flushQueuedSaves();
+        return;
       }
+
+      void promoteDraftToQueue({ updateUi: false });
     };
 
     const subscription = AppState.addEventListener('change', onAppStateChange);
@@ -468,7 +563,13 @@ export default function GameEditorScreen() {
     return () => {
       subscription.remove();
     };
-  }, [flushQueuedSaves]);
+  }, [flushQueuedSaves, promoteDraftToQueue]);
+
+  useEffect(() => {
+    return () => {
+      void promoteDraftToQueue({ updateUi: false });
+    };
+  }, [promoteDraftToQueue]);
 
   useEffect(() => {
     if (didHydrate) {
@@ -499,30 +600,68 @@ export default function GameEditorScreen() {
           const localDraft = await loadLocalGameDraft(localDraftId);
 
           if (localDraft) {
-            const sanitizedDate = normalizeDateValue(localDraft.date);
-            const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
-              localDraft.frameDrafts
-            );
-            const localSignature = buildSyncSignature(
-              null,
-              sanitizedDate,
-              sanitizedDrafts,
-              localDraft.patternId,
-              localDraft.ballId
-            );
+            if (isAuthenticated && !isOfflineLikely()) {
+              const queuedEntries = await loadGameSaveQueue();
+              const hasPendingQueueEntry = queuedEntries.some(
+                (entry) => entry.queueId === localDraftId
+              );
 
-            if (
-              shouldRestoreLocalDraft({
-                isCreateMode: true,
-                incomingServerSignature,
-                localDraftSignature: localSignature,
-                localDraftBaseServerSignature: localDraft.baseServerSignature,
-              })
-            ) {
-              nextDate = sanitizedDate;
-              nextDrafts = sanitizedDrafts;
-              nextPatternId = localDraft.patternId;
-              nextBallId = localDraft.ballId;
+              if (!hasPendingQueueEntry) {
+                await removeLocalGameDraft(localDraftId);
+              } else {
+                const sanitizedDate = normalizeDateValue(localDraft.date);
+                const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
+                  localDraft.frameDrafts
+                );
+                const localSignature = buildSyncSignature(
+                  null,
+                  sanitizedDate,
+                  sanitizedDrafts,
+                  localDraft.patternId,
+                  localDraft.ballId
+                );
+
+                if (
+                  shouldRestoreLocalDraft({
+                    isCreateMode: true,
+                    incomingServerSignature,
+                    localDraftSignature: localSignature,
+                    localDraftBaseServerSignature:
+                      localDraft.baseServerSignature,
+                  })
+                ) {
+                  nextDate = sanitizedDate;
+                  nextDrafts = sanitizedDrafts;
+                  nextPatternId = localDraft.patternId;
+                  nextBallId = localDraft.ballId;
+                }
+              }
+            } else {
+              const sanitizedDate = normalizeDateValue(localDraft.date);
+              const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
+                localDraft.frameDrafts
+              );
+              const localSignature = buildSyncSignature(
+                null,
+                sanitizedDate,
+                sanitizedDrafts,
+                localDraft.patternId,
+                localDraft.ballId
+              );
+
+              if (
+                shouldRestoreLocalDraft({
+                  isCreateMode: true,
+                  incomingServerSignature,
+                  localDraftSignature: localSignature,
+                  localDraftBaseServerSignature: localDraft.baseServerSignature,
+                })
+              ) {
+                nextDate = sanitizedDate;
+                nextDrafts = sanitizedDrafts;
+                nextPatternId = localDraft.patternId;
+                nextBallId = localDraft.ballId;
+              }
             }
           }
         }
@@ -1033,13 +1172,22 @@ export default function GameEditorScreen() {
         return;
       }
 
-      const { trimmedDate, payloadFrames, signature } = autosavePlan;
-
-      const saveSignature = JSON.stringify({
-        signature,
-        patternId: selectedPatternId,
-        ballId: selectedBallId,
-      });
+      const { trimmedDate, payloadFrames } = autosavePlan;
+      const saveSignature =
+        buildPersistedSignature(
+          activeGameId,
+          trimmedDate,
+          sanitizedDrafts,
+          selectedPatternId,
+          selectedBallId
+        ) ??
+        JSON.stringify({
+          gameId: activeGameId ?? 'new',
+          date: trimmedDate,
+          frames: payloadFrames,
+          patternId: selectedPatternId,
+          ballId: selectedBallId,
+        });
 
       if (saveSignature === lastSavedSignatureRef.current) {
         setAutosaveState('saved');
@@ -1087,7 +1235,7 @@ export default function GameEditorScreen() {
       };
 
       try {
-        if (!isAuthenticated && hasSignedInBefore) {
+        if (hasSignedInBefore && (!isAuthenticated || isOfflineLikely())) {
           if (await queueEntryForLocalSave()) {
             return;
           }
@@ -1098,6 +1246,21 @@ export default function GameEditorScreen() {
         if (isCreateMode) {
           if (!sessionId) {
             throw new Error('Session is required when creating a game.');
+          }
+
+          if (!nextGameId) {
+            const queueEntries = await loadGameSaveQueue();
+            const pendingNewGameEntry = getQueuedGameSaveEntry(
+              queueEntries,
+              String(sessionId),
+              null
+            );
+
+            if (pendingNewGameEntry) {
+              if (await queueEntryForLocalSave()) {
+                return;
+              }
+            }
           }
 
           if (!nextGameId) {
@@ -1141,13 +1304,7 @@ export default function GameEditorScreen() {
           frames: payloadFrames,
         });
 
-        lastSavedSignatureRef.current = JSON.stringify({
-          gameId: nextGameId,
-          date: trimmedDate,
-          frames: payloadFrames,
-          patternId: selectedPatternId,
-          ballId: selectedBallId,
-        });
+        lastSavedSignatureRef.current = saveSignature;
 
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('saved');

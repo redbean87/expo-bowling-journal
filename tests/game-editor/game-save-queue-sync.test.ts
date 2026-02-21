@@ -146,3 +146,100 @@ test('flushQueuedGameSaves removes non-retryable errors and reports callback', a
   assert.deepEqual(queueState, []);
   assert.equal(callbackQueueId, dueEntry.queueId);
 });
+
+test('flushQueuedGameSaves force option processes backoff entries immediately', async () => {
+  const futureEntry = createQueueEntry({ nextRetryAt: BASE_TIME + 60_000 });
+  let queueState: QueuedGameSaveEntry[] = [futureEntry];
+  let synced = false;
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      throw new Error('unexpected create');
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async () => undefined,
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+    onEntrySynced: () => {
+      synced = true;
+    },
+    force: true,
+  });
+
+  assert.equal(synced, true);
+  assert.deepEqual(queueState, []);
+});
+
+test('flushQueuedGameSaves preserves newer queued frames on retry write', async () => {
+  const dueEntry = createQueueEntry({
+    nextRetryAt: BASE_TIME,
+    signature: 'old-signature',
+    frames: [
+      { frameNumber: 1, roll1: 10, roll2: null, roll3: null, pins: 1 },
+      { frameNumber: 2, roll1: 8, roll2: 1, roll3: null, pins: 2 },
+    ],
+  });
+  const newerEntry = {
+    ...dueEntry,
+    signature: 'new-signature',
+    updatedAt: BASE_TIME + 50,
+    frames: [
+      { frameNumber: 1, roll1: 10, roll2: null, roll3: null, pins: 1 },
+      { frameNumber: 2, roll1: 9, roll2: 1, roll3: null, pins: 2 },
+      { frameNumber: 3, roll1: 10, roll2: null, roll3: null, pins: 3 },
+    ],
+  };
+  let queueState: QueuedGameSaveEntry[] = [dueEntry];
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      throw new Error('unexpected create');
+    },
+    updateGame: async () => {
+      queueState = [newerEntry];
+      throw new Error('Network request failed');
+    },
+    replaceFramesForGame: async () => undefined,
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  assert.equal(queueState.length, 1);
+  assert.equal(queueState[0]?.signature, 'new-signature');
+  assert.equal(queueState[0]?.frames.length, 3);
+  assert.equal(queueState[0]?.attemptCount, 1);
+});
+
+test('flushQueuedGameSaves does not remove newer replacement after successful sync', async () => {
+  const dueEntry = createQueueEntry({
+    nextRetryAt: BASE_TIME,
+    signature: 'old-signature',
+  });
+  const newerEntry = {
+    ...dueEntry,
+    signature: 'new-signature',
+    updatedAt: BASE_TIME + 10,
+  };
+  let queueState: QueuedGameSaveEntry[] = [dueEntry];
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      throw new Error('unexpected create');
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async () => {
+      queueState = [newerEntry];
+    },
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  assert.equal(queueState.length, 1);
+  assert.equal(queueState[0]?.signature, 'new-signature');
+});
