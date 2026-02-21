@@ -148,6 +148,77 @@ export const backfillMissingFramePreview = mutation({
   },
 });
 
+export const migrateRemoveLegacyHouseId = mutation({
+  args: {
+    confirm: v.literal('remove-legacy-game-house-id'),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    pageSize: v.optional(v.number()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const pageSize =
+      args.pageSize && Number.isInteger(args.pageSize) && args.pageSize > 0
+        ? Math.min(args.pageSize, 200)
+        : 100;
+    const dryRun = args.dryRun ?? false;
+
+    const page = await ctx.db.query('games').paginate({
+      numItems: pageSize,
+      cursor: args.cursor ?? null,
+    });
+
+    let cleaned = 0;
+    let skipped = 0;
+
+    for (const game of page.page) {
+      const rawGame = game as Record<string, unknown>;
+      const hasLegacyHouseId = Object.prototype.hasOwnProperty.call(
+        rawGame,
+        'houseId'
+      );
+
+      if (!hasLegacyHouseId) {
+        skipped += 1;
+        continue;
+      }
+
+      if (dryRun) {
+        cleaned += 1;
+        continue;
+      }
+
+      await ctx.db.replace(game._id, {
+        userId: game.userId,
+        sessionId: game.sessionId,
+        leagueId: game.leagueId,
+        date: game.date,
+        totalScore: game.totalScore,
+        strikes: game.strikes,
+        spares: game.spares,
+        opens: game.opens,
+        ballId: game.ballId ?? null,
+        patternId: game.patternId ?? null,
+        handicap: game.handicap ?? null,
+        notes: game.notes ?? null,
+        laneContext: game.laneContext ?? null,
+        ballSwitches: game.ballSwitches ?? null,
+        framePreview: game.framePreview ?? null,
+      });
+      cleaned += 1;
+    }
+
+    return {
+      scanned: page.page.length,
+      cleaned,
+      skipped,
+      hasMore: !page.isDone,
+      continueCursor: page.continueCursor,
+      dryRun,
+      confirmed: args.confirm,
+    };
+  },
+});
+
 export const update = mutation({
   args: {
     gameId: v.id('games'),
