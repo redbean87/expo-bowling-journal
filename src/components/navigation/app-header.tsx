@@ -3,6 +3,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
+
+import { resolveUpTarget } from './app-header-route-utils';
 
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
@@ -29,20 +32,26 @@ function resolveHeaderTitle({
   return routeName;
 }
 
-export function AppHeader({ navigation, options, route }: AppHeaderProps) {
+export function AppHeader({ options, route }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const title = resolveHeaderTitle({ options, routeName: route.name });
-  const canGoBack = navigation.canGoBack();
+  const upTarget = resolveUpTarget({
+    routeName: route.name,
+    params: route.params,
+  });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.row}>
         <View style={styles.sideSlot}>
-          {canGoBack ? (
+          {upTarget ? (
             <Pressable
-              accessibilityLabel="Go back"
+              accessibilityLabel="Go up"
               hitSlop={8}
-              onPress={navigation.goBack}
+              onPress={() => {
+                router.replace(upTarget as never);
+              }}
               style={({ pressed }) => [
                 styles.backButton,
                 pressed ? styles.backButtonPressed : null,
