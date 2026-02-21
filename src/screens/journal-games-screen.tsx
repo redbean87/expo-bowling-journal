@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -30,7 +30,9 @@ import {
   persistGameSaveQueue,
 } from './game-editor/game-save-queue-storage';
 import {
+  formatIsoDateLabel,
   formatGameSequenceLabel,
+  formatSessionWeekLabel,
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
 import { normalizeGamesPerSession } from './journal-games-night-summary';
@@ -39,7 +41,7 @@ import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card, FloatingActionButton } from '@/components/ui';
-import { useGames, useLeagues } from '@/hooks/journal';
+import { useGames, useLeagues, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
@@ -318,6 +320,7 @@ function createDraftNonce() {
 }
 
 export default function JournalGamesScreen() {
+  const navigation = useNavigation();
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
@@ -329,6 +332,7 @@ export default function JournalGamesScreen() {
   const startEntry = getFirstParam(params.startEntry) === '1';
   const { games, removeGame, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
+  const { sessions } = useSessions(leagueId);
   const [queuedSessionEntries, setQueuedSessionEntries] = useState<
     QueuedGameSaveEntry[]
   >([]);
@@ -388,6 +392,55 @@ export default function JournalGamesScreen() {
 
     return leagues.find((candidate) => candidate._id === leagueId) ?? null;
   }, [leagueId, leagues]);
+
+  const derivedWeekNumberBySessionId = useMemo(() => {
+    const oldestFirstSessions = [...sessions].reverse();
+    const weekMap = new Map<string, number>();
+
+    oldestFirstSessions.forEach((session, index) => {
+      const fallbackWeek = index + 1;
+      weekMap.set(session._id, session.weekNumber ?? fallbackWeek);
+    });
+
+    return weekMap;
+  }, [sessions]);
+
+  const selectedSession = useMemo(() => {
+    if (!sessionId) {
+      return null;
+    }
+
+    return sessions.find((candidate) => candidate._id === sessionId) ?? null;
+  }, [sessionId, sessions]);
+
+  useEffect(() => {
+    const leagueName = league?.name ?? null;
+    const sessionWeek = selectedSession
+      ? (selectedSession.weekNumber ??
+        derivedWeekNumberBySessionId.get(selectedSession._id) ??
+        null)
+      : null;
+    const sessionDate = selectedSession
+      ? formatIsoDateLabel(selectedSession.date)
+      : null;
+    const sessionLabel =
+      sessionWeek !== null && sessionDate
+        ? `${formatSessionWeekLabel(sessionWeek)} · ${sessionDate}`
+        : sessionDate;
+
+    if (sessionLabel) {
+      navigation.setOptions({
+        headerTitle: sessionLabel,
+        title: leagueName ?? 'Games',
+      });
+      return;
+    }
+
+    navigation.setOptions({
+      headerTitle: 'Games',
+      title: leagueName ?? 'Games',
+    });
+  }, [derivedWeekNumberBySessionId, league?.name, navigation, selectedSession]);
 
   const displayGames = useMemo(() => {
     const queuedDerivedGames = queuedSessionEntries.map(buildQueueDerivedGame);

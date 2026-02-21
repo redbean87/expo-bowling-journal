@@ -33,10 +33,25 @@ function resolveHeaderTitle({
   return routeName;
 }
 
+function resolveHeaderSubtitle(options: AppHeaderProps['options']) {
+  if (
+    typeof options.headerTitle === 'string' &&
+    options.headerTitle.length > 0 &&
+    typeof options.title === 'string' &&
+    options.title.length > 0 &&
+    options.title !== options.headerTitle
+  ) {
+    return options.title;
+  }
+
+  return null;
+}
+
 export function AppHeader({ options, route }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const title = resolveHeaderTitle({ options, routeName: route.name });
+  const subtitle = resolveHeaderSubtitle(options);
   const upTarget = resolveUpTarget({
     routeName: route.name,
     params: route.params,
@@ -67,9 +82,16 @@ export function AppHeader({ options, route }: AppHeaderProps) {
           ) : null}
         </View>
 
-        <Text numberOfLines={1} style={styles.title}>
-          {title}
-        </Text>
+        <View style={styles.titleStack}>
+          <Text numberOfLines={1} style={styles.title}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text numberOfLines={1} style={styles.subtitle}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={styles.sideSlot} />
       </View>
@@ -92,7 +114,7 @@ const styles = StyleSheet.create({
     },
   },
   row: {
-    minHeight: 58,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -114,11 +136,22 @@ const styles = StyleSheet.create({
   backButtonPressed: {
     backgroundColor: colors.accentMuted,
   },
-  title: {
+  titleStack: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  title: {
     fontSize: typeScale.titleSm,
     fontWeight: '700',
     color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: typeScale.bodySm,
+    fontWeight: '500',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

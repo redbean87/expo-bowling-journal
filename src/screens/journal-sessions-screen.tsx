@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import {
   ActionSheetIOS,
   Alert,
@@ -50,6 +51,7 @@ type SessionActionTarget = {
 
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
+  const navigation = useNavigation();
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
@@ -132,6 +134,15 @@ export default function JournalSessionsScreen() {
       oldestFirstSessions.map((session, index) => [session._id, index + 1])
     );
   }, [sessions]);
+
+  useEffect(() => {
+    const headerValue = leagueName ?? 'Sessions';
+
+    navigation.setOptions({
+      headerTitle: headerValue,
+      title: headerValue,
+    });
+  }, [leagueName, navigation]);
 
   const confirmDeleteSession = async (date: string) => {
     const message = `Delete session ${date} and all its games?`;

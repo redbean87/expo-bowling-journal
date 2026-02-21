@@ -55,13 +55,24 @@ import {
   flushQueuedGameSavesWithLock,
   isQueuedGameSaveFlushInFlight,
 } from './game-editor/game-save-queue-sync';
+import {
+  formatGameSequenceLabel,
+  formatIsoDateLabel,
+  formatSessionWeekLabel,
+  toOldestFirstGames,
+} from './journal-fast-lane-utils';
 
-import type { GameId, SessionId } from '@/services/journal';
+import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
 import { loadHasSignedInBefore } from '@/auth/prior-sign-in-storage';
 import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button } from '@/components/ui';
-import { useGameEditor, useReferenceData } from '@/hooks/journal';
+import {
+  useGameEditor,
+  useGames,
+  useReferenceData,
+  useSessions,
+} from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
@@ -229,6 +240,8 @@ export default function GameEditorScreen() {
     updateGame,
     replaceFramesForGame,
   } = useGameEditor(gameId);
+  const { games: sessionGames } = useGames(sessionId);
+  const { sessions } = useSessions((leagueId as LeagueId | null) ?? null);
   const { scoreboardLayout } = usePreferences();
 
   const [date, setDate] = useState('');
@@ -264,10 +277,66 @@ export default function GameEditorScreen() {
     createPattern,
   } = useReferenceData();
 
-  const screenTitle = useMemo(
-    () => (isCreateMode ? 'Add Game' : 'Edit Game'),
-    [isCreateMode]
+  const orderedSessionGames = useMemo(
+    () => toOldestFirstGames(sessionGames),
+    [sessionGames]
   );
+  const gameName = useMemo(() => {
+    if (isCreateMode) {
+      return formatGameSequenceLabel(orderedSessionGames.length + 1);
+    }
+
+    if (!gameId) {
+      return 'Game';
+    }
+
+    const gameIndex = orderedSessionGames.findIndex(
+      (candidate) => candidate._id === gameId
+    );
+
+    if (gameIndex === -1) {
+      return 'Game';
+    }
+
+    return formatGameSequenceLabel(gameIndex + 1);
+  }, [gameId, isCreateMode, orderedSessionGames]);
+  const derivedWeekNumberBySessionId = useMemo(() => {
+    const oldestFirstSessions = [...sessions].reverse();
+    const weekMap = new Map<string, number>();
+
+    oldestFirstSessions.forEach((session, index) => {
+      const fallbackWeek = index + 1;
+      weekMap.set(session._id, session.weekNumber ?? fallbackWeek);
+    });
+
+    return weekMap;
+  }, [sessions]);
+  const selectedSession = useMemo(() => {
+    if (!sessionId) {
+      return null;
+    }
+
+    return sessions.find((candidate) => candidate._id === sessionId) ?? null;
+  }, [sessionId, sessions]);
+  const sessionContextLabel = useMemo(() => {
+    if (!selectedSession) {
+      return null;
+    }
+
+    const weekNumber =
+      selectedSession.weekNumber ??
+      derivedWeekNumberBySessionId.get(selectedSession._id) ??
+      null;
+    const weekLabel =
+      weekNumber === null ? null : formatSessionWeekLabel(weekNumber);
+    const dateLabel = formatIsoDateLabel(selectedSession.date);
+
+    if (weekLabel) {
+      return `${weekLabel} · ${dateLabel}`;
+    }
+
+    return dateLabel;
+  }, [derivedWeekNumberBySessionId, selectedSession]);
   const activeDraftNonce = useMemo(() => {
     if (!isCreateMode) {
       return null;
@@ -564,8 +633,11 @@ export default function GameEditorScreen() {
   ]);
 
   useEffect(() => {
-    navigation.setOptions({ title: screenTitle });
-  }, [navigation, screenTitle]);
+    navigation.setOptions({
+      headerTitle: gameName,
+      title: sessionContextLabel ?? gameName,
+    });
+  }, [gameName, navigation, sessionContextLabel]);
 
   useEffect(() => {
     if (!didHydrate) {
