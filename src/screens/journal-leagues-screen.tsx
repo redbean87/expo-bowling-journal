@@ -118,7 +118,6 @@ export default function JournalLeaguesScreen() {
   const [leagueActionTarget, setLeagueActionTarget] =
     useState<LeagueActionTarget | null>(null);
   const [isSyncStatusVisible, setIsSyncStatusVisible] = useState(false);
-  const defaultLeagueId = leagues[0]?._id ?? null;
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
     useReferenceData();
@@ -443,19 +442,6 @@ export default function JournalLeaguesScreen() {
               No leagues yet. Tap + to create your first league.
             </Text>
           ) : null}
-
-          <Button
-            disabled={!defaultLeagueId || isLeaguesLoading}
-            label="Continue tonight"
-            variant="secondary"
-            onPress={() => {
-              if (!defaultLeagueId) {
-                return;
-              }
-
-              startLeagueNight(defaultLeagueId);
-            }}
-          />
 
           {leagues.map((league) => (
             <Card
