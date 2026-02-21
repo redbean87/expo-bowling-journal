@@ -7,9 +7,6 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
-- [ ] Design and implement custom app header/footer navigation shell
-- [ ] Polish navigation shell visual design (header affordance, tab active state contrast, and chrome/content separation)
 - [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] Data export and backup tooling
@@ -68,6 +65,13 @@ When an item is complete, move it to `## Completed`.
 - [x] Add optional game details section for pattern/ball metadata with hidden-by-default toggle
 - [x] Remove game-level house from schema, mutations, imports, and client game contracts (house now league/session scoped)
 - [x] Add quiet queue/sync status UX on journal root with details modal and retry-now action
+- [x] Improve reference combobox keyboard navigation, empty states, and exact-match "use existing" prioritization
+- [x] Design and implement custom app header/footer navigation shell
+- [x] Polish navigation shell visual design (header affordance, tab active state contrast, and chrome/content separation)
+- [x] Redesign Home screen for flow-first league-night operations
+- [x] Redesign Profile screen for action-first backup/import and account clarity
+- [x] Add viewer email fallback from auth identity/users table for account display
+- [x] Add and run legacy games.houseId cleanup migration; restore strict games schema
 
 ## Decision Log
 
