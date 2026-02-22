@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +22,7 @@ import {
   findSuggestedFrameIndex,
   getFirstParam,
   getFrameInlineError,
+  getFrameStatus,
   getNextCursorAfterEntry,
   getPreferredRollField,
   getRollValue,
@@ -217,6 +218,7 @@ function clearDownstreamRolls(frame: FrameDraft, field: RollField): FrameDraft {
 
 export default function GameEditorScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
     gameId?: string | string[];
@@ -300,6 +302,23 @@ export default function GameEditorScreen() {
 
     return formatGameSequenceLabel(gameIndex + 1);
   }, [gameId, isCreateMode, orderedSessionGames]);
+  const nextExistingGameId = useMemo(() => {
+    const currentGameId = draftGameId ?? gameId;
+
+    if (!currentGameId) {
+      return null;
+    }
+
+    const currentGameIndex = orderedSessionGames.findIndex(
+      (candidate) => candidate._id === currentGameId
+    );
+
+    if (currentGameIndex === -1) {
+      return null;
+    }
+
+    return orderedSessionGames[currentGameIndex + 1]?._id ?? null;
+  }, [draftGameId, gameId, orderedSessionGames]);
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
     const weekMap = new Map<string, number>();
@@ -368,6 +387,27 @@ export default function GameEditorScreen() {
     getDefaultMaskForField(activeFrameIndex, activeField, activeStandingMask);
   const shortcutLabel =
     activeStandingMask === FULL_PIN_MASK ? 'Strike' : 'Spare';
+  const isGameComplete = useMemo(
+    () =>
+      frameDrafts.every(
+        (frame, frameIndex) => getFrameStatus(frameIndex, frame) === 'complete'
+      ),
+    [frameDrafts]
+  );
+  const terminalCursor = useMemo(() => {
+    const frameIndex = findSuggestedFrameIndex(frameDrafts);
+    const frame = frameDrafts[frameIndex] ?? EMPTY_FRAMES[0];
+
+    return {
+      frameIndex,
+      field: getPreferredRollField(frameIndex, frame),
+    } satisfies CursorTarget;
+  }, [frameDrafts]);
+  const shouldShowCompletionActions =
+    isGameComplete &&
+    activeFrameIndex === terminalCursor.frameIndex &&
+    activeField === terminalCursor.field;
+  const canNavigateSessionFlows = Boolean(leagueId && sessionId);
   const autosaveMessage = useMemo(() => {
     if (autosaveState === 'error') {
       if (autosaveError && autosaveError === frameRuleError) {
@@ -1227,6 +1267,48 @@ export default function GameEditorScreen() {
     commitActiveRoll(activeRollMask);
   };
 
+  const onGoToGames = () => {
+    if (!leagueId || !sessionId) {
+      return;
+    }
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games',
+      params: {
+        leagueId,
+        sessionId,
+      },
+    });
+  };
+
+  const onGoToNextGame = () => {
+    if (!leagueId || !sessionId) {
+      return;
+    }
+
+    if (nextExistingGameId) {
+      router.replace({
+        pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+        params: {
+          leagueId,
+          sessionId,
+          gameId: nextExistingGameId,
+        },
+      });
+      return;
+    }
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
+      params: {
+        leagueId,
+        sessionId,
+        gameId: 'new',
+        draftNonce: createDraftNonce(),
+      },
+    });
+  };
+
   const onToggleDetails = () => {
     if (Platform.OS !== 'web') {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -1556,18 +1638,37 @@ export default function GameEditorScreen() {
       <View style={styles.actionsFooter}>
         <View style={styles.actionsRow}>
           <View style={styles.stickyActionButton}>
-            <Pressable
-              onPress={onSetFullRack}
-              style={({ pressed }) => [
-                styles.strikeButton,
-                pressed ? styles.strikeButtonPressed : null,
-              ]}
-            >
-              <Text style={styles.strikeButtonLabel}>{shortcutLabel}</Text>
-            </Pressable>
+            {shouldShowCompletionActions ? (
+              <Button
+                disabled={!canNavigateSessionFlows}
+                label="Games"
+                onPress={onGoToGames}
+                size="lg"
+                variant="secondary"
+              />
+            ) : (
+              <Pressable
+                onPress={onSetFullRack}
+                style={({ pressed }) => [
+                  styles.strikeButton,
+                  pressed ? styles.strikeButtonPressed : null,
+                ]}
+              >
+                <Text style={styles.strikeButtonLabel}>{shortcutLabel}</Text>
+              </Pressable>
+            )}
           </View>
           <View style={styles.stickyActionButton}>
-            <Button label="Next" onPress={onCommitRoll} size="lg" />
+            {shouldShowCompletionActions ? (
+              <Button
+                disabled={!canNavigateSessionFlows}
+                label="Next game"
+                onPress={onGoToNextGame}
+                size="lg"
+              />
+            ) : (
+              <Button label="Next" onPress={onCommitRoll} size="lg" />
+            )}
           </View>
         </View>
       </View>
