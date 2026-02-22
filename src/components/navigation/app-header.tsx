@@ -59,7 +59,12 @@ export function AppHeader({ options, route }: AppHeaderProps) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.row}>
+      <View
+        style={[
+          styles.row,
+          subtitle ? styles.rowWithSubtitle : styles.rowSingle,
+        ]}
+      >
         <View style={styles.sideSlot}>
           {upTarget ? (
             <Pressable
@@ -87,7 +92,11 @@ export function AppHeader({ options, route }: AppHeaderProps) {
             {title}
           </Text>
           {subtitle ? (
-            <Text numberOfLines={1} style={styles.subtitle}>
+            <Text
+              ellipsizeMode="tail"
+              numberOfLines={1}
+              style={styles.subtitle}
+            >
               {subtitle}
             </Text>
           ) : null}
@@ -114,11 +123,16 @@ const styles = StyleSheet.create({
     },
   },
   row: {
-    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
+  },
+  rowSingle: {
+    minHeight: 58,
+  },
+  rowWithSubtitle: {
+    minHeight: 64,
   },
   sideSlot: {
     width: 44,
@@ -141,17 +155,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    paddingHorizontal: spacing.xs,
   },
   title: {
     fontSize: typeScale.titleSm,
     fontWeight: '700',
     color: colors.textPrimary,
     textAlign: 'center',
+    maxWidth: '95%',
   },
   subtitle: {
     fontSize: typeScale.bodySm,
     fontWeight: '500',
     color: colors.textSecondary,
     textAlign: 'center',
+    letterSpacing: 0.2,
+    maxWidth: '92%',
   },
 });

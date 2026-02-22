@@ -5,6 +5,34 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
+type NestedRouteState = {
+  index: number;
+  routes: Array<{
+    name: string;
+    state?: NestedRouteState;
+  }>;
+};
+
+function resolveDeepestRouteName(
+  state: NestedRouteState | undefined
+): string | null {
+  if (!state) {
+    return null;
+  }
+
+  const activeRoute = state.routes[state.index];
+
+  if (!activeRoute) {
+    return null;
+  }
+
+  if (activeRoute.state) {
+    return resolveDeepestRouteName(activeRoute.state);
+  }
+
+  return activeRoute.name;
+}
+
 function resolveTabLabel({
   tabBarLabel,
   title,
@@ -31,6 +59,17 @@ export function AppTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const activeTab = state.routes[state.index];
+  const activeNestedRouteName = resolveDeepestRouteName(
+    (activeTab.state as NestedRouteState | undefined) ?? undefined
+  );
+  const shouldHideTabBar =
+    activeTab.name === 'journal' &&
+    activeNestedRouteName === '[leagueId]/sessions/[sessionId]/games/[gameId]';
+
+  if (shouldHideTabBar) {
+    return null;
+  }
 
   return (
     <View

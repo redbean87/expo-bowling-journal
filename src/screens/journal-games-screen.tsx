@@ -438,7 +438,7 @@ export default function JournalGamesScreen() {
 
     navigation.setOptions({
       headerTitle: 'Games',
-      title: leagueName ?? 'Games',
+      title: 'Games',
     });
   }, [derivedWeekNumberBySessionId, league?.name, navigation, selectedSession]);
 

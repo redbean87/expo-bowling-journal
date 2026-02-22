@@ -62,7 +62,7 @@ Unless a task explicitly says otherwise:
 2. Continue with the top unchecked item in `## Todo` from `ROADMAP.md`
 3. Follow import pipeline guardrails when import code is touched
 
-For frontend iteration, keep competitor-flow screenshots in `docs/ux-reference/competitor-app/` and target visual references in `docs/ux-reference/next-app/`.
+For frontend iteration, keep current baseline screenshots in `docs/ux-reference/current-app/` and target visual references in `docs/ux-reference/next-app/`.
 
 For roadmap execution updates, report in this order:
 
