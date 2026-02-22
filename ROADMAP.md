@@ -7,7 +7,6 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] End-to-end offline retry testing and conflict handling for single-user device flow
 - [ ] Polish offline games-list reconciliation on reconnect to eliminate remaining queued-to-synced visual churn
 - [ ] Expand guaranteed offline coverage to league/session/reference CRUD with deterministic replay and latest-local-edit-wins policy
 - [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
@@ -79,6 +78,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Polish journal list cards with overflow action menus and consistent icon-based navigation affordances
 - [x] Add contextual journal headers (league/week/date/game-name) with hierarchy-aware title/subtitle behavior
 - [x] Add installable web app metadata/icons for PWA-ready home-screen installs (no service-worker caching yet)
+- [x] End-to-end offline retry testing and conflict handling for single-user device flow
 
 ## Decision Log
 
