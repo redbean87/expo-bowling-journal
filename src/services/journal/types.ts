@@ -68,6 +68,7 @@ export type RemoveSessionInput = {
 export type CreateGameInput = {
   sessionId: SessionId;
   date: string;
+  clientSyncId?: string | null;
   ballId?: BallId | null;
   patternId?: PatternId | null;
 };

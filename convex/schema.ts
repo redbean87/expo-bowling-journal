@@ -44,6 +44,7 @@ export default defineSchema({
     userId: v.id('users'),
     sessionId: v.id('sessions'),
     leagueId: v.id('leagues'),
+    clientSyncId: v.optional(v.union(v.string(), v.null())),
     date: v.string(),
     totalScore: v.number(),
     strikes: v.number(),

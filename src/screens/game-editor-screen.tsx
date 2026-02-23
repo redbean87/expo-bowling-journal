@@ -1458,6 +1458,7 @@ export default function GameEditorScreen() {
             nextGameId = await createGame({
               sessionId,
               date: trimmedDate,
+              clientSyncId: activeDraftNonce,
               patternId: selectedPatternId as never,
               ballId: selectedBallId as never,
             });

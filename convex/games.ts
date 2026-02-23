@@ -50,6 +50,7 @@ export const create = mutation({
   args: {
     sessionId: v.id('sessions'),
     date: v.string(),
+    clientSyncId: v.optional(v.union(v.string(), v.null())),
     ballId: v.optional(v.union(v.id('balls'), v.null())),
     patternId: v.optional(v.union(v.id('patterns'), v.null())),
   },
@@ -77,10 +78,16 @@ export const create = mutation({
       }
     }
 
+    const normalizedClientSyncId =
+      typeof args.clientSyncId === 'string'
+        ? args.clientSyncId.trim() || null
+        : null;
+
     return ctx.db.insert('games', {
       userId,
       sessionId: args.sessionId,
       leagueId: session.leagueId,
+      clientSyncId: normalizedClientSyncId,
       date: args.date,
       totalScore: 0,
       strikes: 0,
@@ -191,6 +198,7 @@ export const migrateRemoveLegacyHouseId = mutation({
         userId: game.userId,
         sessionId: game.sessionId,
         leagueId: game.leagueId,
+        clientSyncId: game.clientSyncId ?? null,
         date: game.date,
         totalScore: game.totalScore,
         strikes: game.strikes,

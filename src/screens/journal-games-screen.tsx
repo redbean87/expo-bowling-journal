@@ -35,6 +35,7 @@ import {
   formatSessionWeekLabel,
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
+import { reconcileGamesForDisplay } from './journal-games-reconciliation';
 import { normalizeGamesPerSession } from './journal-games-night-summary';
 
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
@@ -89,6 +90,11 @@ type QueueDerivedGame = {
   spares: number;
   opens: number;
   framePreviewItems: PreviewItem[];
+};
+
+type PendingHandoffEntry = {
+  queuedGame: QueueDerivedGame;
+  expiresAt: number;
 };
 
 type StartEntryTarget = {
@@ -215,37 +221,37 @@ function buildQueueDerivedGame(entry: QueuedGameSaveEntry): QueueDerivedGame {
   };
 }
 
-function buildGameFingerprint(game: {
-  date: string;
-  totalScore: number;
-  strikes: number;
-  spares: number;
-  opens: number;
-  framePreviewItems: PreviewItem[];
-}) {
-  const preview = game.framePreviewItems
-    .map((item) => `${item.text}|${item.hasSplit ? '1' : '0'}`)
-    .join('||');
-
-  return `${game.date}|${String(game.totalScore)}|${String(game.strikes)}|${String(game.spares)}|${String(game.opens)}|${preview}`;
-}
-
-function findRecentlySyncedEquivalentGameId(
-  queuedGame: QueueDerivedGame,
-  serverGames: DisplayGameItem[]
+function areQueueEntriesEqual(
+  left: QueuedGameSaveEntry[],
+  right: QueuedGameSaveEntry[]
 ) {
-  const queuedFingerprint = buildGameFingerprint(queuedGame);
-  const matchWindowMs = 5 * 60 * 1000;
+  if (left.length !== right.length) {
+    return false;
+  }
 
-  const matchedServerGame = serverGames.find((serverGame) => {
-    if (Math.abs(serverGame.createdAt - queuedGame.createdAt) > matchWindowMs) {
+  const leftSorted = [...left].sort((a, b) =>
+    a.queueId.localeCompare(b.queueId)
+  );
+  const rightSorted = [...right].sort((a, b) =>
+    a.queueId.localeCompare(b.queueId)
+  );
+
+  return leftSorted.every((entry, index) => {
+    const other = rightSorted[index];
+
+    if (!other) {
       return false;
     }
 
-    return buildGameFingerprint(serverGame) === queuedFingerprint;
+    return (
+      entry.queueId === other.queueId &&
+      entry.signature === other.signature &&
+      entry.gameId === other.gameId &&
+      entry.draftNonce === other.draftNonce &&
+      entry.nextRetryAt === other.nextRetryAt &&
+      entry.updatedAt === other.updatedAt
+    );
   });
-
-  return matchedServerGame?.routeGameId ?? null;
 }
 
 function buildStartEntryTarget(
@@ -336,11 +342,17 @@ export default function JournalGamesScreen() {
   const [queuedSessionEntries, setQueuedSessionEntries] = useState<
     QueuedGameSaveEntry[]
   >([]);
+  const [pendingHandoffEntries, setPendingHandoffEntries] = useState<
+    PendingHandoffEntry[]
+  >([]);
   const [gameActionError, setGameActionError] = useState<string | null>(null);
   const [deletingGameId, setDeletingGameId] = useState<string | null>(null);
   const [isGameActionsVisible, setIsGameActionsVisible] = useState(false);
   const [gameActionTarget, setGameActionTarget] =
     useState<GameActionTarget | null>(null);
+  const syncedHandoffByQueueIdRef = useRef(new Map<string, string>());
+  const stableCreatedAtByGameIdRef = useRef(new Map<string, number>());
+  const queuedSessionEntriesRef = useRef<QueuedGameSaveEntry[]>([]);
   const hasHandledStartEntryRef = useRef(false);
   const isRefreshingQueueRef = useRef(false);
 
@@ -353,19 +365,111 @@ export default function JournalGamesScreen() {
 
     if (!sessionId) {
       setQueuedSessionEntries([]);
+      setPendingHandoffEntries([]);
+      queuedSessionEntriesRef.current = [];
       isRefreshingQueueRef.current = false;
       return;
     }
 
     try {
       const queueEntries = await loadGameSaveQueue();
-      setQueuedSessionEntries(
-        queueEntries.filter((entry) => entry.sessionId === sessionId)
+      const nextQueuedEntries = queueEntries.filter(
+        (entry) => entry.sessionId === sessionId
       );
+      const now = Date.now();
+      const currentQueuedEntries = queuedSessionEntriesRef.current;
+      const nextQueuedIds = new Set(
+        nextQueuedEntries.map((entry) => entry.queueId)
+      );
+      const serverGameIds = new Set(games.map((game) => String(game._id)));
+
+      setPendingHandoffEntries((currentPendingEntries) => {
+        const pendingByQueueId = new Map(
+          currentPendingEntries.map((entry) => [
+            entry.queuedGame.queueId,
+            entry,
+          ])
+        );
+
+        for (const previousEntry of currentQueuedEntries) {
+          if (nextQueuedIds.has(previousEntry.queueId)) {
+            continue;
+          }
+
+          if (previousEntry.gameId !== null) {
+            continue;
+          }
+
+          if (deletingGameId === previousEntry.queueId) {
+            continue;
+          }
+
+          if (pendingByQueueId.has(previousEntry.queueId)) {
+            continue;
+          }
+
+          pendingByQueueId.set(previousEntry.queueId, {
+            queuedGame: buildQueueDerivedGame(previousEntry),
+            expiresAt: now + 10_000,
+          });
+        }
+
+        const nextPendingEntries = [...pendingByQueueId.values()].filter(
+          (entry) => {
+            if (entry.expiresAt <= now) {
+              return false;
+            }
+
+            if (nextQueuedIds.has(entry.queuedGame.queueId)) {
+              return false;
+            }
+
+            const mappedServerId = syncedHandoffByQueueIdRef.current.get(
+              entry.queuedGame.queueId
+            );
+
+            if (mappedServerId && serverGameIds.has(mappedServerId)) {
+              return false;
+            }
+
+            return true;
+          }
+        );
+
+        if (nextPendingEntries.length === currentPendingEntries.length) {
+          const unchanged = nextPendingEntries.every((entry, index) => {
+            const current = currentPendingEntries[index];
+
+            return (
+              current?.queuedGame.queueId === entry.queuedGame.queueId &&
+              current.expiresAt === entry.expiresAt
+            );
+          });
+
+          if (unchanged) {
+            return currentPendingEntries;
+          }
+        }
+
+        return nextPendingEntries;
+      });
+
+      setQueuedSessionEntries((currentQueuedEntries) => {
+        if (areQueueEntriesEqual(currentQueuedEntries, nextQueuedEntries)) {
+          return currentQueuedEntries;
+        }
+
+        return nextQueuedEntries;
+      });
+      queuedSessionEntriesRef.current = nextQueuedEntries;
     } finally {
       isRefreshingQueueRef.current = false;
     }
-  }, [sessionId]);
+  }, [deletingGameId, games, sessionId]);
+
+  useEffect(() => {
+    queuedSessionEntriesRef.current = queuedSessionEntries;
+  }, [queuedSessionEntries]);
 
   useEffect(() => {
     void refreshQueuedEntries();
@@ -443,93 +547,76 @@ export default function JournalGamesScreen() {
   }, [derivedWeekNumberBySessionId, league?.name, navigation, selectedSession]);
 
   const displayGames = useMemo(() => {
-    const queuedDerivedGames = queuedSessionEntries.map(buildQueueDerivedGame);
-    const queuedByGameId = new Map<string, QueueDerivedGame>();
-    const queuedNewGames: QueueDerivedGame[] = [];
+    const serverGames = toOldestFirstGames(games).map((game) => ({
+      id: String(game._id),
+      clientSyncId:
+        typeof (game as { clientSyncId?: string | null }).clientSyncId ===
+          'string' &&
+        ((game as { clientSyncId?: string | null }).clientSyncId?.length ?? 0) >
+          0
+          ? ((game as { clientSyncId?: string | null }).clientSyncId ?? null)
+          : null,
+      date: game.date,
+      createdAt: game._creationTime,
+      totalScore: game.totalScore,
+      strikes: game.strikes,
+      spares: game.spares,
+      opens: game.opens,
+      framePreviewItems: normalizeFramePreviewItems(game.framePreview),
+    }));
 
-    queuedDerivedGames.forEach((queuedGame) => {
-      if (queuedGame.gameId) {
-        queuedByGameId.set(queuedGame.gameId, queuedGame);
-      } else {
-        queuedNewGames.push(queuedGame);
+    const serverGameIds = new Set(serverGames.map((game) => game.id));
+    stableCreatedAtByGameIdRef.current.forEach((_, gameId) => {
+      if (!serverGameIds.has(gameId)) {
+        stableCreatedAtByGameIdRef.current.delete(gameId);
       }
     });
 
-    const mergedServerGames: DisplayGameItem[] = toOldestFirstGames(games).map(
-      (game) => {
-        const queuedGame = queuedByGameId.get(game._id);
+    const queuedDerivedGames = queuedSessionEntries.map(buildQueueDerivedGame);
+    const activeQueueIds = new Set(
+      queuedDerivedGames.map((entry) => entry.queueId)
+    );
+    const heldQueuedGames = pendingHandoffEntries
+      .filter((entry) => !activeQueueIds.has(entry.queuedGame.queueId))
+      .map((entry) => entry.queuedGame);
+    const queuedAndHeldGames = [...queuedDerivedGames, ...heldQueuedGames];
+    const activeQueuedNewIds = new Set(
+      queuedAndHeldGames
+        .filter((queuedGame) => queuedGame.gameId === null)
+        .map((queuedGame) => queuedGame.queueId)
+    );
 
-        if (queuedGame) {
-          return {
-            key: game._id,
-            date: game.date,
-            routeGameId: game._id,
-            routeDraftNonce: null,
-            deleteGameId: game._id,
-            deleteQueueId: queuedGame.queueId,
-            createdAt: game._creationTime,
-            totalScore: queuedGame.totalScore,
-            strikes: queuedGame.strikes,
-            spares: queuedGame.spares,
-            opens: queuedGame.opens,
-            framePreviewItems: queuedGame.framePreviewItems,
-          };
-        }
+    syncedHandoffByQueueIdRef.current.forEach((_, queueId) => {
+      if (!activeQueuedNewIds.has(queueId)) {
+        syncedHandoffByQueueIdRef.current.delete(queueId);
+      }
+    });
 
-        return {
-          key: game._id,
+    const reconciledGames = reconcileGamesForDisplay({
+      serverGames,
+      queuedGames: queuedAndHeldGames,
+      handoffByQueueId: syncedHandoffByQueueIdRef.current,
+      stableCreatedAtByGameId: stableCreatedAtByGameIdRef.current,
+    });
+
+    return reconciledGames.map(
+      (game) =>
+        ({
+          key: game.key,
           date: game.date,
-          routeGameId: game._id,
-          routeDraftNonce: null,
-          deleteGameId: game._id,
-          deleteQueueId: null,
-          createdAt: game._creationTime,
+          routeGameId: game.routeGameId,
+          routeDraftNonce: game.routeDraftNonce,
+          deleteGameId: game.deleteGameId,
+          deleteQueueId: game.deleteQueueId,
+          createdAt: game.createdAt,
           totalScore: game.totalScore,
           strikes: game.strikes,
           spares: game.spares,
           opens: game.opens,
-          framePreviewItems: normalizeFramePreviewItems(game.framePreview),
-        };
-      }
+          framePreviewItems: game.framePreviewItems,
+        }) satisfies DisplayGameItem
     );
-
-    const suppressedServerGameIds = new Set<string>();
-    const newQueuedItems: DisplayGameItem[] = queuedNewGames.map(
-      (queuedGame) => {
-        const equivalentServerGameId = findRecentlySyncedEquivalentGameId(
-          queuedGame,
-          mergedServerGames
-        );
-
-        if (equivalentServerGameId) {
-          suppressedServerGameIds.add(equivalentServerGameId);
-        }
-
-        return {
-          key: queuedGame.queueId,
-          date: queuedGame.date,
-          routeGameId: 'new',
-          routeDraftNonce: queuedGame.draftNonce,
-          deleteGameId: null,
-          deleteQueueId: queuedGame.queueId,
-          createdAt: queuedGame.createdAt,
-          totalScore: queuedGame.totalScore,
-          strikes: queuedGame.strikes,
-          spares: queuedGame.spares,
-          opens: queuedGame.opens,
-          framePreviewItems: queuedGame.framePreviewItems,
-        };
-      }
-    );
-
-    const filteredServerGames = mergedServerGames.filter(
-      (game) => !suppressedServerGameIds.has(game.routeGameId)
-    );
-
-    return [...filteredServerGames, ...newQueuedItems].sort(
-      (left, right) => left.createdAt - right.createdAt
-    );
-  }, [games, queuedSessionEntries]);
+  }, [games, pendingHandoffEntries, queuedSessionEntries]);
 
   const nightSummary = useMemo(
     () => buildDisplayNightSummary(displayGames, league?.gamesPerSession),
@@ -755,8 +842,14 @@ export default function JournalGamesScreen() {
 
           {displayGames.map((game, index) => {
             const framePreviewItems = game.framePreviewItems;
-            const previewRowOne = framePreviewItems.slice(0, 5);
-            const previewRowTwo = framePreviewItems.slice(5, 10);
+            const previewRowOne = Array.from(
+              { length: 5 },
+              (_, slotIndex) => framePreviewItems[slotIndex] ?? null
+            );
+            const previewRowTwo = Array.from(
+              { length: 5 },
+              (_, slotIndex) => framePreviewItems[slotIndex + 5] ?? null
+            );
             const gameLabel = formatGameSequenceLabel(index + 1);
 
             return (
@@ -825,18 +918,24 @@ export default function JournalGamesScreen() {
                             key={`${game.key}-row-1-${String(itemIndex)}`}
                             style={[
                               styles.previewChip,
-                              item.hasSplit ? styles.previewChipSplit : null,
+                              item === null
+                                ? styles.previewChipPlaceholder
+                                : null,
+                              item?.hasSplit ? styles.previewChipSplit : null,
                             ]}
                           >
                             <Text
                               style={[
                                 styles.previewChipText,
-                                item.hasSplit
+                                item === null
+                                  ? styles.previewChipPlaceholderText
+                                  : null,
+                                item?.hasSplit
                                   ? styles.previewChipTextSplit
                                   : null,
                               ]}
                             >
-                              {item.text}
+                              {item?.text ?? '-'}
                             </Text>
                           </View>
                         ))}
@@ -847,18 +946,24 @@ export default function JournalGamesScreen() {
                             key={`${game.key}-row-2-${String(itemIndex)}`}
                             style={[
                               styles.previewChip,
-                              item.hasSplit ? styles.previewChipSplit : null,
+                              item === null
+                                ? styles.previewChipPlaceholder
+                                : null,
+                              item?.hasSplit ? styles.previewChipSplit : null,
                             ]}
                           >
                             <Text
                               style={[
                                 styles.previewChipText,
-                                item.hasSplit
+                                item === null
+                                  ? styles.previewChipPlaceholderText
+                                  : null,
+                                item?.hasSplit
                                   ? styles.previewChipTextSplit
                                   : null,
                               ]}
                             >
-                              {item.text}
+                              {item?.text ?? '-'}
                             </Text>
                           </View>
                         ))}
@@ -1035,6 +1140,7 @@ const styles = StyleSheet.create({
   },
   previewChip: {
     flex: 1,
+    minHeight: 30,
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 6,
@@ -1042,6 +1148,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewChipPlaceholder: {
+    backgroundColor: colors.surfaceSubtle,
   },
   previewChipSplit: {
     borderColor: '#E8C5C2',
@@ -1052,6 +1162,9 @@ const styles = StyleSheet.create({
     lineHeight: lineHeight.compact,
     color: colors.textPrimary,
     fontFamily: 'monospace',
+  },
+  previewChipPlaceholderText: {
+    color: colors.textSecondary,
   },
   previewChipTextSplit: {
     color: colors.danger,

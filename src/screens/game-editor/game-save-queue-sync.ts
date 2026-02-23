@@ -131,6 +131,7 @@ export async function flushQueuedGameSaves({
         const createdGameId = await createGame({
           sessionId: queueEntry.sessionId as SessionId,
           date: queueEntry.date,
+          clientSyncId: queueEntry.draftNonce ?? queueEntry.queueId,
         });
         const migratedAt = Date.now();
         queueEntries = await applyQueueMutation(

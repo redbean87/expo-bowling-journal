@@ -138,6 +138,7 @@ export const gamesCreateMutation = makeFunctionReference<
   {
     sessionId: Id<'sessions'>;
     date: string;
+    clientSyncId?: string | null;
     ballId?: Id<'balls'> | null;
     patternId?: Id<'patterns'> | null;
   },
