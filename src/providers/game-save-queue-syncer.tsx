@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { removeLocalGameDraft } from '@/screens/game-editor/game-local-draft-storage';
 import { flushQueuedGameSavesWithLock } from '@/screens/game-editor/game-save-queue-sync';
+import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
 
 export function GameSaveQueueSyncer() {
@@ -12,6 +13,8 @@ export function GameSaveQueueSyncer() {
   const replaceFramesMutation = useMutation(
     convexJournalService.replaceFramesForGame
   );
+  const createLeagueMutation = useMutation(convexJournalService.createLeague);
+  const createSessionMutation = useMutation(convexJournalService.createSession);
 
   const flushQueue = useCallback(async () => {
     if (
@@ -33,7 +36,18 @@ export function GameSaveQueueSyncer() {
         }
       },
     });
-  }, [createGameMutation, replaceFramesMutation, updateGameMutation]);
+
+    await flushJournalCreateQueueWithLock({
+      createLeague: createLeagueMutation,
+      createSession: createSessionMutation,
+    });
+  }, [
+    createGameMutation,
+    createLeagueMutation,
+    createSessionMutation,
+    replaceFramesMutation,
+    updateGameMutation,
+  ]);
 
   useEffect(() => {
     void flushQueue();

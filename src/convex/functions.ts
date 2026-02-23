@@ -55,6 +55,7 @@ export const leaguesCreateMutation = makeFunctionReference<
   'mutation',
   {
     name: string;
+    clientSyncId?: string | null;
     gamesPerSession?: number | null;
     houseId?: Id<'houses'> | null;
     houseName?: string | null;
@@ -95,6 +96,7 @@ export const sessionsCreateMutation = makeFunctionReference<
   'mutation',
   {
     leagueId: Id<'leagues'>;
+    clientSyncId?: string | null;
     weekNumber?: number | null;
     date: string;
     houseId?: Id<'houses'> | null;

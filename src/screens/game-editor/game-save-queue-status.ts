@@ -1,7 +1,4 @@
-import {
-  getActionableSaveErrorMessage,
-  type QueuedGameSaveEntry,
-} from './game-save-queue';
+import { getActionableSaveErrorMessage } from './game-save-queue';
 
 export type QueueSyncState =
   | 'idle'
@@ -18,8 +15,15 @@ export type QueueSyncStatus = {
   latestActionableError: string | null;
 };
 
+type QueueStatusEntry = {
+  createdAt: number;
+  updatedAt: number;
+  nextRetryAt: number;
+  lastError: string | null;
+};
+
 export function deriveQueueSyncStatus(
-  entries: QueuedGameSaveEntry[],
+  entries: QueueStatusEntry[],
   isSyncing: boolean,
   now: number
 ): QueueSyncStatus {

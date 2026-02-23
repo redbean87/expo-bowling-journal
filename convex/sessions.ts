@@ -30,6 +30,7 @@ export const listByLeague = query({
 export const create = mutation({
   args: {
     leagueId: v.id('leagues'),
+    clientSyncId: v.optional(v.union(v.string(), v.null())),
     weekNumber: v.optional(v.union(v.number(), v.null())),
     date: v.string(),
     houseId: v.optional(v.union(v.id('houses'), v.null())),
@@ -38,6 +39,10 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    const normalizedClientSyncId =
+      typeof args.clientSyncId === 'string'
+        ? args.clientSyncId.trim() || null
+        : null;
     const league = await ctx.db.get(args.leagueId);
 
     if (!league || league.userId !== userId) {
@@ -74,6 +79,7 @@ export const create = mutation({
     return ctx.db.insert('sessions', {
       userId,
       leagueId: args.leagueId,
+      clientSyncId: normalizedClientSyncId,
       weekNumber: args.weekNumber ?? null,
       date: args.date,
       houseId: resolvedHouseId,

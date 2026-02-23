@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   ActionSheetIOS,
@@ -15,6 +15,16 @@ import {
 } from 'react-native';
 
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
+import {
+  createQueuedLeagueCreateEntry,
+  isRetryableCreateError,
+  upsertQueuedJournalCreateEntry,
+  type QueuedLeagueCreateEntry,
+} from './journal/journal-create-queue';
+import {
+  loadJournalCreateQueue,
+  persistJournalCreateQueue,
+} from './journal/journal-create-queue-storage';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { ReferenceCombobox } from '@/components/reference-combobox';
@@ -26,6 +36,7 @@ import {
   useReferenceData,
 } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { createClientSyncId } from '@/utils/client-sync-id';
 
 function formatRelativeTime(timestamp: number | null, now: number) {
   if (!timestamp) {
@@ -79,11 +90,47 @@ function formatRetryTime(timestamp: number | null, now: number) {
   return `in ${String(hours)}h`;
 }
 
+function isNavigatorOffline() {
+  return (
+    typeof globalThis.navigator !== 'undefined' &&
+    globalThis.navigator.onLine === false
+  );
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Create request timed out.'));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 type LeagueActionTarget = {
   leagueId: string;
   name: string;
   gamesPerSession: number | null;
   houseId: string | null;
+};
+
+type DisplayLeague = {
+  id: string;
+  leagueId: string | null;
+  clientSyncId: string | null;
+  name: string;
+  houseName: string | null;
+  houseId: string | null;
+  gamesPerSession: number | null;
+  isDraft: boolean;
 };
 
 export default function JournalLeaguesScreen() {
@@ -95,7 +142,6 @@ export default function JournalLeaguesScreen() {
     createLeague,
     updateLeague,
     removeLeague,
-    isCreating: isCreatingLeague,
   } = useLeagues();
   const [leagueName, setLeagueName] = useState('');
   const [leagueGamesPerSession, setLeagueGamesPerSession] = useState('');
@@ -117,7 +163,14 @@ export default function JournalLeaguesScreen() {
   const [isLeagueActionsVisible, setIsLeagueActionsVisible] = useState(false);
   const [leagueActionTarget, setLeagueActionTarget] =
     useState<LeagueActionTarget | null>(null);
+  const [pendingCreateClientSyncId, setPendingCreateClientSyncId] = useState<
+    string | null
+  >(null);
+  const [isCreatingLeagueRequest, setIsCreatingLeagueRequest] = useState(false);
   const [isSyncStatusVisible, setIsSyncStatusVisible] = useState(false);
+  const [queuedLeagueCreates, setQueuedLeagueCreates] = useState<
+    QueuedLeagueCreateEntry[]
+  >([]);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
     useReferenceData();
@@ -138,10 +191,17 @@ export default function JournalLeaguesScreen() {
           ? 'Retrying soon'
           : `${String(queueStatus.queuedCount)} queued`;
 
-  const navigateToLeagueSessions = (leagueId: string) => {
+  const navigateToLeagueSessions = (league: DisplayLeague) => {
+    const leagueRouteId = league.leagueId ?? league.id;
+
     router.push({
       pathname: '/journal/[leagueId]/sessions' as never,
-      params: { leagueId } as never,
+      params: {
+        leagueId: leagueRouteId,
+        ...(league.clientSyncId
+          ? { leagueClientSyncId: league.clientSyncId }
+          : {}),
+      } as never,
     } as never);
   };
 
@@ -180,6 +240,9 @@ export default function JournalLeaguesScreen() {
 
   const onCreateLeague = async () => {
     setLeagueError(null);
+    setIsCreatingLeagueRequest(true);
+    const clientSyncId =
+      pendingCreateClientSyncId ?? createClientSyncId('league');
     const name = leagueName.trim();
 
     if (name.length === 0) {
@@ -203,15 +266,68 @@ export default function JournalLeaguesScreen() {
       gamesPerSession = parsed;
     }
 
-    try {
-      const leagueId = await createLeague({
-        name,
-        gamesPerSession,
-        houseId: leagueHouseId as never,
-      });
+    const queueLeagueCreate = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedLeagueCreateEntry(
+        {
+          name,
+          gamesPerSession,
+          houseId: leagueHouseId as never,
+        },
+        clientSyncId,
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      setQueuedLeagueCreates(
+        nextQueue.filter(
+          (entry): entry is QueuedLeagueCreateEntry =>
+            entry.entityType === 'league-create'
+        )
+      );
       setLeagueName('');
       setLeagueGamesPerSession('');
       setLeagueHouseId(null);
+      setLeagueError(null);
+      setPendingCreateClientSyncId(null);
+      setIsCreateModalVisible(false);
+      navigateToLeagueSessions({
+        id: `draft-${clientSyncId}`,
+        leagueId: null,
+        clientSyncId,
+        name,
+        houseName:
+          houseOptions.find((option) => option.id === leagueHouseId)?.label ??
+          null,
+        houseId: leagueHouseId,
+        gamesPerSession: gamesPerSession ?? null,
+        isDraft: true,
+      });
+    };
+
+    try {
+      if (isNavigatorOffline()) {
+        await queueLeagueCreate();
+        return;
+      }
+
+      const leagueId = await withTimeout(
+        createLeague({
+          name,
+          clientSyncId,
+          gamesPerSession,
+          houseId: leagueHouseId as never,
+        }),
+        4500
+      );
+      setLeagueName('');
+      setLeagueGamesPerSession('');
+      setLeagueHouseId(null);
+      setPendingCreateClientSyncId(null);
       setLeagueError(null);
       setIsCreateModalVisible(false);
       router.push({
@@ -219,9 +335,17 @@ export default function JournalLeaguesScreen() {
         params: { leagueId } as never,
       } as never);
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueLeagueCreate();
+        return;
+      }
+
+      setPendingCreateClientSyncId(clientSyncId);
       setLeagueError(
         caught instanceof Error ? caught.message : 'Unable to create league.'
       );
+    } finally {
+      setIsCreatingLeagueRequest(false);
     }
   };
 
@@ -404,6 +528,74 @@ export default function JournalLeaguesScreen() {
     setIsLeagueActionsVisible(true);
   };
 
+  const refreshQueuedLeagueCreates = useCallback(async () => {
+    const queueEntries = await loadJournalCreateQueue();
+    setQueuedLeagueCreates(
+      queueEntries.filter(
+        (entry): entry is QueuedLeagueCreateEntry =>
+          entry.entityType === 'league-create'
+      )
+    );
+  }, []);
+
+  useEffect(() => {
+    void refreshQueuedLeagueCreates();
+  }, [refreshQueuedLeagueCreates]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshQueuedLeagueCreates();
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [refreshQueuedLeagueCreates]);
+
+  const displayLeagues = useMemo<DisplayLeague[]>(() => {
+    const serverLeagueByClientSyncId = new Map<string, string>();
+
+    const serverLeagues: DisplayLeague[] = leagues.map((league) => {
+      const clientSyncId =
+        typeof (league as { clientSyncId?: string | null }).clientSyncId ===
+        'string'
+          ? ((league as { clientSyncId?: string | null }).clientSyncId ?? null)
+          : null;
+
+      if (clientSyncId) {
+        serverLeagueByClientSyncId.set(clientSyncId, league._id);
+      }
+
+      return {
+        id: league._id,
+        leagueId: league._id,
+        clientSyncId,
+        name: league.name,
+        houseName: league.houseName ?? null,
+        houseId: league.houseId ? String(league.houseId) : null,
+        gamesPerSession: league.gamesPerSession ?? null,
+        isDraft: false,
+      };
+    });
+
+    const queuedDrafts: DisplayLeague[] = queuedLeagueCreates
+      .filter((entry) => !serverLeagueByClientSyncId.has(entry.clientSyncId))
+      .map((entry) => ({
+        id: `draft-${entry.clientSyncId}`,
+        leagueId: null,
+        clientSyncId: entry.clientSyncId,
+        name: entry.payload.name,
+        houseName:
+          houseOptions.find((option) => option.id === entry.payload.houseId)
+            ?.label ?? null,
+        houseId: entry.payload.houseId ? String(entry.payload.houseId) : null,
+        gamesPerSession: entry.payload.gamesPerSession ?? null,
+        isDraft: true,
+      }));
+
+    return [...queuedDrafts, ...serverLeagues];
+  }, [houseOptions, leagues, queuedLeagueCreates]);
+
   return (
     <ScreenLayout
       title="Journal"
@@ -443,17 +635,19 @@ export default function JournalLeaguesScreen() {
             </Text>
           ) : null}
 
-          {leagues.map((league) => (
+          {displayLeagues.map((league) => (
             <Card
-              key={league._id}
+              key={league.id}
               style={[
                 styles.rowCard,
-                editingLeagueId === league._id ? styles.rowCardActive : null,
+                editingLeagueId === league.leagueId
+                  ? styles.rowCardActive
+                  : null,
               ]}
             >
               <View style={styles.rowHeader}>
                 <Pressable
-                  onPress={() => navigateToLeagueSessions(league._id)}
+                  onPress={() => navigateToLeagueSessions(league)}
                   style={({ pressed }) => [
                     styles.leagueContent,
                     pressed ? styles.leagueContentPressed : null,
@@ -470,14 +664,16 @@ export default function JournalLeaguesScreen() {
 
                 <Pressable
                   accessibilityLabel={`League actions for ${league.name}`}
-                  disabled={deletingLeagueId === league._id}
+                  disabled={
+                    league.isDraft || deletingLeagueId === league.leagueId
+                  }
                   hitSlop={8}
                   onPress={() =>
                     openLeagueActions({
-                      leagueId: league._id,
+                      leagueId: league.leagueId ?? '',
                       name: league.name,
                       gamesPerSession: league.gamesPerSession ?? null,
-                      houseId: league.houseId ? String(league.houseId) : null,
+                      houseId: league.houseId,
                     })
                   }
                   style={({ pressed }) => [
@@ -493,7 +689,7 @@ export default function JournalLeaguesScreen() {
                 </Pressable>
               </View>
 
-              {editingLeagueId === league._id ? (
+              {league.leagueId && editingLeagueId === league.leagueId ? (
                 <View style={styles.editSection}>
                   <Input
                     autoCapitalize="words"
@@ -614,15 +810,15 @@ export default function JournalLeaguesScreen() {
               <View style={styles.modalActions}>
                 <View style={styles.modalActionButton}>
                   <Button
-                    disabled={isCreatingLeague}
-                    label={isCreatingLeague ? 'Creating...' : 'Create'}
+                    disabled={isCreatingLeagueRequest}
+                    label={isCreatingLeagueRequest ? 'Creating...' : 'Create'}
                     onPress={onCreateLeague}
                     variant="secondary"
                   />
                 </View>
                 <View style={styles.modalActionButton}>
                   <Button
-                    disabled={isCreatingLeague}
+                    disabled={isCreatingLeagueRequest}
                     label="Cancel"
                     onPress={() => setIsCreateModalVisible(false)}
                     variant="ghost"

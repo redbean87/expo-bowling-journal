@@ -5,6 +5,7 @@ const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000] as const;
 export type QueuedGameSaveEntry = {
   queueId: string;
   sessionId: string;
+  sessionClientSyncId?: string | null;
   gameId: string | null;
   draftNonce: string | null;
   date: string;
@@ -20,6 +21,7 @@ export type QueuedGameSaveEntry = {
 
 type NewQueuedGameSaveInput = {
   sessionId: string;
+  sessionClientSyncId?: string | null;
   gameId: string | null;
   draftNonce?: string | null;
   date: string;
@@ -67,6 +69,10 @@ export function createQueuedGameSaveEntry(
       normalizedDraftNonce
     ),
     sessionId: input.sessionId,
+    sessionClientSyncId:
+      typeof input.sessionClientSyncId === 'string'
+        ? input.sessionClientSyncId
+        : null,
     gameId: input.gameId,
     draftNonce: input.gameId ? null : normalizedDraftNonce,
     date: input.date,

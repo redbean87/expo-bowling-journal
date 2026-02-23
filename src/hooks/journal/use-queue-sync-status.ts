@@ -8,7 +8,16 @@ import {
   flushQueuedGameSavesWithLock,
   isQueuedGameSaveFlushInFlight,
 } from '@/screens/game-editor/game-save-queue-sync';
+import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
+import { loadJournalCreateQueue } from '@/screens/journal/journal-create-queue-storage';
 import { convexJournalService } from '@/services/journal';
+
+type QueueStatusEntry = {
+  createdAt: number;
+  updatedAt: number;
+  nextRetryAt: number;
+  lastError: string | null;
+};
 
 export function useQueueSyncStatus() {
   const { isAuthenticated } = useConvexAuth();
@@ -17,16 +26,19 @@ export function useQueueSyncStatus() {
   const replaceFramesMutation = useMutation(
     convexJournalService.replaceFramesForGame
   );
+  const createLeagueMutation = useMutation(convexJournalService.createLeague);
+  const createSessionMutation = useMutation(convexJournalService.createSession);
 
-  const [queueEntries, setQueueEntries] = useState<
-    Awaited<ReturnType<typeof loadGameSaveQueue>>
-  >([]);
+  const [queueEntries, setQueueEntries] = useState<QueueStatusEntry[]>([]);
   const [checkedAt, setCheckedAt] = useState(Date.now());
   const [isRetryingNow, setIsRetryingNow] = useState(false);
 
   const refreshStatus = useCallback(async () => {
-    const entries = await loadGameSaveQueue();
-    setQueueEntries(entries);
+    const [gameEntries, createEntries] = await Promise.all([
+      loadGameSaveQueue(),
+      loadJournalCreateQueue(),
+    ]);
+    setQueueEntries([...gameEntries, ...createEntries]);
     setCheckedAt(Date.now());
   }, []);
 
@@ -44,12 +56,19 @@ export function useQueueSyncStatus() {
         replaceFramesForGame: replaceFramesMutation,
         force: true,
       });
+      await flushJournalCreateQueueWithLock({
+        createLeague: createLeagueMutation,
+        createSession: createSessionMutation,
+        force: true,
+      });
     } finally {
       setIsRetryingNow(false);
       await refreshStatus();
     }
   }, [
     createGameMutation,
+    createLeagueMutation,
+    createSessionMutation,
     isAuthenticated,
     refreshStatus,
     replaceFramesMutation,

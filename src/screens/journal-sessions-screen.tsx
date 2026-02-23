@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import {
   ActionSheetIOS,
   Alert,
@@ -17,6 +17,20 @@ import {
 
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
+  createQueuedSessionCreateEntry,
+  isRetryableCreateError,
+  upsertQueuedJournalCreateEntry,
+  type QueuedSessionCreateEntry,
+} from './journal/journal-create-queue';
+import {
+  loadJournalClientSyncMap,
+  type JournalClientSyncMap,
+} from './journal/journal-client-sync-map-storage';
+import {
+  loadJournalCreateQueue,
+  persistJournalCreateQueue,
+} from './journal/journal-create-queue-storage';
+import {
   findSessionIdForDate,
   formatIsoDateLabel,
   formatIsoDateForToday,
@@ -30,6 +44,7 @@ import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
 import { useLeagues, useReferenceData, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { createClientSyncId } from '@/utils/client-sync-id';
 
 function getFirstParam(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
@@ -37,6 +52,31 @@ function getFirstParam(value: string | string[] | undefined): string | null {
   }
 
   return value ?? null;
+}
+
+function isNavigatorOffline() {
+  return (
+    typeof globalThis.navigator !== 'undefined' &&
+    globalThis.navigator.onLine === false
+  );
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Create request timed out.'));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 type SessionActionTarget = {
@@ -49,15 +89,37 @@ type SessionActionTarget = {
   title: string;
 };
 
+type DisplaySession = {
+  id: string;
+  sessionId: string | null;
+  clientSyncId: string | null;
+  date: string;
+  weekNumber: number | null;
+  houseId: string | null;
+  patternId: string | null;
+  ballId: string | null;
+  isDraft: boolean;
+};
+
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
+  const isFocused = useIsFocused();
   const navigation = useNavigation();
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
+    leagueClientSyncId?: string | string[];
     startTonight?: string | string[];
   }>();
-  const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
+  const rawLeagueId = getFirstParam(params.leagueId);
+  const leagueClientSyncIdParam = getFirstParam(params.leagueClientSyncId);
+  const leagueClientSyncId =
+    leagueClientSyncIdParam ??
+    (rawLeagueId?.startsWith('draft-') ? rawLeagueId.slice(6) : null);
+  const leagueId =
+    rawLeagueId && !rawLeagueId.startsWith('draft-')
+      ? (rawLeagueId as LeagueId)
+      : null;
   const startTonight = getFirstParam(params.startTonight) === '1';
   const { leagues } = useLeagues();
   const {
@@ -97,9 +159,22 @@ export default function JournalSessionsScreen() {
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null
   );
+  const [pendingCreateClientSyncId, setPendingCreateClientSyncId] = useState<
+    string | null
+  >(null);
+  const [isCreatingSessionRequest, setIsCreatingSessionRequest] =
+    useState(false);
   const [isSessionActionsVisible, setIsSessionActionsVisible] = useState(false);
   const [sessionActionTarget, setSessionActionTarget] =
     useState<SessionActionTarget | null>(null);
+  const [queuedSessionCreates, setQueuedSessionCreates] = useState<
+    QueuedSessionCreateEntry[]
+  >([]);
+  const [draftLeagueName, setDraftLeagueName] = useState<string | null>(null);
+  const [syncMap, setSyncMap] = useState<JournalClientSyncMap>({
+    leagues: {},
+    sessions: {},
+  });
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const {
@@ -116,16 +191,34 @@ export default function JournalSessionsScreen() {
   } = useReferenceData();
 
   const selectedLeague = useMemo(() => {
-    if (!leagueId) {
+    if (leagueId) {
+      return leagues.find((league) => league._id === leagueId) ?? null;
+    }
+
+    if (!leagueClientSyncId) {
       return null;
     }
 
-    return leagues.find((league) => league._id === leagueId) ?? null;
-  }, [leagueId, leagues]);
-  const leagueName = selectedLeague?.name ?? null;
+    return (
+      leagues.find((league) => {
+        const clientSyncId =
+          typeof (league as { clientSyncId?: string | null }).clientSyncId ===
+          'string'
+            ? (league as { clientSyncId?: string | null }).clientSyncId
+            : null;
+
+        return clientSyncId === leagueClientSyncId;
+      }) ?? null
+    );
+  }, [leagueClientSyncId, leagueId, leagues]);
+
+  const leagueName = selectedLeague?.name ?? draftLeagueName;
   const defaultSessionHouseId = selectedLeague?.houseId
     ? String(selectedLeague.houseId)
     : null;
+  const canCreateSessionTarget = Boolean(
+    leagueId || leagueClientSyncId || selectedLeague
+  );
 
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
@@ -134,6 +227,159 @@ export default function JournalSessionsScreen() {
       oldestFirstSessions.map((session, index) => [session._id, index + 1])
     );
   }, [sessions]);
+
+  const refreshQueuedSessionCreates = useCallback(async () => {
+    const [queueEntries, nextSyncMap] = await Promise.all([
+      loadJournalCreateQueue(),
+      loadJournalClientSyncMap(),
+    ]);
+
+    setSyncMap(nextSyncMap);
+
+    const filteredEntries = queueEntries.filter((entry) => {
+      if (entry.entityType !== 'session-create') {
+        return false;
+      }
+
+      if (leagueId && entry.payload.leagueId === leagueId) {
+        return true;
+      }
+
+      if (
+        leagueId &&
+        entry.payload.leagueClientSyncId &&
+        nextSyncMap.leagues[entry.payload.leagueClientSyncId] === leagueId
+      ) {
+        return true;
+      }
+
+      if (
+        !leagueId &&
+        leagueClientSyncId &&
+        entry.payload.leagueClientSyncId === leagueClientSyncId
+      ) {
+        return true;
+      }
+
+      return false;
+    }) as QueuedSessionCreateEntry[];
+
+    setQueuedSessionCreates(filteredEntries);
+
+    if (leagueClientSyncId) {
+      const queuedLeague = queueEntries.find(
+        (entry) =>
+          entry.entityType === 'league-create' &&
+          entry.clientSyncId === leagueClientSyncId
+      );
+      setDraftLeagueName(
+        queuedLeague && queuedLeague.entityType === 'league-create'
+          ? queuedLeague.payload.name
+          : null
+      );
+    } else {
+      setDraftLeagueName(null);
+    }
+  }, [leagueClientSyncId, leagueId]);
+
+  useEffect(() => {
+    void refreshQueuedSessionCreates();
+  }, [refreshQueuedSessionCreates]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshQueuedSessionCreates();
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [refreshQueuedSessionCreates]);
+
+  const displaySessions = useMemo<DisplaySession[]>(() => {
+    const serverByClientSyncId = new Map<string, string>();
+    const serverSessions: DisplaySession[] = sessions.map((session) => {
+      const clientSyncId =
+        typeof (session as { clientSyncId?: string | null }).clientSyncId ===
+        'string'
+          ? ((session as { clientSyncId?: string | null }).clientSyncId ?? null)
+          : null;
+
+      if (clientSyncId) {
+        serverByClientSyncId.set(clientSyncId, session._id);
+      }
+
+      return {
+        id: session._id,
+        sessionId: session._id,
+        clientSyncId,
+        date: session.date,
+        weekNumber: session.weekNumber ?? null,
+        houseId: session.houseId ? String(session.houseId) : null,
+        patternId: session.patternId ? String(session.patternId) : null,
+        ballId: session.ballId ? String(session.ballId) : null,
+        isDraft: false,
+      };
+    });
+
+    const queuedDrafts: DisplaySession[] = queuedSessionCreates
+      .filter((entry) => !serverByClientSyncId.has(entry.clientSyncId))
+      .map((entry) => ({
+        id: `draft-${entry.clientSyncId}`,
+        sessionId: null,
+        clientSyncId: entry.clientSyncId,
+        date: entry.payload.date,
+        weekNumber: entry.payload.weekNumber ?? null,
+        houseId: entry.payload.houseId ? String(entry.payload.houseId) : null,
+        patternId: entry.payload.patternId
+          ? String(entry.payload.patternId)
+          : null,
+        ballId: entry.payload.ballId ? String(entry.payload.ballId) : null,
+        isDraft: true,
+      }));
+
+    return [...queuedDrafts, ...serverSessions];
+  }, [queuedSessionCreates, sessions]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
+    if (leagueId || !leagueClientSyncId) {
+      return;
+    }
+
+    const mappedLeagueId = syncMap.leagues[leagueClientSyncId];
+
+    if (!mappedLeagueId) {
+      return;
+    }
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions' as never,
+      params: {
+        leagueId: mappedLeagueId,
+      } as never,
+    } as never);
+  }, [isFocused, leagueClientSyncId, leagueId, router, syncMap.leagues]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
+    if (leagueId || !selectedLeague) {
+      return;
+    }
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions' as never,
+      params: {
+        leagueId: selectedLeague._id,
+      } as never,
+    } as never);
+  }, [isFocused, leagueId, router, selectedLeague]);
 
   useEffect(() => {
     const headerValue = leagueName ?? 'Sessions';
@@ -169,8 +415,19 @@ export default function JournalSessionsScreen() {
 
   const onCreateSession = async () => {
     setSessionError(null);
+    setIsCreatingSessionRequest(true);
+    const clientSyncId =
+      pendingCreateClientSyncId ?? createClientSyncId('session');
+    const targetLeagueId = leagueId ?? selectedLeague?._id ?? null;
+    const targetLeagueClientSyncId =
+      leagueClientSyncId ??
+      (typeof (selectedLeague as { clientSyncId?: string | null } | null)
+        ?.clientSyncId === 'string'
+        ? ((selectedLeague as { clientSyncId?: string | null }).clientSyncId ??
+          null)
+        : null);
 
-    if (!leagueId) {
+    if (!targetLeagueId && !targetLeagueClientSyncId) {
       setSessionError('League is required before creating a session.');
       return;
     }
@@ -196,29 +453,94 @@ export default function JournalSessionsScreen() {
       weekNumber = parsed;
     }
 
-    try {
-      const sessionId = await createSession({
-        leagueId,
-        date,
-        weekNumber,
-        houseId: sessionHouseId as never,
-        ballId: sessionBallId as never,
-        patternId: sessionPatternId as never,
-      });
+    const queueSessionCreate = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedSessionCreateEntry(
+        {
+          leagueId: targetLeagueId as never,
+          date,
+          weekNumber,
+          houseId: sessionHouseId as never,
+          ballId: sessionBallId as never,
+          patternId: sessionPatternId as never,
+        },
+        clientSyncId,
+        targetLeagueClientSyncId,
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      setQueuedSessionCreates(
+        nextQueue.filter(
+          (entry): entry is QueuedSessionCreateEntry =>
+            entry.entityType === 'session-create'
+        )
+      );
       setSessionError(null);
       setIsCreateModalVisible(false);
       setSessionWeekNumber('');
       setSessionHouseId(null);
       setSessionBallId(null);
       setSessionPatternId(null);
+      setPendingCreateClientSyncId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: { leagueId, sessionId } as never,
+        params: {
+          leagueId: targetLeagueId ?? `draft-${targetLeagueClientSyncId}`,
+          sessionId: `draft-${clientSyncId}`,
+          ...(targetLeagueClientSyncId
+            ? { leagueClientSyncId: targetLeagueClientSyncId }
+            : {}),
+          sessionClientSyncId: clientSyncId,
+        } as never,
+      } as never);
+    };
+
+    try {
+      if (!targetLeagueId || isNavigatorOffline()) {
+        await queueSessionCreate();
+        return;
+      }
+
+      const sessionId = await withTimeout(
+        createSession({
+          leagueId: targetLeagueId,
+          clientSyncId,
+          date,
+          weekNumber,
+          houseId: sessionHouseId as never,
+          ballId: sessionBallId as never,
+          patternId: sessionPatternId as never,
+        }),
+        4500
+      );
+      setSessionError(null);
+      setIsCreateModalVisible(false);
+      setSessionWeekNumber('');
+      setSessionHouseId(null);
+      setSessionBallId(null);
+      setSessionPatternId(null);
+      setPendingCreateClientSyncId(null);
+      router.push({
+        pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+        params: { leagueId: targetLeagueId, sessionId } as never,
       } as never);
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueSessionCreate();
+        return;
+      }
+
+      setPendingCreateClientSyncId(clientSyncId);
       setSessionError(
         caught instanceof Error ? caught.message : 'Unable to create session.'
       );
+    } finally {
+      setIsCreatingSessionRequest(false);
     }
   };
 
@@ -400,6 +722,10 @@ export default function JournalSessionsScreen() {
   };
 
   useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
     if (!startTonight || hasHandledStartTonightRef.current) {
       return;
     }
@@ -449,6 +775,7 @@ export default function JournalSessionsScreen() {
   }, [
     createSession,
     isCreatingSession,
+    isFocused,
     isSessionsLoading,
     leagueId,
     router,
@@ -480,21 +807,25 @@ export default function JournalSessionsScreen() {
           {isSessionsLoading ? (
             <Text style={styles.meta}>Loading sessions...</Text>
           ) : null}
-          {!isSessionsLoading && !leagueId ? (
+          {!isSessionsLoading && !leagueId && !leagueClientSyncId ? (
             <Text style={styles.meta}>League not found.</Text>
           ) : null}
-          {!isSessionsLoading && leagueId && sessions.length === 0 ? (
+          {!isSessionsLoading &&
+          (leagueId || leagueClientSyncId) &&
+          displaySessions.length === 0 ? (
             <Text style={styles.meta}>
               No sessions yet. Tap + to create one.
             </Text>
           ) : null}
 
-          {sessions.map((session) => (
+          {displaySessions.map((session) => (
             <Card
-              key={session._id}
+              key={session.id}
               style={[
                 styles.rowCard,
-                editingSessionId === session._id ? styles.rowCardActive : null,
+                editingSessionId === session.sessionId
+                  ? styles.rowCardActive
+                  : null,
               ]}
             >
               <View style={styles.rowHeader}>
@@ -508,8 +839,15 @@ export default function JournalSessionsScreen() {
                       pathname:
                         '/journal/[leagueId]/sessions/[sessionId]/games' as never,
                       params: {
-                        leagueId: leagueId ?? '',
-                        sessionId: session._id,
+                        leagueId:
+                          leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
+                        sessionId:
+                          session.sessionId ??
+                          `draft-${session.clientSyncId ?? 'session'}`,
+                        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+                        ...(session.clientSyncId
+                          ? { sessionClientSyncId: session.clientSyncId }
+                          : {}),
                       } as never,
                     } as never)
                   }
@@ -517,7 +855,11 @@ export default function JournalSessionsScreen() {
                   <Text style={styles.rowTitle}>
                     {formatSessionWeekLabel(
                       session.weekNumber ??
-                        derivedWeekNumberBySessionId.get(session._id) ??
+                        (session.sessionId
+                          ? (derivedWeekNumberBySessionId.get(
+                              session.sessionId as SessionId
+                            ) ?? null)
+                          : null) ??
                         1
                     )}
                   </Text>
@@ -527,21 +869,25 @@ export default function JournalSessionsScreen() {
                 </Pressable>
                 <Pressable
                   accessibilityLabel={`Session actions for ${formatIsoDateLabel(session.date)}`}
-                  disabled={deletingSessionId === session._id}
+                  disabled={
+                    session.isDraft || deletingSessionId === session.sessionId
+                  }
                   hitSlop={8}
                   onPress={() =>
                     openSessionActions({
-                      sessionId: session._id,
+                      sessionId: session.sessionId ?? '',
                       date: session.date,
                       weekNumber: session.weekNumber ?? null,
-                      houseId: session.houseId ? String(session.houseId) : null,
-                      patternId: session.patternId
-                        ? String(session.patternId)
-                        : null,
-                      ballId: session.ballId ? String(session.ballId) : null,
+                      houseId: session.houseId,
+                      patternId: session.patternId,
+                      ballId: session.ballId,
                       title: `${formatSessionWeekLabel(
                         session.weekNumber ??
-                          derivedWeekNumberBySessionId.get(session._id) ??
+                          (session.sessionId
+                            ? (derivedWeekNumberBySessionId.get(
+                                session.sessionId as SessionId
+                              ) ?? null)
+                            : null) ??
                           1
                       )} - ${formatIsoDateLabel(session.date)}`,
                     })
@@ -559,7 +905,7 @@ export default function JournalSessionsScreen() {
                 </Pressable>
               </View>
 
-              {editingSessionId === session._id ? (
+              {session.sessionId && editingSessionId === session.sessionId ? (
                 <View style={styles.editSection}>
                   <Input
                     autoCapitalize="none"
@@ -632,7 +978,7 @@ export default function JournalSessionsScreen() {
 
         <FloatingActionButton
           accessibilityLabel="Create session"
-          disabled={!leagueId}
+          disabled={!canCreateSessionTarget}
           onPress={openCreateModal}
         />
 
@@ -793,15 +1139,17 @@ export default function JournalSessionsScreen() {
               <View style={styles.modalActions}>
                 <View style={styles.modalActionButton}>
                   <Button
-                    disabled={isCreatingSession || !leagueId}
-                    label={isCreatingSession ? 'Creating...' : 'Create'}
+                    disabled={
+                      isCreatingSessionRequest || !canCreateSessionTarget
+                    }
+                    label={isCreatingSessionRequest ? 'Creating...' : 'Create'}
                     onPress={onCreateSession}
                     variant="secondary"
                   />
                 </View>
                 <View style={styles.modalActionButton}>
                   <Button
-                    disabled={isCreatingSession}
+                    disabled={isCreatingSessionRequest}
                     label="Cancel"
                     onPress={() => setIsCreateModalVisible(false)}
                     variant="ghost"

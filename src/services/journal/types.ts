@@ -25,6 +25,7 @@ export type PatternId = Id<'patterns'>;
 
 export type CreateLeagueInput = {
   name: string;
+  clientSyncId?: string | null;
   gamesPerSession?: number | null;
   houseId?: Id<'houses'> | null;
   houseName?: string | null;
@@ -45,6 +46,7 @@ export type RemoveLeagueInput = {
 
 export type CreateSessionInput = {
   leagueId: LeagueId;
+  clientSyncId?: string | null;
   weekNumber?: number | null;
   date: string;
   houseId?: Id<'houses'> | null;

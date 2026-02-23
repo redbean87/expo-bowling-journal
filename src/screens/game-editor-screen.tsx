@@ -221,17 +221,38 @@ export default function GameEditorScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
+    leagueClientSyncId?: string | string[];
     gameId?: string | string[];
     sessionId?: string | string[];
+    sessionClientSyncId?: string | string[];
     draftNonce?: string | string[];
   }>();
 
-  const leagueId = getFirstParam(params.leagueId);
+  const rawLeagueId = getFirstParam(params.leagueId);
+  const leagueClientSyncIdParam = getFirstParam(params.leagueClientSyncId);
+  const leagueClientSyncId =
+    leagueClientSyncIdParam ??
+    (rawLeagueId?.startsWith('draft-') ? rawLeagueId.slice(6) : null);
   const gameIdParam = getFirstParam(params.gameId);
   const draftNonceParam = getFirstParam(params.draftNonce);
   const isCreateMode = gameIdParam === 'new';
   const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
-  const sessionId = getFirstParam(params.sessionId) as SessionId | null;
+  const rawSessionId = getFirstParam(params.sessionId);
+  const sessionClientSyncIdParam = getFirstParam(params.sessionClientSyncId);
+  const sessionClientSyncId =
+    sessionClientSyncIdParam ??
+    (rawSessionId?.startsWith('draft-') ? rawSessionId.slice(6) : null);
+  const leagueId =
+    rawLeagueId && !rawLeagueId.startsWith('draft-')
+      ? (rawLeagueId as LeagueId)
+      : null;
+  const sessionId =
+    rawSessionId && !rawSessionId.startsWith('draft-')
+      ? (rawSessionId as SessionId)
+      : null;
+  const isDraftSessionContext =
+    Boolean(sessionClientSyncId) ||
+    (typeof rawSessionId === 'string' && rawSessionId.startsWith('draft-'));
 
   const {
     game,
@@ -243,7 +264,7 @@ export default function GameEditorScreen() {
     replaceFramesForGame,
   } = useGameEditor(gameId);
   const { games: sessionGames } = useGames(sessionId);
-  const { sessions } = useSessions((leagueId as LeagueId | null) ?? null);
+  const { sessions } = useSessions(leagueId);
   const { scoreboardLayout } = usePreferences();
 
   const [date, setDate] = useState('');
@@ -484,7 +505,7 @@ export default function GameEditorScreen() {
         return false;
       }
 
-      const queueSessionId = sessionId ?? game?.sessionId;
+      const queueSessionId = rawSessionId ?? game?.sessionId;
 
       if (!queueSessionId) {
         return false;
@@ -502,6 +523,7 @@ export default function GameEditorScreen() {
       const queueEntry = createQueuedGameSaveEntry(
         {
           sessionId: String(queueSessionId),
+          sessionClientSyncId,
           gameId: activeGameId ? String(activeGameId) : null,
           draftNonce: activeGameId ? null : activeDraftNonce,
           date: autosavePlan.trimmedDate,
@@ -531,11 +553,13 @@ export default function GameEditorScreen() {
       draftGameId,
       frameDrafts,
       game?.sessionId,
+      rawSessionId,
       hasSignedInBefore,
       isAuthenticated,
       isCreateMode,
       selectedBallId,
       selectedPatternId,
+      sessionClientSyncId,
       sessionId,
     ]
   );
@@ -548,12 +572,19 @@ export default function GameEditorScreen() {
 
       setIsCanonicalizingRoute(true);
       navigation.setParams({
-        leagueId: leagueId ?? '',
-        sessionId: sessionId ?? '',
+        leagueId: rawLeagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
+        sessionId: rawSessionId ?? `draft-${sessionClientSyncId ?? 'session'}`,
         gameId: nextGameId,
       } as never);
     },
-    [gameIdParam, leagueId, navigation, sessionId]
+    [
+      gameIdParam,
+      leagueClientSyncId,
+      navigation,
+      rawLeagueId,
+      rawSessionId,
+      sessionClientSyncId,
+    ]
   );
 
   useEffect(() => {
@@ -1391,7 +1422,7 @@ export default function GameEditorScreen() {
       let attemptedGameId = activeGameId;
 
       const queueEntryForLocalSave = async () => {
-        const queueSessionId = sessionId ?? game?.sessionId;
+        const queueSessionId = rawSessionId ?? sessionId ?? game?.sessionId;
 
         if (!queueSessionId) {
           return false;
@@ -1401,6 +1432,7 @@ export default function GameEditorScreen() {
         const queueEntry = createQueuedGameSaveEntry(
           {
             sessionId: String(queueSessionId),
+            sessionClientSyncId,
             gameId: attemptedGameId ? String(attemptedGameId) : null,
             draftNonce: attemptedGameId ? null : activeDraftNonce,
             date: trimmedDate,
@@ -1425,7 +1457,10 @@ export default function GameEditorScreen() {
       };
 
       try {
-        if (hasSignedInBefore && (!isAuthenticated || isOfflineLikely())) {
+        if (
+          hasSignedInBefore &&
+          (!isAuthenticated || isOfflineLikely() || isDraftSessionContext)
+        ) {
           if (await queueEntryForLocalSave()) {
             return;
           }
@@ -1435,6 +1470,10 @@ export default function GameEditorScreen() {
 
         if (isCreateMode) {
           if (!sessionId) {
+            if (isDraftSessionContext && (await queueEntryForLocalSave())) {
+              return;
+            }
+
             throw new Error('Session is required when creating a game.');
           }
 
@@ -1442,7 +1481,7 @@ export default function GameEditorScreen() {
             const queueEntries = await loadGameSaveQueue();
             const pendingNewGameEntry = getQueuedGameSaveEntry(
               queueEntries,
-              String(sessionId),
+              String(rawSessionId ?? sessionId),
               null,
               activeDraftNonce
             );
@@ -1551,8 +1590,11 @@ export default function GameEditorScreen() {
     hasSignedInBefore,
     isAuthenticated,
     isCreateMode,
+    isDraftSessionContext,
+    rawSessionId,
     replaceNewRouteWithGameId,
     replaceFramesForGame,
+    sessionClientSyncId,
     sessionId,
     updateGame,
     clearLocalDraft,

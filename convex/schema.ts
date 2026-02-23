@@ -7,6 +7,7 @@ export default defineSchema({
   leagues: defineTable({
     userId: v.id('users'),
     name: v.string(),
+    clientSyncId: v.optional(v.union(v.string(), v.null())),
     gamesPerSession: v.optional(v.union(v.number(), v.null())),
     houseId: v.optional(v.union(v.id('houses'), v.null())),
     houseName: v.optional(v.union(v.string(), v.null())),
@@ -19,6 +20,7 @@ export default defineSchema({
   sessions: defineTable({
     userId: v.id('users'),
     leagueId: v.id('leagues'),
+    clientSyncId: v.optional(v.union(v.string(), v.null())),
     weekNumber: v.optional(v.union(v.number(), v.null())),
     date: v.string(),
     houseId: v.optional(v.union(v.id('houses'), v.null())),

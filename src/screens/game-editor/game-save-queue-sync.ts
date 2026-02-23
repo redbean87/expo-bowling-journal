@@ -61,6 +61,11 @@ async function persistDefaultQueue(entries: QueuedGameSaveEntry[]) {
   await module.persistGameSaveQueue(entries);
 }
 
+async function loadJournalSyncMapDefault() {
+  const module = await import('../journal/journal-client-sync-map-storage');
+  return module.loadJournalClientSyncMap();
+}
+
 function getErrorMessage(caught: unknown) {
   if (caught instanceof Error) {
     return caught.message;
@@ -124,12 +129,65 @@ export async function flushQueuedGameSaves({
 
     let queueEntry = latestDueEntry;
     let targetGameId = queueEntry.gameId as GameId | null;
+    let targetSessionId = queueEntry.sessionId as SessionId;
     let wasCreated = false;
 
     try {
+      if (queueEntry.sessionId.startsWith('draft-')) {
+        const fallbackClientSyncId = queueEntry.sessionId.slice(6);
+        const syncMap = await loadJournalSyncMapDefault();
+        const mappedSessionId = queueEntry.sessionClientSyncId
+          ? syncMap.sessions[queueEntry.sessionClientSyncId]
+          : syncMap.sessions[fallbackClientSyncId];
+
+        if (!mappedSessionId) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedGameSaveEntryRetry(
+                entries,
+                queueEntry.queueId,
+                'Waiting for session sync before creating game.',
+                Date.now()
+              )
+          );
+          continue;
+        }
+
+        targetSessionId = mappedSessionId as SessionId;
+
+        queueEntries = await applyQueueMutation(
+          loadQueue,
+          persistQueue,
+          (entries) =>
+            entries.map((entry) => {
+              if (entry.queueId !== queueEntry.queueId) {
+                return entry;
+              }
+
+              return {
+                ...entry,
+                sessionId: mappedSessionId,
+                updatedAt: Date.now(),
+              };
+            })
+        );
+
+        const refreshedEntries = await loadQueue();
+        const refreshedQueueEntry = getEntryByQueueId(
+          refreshedEntries,
+          queueEntry.queueId
+        );
+
+        if (refreshedQueueEntry) {
+          queueEntry = refreshedQueueEntry;
+        }
+      }
+
       if (!targetGameId) {
         const createdGameId = await createGame({
-          sessionId: queueEntry.sessionId as SessionId,
+          sessionId: targetSessionId,
           date: queueEntry.date,
           clientSyncId: queueEntry.draftNonce ?? queueEntry.queueId,
         });

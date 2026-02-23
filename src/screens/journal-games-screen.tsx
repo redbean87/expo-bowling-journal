@@ -1,4 +1,8 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -29,6 +33,10 @@ import {
   loadGameSaveQueue,
   persistGameSaveQueue,
 } from './game-editor/game-save-queue-storage';
+import {
+  loadJournalClientSyncMap,
+  type JournalClientSyncMap,
+} from './journal/journal-client-sync-map-storage';
 import {
   formatIsoDateLabel,
   formatGameSequenceLabel,
@@ -326,16 +334,38 @@ function createDraftNonce() {
 }
 
 export default function JournalGamesScreen() {
+  const isFocused = useIsFocused();
   const navigation = useNavigation();
   const router = useRouter();
   const params = useLocalSearchParams<{
     leagueId?: string | string[];
+    leagueClientSyncId?: string | string[];
     sessionId?: string | string[];
+    sessionClientSyncId?: string | string[];
     startEntry?: string | string[];
   }>();
-  const leagueId = getFirstParam(params.leagueId) as LeagueId | null;
-  const sessionId = getFirstParam(params.sessionId) as SessionId | null;
+  const rawLeagueId = getFirstParam(params.leagueId);
+  const leagueClientSyncIdParam = getFirstParam(params.leagueClientSyncId);
+  const leagueClientSyncId =
+    leagueClientSyncIdParam ??
+    (rawLeagueId?.startsWith('draft-') ? rawLeagueId.slice(6) : null);
+  const rawSessionId = getFirstParam(params.sessionId);
+  const sessionClientSyncIdParam = getFirstParam(params.sessionClientSyncId);
+  const sessionClientSyncId =
+    sessionClientSyncIdParam ??
+    (rawSessionId?.startsWith('draft-') ? rawSessionId.slice(6) : null);
+  const leagueId =
+    rawLeagueId && !rawLeagueId.startsWith('draft-')
+      ? (rawLeagueId as LeagueId)
+      : null;
+  const sessionId =
+    rawSessionId && !rawSessionId.startsWith('draft-')
+      ? (rawSessionId as SessionId)
+      : null;
   const startEntry = getFirstParam(params.startEntry) === '1';
+  const canCreateGameTarget = Boolean(
+    (leagueId || leagueClientSyncId) && (sessionId || sessionClientSyncId)
+  );
   const { games, removeGame, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
   const { sessions } = useSessions(leagueId);
@@ -350,11 +380,76 @@ export default function JournalGamesScreen() {
   const [isGameActionsVisible, setIsGameActionsVisible] = useState(false);
   const [gameActionTarget, setGameActionTarget] =
     useState<GameActionTarget | null>(null);
+  const [syncMap, setSyncMap] = useState<JournalClientSyncMap>({
+    leagues: {},
+    sessions: {},
+  });
   const syncedHandoffByQueueIdRef = useRef(new Map<string, string>());
   const stableCreatedAtByGameIdRef = useRef(new Map<string, number>());
   const queuedSessionEntriesRef = useRef<QueuedGameSaveEntry[]>([]);
   const hasHandledStartEntryRef = useRef(false);
   const isRefreshingQueueRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshSyncMap = async () => {
+      const nextSyncMap = await loadJournalClientSyncMap();
+
+      if (isMounted) {
+        setSyncMap(nextSyncMap);
+      }
+    };
+
+    void refreshSyncMap();
+    const interval = setInterval(() => {
+      void refreshSyncMap();
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
+    const mappedLeagueId =
+      !leagueId && leagueClientSyncId
+        ? syncMap.leagues[leagueClientSyncId]
+        : leagueId;
+    const mappedSessionId =
+      !sessionId && sessionClientSyncId
+        ? syncMap.sessions[sessionClientSyncId]
+        : sessionId;
+
+    if (!mappedLeagueId || !mappedSessionId) {
+      return;
+    }
+
+    if (leagueId === mappedLeagueId && sessionId === mappedSessionId) {
+      return;
+    }
+
+    router.replace({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+      params: {
+        leagueId: mappedLeagueId,
+        sessionId: mappedSessionId,
+      } as never,
+    } as never);
+  }, [
+    isFocused,
+    leagueClientSyncId,
+    leagueId,
+    router,
+    sessionClientSyncId,
+    sessionId,
+    syncMap,
+  ]);
 
   const refreshQueuedEntries = useCallback(async () => {
     if (isRefreshingQueueRef.current) {
@@ -363,7 +458,9 @@ export default function JournalGamesScreen() {
 
     isRefreshingQueueRef.current = true;
 
-    if (!sessionId) {
+    const activeSessionKey = sessionId ?? rawSessionId;
+
+    if (!activeSessionKey && !sessionClientSyncId) {
       setQueuedSessionEntries([]);
       setPendingHandoffEntries([]);
       queuedSessionEntriesRef.current = [];
@@ -374,7 +471,10 @@ export default function JournalGamesScreen() {
     try {
       const queueEntries = await loadGameSaveQueue();
       const nextQueuedEntries = queueEntries.filter(
-        (entry) => entry.sessionId === sessionId
+        (entry) =>
+          entry.sessionId === activeSessionKey ||
+          (sessionClientSyncId !== null &&
+            entry.sessionClientSyncId === sessionClientSyncId)
       );
       const now = Date.now();
       const currentQueuedEntries = queuedSessionEntriesRef.current;
@@ -465,7 +565,7 @@ export default function JournalGamesScreen() {
     } finally {
       isRefreshingQueueRef.current = false;
     }
-  }, [deletingGameId, games, sessionId]);
+  }, [deletingGameId, games, rawSessionId, sessionClientSyncId, sessionId]);
 
   useEffect(() => {
     queuedSessionEntriesRef.current = queuedSessionEntries;
@@ -750,6 +850,10 @@ export default function JournalGamesScreen() {
   };
 
   useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
     if (!startEntry || hasHandledStartEntryRef.current) {
       return;
     }
@@ -772,7 +876,15 @@ export default function JournalGamesScreen() {
           : {}),
       },
     });
-  }, [displayGames, isGamesLoading, leagueId, router, sessionId, startEntry]);
+  }, [
+    displayGames,
+    isFocused,
+    isGamesLoading,
+    leagueId,
+    router,
+    sessionId,
+    startEntry,
+  ]);
 
   return (
     <ScreenLayout
@@ -833,8 +945,12 @@ export default function JournalGamesScreen() {
           {isGamesLoading ? (
             <Text style={styles.meta}>Loading games...</Text>
           ) : null}
-          {!isGamesLoading && !sessionId ? (
-            <Text style={styles.meta}>Session not found.</Text>
+          {!isGamesLoading && !sessionId && displayGames.length === 0 ? (
+            <Text style={styles.meta}>
+              {sessionClientSyncId
+                ? 'Session is syncing. Games will appear shortly.'
+                : 'Session not found.'}
+            </Text>
           ) : null}
           {!isGamesLoading && sessionId && displayGames.length === 0 ? (
             <Text style={styles.meta}>No games in this session yet.</Text>
@@ -982,14 +1098,17 @@ export default function JournalGamesScreen() {
 
         <FloatingActionButton
           accessibilityLabel="Add game"
-          disabled={!leagueId || !sessionId}
+          disabled={!canCreateGameTarget}
           onPress={() =>
             router.push({
               pathname:
                 '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
               params: {
-                leagueId: leagueId ?? '',
-                sessionId: sessionId ?? '',
+                leagueId: leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
+                sessionId:
+                  sessionId ?? `draft-${sessionClientSyncId ?? 'session'}`,
+                ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+                ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
                 gameId: 'new',
                 draftNonce: createDraftNonce(),
               },
