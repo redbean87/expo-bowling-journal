@@ -14,7 +14,9 @@ import {
   completeImportBatch,
   toPublicImportResult,
 } from './lib/import-batch-lifecycle';
+import { applyRefinement } from './lib/import-core-refinement';
 import { runSqliteSnapshotImportCore } from './lib/import-core-runner';
+import { chunkRows, insertRawImportRow } from './lib/import-raw-mirror';
 import {
   clearUserImportDataInChunks,
   deleteUserDocsChunkForImportTable,
@@ -23,14 +25,10 @@ import {
   DEFAULT_RAW_IMPORT_CHUNK_SIZE,
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   EMPTY_IMPORT_COUNTS,
-  type GameRefinementInput,
   type ImportResult,
   type RawImportRow,
   type RawImportTable,
-  type RefinementResult,
-  type RefinementWarning,
   type ReplaceAllCleanupTable,
-  type SessionRefinementInput,
   type SqliteSnapshotInput,
 } from './lib/import-types';
 import {
@@ -44,8 +42,6 @@ import {
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import {
-  normalizeBallSwitches,
-  normalizeLaneContext,
   normalizeNullableInteger,
   normalizeOptionalText,
 } from './lib/import_refinement';
@@ -53,7 +49,6 @@ import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
-import type { BallSwitchInput } from './lib/import_refinement';
 
 const getBatchByIdForDispatchQuery = makeFunctionReference<
   'query',
@@ -88,246 +83,12 @@ const dispatchImportQueueActionReference = makeFunctionReference<
   void
 >('imports:dispatchImportQueue');
 
-function hasOwn(object: object, property: string) {
-  return Object.prototype.hasOwnProperty.call(object, property);
-}
-
 function validateR2KeyOwnership(userId: Id<'users'>, r2Key: string) {
   const expectedPrefix = `imports/${String(userId)}/`;
 
   if (!r2Key.startsWith(expectedPrefix)) {
     throw new ConvexError('r2Key must be scoped to the authenticated user');
   }
-}
-
-function chunkRows<T>(rows: T[], chunkSize: number) {
-  if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
-    throw new ConvexError('chunkSize must be a positive integer');
-  }
-
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < rows.length; index += chunkSize) {
-    chunks.push(rows.slice(index, index + chunkSize));
-  }
-
-  return chunks;
-}
-
-async function insertRawImportRow(
-  ctx: MutationCtx,
-  table: RawImportTable,
-  args: {
-    userId: Id<'users'>;
-    batchId: Id<'importBatches'>;
-    row: RawImportRow;
-    importedAt: number;
-  }
-) {
-  const sqliteId = args.row.sqliteId;
-
-  if (typeof sqliteId !== 'number' || !Number.isFinite(sqliteId)) {
-    throw new ConvexError(`Raw row for ${table} is missing numeric sqliteId`);
-  }
-
-  await ctx.db.insert(table, {
-    userId: args.userId,
-    batchId: args.batchId,
-    sqliteId,
-    raw: args.row,
-    importedAt: args.importedAt,
-  });
-}
-
-async function resolveBallName(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  ballId: Id<'balls'>
-) {
-  const ball = await ctx.db.get(ballId);
-
-  if (!ball || ball.userId !== userId) {
-    return null;
-  }
-
-  return ball.name;
-}
-
-async function applyRefinement(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  args: {
-    sessions: SessionRefinementInput[];
-    games: GameRefinementInput[];
-  }
-): Promise<RefinementResult> {
-  const warnings: RefinementWarning[] = [];
-  let sessionsPatched = 0;
-  let sessionsSkipped = 0;
-  let gamesPatched = 0;
-  let gamesSkipped = 0;
-
-  for (const sessionInput of args.sessions) {
-    const session = await ctx.db.get(sessionInput.sessionId);
-
-    if (!session || session.userId !== userId) {
-      sessionsSkipped += 1;
-      warnings.push({
-        recordType: 'session',
-        recordId: String(sessionInput.sessionId),
-        message: 'Session not found or not owned by current user',
-      });
-      continue;
-    }
-
-    const patch: Partial<Doc<'sessions'>> = {};
-    const localWarnings: string[] = [];
-
-    if (hasOwn(sessionInput, 'notes')) {
-      patch.notes = normalizeOptionalText(sessionInput.notes);
-    }
-
-    if (hasOwn(sessionInput, 'laneContext')) {
-      patch.laneContext =
-        normalizeLaneContext(
-          sessionInput.laneContext,
-          localWarnings,
-          `session ${sessionInput.sessionId}`
-        ) ?? null;
-    }
-
-    for (const warning of localWarnings) {
-      warnings.push({
-        recordType: 'session',
-        recordId: String(sessionInput.sessionId),
-        message: warning,
-      });
-    }
-
-    if (Object.keys(patch).length === 0) {
-      sessionsSkipped += 1;
-      continue;
-    }
-
-    await ctx.db.patch(sessionInput.sessionId, patch);
-    sessionsPatched += 1;
-  }
-
-  for (const gameInput of args.games) {
-    const game = await ctx.db.get(gameInput.gameId);
-
-    if (!game || game.userId !== userId) {
-      gamesSkipped += 1;
-      warnings.push({
-        recordType: 'game',
-        recordId: String(gameInput.gameId),
-        message: 'Game not found or not owned by current user',
-      });
-      continue;
-    }
-
-    const patch: Partial<Doc<'games'>> = {};
-    const localWarnings: string[] = [];
-
-    if (hasOwn(gameInput, 'handicap')) {
-      const normalizedHandicap = normalizeNullableInteger(
-        gameInput.handicap,
-        -200,
-        200
-      );
-
-      if (gameInput.handicap !== undefined && normalizedHandicap === null) {
-        localWarnings.push('handicap must be an integer between -200 and 200');
-      }
-
-      patch.handicap = normalizedHandicap;
-    }
-
-    if (hasOwn(gameInput, 'notes')) {
-      patch.notes = normalizeOptionalText(gameInput.notes);
-    }
-
-    if (hasOwn(gameInput, 'laneContext')) {
-      patch.laneContext =
-        normalizeLaneContext(
-          gameInput.laneContext,
-          localWarnings,
-          `game ${gameInput.gameId}`
-        ) ?? null;
-    }
-
-    if (hasOwn(gameInput, 'ballSwitches')) {
-      const normalizedSwitches = normalizeBallSwitches(
-        gameInput.ballSwitches,
-        localWarnings,
-        `game ${gameInput.gameId}`
-      );
-
-      if (normalizedSwitches === null) {
-        patch.ballSwitches = null;
-      } else {
-        const verifiedSwitches: BallSwitchInput[] = [];
-
-        for (const ballSwitch of normalizedSwitches) {
-          if (!ballSwitch.ballId) {
-            verifiedSwitches.push(ballSwitch);
-            continue;
-          }
-
-          const ballName = await resolveBallName(
-            ctx,
-            userId,
-            ballSwitch.ballId
-          );
-
-          if (!ballName) {
-            localWarnings.push(
-              `game ${gameInput.gameId}: ball ${ballSwitch.ballId} is missing or unauthorized`
-            );
-            verifiedSwitches.push({
-              ...ballSwitch,
-              ballId: null,
-              ballName: ballSwitch.ballName ?? null,
-            });
-            continue;
-          }
-
-          verifiedSwitches.push({
-            ...ballSwitch,
-            ballName: ballSwitch.ballName ?? ballName,
-          });
-        }
-
-        patch.ballSwitches = verifiedSwitches;
-      }
-    }
-
-    for (const warning of localWarnings) {
-      warnings.push({
-        recordType: 'game',
-        recordId: String(gameInput.gameId),
-        message: warning,
-      });
-    }
-
-    if (Object.keys(patch).length === 0) {
-      gamesSkipped += 1;
-      continue;
-    }
-
-    await ctx.db.patch(gameInput.gameId, patch);
-    gamesPatched += 1;
-  }
-
-  return {
-    sessionsProcessed: args.sessions.length,
-    sessionsPatched,
-    sessionsSkipped,
-    gamesProcessed: args.games.length,
-    gamesPatched,
-    gamesSkipped,
-    warnings,
-  };
 }
 
 export const startImport = mutation({
