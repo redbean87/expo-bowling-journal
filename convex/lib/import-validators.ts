@@ -147,3 +147,58 @@ export const sqliteSnapshotArgs = {
   games: v.array(sqliteGameValidator),
   frames: v.array(sqliteFrameValidator),
 };
+
+export const postImportRefinementArgs = {
+  sessions: v.optional(
+    v.array(
+      v.object({
+        sessionId: v.id('sessions'),
+        laneContext: v.optional(v.union(laneContextValidator, v.null())),
+        notes: v.optional(v.union(v.string(), v.null())),
+      })
+    )
+  ),
+  games: v.optional(
+    v.array(
+      v.object({
+        gameId: v.id('games'),
+        handicap: v.optional(v.union(v.number(), v.null())),
+        laneContext: v.optional(v.union(laneContextValidator, v.null())),
+        ballSwitches: v.optional(
+          v.union(v.array(ballSwitchValidator), v.null())
+        ),
+        notes: v.optional(v.union(v.string(), v.null())),
+      })
+    )
+  ),
+};
+
+const refinementWarningValidator = v.object({
+  recordType: v.union(v.literal('session'), v.literal('game')),
+  recordId: v.string(),
+  message: v.string(),
+});
+
+export const completeSnapshotImportArgs = {
+  batchId: v.id('importBatches'),
+  counts: v.object({
+    houses: v.number(),
+    leagues: v.number(),
+    weeks: v.number(),
+    sessions: v.number(),
+    balls: v.number(),
+    games: v.number(),
+    frames: v.number(),
+    patterns: v.number(),
+  }),
+  refinement: v.object({
+    sessionsProcessed: v.number(),
+    sessionsPatched: v.number(),
+    sessionsSkipped: v.number(),
+    gamesProcessed: v.number(),
+    gamesPatched: v.number(),
+    gamesSkipped: v.number(),
+    warnings: v.array(refinementWarningValidator),
+  }),
+  warnings: v.array(refinementWarningValidator),
+};
