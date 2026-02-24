@@ -1,5 +1,3 @@
-import { v } from 'convex/values';
-
 import {
   action,
   internalAction,
@@ -45,25 +43,28 @@ import {
   type RawImportRow,
 } from './lib/import-types';
 import {
-  canonicalFrameInsertValidator,
+  batchIdArgs,
+  createImportBatchForSnapshotArgs,
+  dispatchImportQueueArgs,
+  deleteUserDocsChunkForImportArgs,
+  importSqliteSnapshotAfterCleanupArgs,
+  insertNonceArgs,
+  nonceLookupArgs,
   completeSnapshotImportArgs,
+  persistCanonicalFrameChunkArgs,
+  persistRawImportChunkArgs,
   postImportRefinementArgs,
-  rawImportTableValidator,
-  replaceAllCleanupTableValidator,
+  startImportArgs,
+  submitParsedSnapshotArgs,
+  submitParsedSnapshotJsonArgs,
   sqliteSnapshotArgs,
+  updateBatchStatusArgs,
 } from './lib/import-validators';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import { normalizeNullableInteger } from './lib/import_refinement';
 
 export const startImport = mutation({
-  args: {
-    r2Key: v.string(),
-    fileName: v.optional(v.union(v.string(), v.null())),
-    fileSize: v.number(),
-    checksum: v.optional(v.union(v.string(), v.null())),
-    idempotencyKey: v.string(),
-    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
-  },
+  args: startImportArgs,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
@@ -95,12 +96,7 @@ export const startImport = mutation({
 });
 
 export const dispatchImportQueue = internalAction({
-  args: {
-    batchId: v.id('importBatches'),
-    userId: v.id('users'),
-    r2Key: v.string(),
-    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
-  },
+  args: dispatchImportQueueArgs,
   handler: async (ctx, args) => {
     await dispatchImportQueueToWorker(args, {
       getBatchById: async (batchId) => {
@@ -119,9 +115,7 @@ export const dispatchImportQueue = internalAction({
 });
 
 export const getImportStatus = query({
-  args: {
-    batchId: v.id('importBatches'),
-  },
+  args: batchIdArgs,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     return getImportStatusForUser(ctx, { userId, batchId: args.batchId });
@@ -129,46 +123,28 @@ export const getImportStatus = query({
 });
 
 export const getBatchByIdForCallback = internalQuery({
-  args: {
-    batchId: v.id('importBatches'),
-  },
+  args: batchIdArgs,
   handler: async (ctx, args) => {
     return getImportBatchById(ctx, args.batchId);
   },
 });
 
 export const updateBatchStatusForCallback = internalMutation({
-  args: {
-    batchId: v.id('importBatches'),
-    status: v.union(
-      v.literal('parsing'),
-      v.literal('importing'),
-      v.literal('completed'),
-      v.literal('failed')
-    ),
-    completedAt: v.optional(v.union(v.number(), v.null())),
-    errorMessage: v.optional(v.union(v.string(), v.null())),
-  },
+  args: updateBatchStatusArgs,
   handler: async (ctx, args) => {
     return updateImportBatchStatus(ctx, args);
   },
 });
 
 export const getNonceByValueForCallback = internalQuery({
-  args: {
-    nonce: v.string(),
-  },
+  args: nonceLookupArgs,
   handler: async (ctx, args) => {
     return getCallbackNonceByValue(ctx, args.nonce);
   },
 });
 
 export const insertNonceForCallback = internalMutation({
-  args: {
-    nonce: v.string(),
-    createdAt: v.number(),
-    expiresAt: v.number(),
-  },
+  args: insertNonceArgs,
   handler: async (ctx, args) => {
     return insertCallbackNonce(ctx, args);
   },
@@ -187,11 +163,7 @@ export const applyPostImportRefinement = mutation({
 });
 
 export const deleteUserDocsChunkForImport = internalMutation({
-  args: {
-    userId: v.id('users'),
-    table: replaceAllCleanupTableValidator,
-    chunkSize: v.optional(v.number()),
-  },
+  args: deleteUserDocsChunkForImportArgs,
   handler: async (ctx, args) => {
     const chunkSize =
       normalizeNullableInteger(args.chunkSize, 1, 500) ??
@@ -209,22 +181,14 @@ export const deleteUserDocsChunkForImport = internalMutation({
 });
 
 export const createImportBatchForSnapshot = internalMutation({
-  args: {
-    userId: v.id('users'),
-    sourceFileName: v.optional(v.union(v.string(), v.null())),
-    sourceHash: v.optional(v.union(v.string(), v.null())),
-  },
+  args: createImportBatchForSnapshotArgs,
   handler: async (ctx, args) => {
     return createSnapshotImportBatch(ctx, args);
   },
 });
 
 export const persistRawImportChunkForBatch = internalMutation({
-  args: {
-    batchId: v.id('importBatches'),
-    table: rawImportTableValidator,
-    rows: v.array(v.any()),
-  },
+  args: persistRawImportChunkArgs,
   handler: async (ctx, args) => {
     return persistRawImportRowsForBatch(ctx, {
       batchId: args.batchId,
@@ -235,12 +199,7 @@ export const persistRawImportChunkForBatch = internalMutation({
 });
 
 export const importSqliteSnapshotAfterCleanupForUser = internalMutation({
-  args: {
-    userId: v.id('users'),
-    batchId: v.optional(v.union(v.id('importBatches'), v.null())),
-    skipRawMirrorPersistence: v.optional(v.boolean()),
-    ...sqliteSnapshotArgs,
-  },
+  args: importSqliteSnapshotAfterCleanupArgs,
   handler: async (ctx, args) => {
     return importSqliteSnapshotAfterCleanupCore(ctx, args);
   },
@@ -255,38 +214,21 @@ export const importSqliteSnapshot = action({
 });
 
 export const submitParsedSnapshotForCallback = internalMutation({
-  args: {
-    batchId: v.id('importBatches'),
-    parserVersion: v.optional(v.union(v.string(), v.null())),
-    skipReplaceAllCleanup: v.optional(v.boolean()),
-    skipRawMirrorPersistence: v.optional(v.boolean()),
-    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
-    snapshot: v.object(sqliteSnapshotArgs),
-  },
+  args: submitParsedSnapshotArgs,
   handler: async (ctx, args) => {
     return submitParsedSnapshotForCallbackCore(ctx, args);
   },
 });
 
 export const submitParsedSnapshotJsonForCallback = internalMutation({
-  args: {
-    batchId: v.id('importBatches'),
-    parserVersion: v.optional(v.union(v.string(), v.null())),
-    skipReplaceAllCleanup: v.optional(v.boolean()),
-    skipRawMirrorPersistence: v.optional(v.boolean()),
-    timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
-    snapshotJson: v.string(),
-  },
+  args: submitParsedSnapshotJsonArgs,
   handler: async (ctx, args) => {
     return submitParsedSnapshotJsonForCallbackCore(ctx, args);
   },
 });
 
 export const persistCanonicalFrameChunkForCallback = internalMutation({
-  args: {
-    batchId: v.id('importBatches'),
-    frames: v.array(canonicalFrameInsertValidator),
-  },
+  args: persistCanonicalFrameChunkArgs,
   handler: async (ctx, args) => {
     const batch = await getRequiredImportBatch(ctx, args.batchId);
     return persistCanonicalFramesForBatch(ctx, batch, args.frames);

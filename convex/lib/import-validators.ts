@@ -202,3 +202,93 @@ export const completeSnapshotImportArgs = {
   }),
   warnings: v.array(refinementWarningValidator),
 };
+
+export const startImportArgs = {
+  r2Key: v.string(),
+  fileName: v.optional(v.union(v.string(), v.null())),
+  fileSize: v.number(),
+  checksum: v.optional(v.union(v.string(), v.null())),
+  idempotencyKey: v.string(),
+  timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
+};
+
+export const dispatchImportQueueArgs = {
+  batchId: v.id('importBatches'),
+  userId: v.id('users'),
+  r2Key: v.string(),
+  timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
+};
+
+export const batchIdArgs = {
+  batchId: v.id('importBatches'),
+};
+
+export const updateBatchStatusArgs = {
+  batchId: v.id('importBatches'),
+  status: v.union(
+    v.literal('parsing'),
+    v.literal('importing'),
+    v.literal('completed'),
+    v.literal('failed')
+  ),
+  completedAt: v.optional(v.union(v.number(), v.null())),
+  errorMessage: v.optional(v.union(v.string(), v.null())),
+};
+
+export const nonceLookupArgs = {
+  nonce: v.string(),
+};
+
+export const insertNonceArgs = {
+  nonce: v.string(),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+};
+
+export const createImportBatchForSnapshotArgs = {
+  userId: v.id('users'),
+  sourceFileName: v.optional(v.union(v.string(), v.null())),
+  sourceHash: v.optional(v.union(v.string(), v.null())),
+};
+
+export const persistRawImportChunkArgs = {
+  batchId: v.id('importBatches'),
+  table: rawImportTableValidator,
+  rows: v.array(v.any()),
+};
+
+export const importSqliteSnapshotAfterCleanupArgs = {
+  userId: v.id('users'),
+  batchId: v.optional(v.union(v.id('importBatches'), v.null())),
+  skipRawMirrorPersistence: v.optional(v.boolean()),
+  ...sqliteSnapshotArgs,
+};
+
+export const submitParsedSnapshotArgs = {
+  batchId: v.id('importBatches'),
+  parserVersion: v.optional(v.union(v.string(), v.null())),
+  skipReplaceAllCleanup: v.optional(v.boolean()),
+  skipRawMirrorPersistence: v.optional(v.boolean()),
+  timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
+  snapshot: v.object(sqliteSnapshotArgs),
+};
+
+export const submitParsedSnapshotJsonArgs = {
+  batchId: v.id('importBatches'),
+  parserVersion: v.optional(v.union(v.string(), v.null())),
+  skipReplaceAllCleanup: v.optional(v.boolean()),
+  skipRawMirrorPersistence: v.optional(v.boolean()),
+  timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
+  snapshotJson: v.string(),
+};
+
+export const persistCanonicalFrameChunkArgs = {
+  batchId: v.id('importBatches'),
+  frames: v.array(canonicalFrameInsertValidator),
+};
+
+export const deleteUserDocsChunkForImportArgs = {
+  userId: v.id('users'),
+  table: replaceAllCleanupTableValidator,
+  chunkSize: v.optional(v.number()),
+};
