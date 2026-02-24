@@ -10,6 +10,37 @@ import {
   query,
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import {
+  completeImportBatch,
+  toPublicImportResult,
+} from './lib/import-batch-lifecycle';
+import {
+  clearUserImportDataInChunks,
+  deleteUserDocsChunkForImportTable,
+} from './lib/import-replace-all-cleanup';
+import {
+  DEFAULT_RAW_IMPORT_CHUNK_SIZE,
+  DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
+  EMPTY_IMPORT_COUNTS,
+  type GameRefinementInput,
+  type ImportResult,
+  type RawImportRow,
+  type RawImportTable,
+  type RefinementResult,
+  type RefinementWarning,
+  type ReplaceAllCleanupTable,
+  type SessionRefinementInput,
+  type SnapshotImportCoreResult,
+  type SqliteSnapshotInput,
+} from './lib/import-types';
+import {
+  ballSwitchValidator,
+  canonicalFrameInsertValidator,
+  laneContextValidator,
+  rawImportTableValidator,
+  replaceAllCleanupTableValidator,
+  sqliteSnapshotArgs,
+} from './lib/import-validators';
 import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
 import {
   buildLeagueCreatedAtByEarliestWeekDate,
@@ -30,275 +61,9 @@ import {
 import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 import { summarizeImportWarnings } from './lib/import_warning_summary';
 
-import type { Doc, Id, TableNames } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
-import type {
-  BallSwitchInput,
-  LaneContextInput,
-} from './lib/import_refinement';
-
-type SessionRefinementInput = {
-  sessionId: Id<'sessions'>;
-  laneContext?: LaneContextInput | null;
-  notes?: string | null;
-};
-
-type GameRefinementInput = {
-  gameId: Id<'games'>;
-  handicap?: number | null;
-  laneContext?: LaneContextInput | null;
-  ballSwitches?: BallSwitchInput[] | null;
-  notes?: string | null;
-};
-
-type RefinementWarning = {
-  recordType: 'session' | 'game';
-  recordId: string;
-  message: string;
-};
-
-type RefinementResult = {
-  sessionsProcessed: number;
-  sessionsPatched: number;
-  sessionsSkipped: number;
-  gamesProcessed: number;
-  gamesPatched: number;
-  gamesSkipped: number;
-  warnings: RefinementWarning[];
-};
-
-type ImportResult = {
-  batchId: Id<'importBatches'>;
-  counts: {
-    houses: number;
-    leagues: number;
-    weeks: number;
-    sessions: number;
-    balls: number;
-    games: number;
-    frames: number;
-    patterns: number;
-  };
-  refinement: RefinementResult;
-  warnings: RefinementWarning[];
-};
-
-type SnapshotImportCoreResult = ImportResult & {
-  gameIdMappings: Array<{ sqliteGameId: number; gameId: Id<'games'> }>;
-  ballIdMappings: Array<{ sqliteBallId: number; ballId: Id<'balls'> }>;
-};
-
-type SqliteSnapshotInput = {
-  sourceFileName?: string | null;
-  sourceHash?: string | null;
-  houses: Array<Doc<'importRawHouses'>['raw']>;
-  patterns: Array<Doc<'importRawPatterns'>['raw']>;
-  balls: Array<Doc<'importRawBalls'>['raw']>;
-  leagues: Array<Doc<'importRawLeagues'>['raw']>;
-  weeks: Array<Doc<'importRawWeeks'>['raw']>;
-  games: Array<Doc<'importRawGames'>['raw']>;
-  frames: Array<Doc<'importRawFrames'>['raw']>;
-};
-
-const EMPTY_IMPORT_COUNTS = {
-  houses: 0,
-  leagues: 0,
-  weeks: 0,
-  sessions: 0,
-  balls: 0,
-  games: 0,
-  frames: 0,
-  patterns: 0,
-  gamesRefined: 0,
-  gamesPatched: 0,
-  warnings: 0,
-} as const;
-
-const REPLACE_ALL_CLEANUP_TABLES = [
-  'frames',
-  'games',
-  'sessions',
-  'leagues',
-  'balls',
-  'importRawGames',
-  'importRawFrames',
-  'importRawWeeks',
-  'importRawLeagues',
-  'importRawBalls',
-  'importRawPatterns',
-  'importRawHouses',
-] as const;
-
-type ReplaceAllCleanupTable = (typeof REPLACE_ALL_CLEANUP_TABLES)[number];
-
-const DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE = 128;
-const DEFAULT_RAW_IMPORT_CHUNK_SIZE = 500;
-
-const laneContextValidator = v.object({
-  leftLane: v.optional(v.union(v.number(), v.null())),
-  rightLane: v.optional(v.union(v.number(), v.null())),
-  lanePair: v.optional(v.union(v.string(), v.null())),
-  startingLane: v.optional(v.union(v.number(), v.null())),
-});
-
-const ballSwitchValidator = v.object({
-  frameNumber: v.number(),
-  rollNumber: v.optional(v.union(v.number(), v.null())),
-  ballId: v.optional(v.union(v.id('balls'), v.null())),
-  ballName: v.optional(v.union(v.string(), v.null())),
-  note: v.optional(v.union(v.string(), v.null())),
-});
-
-const sqliteHouseValidator = v.object({
-  sqliteId: v.number(),
-  name: v.optional(v.union(v.string(), v.null())),
-  sortOrder: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-  location: v.optional(v.union(v.string(), v.null())),
-});
-
-const sqlitePatternValidator = v.object({
-  sqliteId: v.number(),
-  name: v.optional(v.union(v.string(), v.null())),
-  sortOrder: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-  length: v.optional(v.union(v.number(), v.null())),
-});
-
-const sqliteBallValidator = v.object({
-  sqliteId: v.number(),
-  name: v.optional(v.union(v.string(), v.null())),
-  sortOrder: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-  brand: v.optional(v.union(v.string(), v.null())),
-  coverstock: v.optional(v.union(v.string(), v.null())),
-});
-
-const sqliteLeagueValidator = v.object({
-  sqliteId: v.number(),
-  ballFk: v.optional(v.union(v.number(), v.null())),
-  patternFk: v.optional(v.union(v.number(), v.null())),
-  houseFk: v.optional(v.union(v.number(), v.null())),
-  name: v.optional(v.union(v.string(), v.null())),
-  games: v.optional(v.union(v.number(), v.null())),
-  notes: v.optional(v.union(v.string(), v.null())),
-  sortOrder: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-});
-
-const sqliteWeekValidator = v.object({
-  sqliteId: v.number(),
-  leagueFk: v.optional(v.union(v.number(), v.null())),
-  ballFk: v.optional(v.union(v.number(), v.null())),
-  patternFk: v.optional(v.union(v.number(), v.null())),
-  houseFk: v.optional(v.union(v.number(), v.null())),
-  date: v.optional(v.union(v.number(), v.string(), v.null())),
-  notes: v.optional(v.union(v.string(), v.null())),
-  lane: v.optional(v.union(v.number(), v.null())),
-});
-
-const sqliteGameValidator = v.object({
-  sqliteId: v.number(),
-  weekFk: v.optional(v.union(v.number(), v.null())),
-  leagueFk: v.optional(v.union(v.number(), v.null())),
-  ballFk: v.optional(v.union(v.number(), v.null())),
-  patternFk: v.optional(v.union(v.number(), v.null())),
-  houseFk: v.optional(v.union(v.number(), v.null())),
-  score: v.optional(v.union(v.number(), v.null())),
-  frame: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-  singlePinSpareScore: v.optional(v.union(v.number(), v.null())),
-  notes: v.optional(v.union(v.string(), v.null())),
-  lane: v.optional(v.union(v.number(), v.null())),
-  date: v.optional(v.union(v.number(), v.string(), v.null())),
-});
-
-const sqliteFrameValidator = v.object({
-  sqliteId: v.number(),
-  gameFk: v.optional(v.union(v.number(), v.null())),
-  weekFk: v.optional(v.union(v.number(), v.null())),
-  leagueFk: v.optional(v.union(v.number(), v.null())),
-  ballFk: v.optional(v.union(v.number(), v.null())),
-  frameNum: v.optional(v.union(v.number(), v.null())),
-  pins: v.optional(v.union(v.number(), v.null())),
-  scores: v.optional(v.union(v.number(), v.null())),
-  score: v.optional(v.union(v.number(), v.null())),
-  flags: v.optional(v.union(v.number(), v.null())),
-  pocket: v.optional(v.union(v.number(), v.null())),
-  footBoard: v.optional(v.union(v.number(), v.null())),
-  targetBoard: v.optional(v.union(v.number(), v.null())),
-});
-
-const canonicalFrameInsertValidator = v.object({
-  gameId: v.id('games'),
-  frameNumber: v.number(),
-  roll1: v.number(),
-  roll2: v.union(v.number(), v.null()),
-  roll3: v.union(v.number(), v.null()),
-  ballId: v.union(v.id('balls'), v.null()),
-  pins: v.union(v.number(), v.null()),
-  scores: v.union(v.number(), v.null()),
-  score: v.union(v.number(), v.null()),
-  flags: v.union(v.number(), v.null()),
-  pocket: v.union(v.number(), v.null()),
-  footBoard: v.union(v.number(), v.null()),
-  targetBoard: v.union(v.number(), v.null()),
-});
-
-const replaceAllCleanupTableValidator = v.union(
-  v.literal('frames'),
-  v.literal('games'),
-  v.literal('sessions'),
-  v.literal('leagues'),
-  v.literal('balls'),
-  v.literal('importRawGames'),
-  v.literal('importRawFrames'),
-  v.literal('importRawWeeks'),
-  v.literal('importRawLeagues'),
-  v.literal('importRawBalls'),
-  v.literal('importRawPatterns'),
-  v.literal('importRawHouses')
-);
-
-const rawImportTableValidator = v.union(
-  v.literal('importRawHouses'),
-  v.literal('importRawPatterns'),
-  v.literal('importRawBalls'),
-  v.literal('importRawLeagues'),
-  v.literal('importRawWeeks'),
-  v.literal('importRawGames'),
-  v.literal('importRawFrames')
-);
-
-type RawImportTable =
-  | 'importRawHouses'
-  | 'importRawPatterns'
-  | 'importRawBalls'
-  | 'importRawLeagues'
-  | 'importRawWeeks'
-  | 'importRawGames'
-  | 'importRawFrames';
-
-type RawImportRow =
-  | Doc<'importRawHouses'>['raw']
-  | Doc<'importRawPatterns'>['raw']
-  | Doc<'importRawBalls'>['raw']
-  | Doc<'importRawLeagues'>['raw']
-  | Doc<'importRawWeeks'>['raw']
-  | Doc<'importRawGames'>['raw']
-  | Doc<'importRawFrames'>['raw'];
-
-const sqliteSnapshotArgs = {
-  sourceFileName: v.optional(v.union(v.string(), v.null())),
-  sourceHash: v.optional(v.union(v.string(), v.null())),
-  houses: v.array(sqliteHouseValidator),
-  patterns: v.array(sqlitePatternValidator),
-  balls: v.array(sqliteBallValidator),
-  leagues: v.array(sqliteLeagueValidator),
-  weeks: v.array(sqliteWeekValidator),
-  games: v.array(sqliteGameValidator),
-  frames: v.array(sqliteFrameValidator),
-};
+import type { BallSwitchInput } from './lib/import_refinement';
 
 const getBatchByIdForDispatchQuery = makeFunctionReference<
   'query',
@@ -392,108 +157,6 @@ function normalizeDate(
     date: normalizedDate,
     warning: null,
   };
-}
-
-async function deleteDocsById(
-  ctx: MutationCtx,
-  docs: Array<{ _id: Id<TableNames> }>
-) {
-  for (const doc of docs) {
-    await ctx.db.delete(doc._id);
-  }
-}
-
-async function takeUserDocsForCleanup(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  table: ReplaceAllCleanupTable,
-  limit: number
-) {
-  switch (table) {
-    case 'frames':
-      return ctx.db
-        .query('frames')
-        .withIndex('by_user_game', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'games':
-      return ctx.db
-        .query('games')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'sessions':
-      return ctx.db
-        .query('sessions')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'leagues':
-      return ctx.db
-        .query('leagues')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'balls':
-      return ctx.db
-        .query('balls')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawGames':
-      return ctx.db
-        .query('importRawGames')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawFrames':
-      return ctx.db
-        .query('importRawFrames')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawWeeks':
-      return ctx.db
-        .query('importRawWeeks')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawLeagues':
-      return ctx.db
-        .query('importRawLeagues')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawBalls':
-      return ctx.db
-        .query('importRawBalls')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawPatterns':
-      return ctx.db
-        .query('importRawPatterns')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawHouses':
-      return ctx.db
-        .query('importRawHouses')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-  }
-}
-
-async function deleteUserDocsChunkForImportTable(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  table: ReplaceAllCleanupTable,
-  chunkSize: number
-) {
-  const docs = await takeUserDocsForCleanup(ctx, userId, table, chunkSize);
-  await deleteDocsById(ctx, docs as Array<{ _id: Id<TableNames> }>);
-  return docs.length;
-}
-
-async function clearUserImportDataInChunks(
-  runChunkDelete: (table: ReplaceAllCleanupTable) => Promise<number>
-) {
-  for (const table of REPLACE_ALL_CLEANUP_TABLES) {
-    let deleted = 0;
-
-    do {
-      deleted = await runChunkDelete(table);
-    } while (deleted > 0);
-  }
 }
 
 function chunkRows<T>(rows: T[], chunkSize: number) {
@@ -1030,44 +693,6 @@ export const applyPostImportRefinement = mutation({
     });
   },
 });
-
-function toPublicImportResult(result: SnapshotImportCoreResult): ImportResult {
-  return {
-    batchId: result.batchId,
-    counts: result.counts,
-    refinement: result.refinement,
-    warnings: result.warnings,
-  };
-}
-
-async function completeImportBatch(
-  ctx: MutationCtx,
-  args: {
-    batchId: Id<'importBatches'>;
-    counts: ImportResult['counts'];
-    refinement: RefinementResult;
-    warnings: RefinementWarning[];
-  }
-) {
-  await ctx.db.patch(args.batchId, {
-    status: 'completed',
-    errorMessage: null,
-    completedAt: Date.now(),
-    counts: {
-      houses: args.counts.houses,
-      leagues: args.counts.leagues,
-      weeks: args.counts.weeks,
-      sessions: args.counts.sessions,
-      balls: args.counts.balls,
-      games: args.counts.games,
-      frames: args.counts.frames,
-      patterns: args.counts.patterns,
-      gamesRefined: args.refinement.gamesProcessed,
-      gamesPatched: args.refinement.gamesPatched,
-      warnings: args.warnings.length,
-    },
-  });
-}
 
 async function runSqliteSnapshotImportCore(
   ctx: MutationCtx,
