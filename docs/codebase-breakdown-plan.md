@@ -24,7 +24,11 @@ This document tracks where we should split large files into smaller, focused mod
 
 ## P0 Breakdown Targets
 
-### 1) `convex/imports.ts` (~2037 lines)
+### 1) `convex/imports.ts` (~244 lines, reduced from ~2037)
+
+**Status**
+
+- P0-A is largely completed in this workstream; `convex/imports.ts` is now primarily wiring/export orchestration.
 
 **Current pain**
 
@@ -50,6 +54,24 @@ This document tracks where we should split large files into smaller, focused mod
 - `convex/lib/import-core-refinement.ts`
 - `convex/lib/import-core-runner.ts`
 - `convex/imports.ts` (thin exports/wiring)
+
+**Completed in this stream**
+
+- `convex/lib/import-types.ts`
+- `convex/lib/import-validators.ts`
+- `convex/lib/import-batch-lifecycle.ts`
+- `convex/lib/import-replace-all-cleanup.ts`
+- `convex/lib/import-core-runner.ts`
+- `convex/lib/import-core-refinement.ts`
+- `convex/lib/import-raw-mirror.ts`
+- `convex/lib/import-queue-dispatch.ts`
+- `convex/lib/import-snapshot-action.ts`
+- `convex/lib/import-snapshot-runner.ts`
+- `convex/lib/import-snapshot-storage.ts`
+- `convex/lib/import-callback-helpers.ts`
+- `convex/lib/import-callback-state.ts`
+- `convex/lib/import-function-refs.ts`
+- `convex/lib/import-start.ts`
 
 ---
 
@@ -240,7 +262,7 @@ Extract queue mutation helpers + draft session mapping:
 ## Suggested Rollout (small commits)
 
 1. **P0-A**: Break `convex/imports.ts` into internal modules with no behavior change.
-2. **P0-B**: Split `game-editor-screen.tsx` into hooks/components.
+2. **P0-B (Next Active)**: Split `game-editor-screen.tsx` into hooks/components.
 3. **P0-C**: Split journal screens and extract shared journal helpers.
 4. **P1-A**: Split frame utility mega-file by domain.
 5. **P1-B**: Split callback handling in `convex/http.ts`.
