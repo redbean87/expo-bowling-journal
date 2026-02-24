@@ -1,17 +1,19 @@
-import { makeFunctionReference } from 'convex/server';
-
+import {
+  createImportBatchForSnapshotMutationRef,
+  deleteUserDocsChunkForImportMutationRef,
+  importSqliteSnapshotAfterCleanupMutationRef,
+  persistRawImportChunkForBatchMutationRef,
+} from './import-function-refs';
 import { chunkRows } from './import-raw-mirror';
 import { clearUserImportDataInChunks } from './import-replace-all-cleanup';
 import {
   DEFAULT_RAW_IMPORT_CHUNK_SIZE,
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   type ImportResult,
-  type RawImportTable,
-  type ReplaceAllCleanupTable,
   type SqliteSnapshotInput,
 } from './import-types';
 
-import type { Doc, Id } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
 
 type SnapshotActionCtx = {
   runMutation: unknown;
@@ -27,18 +29,8 @@ export async function runImportSqliteSnapshotAction(
     args: unknown
   ) => Promise<unknown>;
 
-  const deleteUserDocsChunkForImportMutation = makeFunctionReference<
-    'mutation',
-    {
-      userId: Id<'users'>;
-      table: ReplaceAllCleanupTable;
-      chunkSize?: number;
-    },
-    { deleted: number }
-  >('imports:deleteUserDocsChunkForImport');
-
   await clearUserImportDataInChunks(async (table) => {
-    const result = (await runMutation(deleteUserDocsChunkForImportMutation, {
+    const result = (await runMutation(deleteUserDocsChunkForImportMutationRef, {
       userId,
       table,
       chunkSize: DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
@@ -46,31 +38,11 @@ export async function runImportSqliteSnapshotAction(
     return result.deleted;
   });
 
-  const createImportBatchForSnapshotMutation = makeFunctionReference<
-    'mutation',
-    {
-      userId: Id<'users'>;
-      sourceFileName?: string | null;
-      sourceHash?: string | null;
-    },
-    Id<'importBatches'>
-  >('imports:createImportBatchForSnapshot');
-
-  const batchId = (await runMutation(createImportBatchForSnapshotMutation, {
+  const batchId = (await runMutation(createImportBatchForSnapshotMutationRef, {
     userId,
     sourceFileName: args.sourceFileName,
     sourceHash: args.sourceHash,
   })) as Id<'importBatches'>;
-
-  const persistRawImportChunkForBatchMutation = makeFunctionReference<
-    'mutation',
-    {
-      batchId: Id<'importBatches'>;
-      table: RawImportTable;
-      rows: unknown[];
-    },
-    { inserted: number }
-  >('imports:persistRawImportChunkForBatch');
 
   for (const [table, rows] of [
     ['importRawHouses', args.houses],
@@ -84,7 +56,7 @@ export async function runImportSqliteSnapshotAction(
     const chunks = chunkRows(rows, DEFAULT_RAW_IMPORT_CHUNK_SIZE);
 
     for (const chunk of chunks) {
-      await runMutation(persistRawImportChunkForBatchMutation, {
+      await runMutation(persistRawImportChunkForBatchMutationRef, {
         batchId,
         table,
         rows: chunk,
@@ -92,26 +64,7 @@ export async function runImportSqliteSnapshotAction(
     }
   }
 
-  const importSqliteSnapshotAfterCleanupMutation = makeFunctionReference<
-    'mutation',
-    {
-      userId: Id<'users'>;
-      batchId?: Id<'importBatches'> | null;
-      skipRawMirrorPersistence?: boolean;
-      sourceFileName?: string | null;
-      sourceHash?: string | null;
-      houses: Array<Doc<'importRawHouses'>['raw']>;
-      patterns: Array<Doc<'importRawPatterns'>['raw']>;
-      balls: Array<Doc<'importRawBalls'>['raw']>;
-      leagues: Array<Doc<'importRawLeagues'>['raw']>;
-      weeks: Array<Doc<'importRawWeeks'>['raw']>;
-      games: Array<Doc<'importRawGames'>['raw']>;
-      frames: Array<Doc<'importRawFrames'>['raw']>;
-    },
-    ImportResult
-  >('imports:importSqliteSnapshotAfterCleanupForUser');
-
-  return runMutation(importSqliteSnapshotAfterCleanupMutation, {
+  return runMutation(importSqliteSnapshotAfterCleanupMutationRef, {
     userId,
     batchId,
     skipRawMirrorPersistence: true,

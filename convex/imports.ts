@@ -1,4 +1,3 @@
-import { makeFunctionReference } from 'convex/server';
 import { v } from 'convex/values';
 
 import {
@@ -23,6 +22,11 @@ import {
   updateImportBatchStatus,
 } from './lib/import-callback-state';
 import { applyRefinement } from './lib/import-core-refinement';
+import {
+  dispatchImportQueueActionRef,
+  getBatchByIdForDispatchQueryRef,
+  updateBatchStatusForDispatchMutationRef,
+} from './lib/import-function-refs';
 import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
 import { deleteUserDocsChunkForImportTable } from './lib/import-replace-all-cleanup';
 import { runImportSqliteSnapshotAction } from './lib/import-snapshot-action';
@@ -50,41 +54,6 @@ import {
 } from './lib/import-validators';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import { normalizeNullableInteger } from './lib/import_refinement';
-
-import type { Id } from './_generated/dataModel';
-
-const getBatchByIdForDispatchQuery = makeFunctionReference<
-  'query',
-  { batchId: Id<'importBatches'> },
-  {
-    _id: Id<'importBatches'>;
-    userId: Id<'users'>;
-    status: string;
-    r2Key: string | null;
-  } | null
->('imports:getBatchByIdForCallback');
-
-const updateBatchStatusForDispatchMutation = makeFunctionReference<
-  'mutation',
-  {
-    batchId: Id<'importBatches'>;
-    status: 'parsing' | 'importing' | 'completed' | 'failed';
-    completedAt?: number | null;
-    errorMessage?: string | null;
-  },
-  Id<'importBatches'>
->('imports:updateBatchStatusForCallback');
-
-const dispatchImportQueueActionReference = makeFunctionReference<
-  'action',
-  {
-    batchId: Id<'importBatches'>;
-    userId: Id<'users'>;
-    r2Key: string;
-    timezoneOffsetMinutes?: number | null;
-  },
-  void
->('imports:dispatchImportQueue');
 
 export const startImport = mutation({
   args: {
@@ -116,7 +85,7 @@ export const startImport = mutation({
         scheduleDispatch: async (dispatchArgs) => {
           await ctx.scheduler.runAfter(
             0,
-            dispatchImportQueueActionReference,
+            dispatchImportQueueActionRef,
             dispatchArgs
           );
         },
@@ -135,10 +104,10 @@ export const dispatchImportQueue = internalAction({
   handler: async (ctx, args) => {
     await dispatchImportQueueToWorker(args, {
       getBatchById: async (batchId) => {
-        return ctx.runQuery(getBatchByIdForDispatchQuery, { batchId });
+        return ctx.runQuery(getBatchByIdForDispatchQueryRef, { batchId });
       },
       markBatchFailed: async (batchId, errorMessage, completedAt) => {
-        await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+        await ctx.runMutation(updateBatchStatusForDispatchMutationRef, {
           batchId,
           status: 'failed',
           completedAt,
