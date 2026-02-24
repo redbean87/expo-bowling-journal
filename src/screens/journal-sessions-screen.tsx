@@ -201,6 +201,8 @@ export default function JournalSessionsScreen() {
   });
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
+  const shouldLoadReferenceData =
+    isCreateModalVisible || editingSessionId !== null;
   const {
     ballOptions,
     patternOptions,
@@ -212,7 +214,7 @@ export default function JournalSessionsScreen() {
     createBall,
     createPattern,
     createHouse,
-  } = useReferenceData();
+  } = useReferenceData({ enabled: shouldLoadReferenceData });
 
   const selectedLeague = useMemo(() => {
     if (leagueId) {

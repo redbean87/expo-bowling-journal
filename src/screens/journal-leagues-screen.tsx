@@ -172,8 +172,10 @@ export default function JournalLeaguesScreen() {
     QueuedLeagueCreateEntry[]
   >([]);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
+  const shouldLoadReferenceData =
+    isCreateModalVisible || editingLeagueId !== null;
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
-    useReferenceData();
+    useReferenceData({ enabled: shouldLoadReferenceData });
   const {
     status: queueStatus,
     refreshStatus,

@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { convexJournalService } from '@/services/journal';
 import { buildRankedReferenceSuggestions } from '@/utils/reference-combobox-utils';
 
-type ReferenceOption<TId extends string> = {
+export type ReferenceOption<TId extends string> = {
   id: TId;
   label: string;
   secondaryLabel?: string | null;
@@ -36,31 +36,37 @@ function findNameById<TId extends string>(
   return options.find((option) => option.id === id)?.label ?? null;
 }
 
-export function useReferenceData() {
+export function useReferenceData(options?: {
+  enabled?: boolean;
+  includeRecent?: boolean;
+}) {
+  const enabled = options?.enabled ?? true;
+  const includeRecent = options?.includeRecent ?? true;
   const { isAuthenticated } = useConvexAuth();
+  const shouldQuery = isAuthenticated && enabled;
   const balls = useQuery(
     convexJournalService.listBalls,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery ? {} : 'skip'
   );
   const recentBalls = useQuery(
     convexJournalService.listRecentBalls,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery && includeRecent ? {} : 'skip'
   );
   const patterns = useQuery(
     convexJournalService.listPatterns,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery ? {} : 'skip'
   );
   const recentPatterns = useQuery(
     convexJournalService.listRecentPatterns,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery && includeRecent ? {} : 'skip'
   );
   const houses = useQuery(
     convexJournalService.listHouses,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery ? {} : 'skip'
   );
   const recentHouses = useQuery(
     convexJournalService.listRecentHouses,
-    isAuthenticated ? {} : 'skip'
+    shouldQuery && includeRecent ? {} : 'skip'
   );
 
   const createBallMutation = useMutation(convexJournalService.createBall);
@@ -180,5 +186,3 @@ export function useReferenceData() {
     createHouse,
   };
 }
-
-export type { ReferenceOption };
