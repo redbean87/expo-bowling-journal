@@ -1,6 +1,6 @@
-import type { PropsWithChildren } from 'react';
-
 import { ScrollViewStyleReset } from 'expo-router/html';
+
+import type { PropsWithChildren } from 'react';
 
 export default function RootHtml({ children }: PropsWithChildren) {
   return (

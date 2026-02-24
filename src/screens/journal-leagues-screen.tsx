@@ -1,6 +1,6 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   ActionSheetIOS,
   Alert,
@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 
-import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
   createQueuedLeagueCreateEntry,
   isRetryableCreateError,
@@ -25,6 +24,7 @@ import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal/journal-create-queue-storage';
+import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { ReferenceCombobox } from '@/components/reference-combobox';

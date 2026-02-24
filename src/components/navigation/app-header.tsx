@@ -1,12 +1,12 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
+import { resolveUpTarget } from './app-header-route-utils';
 
 import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
-import { useRouter } from 'expo-router';
-
-import { resolveUpTarget } from './app-header-route-utils';
 
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
