@@ -16,19 +16,14 @@ import {
 } from './lib/import-batch-lifecycle';
 import { applyRefinement } from './lib/import-core-refinement';
 import { runSqliteSnapshotImportCore } from './lib/import-core-runner';
-import { chunkRows, insertRawImportRow } from './lib/import-raw-mirror';
+import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
+import { insertRawImportRow } from './lib/import-raw-mirror';
+import { deleteUserDocsChunkForImportTable } from './lib/import-replace-all-cleanup';
+import { runImportSqliteSnapshotAction } from './lib/import-snapshot-action';
 import {
-  clearUserImportDataInChunks,
-  deleteUserDocsChunkForImportTable,
-} from './lib/import-replace-all-cleanup';
-import {
-  DEFAULT_RAW_IMPORT_CHUNK_SIZE,
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   EMPTY_IMPORT_COUNTS,
-  type ImportResult,
   type RawImportRow,
-  type RawImportTable,
-  type ReplaceAllCleanupTable,
   type SqliteSnapshotInput,
 } from './lib/import-types';
 import {
@@ -39,7 +34,6 @@ import {
   replaceAllCleanupTableValidator,
   sqliteSnapshotArgs,
 } from './lib/import-validators';
-import { hmacSha256Hex, sha256Hex } from './lib/import_callback_hmac';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import {
   normalizeNullableInteger,
@@ -47,7 +41,7 @@ import {
 } from './lib/import_refinement';
 import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
-import type { Doc, Id } from './_generated/dataModel';
+import type { Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
 
 const getBatchByIdForDispatchQuery = makeFunctionReference<
@@ -169,108 +163,19 @@ export const dispatchImportQueue = internalAction({
     timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.runQuery(getBatchByIdForDispatchQuery, {
-      batchId: args.batchId,
+    await dispatchImportQueueToWorker(args, {
+      getBatchById: async (batchId) => {
+        return ctx.runQuery(getBatchByIdForDispatchQuery, { batchId });
+      },
+      markBatchFailed: async (batchId, errorMessage, completedAt) => {
+        await ctx.runMutation(updateBatchStatusForDispatchMutation, {
+          batchId,
+          status: 'failed',
+          completedAt,
+          errorMessage,
+        });
+      },
     });
-
-    if (!batch || batch.userId !== args.userId || batch.status !== 'queued') {
-      return;
-    }
-
-    if (batch.r2Key !== args.r2Key) {
-      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
-        batchId: args.batchId,
-        status: 'failed',
-        completedAt: Date.now(),
-        errorMessage: 'Import queue dispatch blocked: batch key mismatch',
-      });
-      return;
-    }
-
-    const workerBaseUrl = process.env.IMPORT_WORKER_URL?.trim();
-    const queueHmacSecret =
-      process.env.IMPORT_QUEUE_HMAC_SECRET?.trim() ??
-      process.env.IMPORT_CALLBACK_HMAC_SECRET?.trim();
-
-    if (!workerBaseUrl || !queueHmacSecret) {
-      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
-        batchId: args.batchId,
-        status: 'failed',
-        completedAt: Date.now(),
-        errorMessage:
-          'Import queue dispatch is not configured (IMPORT_WORKER_URL/IMPORT_QUEUE_HMAC_SECRET)',
-      });
-      return;
-    }
-
-    const configuredQueuePath =
-      process.env.IMPORT_WORKER_QUEUE_PATH?.trim() || '/imports/queue';
-    const queuePath = configuredQueuePath.startsWith('/')
-      ? configuredQueuePath
-      : `/${configuredQueuePath}`;
-
-    if (queuePath !== '/imports/queue' && queuePath !== '/imports/process') {
-      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
-        batchId: args.batchId,
-        status: 'failed',
-        completedAt: Date.now(),
-        errorMessage:
-          'Import queue dispatch is misconfigured (IMPORT_WORKER_QUEUE_PATH must be /imports/queue or /imports/process)',
-      });
-      return;
-    }
-    const normalizedWorkerUrl = workerBaseUrl.replace(/\/+$/, '');
-    const endpoint = `${normalizedWorkerUrl}${queuePath}`;
-    const requestBody = JSON.stringify({
-      batchId: args.batchId,
-      userId: args.userId,
-      r2Key: args.r2Key,
-      timezoneOffsetMinutes: normalizeTimezoneOffsetMinutes(
-        args.timezoneOffsetMinutes
-      ),
-    });
-    const timestampSeconds = Math.floor(Date.now() / 1000);
-    const nonce = crypto.randomUUID();
-    const bodyHash = await sha256Hex(requestBody);
-    const signingPayload = `POST\n${queuePath}\n${String(timestampSeconds)}\n${nonce}\n${bodyHash}`;
-    const signature = await hmacSha256Hex(queueHmacSecret, signingPayload);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-import-ts': String(timestampSeconds),
-          'x-import-nonce': nonce,
-          'x-import-signature': signature,
-        },
-        body: requestBody,
-      });
-
-      if (response.ok) {
-        return;
-      }
-
-      const responseBody = (await response.text()).slice(0, 350);
-      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
-        batchId: args.batchId,
-        status: 'failed',
-        completedAt: Date.now(),
-        errorMessage: `Queue dispatch failed (${String(response.status)}): ${responseBody}`,
-      });
-    } catch (caught) {
-      const message =
-        caught instanceof Error
-          ? caught.message.slice(0, 350)
-          : 'Unknown queue dispatch error';
-
-      await ctx.runMutation(updateBatchStatusForDispatchMutation, {
-        batchId: args.batchId,
-        status: 'failed',
-        completedAt: Date.now(),
-        errorMessage: `Queue dispatch failed: ${message}`,
-      });
-    }
   },
 });
 
@@ -535,113 +440,7 @@ export const importSqliteSnapshot = action({
   args: sqliteSnapshotArgs,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-
-    const deleteUserDocsChunkForImportMutation = makeFunctionReference<
-      'mutation',
-      {
-        userId: Id<'users'>;
-        table: ReplaceAllCleanupTable;
-        chunkSize?: number;
-      },
-      { deleted: number }
-    >('imports:deleteUserDocsChunkForImport');
-
-    await clearUserImportDataInChunks(async (table) => {
-      const result = await ctx.runMutation(
-        deleteUserDocsChunkForImportMutation,
-        {
-          userId,
-          table,
-          chunkSize: DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
-        }
-      );
-      return result.deleted;
-    });
-
-    const createImportBatchForSnapshotMutation = makeFunctionReference<
-      'mutation',
-      {
-        userId: Id<'users'>;
-        sourceFileName?: string | null;
-        sourceHash?: string | null;
-      },
-      Id<'importBatches'>
-    >('imports:createImportBatchForSnapshot');
-
-    const batchId = await ctx.runMutation(
-      createImportBatchForSnapshotMutation,
-      {
-        userId,
-        sourceFileName: args.sourceFileName,
-        sourceHash: args.sourceHash,
-      }
-    );
-
-    const persistRawImportChunkForBatchMutation = makeFunctionReference<
-      'mutation',
-      {
-        batchId: Id<'importBatches'>;
-        table: RawImportTable;
-        rows: unknown[];
-      },
-      { inserted: number }
-    >('imports:persistRawImportChunkForBatch');
-
-    const rawChunkSize = DEFAULT_RAW_IMPORT_CHUNK_SIZE;
-
-    for (const [table, rows] of [
-      ['importRawHouses', args.houses],
-      ['importRawPatterns', args.patterns],
-      ['importRawBalls', args.balls],
-      ['importRawLeagues', args.leagues],
-      ['importRawWeeks', args.weeks],
-      ['importRawGames', args.games],
-      ['importRawFrames', args.frames],
-    ] as const) {
-      const chunks = chunkRows(rows, rawChunkSize);
-
-      for (const chunk of chunks) {
-        await ctx.runMutation(persistRawImportChunkForBatchMutation, {
-          batchId,
-          table,
-          rows: chunk,
-        });
-      }
-    }
-
-    const importSqliteSnapshotAfterCleanupMutation = makeFunctionReference<
-      'mutation',
-      {
-        userId: Id<'users'>;
-        batchId?: Id<'importBatches'> | null;
-        skipRawMirrorPersistence?: boolean;
-        sourceFileName?: string | null;
-        sourceHash?: string | null;
-        houses: Array<Doc<'importRawHouses'>['raw']>;
-        patterns: Array<Doc<'importRawPatterns'>['raw']>;
-        balls: Array<Doc<'importRawBalls'>['raw']>;
-        leagues: Array<Doc<'importRawLeagues'>['raw']>;
-        weeks: Array<Doc<'importRawWeeks'>['raw']>;
-        games: Array<Doc<'importRawGames'>['raw']>;
-        frames: Array<Doc<'importRawFrames'>['raw']>;
-      },
-      ImportResult
-    >('imports:importSqliteSnapshotAfterCleanupForUser');
-
-    return ctx.runMutation(importSqliteSnapshotAfterCleanupMutation, {
-      userId,
-      batchId,
-      skipRawMirrorPersistence: true,
-      sourceFileName: args.sourceFileName,
-      sourceHash: args.sourceHash,
-      houses: args.houses,
-      patterns: args.patterns,
-      balls: args.balls,
-      leagues: args.leagues,
-      weeks: args.weeks,
-      games: args.games,
-      frames: args.frames,
-    });
+    return runImportSqliteSnapshotAction(ctx, userId, args);
   },
 });
 
