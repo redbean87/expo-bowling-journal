@@ -2,6 +2,12 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import {
+  listRecentReferenceIds,
+  touchReferenceUsage,
+} from './lib/reference_usage';
+
+import type { Doc, Id } from './_generated/dataModel';
 
 function normalizeName(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -24,54 +30,23 @@ export const listRecent = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
-    const patterns = await ctx.db
-      .query('patterns')
-      .withIndex('by_name')
-      .collect();
-    const sessions = await ctx.db
-      .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    const games = await ctx.db
-      .query('games')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
+    const recentIds = await listRecentReferenceIds(ctx, {
+      userId,
+      referenceType: 'pattern',
+      limit: 10,
+    });
 
-    const byId = new Map<string, { id: string; usedAt: number }>();
+    const patterns: Array<Doc<'patterns'>> = [];
 
-    for (const game of games) {
-      if (!game.patternId) {
-        continue;
-      }
+    for (const id of recentIds) {
+      const pattern = await ctx.db.get(id as Id<'patterns'>);
 
-      byId.set(String(game.patternId), {
-        id: String(game.patternId),
-        usedAt: game._creationTime,
-      });
-    }
-
-    for (const session of sessions) {
-      if (!session.patternId) {
-        continue;
-      }
-
-      const key = String(session.patternId);
-      const current = byId.get(key);
-
-      if (!current || session._creationTime > current.usedAt) {
-        byId.set(key, { id: key, usedAt: session._creationTime });
+      if (pattern) {
+        patterns.push(pattern);
       }
     }
 
-    const patternById = new Map(
-      patterns.map((pattern) => [String(pattern._id), pattern])
-    );
-
-    return [...byId.values()]
-      .sort((left, right) => right.usedAt - left.usedAt)
-      .slice(0, 10)
-      .map((entry) => patternById.get(entry.id))
-      .filter((pattern) => Boolean(pattern));
+    return patterns;
   },
 });
 
@@ -103,5 +78,29 @@ export const create = mutation({
       name: args.name.trim(),
       length: null,
     });
+  },
+});
+
+export const touchUsage = mutation({
+  args: {
+    patternId: v.id('patterns'),
+    usedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const pattern = await ctx.db.get(args.patternId);
+
+    if (!pattern) {
+      throw new ConvexError('Pattern not found');
+    }
+
+    await touchReferenceUsage(ctx, {
+      userId,
+      referenceType: 'pattern',
+      referenceId: String(args.patternId),
+      usedAt: args.usedAt,
+    });
+
+    return args.patternId;
   },
 });

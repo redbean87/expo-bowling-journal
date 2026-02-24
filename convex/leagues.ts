@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { touchReferenceUsage } from './lib/reference_usage';
 
 export const list = query({
   args: {},
@@ -68,7 +69,7 @@ export const create = mutation({
       );
     }
 
-    return ctx.db.insert('leagues', {
+    const leagueId = await ctx.db.insert('leagues', {
       userId,
       name: args.name,
       clientSyncId: normalizedClientSyncId,
@@ -79,6 +80,16 @@ export const create = mutation({
       endDate: args.endDate ?? null,
       createdAt: Date.now(),
     });
+
+    if (args.houseId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'house',
+        referenceId: String(args.houseId),
+      });
+    }
+
+    return leagueId;
   },
 });
 
@@ -127,6 +138,14 @@ export const update = mutation({
       houseId: args.houseId ?? null,
       houseName,
     });
+
+    if (args.houseId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'house',
+        referenceId: String(args.houseId),
+      });
+    }
 
     return args.leagueId;
   },

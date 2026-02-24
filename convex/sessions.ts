@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import { touchReferenceUsage } from './lib/reference_usage';
 
 export const listByLeague = query({
   args: {
@@ -76,7 +77,7 @@ export const create = mutation({
       }
     }
 
-    return ctx.db.insert('sessions', {
+    const sessionId = await ctx.db.insert('sessions', {
       userId,
       leagueId: args.leagueId,
       clientSyncId: normalizedClientSyncId,
@@ -86,6 +87,37 @@ export const create = mutation({
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
     });
+
+    const usedAt = Date.now();
+
+    if (resolvedHouseId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'house',
+        referenceId: String(resolvedHouseId),
+        usedAt,
+      });
+    }
+
+    if (args.ballId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'ball',
+        referenceId: String(args.ballId),
+        usedAt,
+      });
+    }
+
+    if (args.patternId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'pattern',
+        referenceId: String(args.patternId),
+        usedAt,
+      });
+    }
+
+    return sessionId;
   },
 });
 
@@ -145,6 +177,35 @@ export const update = mutation({
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
     });
+
+    const usedAt = Date.now();
+
+    if (args.houseId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'house',
+        referenceId: String(args.houseId),
+        usedAt,
+      });
+    }
+
+    if (args.ballId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'ball',
+        referenceId: String(args.ballId),
+        usedAt,
+      });
+    }
+
+    if (args.patternId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'pattern',
+        referenceId: String(args.patternId),
+        usedAt,
+      });
+    }
 
     return args.sessionId;
   },

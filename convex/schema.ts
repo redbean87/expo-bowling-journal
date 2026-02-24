@@ -304,4 +304,16 @@ export default defineSchema({
   })
     .index('by_nonce', ['nonce'])
     .index('by_expires_at', ['expiresAt']),
+  referenceUsage: defineTable({
+    userId: v.id('users'),
+    referenceType: v.union(
+      v.literal('ball'),
+      v.literal('pattern'),
+      v.literal('house')
+    ),
+    referenceId: v.string(),
+    lastUsedAt: v.number(),
+  })
+    .index('by_user_type_last_used', ['userId', 'referenceType', 'lastUsedAt'])
+    .index('by_user_type_ref', ['userId', 'referenceType', 'referenceId']),
 });

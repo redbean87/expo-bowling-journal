@@ -2,6 +2,12 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import {
+  listRecentReferenceIds,
+  touchReferenceUsage,
+} from './lib/reference_usage';
+
+import type { Doc, Id } from './_generated/dataModel';
 
 function normalizeName(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -21,53 +27,23 @@ export const listRecent = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
-    const houses = await ctx.db.query('houses').withIndex('by_name').collect();
-    const leagues = await ctx.db
-      .query('leagues')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    const sessions = await ctx.db
-      .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
+    const recentIds = await listRecentReferenceIds(ctx, {
+      userId,
+      referenceType: 'house',
+      limit: 10,
+    });
 
-    const byId = new Map<string, { id: string; usedAt: number }>();
+    const houses: Array<Doc<'houses'>> = [];
 
-    for (const session of sessions) {
-      if (!session.houseId) {
-        continue;
-      }
+    for (const id of recentIds) {
+      const house = await ctx.db.get(id as Id<'houses'>);
 
-      const key = String(session.houseId);
-      const current = byId.get(key);
-
-      if (!current || session._creationTime > current.usedAt) {
-        byId.set(key, { id: key, usedAt: session._creationTime });
+      if (house) {
+        houses.push(house);
       }
     }
 
-    for (const league of leagues) {
-      if (!league.houseId) {
-        continue;
-      }
-
-      const key = String(league.houseId);
-      const current = byId.get(key);
-
-      if (!current || league.createdAt > current.usedAt) {
-        byId.set(key, { id: key, usedAt: league.createdAt });
-      }
-    }
-
-    const houseById = new Map(
-      houses.map((house) => [String(house._id), house])
-    );
-
-    return [...byId.values()]
-      .sort((left, right) => right.usedAt - left.usedAt)
-      .slice(0, 10)
-      .map((entry) => houseById.get(entry.id))
-      .filter((house) => Boolean(house));
+    return houses;
   },
 });
 
@@ -96,5 +72,29 @@ export const create = mutation({
       name: args.name.trim(),
       location: null,
     });
+  },
+});
+
+export const touchUsage = mutation({
+  args: {
+    houseId: v.id('houses'),
+    usedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const house = await ctx.db.get(args.houseId);
+
+    if (!house) {
+      throw new ConvexError('House not found');
+    }
+
+    await touchReferenceUsage(ctx, {
+      userId,
+      referenceType: 'house',
+      referenceId: String(args.houseId),
+      usedAt: args.usedAt,
+    });
+
+    return args.houseId;
   },
 });

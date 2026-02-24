@@ -2,6 +2,12 @@ import { ConvexError, v } from 'convex/values';
 
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import {
+  listRecentReferenceIds,
+  touchReferenceUsage,
+} from './lib/reference_usage';
+
+import type { Doc, Id } from './_generated/dataModel';
 
 function normalizeName(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -25,52 +31,23 @@ export const listRecent = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
-    const balls = await ctx.db
-      .query('balls')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    const sessions = await ctx.db
-      .query('sessions')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    const games = await ctx.db
-      .query('games')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
+    const recentIds = await listRecentReferenceIds(ctx, {
+      userId,
+      referenceType: 'ball',
+      limit: 10,
+    });
 
-    const byId = new Map<string, { id: string; usedAt: number }>();
+    const balls: Array<Doc<'balls'>> = [];
 
-    for (const game of games) {
-      if (!game.ballId) {
-        continue;
-      }
+    for (const id of recentIds) {
+      const ball = await ctx.db.get(id as Id<'balls'>);
 
-      byId.set(String(game.ballId), {
-        id: String(game.ballId),
-        usedAt: game._creationTime,
-      });
-    }
-
-    for (const session of sessions) {
-      if (!session.ballId) {
-        continue;
-      }
-
-      const key = String(session.ballId);
-      const current = byId.get(key);
-
-      if (!current || session._creationTime > current.usedAt) {
-        byId.set(key, { id: key, usedAt: session._creationTime });
+      if (ball && ball.userId === userId) {
+        balls.push(ball);
       }
     }
 
-    const ballById = new Map(balls.map((ball) => [String(ball._id), ball]));
-
-    return [...byId.values()]
-      .sort((left, right) => right.usedAt - left.usedAt)
-      .slice(0, 10)
-      .map((entry) => ballById.get(entry.id))
-      .filter((ball) => Boolean(ball));
+    return balls;
   },
 });
 
@@ -105,5 +82,29 @@ export const create = mutation({
       brand: null,
       coverstock: null,
     });
+  },
+});
+
+export const touchUsage = mutation({
+  args: {
+    ballId: v.id('balls'),
+    usedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const ball = await ctx.db.get(args.ballId);
+
+    if (!ball || ball.userId !== userId) {
+      throw new ConvexError('Ball not found');
+    }
+
+    await touchReferenceUsage(ctx, {
+      userId,
+      referenceType: 'ball',
+      referenceId: String(args.ballId),
+      usedAt: args.usedAt,
+    });
+
+    return args.ballId;
   },
 });

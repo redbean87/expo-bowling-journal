@@ -42,7 +42,9 @@ import type * as lib_import_start from "../lib/import_start.js";
 import type * as lib_import_types from "../lib/import_types.js";
 import type * as lib_import_validators from "../lib/import_validators.js";
 import type * as lib_import_warning_summary from "../lib/import_warning_summary.js";
+import type * as lib_reference_usage from "../lib/reference_usage.js";
 import type * as patterns from "../patterns.js";
+import type * as referenceUsage from "../referenceUsage.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -87,7 +89,9 @@ declare const fullApi: ApiFromModules<{
   "lib/import_types": typeof lib_import_types;
   "lib/import_validators": typeof lib_import_validators;
   "lib/import_warning_summary": typeof lib_import_warning_summary;
+  "lib/reference_usage": typeof lib_reference_usage;
   patterns: typeof patterns;
+  referenceUsage: typeof referenceUsage;
   sessions: typeof sessions;
   users: typeof users;
 }>;

@@ -3,6 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import { buildGameFramePreview } from './lib/game_frame_preview';
+import { touchReferenceUsage } from './lib/reference_usage';
 
 export const listBySession = query({
   args: {
@@ -83,7 +84,7 @@ export const create = mutation({
         ? args.clientSyncId.trim() || null
         : null;
 
-    return ctx.db.insert('games', {
+    const gameId = await ctx.db.insert('games', {
       userId,
       sessionId: args.sessionId,
       leagueId: session.leagueId,
@@ -97,6 +98,28 @@ export const create = mutation({
       patternId: args.patternId ?? null,
       framePreview: buildGameFramePreview([]),
     });
+
+    const usedAt = Date.now();
+
+    if (args.ballId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'ball',
+        referenceId: String(args.ballId),
+        usedAt,
+      });
+    }
+
+    if (args.patternId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'pattern',
+        referenceId: String(args.patternId),
+        usedAt,
+      });
+    }
+
+    return gameId;
   },
 });
 
@@ -263,6 +286,26 @@ export const update = mutation({
       ballId: args.ballId ?? null,
       patternId: args.patternId ?? null,
     });
+
+    const usedAt = Date.now();
+
+    if (args.ballId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'ball',
+        referenceId: String(args.ballId),
+        usedAt,
+      });
+    }
+
+    if (args.patternId) {
+      await touchReferenceUsage(ctx, {
+        userId,
+        referenceType: 'pattern',
+        referenceId: String(args.patternId),
+        usedAt,
+      });
+    }
 
     return args.gameId;
   },
