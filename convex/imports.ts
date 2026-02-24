@@ -11,10 +11,6 @@ import {
 } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import {
-  completeImportBatch,
-  toPublicImportResult,
-} from './lib/import-batch-lifecycle';
-import {
   completeSnapshotImportForBatch,
   getRequiredImportBatch,
   persistCanonicalFramesForBatch,
@@ -27,10 +23,14 @@ import {
   updateImportBatchStatus,
 } from './lib/import-callback-state';
 import { applyRefinement } from './lib/import-core-refinement';
-import { runSqliteSnapshotImportCore } from './lib/import-core-runner';
 import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
 import { deleteUserDocsChunkForImportTable } from './lib/import-replace-all-cleanup';
 import { runImportSqliteSnapshotAction } from './lib/import-snapshot-action';
+import {
+  importSqliteSnapshotAfterCleanupCore,
+  submitParsedSnapshotForCallbackCore,
+  submitParsedSnapshotJsonForCallbackCore,
+} from './lib/import-snapshot-runner';
 import {
   createSnapshotImportBatch,
   persistRawImportRowsForBatch,
@@ -39,7 +39,6 @@ import { startImportBatch } from './lib/import-start';
 import {
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   type RawImportRow,
-  type SqliteSnapshotInput,
 } from './lib/import-types';
 import {
   ballSwitchValidator,
@@ -51,10 +50,8 @@ import {
 } from './lib/import-validators';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import { normalizeNullableInteger } from './lib/import_refinement';
-import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Id } from './_generated/dataModel';
-import type { MutationCtx } from './_generated/server';
 
 const getBatchByIdForDispatchQuery = makeFunctionReference<
   'query',
@@ -243,35 +240,6 @@ export const applyPostImportRefinement = mutation({
   },
 });
 
-async function runSqliteSnapshotImport(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  args: SqliteSnapshotInput,
-  existingBatchId?: Id<'importBatches'>,
-  options?: {
-    skipReplaceAllCleanup?: boolean;
-    skipRawMirrorPersistence?: boolean;
-  }
-) {
-  const result = await runSqliteSnapshotImportCore(
-    ctx,
-    userId,
-    args,
-    existingBatchId,
-    options,
-    { applyRefinement }
-  );
-
-  await completeImportBatch(ctx, {
-    batchId: result.batchId,
-    counts: result.counts,
-    refinement: result.refinement,
-    warnings: result.warnings,
-  });
-
-  return toPublicImportResult(result);
-}
-
 export const deleteUserDocsChunkForImport = internalMutation({
   args: {
     userId: v.id('users'),
@@ -328,17 +296,7 @@ export const importSqliteSnapshotAfterCleanupForUser = internalMutation({
     ...sqliteSnapshotArgs,
   },
   handler: async (ctx, args) => {
-    const { userId, batchId, skipRawMirrorPersistence, ...snapshotArgs } = args;
-    return runSqliteSnapshotImport(
-      ctx,
-      userId,
-      snapshotArgs,
-      batchId ?? undefined,
-      {
-        skipReplaceAllCleanup: true,
-        skipRawMirrorPersistence: skipRawMirrorPersistence ?? false,
-      }
-    );
+    return importSqliteSnapshotAfterCleanupCore(ctx, args);
   },
 });
 
@@ -360,20 +318,7 @@ export const submitParsedSnapshotForCallback = internalMutation({
     snapshot: v.object(sqliteSnapshotArgs),
   },
   handler: async (ctx, args) => {
-    const batch = await getRequiredImportBatch(ctx, args.batchId);
-
-    return runSqliteSnapshotImportCore(
-      ctx,
-      batch.userId,
-      args.snapshot,
-      batch._id,
-      {
-        skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
-        skipRawMirrorPersistence: args.skipRawMirrorPersistence ?? false,
-        timezoneOffsetMinutes: args.timezoneOffsetMinutes ?? null,
-      },
-      { applyRefinement }
-    );
+    return submitParsedSnapshotForCallbackCore(ctx, args);
   },
 });
 
@@ -387,23 +332,7 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     snapshotJson: v.string(),
   },
   handler: async (ctx, args) => {
-    const batch = await getRequiredImportBatch(ctx, args.batchId);
-
-    const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
-      args.snapshotJson
-    );
-    return runSqliteSnapshotImportCore(
-      ctx,
-      batch.userId,
-      snapshot,
-      batch._id,
-      {
-        skipReplaceAllCleanup: args.skipReplaceAllCleanup ?? false,
-        skipRawMirrorPersistence: args.skipRawMirrorPersistence ?? false,
-        timezoneOffsetMinutes: args.timezoneOffsetMinutes ?? null,
-      },
-      { applyRefinement }
-    );
+    return submitParsedSnapshotJsonForCallbackCore(ctx, args);
   },
 });
 
