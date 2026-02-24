@@ -58,27 +58,38 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const normalized = normalizeName(args.name);
+    const trimmedName = args.name.trim();
 
     if (normalized.length === 0) {
       throw new ConvexError('Ball name is required');
     }
 
-    const existing = await ctx.db
+    const existingByNorm = await ctx.db
       .query('balls')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
+      .withIndex('by_user_name_norm', (q) =>
+        q.eq('userId', userId).eq('nameNorm', normalized)
+      )
+      .first();
 
-    const match = existing.find(
-      (ball) => normalizeName(ball.name) === normalized
-    );
+    if (existingByNorm) {
+      return existingByNorm._id;
+    }
 
-    if (match) {
-      return match._id;
+    const existingByExact = await ctx.db
+      .query('balls')
+      .withIndex('by_user_name', (q) =>
+        q.eq('userId', userId).eq('name', trimmedName)
+      )
+      .first();
+
+    if (existingByExact) {
+      return existingByExact._id;
     }
 
     return await ctx.db.insert('balls', {
       userId,
-      name: args.name.trim(),
+      name: trimmedName,
+      nameNorm: normalized,
       brand: null,
       coverstock: null,
     });

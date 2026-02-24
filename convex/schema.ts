@@ -118,19 +118,27 @@ export default defineSchema({
   balls: defineTable({
     userId: v.id('users'),
     name: v.string(),
+    nameNorm: v.optional(v.union(v.string(), v.null())),
     brand: v.optional(v.union(v.string(), v.null())),
     coverstock: v.optional(v.union(v.string(), v.null())),
   })
     .index('by_user', ['userId'])
-    .index('by_user_name', ['userId', 'name']),
+    .index('by_user_name', ['userId', 'name'])
+    .index('by_user_name_norm', ['userId', 'nameNorm']),
   houses: defineTable({
     name: v.string(),
+    nameNorm: v.optional(v.union(v.string(), v.null())),
     location: v.optional(v.union(v.string(), v.null())),
-  }).index('by_name', ['name']),
+  })
+    .index('by_name', ['name'])
+    .index('by_name_norm', ['nameNorm']),
   patterns: defineTable({
     name: v.string(),
+    nameNorm: v.optional(v.union(v.string(), v.null())),
     length: v.optional(v.union(v.number(), v.null())),
-  }).index('by_name', ['name']),
+  })
+    .index('by_name', ['name'])
+    .index('by_name_norm', ['nameNorm']),
   importBatches: defineTable({
     userId: v.id('users'),
     sourceType: v.string(),

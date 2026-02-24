@@ -54,22 +54,33 @@ export const create = mutation({
   handler: async (ctx, args) => {
     await requireUserId(ctx);
     const normalized = normalizeName(args.name);
+    const trimmedName = args.name.trim();
 
     if (normalized.length === 0) {
       throw new ConvexError('House name is required');
     }
 
-    const houses = await ctx.db.query('houses').withIndex('by_name').collect();
-    const match = houses.find(
-      (house) => normalizeName(house.name) === normalized
-    );
+    const existingByNorm = await ctx.db
+      .query('houses')
+      .withIndex('by_name_norm', (q) => q.eq('nameNorm', normalized))
+      .first();
 
-    if (match) {
-      return match._id;
+    if (existingByNorm) {
+      return existingByNorm._id;
+    }
+
+    const existingByExact = await ctx.db
+      .query('houses')
+      .withIndex('by_name', (q) => q.eq('name', trimmedName))
+      .first();
+
+    if (existingByExact) {
+      return existingByExact._id;
     }
 
     return await ctx.db.insert('houses', {
-      name: args.name.trim(),
+      name: trimmedName,
+      nameNorm: normalized,
       location: null,
     });
   },

@@ -1,10 +1,6 @@
 import { ConvexError } from 'convex/values';
 
 import {
-  clearUserImportDataInChunks,
-  deleteUserDocsChunkForImportTable,
-} from './import_replace_all_cleanup';
-import {
   buildLeagueCreatedAtByEarliestWeekDate,
   normalizeImportDateStrict,
   normalizeTimezoneOffsetMinutes,
@@ -19,7 +15,10 @@ import {
   normalizeOptionalText,
   type BallSwitchInput,
 } from './import_refinement';
-import { summarizeImportWarnings } from './import_warning_summary';
+import {
+  clearUserImportDataInChunks,
+  deleteUserDocsChunkForImportTable,
+} from './import_replace_all_cleanup';
 import {
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   EMPTY_IMPORT_COUNTS,
@@ -30,6 +29,7 @@ import {
   type SnapshotImportCoreResult,
   type SqliteSnapshotInput,
 } from './import_types';
+import { summarizeImportWarnings } from './import_warning_summary';
 
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
@@ -206,7 +206,7 @@ export async function runSqliteSnapshotImportCore(
 
     const existingHouse = await ctx.db
       .query('houses')
-      .withIndex('by_name', (q) => q.eq('name', name))
+      .withIndex('by_name_norm', (q) => q.eq('nameNorm', key))
       .first();
 
     if (existingHouse) {
@@ -217,6 +217,7 @@ export async function runSqliteSnapshotImportCore(
 
     const createdHouseId = await ctx.db.insert('houses', {
       name,
+      nameNorm: key,
       location: normalizeOptionalText(row.location, 180),
     });
     houseIdMap.set(row.sqliteId, createdHouseId);
@@ -253,7 +254,7 @@ export async function runSqliteSnapshotImportCore(
 
     const existingPattern = await ctx.db
       .query('patterns')
-      .withIndex('by_name', (q) => q.eq('name', name))
+      .withIndex('by_name_norm', (q) => q.eq('nameNorm', key))
       .first();
 
     if (existingPattern) {
@@ -264,6 +265,7 @@ export async function runSqliteSnapshotImportCore(
 
     const createdPatternId = await ctx.db.insert('patterns', {
       name,
+      nameNorm: key,
       length: normalizeNullableInteger(row.length, 0, 80),
     });
     patternIdMap.set(row.sqliteId, createdPatternId);
@@ -299,7 +301,9 @@ export async function runSqliteSnapshotImportCore(
 
     const existingBall = await ctx.db
       .query('balls')
-      .withIndex('by_user_name', (q) => q.eq('userId', userId).eq('name', name))
+      .withIndex('by_user_name_norm', (q) =>
+        q.eq('userId', userId).eq('nameNorm', name.toLowerCase())
+      )
       .first();
 
     if (existingBall) {
@@ -310,6 +314,7 @@ export async function runSqliteSnapshotImportCore(
     const createdBallId = await ctx.db.insert('balls', {
       userId,
       name,
+      nameNorm: name.toLowerCase(),
       brand: normalizeOptionalText(row.brand, 120),
       coverstock: normalizeOptionalText(row.coverstock, 120),
     });
