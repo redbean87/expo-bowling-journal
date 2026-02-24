@@ -1,5 +1,5 @@
 import { makeFunctionReference } from 'convex/server';
-import { ConvexError, v } from 'convex/values';
+import { v } from 'convex/values';
 
 import {
   action,
@@ -19,15 +19,25 @@ import {
   getRequiredImportBatch,
   persistCanonicalFramesForBatch,
 } from './lib/import-callback-helpers';
+import {
+  getCallbackNonceByValue,
+  getImportBatchById,
+  getImportStatusForUser,
+  insertCallbackNonce,
+  updateImportBatchStatus,
+} from './lib/import-callback-state';
 import { applyRefinement } from './lib/import-core-refinement';
 import { runSqliteSnapshotImportCore } from './lib/import-core-runner';
 import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
-import { insertRawImportRow } from './lib/import-raw-mirror';
 import { deleteUserDocsChunkForImportTable } from './lib/import-replace-all-cleanup';
 import { runImportSqliteSnapshotAction } from './lib/import-snapshot-action';
 import {
+  createSnapshotImportBatch,
+  persistRawImportRowsForBatch,
+} from './lib/import-snapshot-storage';
+import { startImportBatch } from './lib/import-start';
+import {
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
-  EMPTY_IMPORT_COUNTS,
   type RawImportRow,
   type SqliteSnapshotInput,
 } from './lib/import-types';
@@ -40,10 +50,7 @@ import {
   sqliteSnapshotArgs,
 } from './lib/import-validators';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
-import {
-  normalizeNullableInteger,
-  normalizeOptionalText,
-} from './lib/import_refinement';
+import { normalizeNullableInteger } from './lib/import_refinement';
 import { parseSnapshotJsonPayload } from './lib/import_snapshot';
 
 import type { Id } from './_generated/dataModel';
@@ -82,14 +89,6 @@ const dispatchImportQueueActionReference = makeFunctionReference<
   void
 >('imports:dispatchImportQueue');
 
-function validateR2KeyOwnership(userId: Id<'users'>, r2Key: string) {
-  const expectedPrefix = `imports/${String(userId)}/`;
-
-  if (!r2Key.startsWith(expectedPrefix)) {
-    throw new ConvexError('r2Key must be scoped to the authenticated user');
-  }
-}
-
 export const startImport = mutation({
   args: {
     r2Key: v.string(),
@@ -101,62 +100,31 @@ export const startImport = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-
-    if (!Number.isFinite(args.fileSize) || args.fileSize <= 0) {
-      throw new ConvexError('fileSize must be a positive number');
-    }
-
-    const idempotencyKey = args.idempotencyKey.trim();
-
-    if (idempotencyKey.length < 8 || idempotencyKey.length > 128) {
-      throw new ConvexError('idempotencyKey must be 8-128 characters');
-    }
-
-    validateR2KeyOwnership(userId, args.r2Key);
     const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
       args.timezoneOffsetMinutes
     );
 
-    const existingBatch = await ctx.db
-      .query('importBatches')
-      .withIndex('by_user_idempotency', (q) =>
-        q.eq('userId', userId).eq('idempotencyKey', idempotencyKey)
-      )
-      .first();
-
-    if (existingBatch) {
-      return {
-        batchId: existingBatch._id,
-        deduplicated: true,
-      };
-    }
-
-    const batchId = await ctx.db.insert('importBatches', {
-      userId,
-      sourceType: 'sqlite',
-      r2Key: args.r2Key,
-      sourceFileName: normalizeOptionalText(args.fileName, 255),
-      fileSize: Math.trunc(args.fileSize),
-      sourceHash: normalizeOptionalText(args.checksum, 128),
-      idempotencyKey,
-      status: 'queued',
-      errorMessage: null,
-      importedAt: Date.now(),
-      completedAt: null,
-      counts: { ...EMPTY_IMPORT_COUNTS },
-    });
-
-    await ctx.scheduler.runAfter(0, dispatchImportQueueActionReference, {
-      batchId,
-      userId,
-      r2Key: args.r2Key,
-      timezoneOffsetMinutes,
-    });
-
-    return {
-      batchId,
-      deduplicated: false,
-    };
+    return startImportBatch(
+      ctx,
+      {
+        userId,
+        r2Key: args.r2Key,
+        fileName: args.fileName,
+        fileSize: args.fileSize,
+        checksum: args.checksum,
+        idempotencyKey: args.idempotencyKey,
+        timezoneOffsetMinutes,
+      },
+      {
+        scheduleDispatch: async (dispatchArgs) => {
+          await ctx.scheduler.runAfter(
+            0,
+            dispatchImportQueueActionReference,
+            dispatchArgs
+          );
+        },
+      }
+    );
   },
 });
 
@@ -190,25 +158,7 @@ export const getImportStatus = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch || batch.userId !== userId) {
-      throw new ConvexError('Import batch not found');
-    }
-
-    return {
-      batchId: batch._id,
-      status: batch.status,
-      sourceType: batch.sourceType,
-      r2Key: batch.r2Key ?? null,
-      sourceFileName: batch.sourceFileName ?? null,
-      fileSize: batch.fileSize ?? null,
-      sourceHash: batch.sourceHash ?? null,
-      importedAt: batch.importedAt,
-      completedAt: batch.completedAt ?? null,
-      errorMessage: batch.errorMessage ?? null,
-      counts: batch.counts,
-    };
+    return getImportStatusForUser(ctx, { userId, batchId: args.batchId });
   },
 });
 
@@ -217,7 +167,7 @@ export const getBatchByIdForCallback = internalQuery({
     batchId: v.id('importBatches'),
   },
   handler: async (ctx, args) => {
-    return ctx.db.get(args.batchId);
+    return getImportBatchById(ctx, args.batchId);
   },
 });
 
@@ -234,13 +184,7 @@ export const updateBatchStatusForCallback = internalMutation({
     errorMessage: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.batchId, {
-      status: args.status,
-      completedAt: args.completedAt ?? null,
-      errorMessage: args.errorMessage ?? null,
-    });
-
-    return args.batchId;
+    return updateImportBatchStatus(ctx, args);
   },
 });
 
@@ -249,10 +193,7 @@ export const getNonceByValueForCallback = internalQuery({
     nonce: v.string(),
   },
   handler: async (ctx, args) => {
-    return ctx.db
-      .query('importCallbackNonces')
-      .withIndex('by_nonce', (q) => q.eq('nonce', args.nonce))
-      .first();
+    return getCallbackNonceByValue(ctx, args.nonce);
   },
 });
 
@@ -263,11 +204,7 @@ export const insertNonceForCallback = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    return ctx.db.insert('importCallbackNonces', {
-      nonce: args.nonce,
-      createdAt: args.createdAt,
-      expiresAt: args.expiresAt,
-    });
+    return insertCallbackNonce(ctx, args);
   },
 });
 
@@ -364,22 +301,7 @@ export const createImportBatchForSnapshot = internalMutation({
     sourceHash: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
-    const importedAt = Date.now();
-
-    return ctx.db.insert('importBatches', {
-      userId: args.userId,
-      sourceType: 'sqlite',
-      r2Key: null,
-      sourceFileName: normalizeOptionalText(args.sourceFileName, 255),
-      fileSize: null,
-      sourceHash: normalizeOptionalText(args.sourceHash, 128),
-      idempotencyKey: null,
-      status: 'importing',
-      errorMessage: null,
-      importedAt,
-      completedAt: null,
-      counts: { ...EMPTY_IMPORT_COUNTS },
-    });
+    return createSnapshotImportBatch(ctx, args);
   },
 });
 
@@ -390,32 +312,11 @@ export const persistRawImportChunkForBatch = internalMutation({
     rows: v.array(v.any()),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch) {
-      throw new ConvexError('Import batch not found');
-    }
-
-    if (batch.status !== 'importing') {
-      throw new ConvexError(
-        'Import batch must be importing to persist raw rows'
-      );
-    }
-
-    const importedAt = Date.now();
-
-    for (const row of args.rows as RawImportRow[]) {
-      await insertRawImportRow(ctx, args.table, {
-        userId: batch.userId,
-        batchId: batch._id,
-        row,
-        importedAt,
-      });
-    }
-
-    return {
-      inserted: args.rows.length,
-    };
+    return persistRawImportRowsForBatch(ctx, {
+      batchId: args.batchId,
+      table: args.table,
+      rows: args.rows as RawImportRow[],
+    });
   },
 });
 
