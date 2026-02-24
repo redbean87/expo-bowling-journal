@@ -17,14 +17,21 @@ test('callback import path persists importRawFrames rows', async () => {
     'lib',
     'import-validators.ts'
   );
+  const callbackHelpersPath = resolve(
+    process.cwd(),
+    'convex',
+    'lib',
+    'import-callback-helpers.ts'
+  );
   const source = await readFile(importsPath, 'utf8');
   const cleanupSource = await readFile(cleanupPath, 'utf8');
   const validatorsSource = await readFile(validatorsPath, 'utf8');
+  const callbackHelpersSource = await readFile(callbackHelpersPath, 'utf8');
 
   assert.equal(source.includes('persistRawImportChunkForBatch'), true);
   assert.equal(validatorsSource.includes("v.literal('importRawFrames')"), true);
   assert.equal(cleanupSource.includes(".query('importRawFrames')"), true);
 
   assert.equal(source.includes('persistCanonicalFrameChunkForCallback'), true);
-  assert.equal(source.includes("ctx.db.insert('frames'"), true);
+  assert.equal(callbackHelpersSource.includes("ctx.db.insert('frames'"), true);
 });

@@ -14,6 +14,11 @@ import {
   completeImportBatch,
   toPublicImportResult,
 } from './lib/import-batch-lifecycle';
+import {
+  completeSnapshotImportForBatch,
+  getRequiredImportBatch,
+  persistCanonicalFramesForBatch,
+} from './lib/import-callback-helpers';
 import { applyRefinement } from './lib/import-core-refinement';
 import { runSqliteSnapshotImportCore } from './lib/import-core-runner';
 import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
@@ -454,11 +459,7 @@ export const submitParsedSnapshotForCallback = internalMutation({
     snapshot: v.object(sqliteSnapshotArgs),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch) {
-      throw new ConvexError('Import batch not found');
-    }
+    const batch = await getRequiredImportBatch(ctx, args.batchId);
 
     return runSqliteSnapshotImportCore(
       ctx,
@@ -485,11 +486,7 @@ export const submitParsedSnapshotJsonForCallback = internalMutation({
     snapshotJson: v.string(),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch) {
-      throw new ConvexError('Import batch not found');
-    }
+    const batch = await getRequiredImportBatch(ctx, args.batchId);
 
     const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
       args.snapshotJson
@@ -515,38 +512,8 @@ export const persistCanonicalFrameChunkForCallback = internalMutation({
     frames: v.array(canonicalFrameInsertValidator),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch) {
-      throw new ConvexError('Import batch not found');
-    }
-
-    if (batch.status !== 'importing') {
-      throw new ConvexError('Import batch must be importing to persist frames');
-    }
-
-    for (const frame of args.frames) {
-      await ctx.db.insert('frames', {
-        userId: batch.userId,
-        gameId: frame.gameId,
-        frameNumber: frame.frameNumber,
-        roll1: frame.roll1,
-        roll2: frame.roll2,
-        roll3: frame.roll3,
-        ballId: frame.ballId,
-        pins: frame.pins,
-        scores: frame.scores,
-        score: frame.score,
-        flags: frame.flags,
-        pocket: frame.pocket,
-        footBoard: frame.footBoard,
-        targetBoard: frame.targetBoard,
-      });
-    }
-
-    return {
-      inserted: args.frames.length,
-    };
+    const batch = await getRequiredImportBatch(ctx, args.batchId);
+    return persistCanonicalFramesForBatch(ctx, batch, args.frames);
   },
 });
 
@@ -587,19 +554,6 @@ export const completeSnapshotImportForCallback = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
-    const batch = await ctx.db.get(args.batchId);
-
-    if (!batch) {
-      throw new ConvexError('Import batch not found');
-    }
-
-    await completeImportBatch(ctx, {
-      batchId: args.batchId,
-      counts: args.counts,
-      refinement: args.refinement,
-      warnings: args.warnings,
-    });
-
-    return args.batchId;
+    return completeSnapshotImportForBatch(ctx, args);
   },
 });
