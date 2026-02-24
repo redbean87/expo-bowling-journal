@@ -1,11 +1,13 @@
 import { ConvexError, v } from 'convex/values';
 
-import { mutation } from './_generated/server';
+import { internalMutation, mutation } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import {
   touchReferenceUsage,
   type ReferenceUsageType,
 } from './lib/reference_usage';
+
+import type { Id } from './_generated/dataModel';
 
 type BackfillSource = 'games' | 'sessions' | 'leagues';
 
@@ -155,6 +157,166 @@ export const backfillReferenceUsage = mutation({
       for (const value of usageByKey.values()) {
         await touchReferenceUsage(ctx, {
           userId,
+          referenceType: value.referenceType,
+          referenceId: value.referenceId,
+          usedAt: value.usedAt,
+        });
+        touched += 1;
+      }
+    }
+
+    return {
+      source,
+      scanned,
+      candidates: usageByKey.size,
+      touched,
+      dryRun,
+      hasMore,
+      continueCursor,
+    };
+  },
+});
+
+export const backfillReferenceUsageInternal = internalMutation({
+  args: {
+    source: v.union(
+      v.literal('games'),
+      v.literal('sessions'),
+      v.literal('leagues')
+    ),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    pageSize: v.optional(v.number()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const pageSize = normalizePageSize(args.pageSize);
+    const dryRun = args.dryRun ?? false;
+    const usageByKey = new Map<
+      string,
+      {
+        userId: Id<'users'>;
+        referenceType: ReferenceUsageType;
+        referenceId: string;
+        usedAt: number;
+      }
+    >();
+
+    const trackUsage = (
+      userId: Id<'users'>,
+      referenceType: ReferenceUsageType,
+      referenceId: string | null,
+      usedAt: number
+    ) => {
+      if (!referenceId) {
+        return;
+      }
+
+      const key = `${userId}:${referenceType}:${referenceId}`;
+      const existing = usageByKey.get(key);
+
+      if (!existing || usedAt > existing.usedAt) {
+        usageByKey.set(key, {
+          userId,
+          referenceType,
+          referenceId,
+          usedAt,
+        });
+      }
+    };
+
+    let scanned = 0;
+    let continueCursor: string | null = null;
+    let hasMore = false;
+
+    const source = args.source as BackfillSource;
+
+    if (source === 'games') {
+      const page = await ctx.db.query('games').paginate({
+        numItems: pageSize,
+        cursor: args.cursor ?? null,
+      });
+
+      scanned = page.page.length;
+      continueCursor = page.continueCursor;
+      hasMore = !page.isDone;
+
+      for (const game of page.page) {
+        const userId = game.userId;
+        trackUsage(
+          userId,
+          'ball',
+          game.ballId ? String(game.ballId) : null,
+          game._creationTime
+        );
+        trackUsage(
+          userId,
+          'pattern',
+          game.patternId ? String(game.patternId) : null,
+          game._creationTime
+        );
+      }
+    }
+
+    if (source === 'sessions') {
+      const page = await ctx.db.query('sessions').paginate({
+        numItems: pageSize,
+        cursor: args.cursor ?? null,
+      });
+
+      scanned = page.page.length;
+      continueCursor = page.continueCursor;
+      hasMore = !page.isDone;
+
+      for (const session of page.page) {
+        const userId = session.userId;
+        trackUsage(
+          userId,
+          'house',
+          session.houseId ? String(session.houseId) : null,
+          session._creationTime
+        );
+        trackUsage(
+          userId,
+          'ball',
+          session.ballId ? String(session.ballId) : null,
+          session._creationTime
+        );
+        trackUsage(
+          userId,
+          'pattern',
+          session.patternId ? String(session.patternId) : null,
+          session._creationTime
+        );
+      }
+    }
+
+    if (source === 'leagues') {
+      const page = await ctx.db.query('leagues').paginate({
+        numItems: pageSize,
+        cursor: args.cursor ?? null,
+      });
+
+      scanned = page.page.length;
+      continueCursor = page.continueCursor;
+      hasMore = !page.isDone;
+
+      for (const league of page.page) {
+        const userId = league.userId;
+        trackUsage(
+          userId,
+          'house',
+          league.houseId ? String(league.houseId) : null,
+          league.createdAt
+        );
+      }
+    }
+
+    let touched = 0;
+
+    if (!dryRun) {
+      for (const value of usageByKey.values()) {
+        await touchReferenceUsage(ctx, {
+          userId: value.userId,
           referenceType: value.referenceType,
           referenceId: value.referenceId,
           usedAt: value.usedAt,
