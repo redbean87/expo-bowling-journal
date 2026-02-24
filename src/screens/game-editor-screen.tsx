@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,11 +16,9 @@ import { ActiveFrameCard } from './game-editor/active-frame-card';
 import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import { buildAutosaveGuardResult } from './game-editor/game-editor-autosave-utils';
 import {
-  buildFramesPayload,
   EMPTY_FRAMES,
   FULL_PIN_MASK,
   findSuggestedFrameIndex,
-  getFirstParam,
   getFrameInlineError,
   getFrameStatus,
   getNextCursorAfterEntry,
@@ -34,6 +32,18 @@ import {
   type FrameDraft,
   type RollField,
 } from './game-editor/game-editor-frame-utils';
+import {
+  buildPersistedSignature,
+  buildSyncSignature,
+  clearDownstreamRolls,
+  createDraftNonce,
+  getDefaultMaskForField,
+  hasAnyFrameDraftValue,
+  isOfflineLikely,
+  maskHasPin,
+  setPinState,
+  togglePinInMask,
+} from './game-editor/game-editor-screen-utils';
 import {
   loadLocalGameDraft,
   removeLocalGameDraft,
@@ -56,6 +66,8 @@ import {
   flushQueuedGameSavesWithLock,
   isQueuedGameSaveFlushInFlight,
 } from './game-editor/game-save-queue-sync';
+import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
+import { useSignedInHistory } from './game-editor/use-signed-in-history';
 import {
   formatGameSequenceLabel,
   formatIsoDateLabel,
@@ -63,9 +75,8 @@ import {
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
 
-import type { GameId, LeagueId, SessionId } from '@/services/journal';
+import type { GameId } from '@/services/journal';
 
-import { loadHasSignedInBefore } from '@/auth/prior-sign-in-storage';
 import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button } from '@/components/ui';
 import {
@@ -90,169 +101,22 @@ type AutosaveState =
   | 'syncingQueued'
   | 'error';
 
-function togglePinInMask(mask: number, pinNumber: number) {
-  return mask ^ (1 << (pinNumber - 1));
-}
-
-function setPinState(mask: number, pinNumber: number, shouldKnock: boolean) {
-  const pinBit = 1 << (pinNumber - 1);
-
-  if (shouldKnock) {
-    return mask | pinBit;
-  }
-
-  return mask & ~pinBit;
-}
-
-function maskHasPin(mask: number, pinNumber: number) {
-  return (mask & (1 << (pinNumber - 1))) !== 0;
-}
-
-function buildSyncSignature(
-  gameId: GameId | null,
-  date: string,
-  frameDrafts: FrameDraft[],
-  patternId: string | null,
-  ballId: string | null
-) {
-  return JSON.stringify({
-    gameId,
-    date: date.trim(),
-    frameDrafts,
-    patternId,
-    ballId,
-  });
-}
-
-function buildPersistedSignature(
-  gameId: GameId | null,
-  date: string,
-  frameDrafts: FrameDraft[],
-  patternId: string | null,
-  ballId: string | null
-) {
-  try {
-    const payloadFrames = buildFramesPayload(frameDrafts);
-
-    return JSON.stringify({
-      gameId: gameId ?? 'new',
-      date: date.trim(),
-      frames: payloadFrames,
-      patternId,
-      ballId,
-    });
-  } catch {
-    return null;
-  }
-}
-
-function hasAnyFrameDraftValue(frameDrafts: FrameDraft[]) {
-  return frameDrafts.some(
-    (frame) =>
-      frame.roll1Mask !== null ||
-      frame.roll2Mask !== null ||
-      frame.roll3Mask !== null
-  );
-}
-
-function createDraftNonce() {
-  const timestampPart = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).slice(2, 10);
-  return `${timestampPart}-${randomPart}`;
-}
-
-function isOfflineLikely() {
-  if (Platform.OS !== 'web') {
-    return false;
-  }
-
-  if (typeof globalThis.navigator === 'undefined') {
-    return false;
-  }
-
-  return globalThis.navigator.onLine === false;
-}
-
-function getDefaultMaskForField(
-  frameIndex: number,
-  field: RollField,
-  standingMask: number
-) {
-  if (field === 'roll1Mask') {
-    return standingMask;
-  }
-
-  if (frameIndex === 9 && standingMask === 0x3ff) {
-    return standingMask;
-  }
-
-  return 0;
-}
-
-function clearDownstreamRolls(frame: FrameDraft, field: RollField): FrameDraft {
-  if (field === 'roll1Mask') {
-    if (frame.roll2Mask === null && frame.roll3Mask === null) {
-      return frame;
-    }
-
-    return {
-      ...frame,
-      roll2Mask: null,
-      roll3Mask: null,
-    };
-  }
-
-  if (field === 'roll2Mask') {
-    if (frame.roll3Mask === null) {
-      return frame;
-    }
-
-    return {
-      ...frame,
-      roll3Mask: null,
-    };
-  }
-
-  return frame;
-}
-
 export default function GameEditorScreen() {
   const navigation = useNavigation();
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    leagueId?: string | string[];
-    leagueClientSyncId?: string | string[];
-    gameId?: string | string[];
-    sessionId?: string | string[];
-    sessionClientSyncId?: string | string[];
-    draftNonce?: string | string[];
-  }>();
-
-  const rawLeagueId = getFirstParam(params.leagueId);
-  const leagueClientSyncIdParam = getFirstParam(params.leagueClientSyncId);
-  const leagueClientSyncId =
-    leagueClientSyncIdParam ??
-    (rawLeagueId?.startsWith('draft-') ? rawLeagueId.slice(6) : null);
-  const gameIdParam = getFirstParam(params.gameId);
-  const draftNonceParam = getFirstParam(params.draftNonce);
-  const isCreateMode = gameIdParam === 'new';
-  const gameId = isCreateMode ? null : (gameIdParam as GameId | null);
-  const rawSessionId = getFirstParam(params.sessionId);
-  const sessionClientSyncIdParam = getFirstParam(params.sessionClientSyncId);
-  const sessionClientSyncId =
-    sessionClientSyncIdParam ??
-    (rawSessionId?.startsWith('draft-') ? rawSessionId.slice(6) : null);
-  const leagueId =
-    rawLeagueId && !rawLeagueId.startsWith('draft-')
-      ? (rawLeagueId as LeagueId)
-      : null;
-  const sessionId =
-    rawSessionId && !rawSessionId.startsWith('draft-')
-      ? (rawSessionId as SessionId)
-      : null;
-  const isDraftSessionContext =
-    Boolean(sessionClientSyncId) ||
-    (typeof rawSessionId === 'string' && rawSessionId.startsWith('draft-'));
+  const {
+    rawLeagueId,
+    leagueClientSyncId,
+    gameIdParam,
+    draftNonceParam,
+    isCreateMode,
+    gameId,
+    rawSessionId,
+    sessionClientSyncId,
+    leagueId,
+    sessionId,
+    isDraftSessionContext,
+  } = useGameEditorRouteContext();
 
   const {
     game,
@@ -276,7 +140,6 @@ export default function GameEditorScreen() {
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
   const [didHydrate, setDidHydrate] = useState(false);
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
-  const [hasSignedInBefore, setHasSignedInBefore] = useState(false);
   const [isCanonicalizingRoute, setIsCanonicalizingRoute] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(
     null
@@ -299,6 +162,7 @@ export default function GameEditorScreen() {
     createBall,
     createPattern,
   } = useReferenceData();
+  const hasSignedInBefore = useSignedInHistory(isAuthenticated);
 
   const orderedSessionGames = useMemo(
     () => toOldestFirstGames(sessionGames),
@@ -446,32 +310,6 @@ export default function GameEditorScreen() {
     setActiveField(field);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const hydrateSignInHistory = async () => {
-      const hasSignedIn = await loadHasSignedInBefore();
-
-      if (isMounted) {
-        setHasSignedInBefore(hasSignedIn);
-      }
-    };
-
-    void hydrateSignInHistory();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    setHasSignedInBefore(true);
-  }, [isAuthenticated]);
-
   const clearLocalDraft = useCallback(async () => {
     if (!localDraftId) {
       return;
@@ -560,7 +398,6 @@ export default function GameEditorScreen() {
       selectedBallId,
       selectedPatternId,
       sessionClientSyncId,
-      sessionId,
     ]
   );
 
