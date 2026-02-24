@@ -9,19 +9,19 @@ test('callback import path persists importRawFrames rows', async () => {
     process.cwd(),
     'convex',
     'lib',
-    'import-replace-all-cleanup.ts'
+    'import_replace_all_cleanup.ts'
   );
   const validatorsPath = resolve(
     process.cwd(),
     'convex',
     'lib',
-    'import-validators.ts'
+    'import_validators.ts'
   );
   const callbackHelpersPath = resolve(
     process.cwd(),
     'convex',
     'lib',
-    'import-callback-helpers.ts'
+    'import_callback_helpers.ts'
   );
   const source = await readFile(importsPath, 'utf8');
   const cleanupSource = await readFile(cleanupPath, 'utf8');

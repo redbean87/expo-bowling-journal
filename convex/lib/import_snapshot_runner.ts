@@ -1,13 +1,13 @@
 import {
   completeImportBatch,
   toPublicImportResult,
-} from './import-batch-lifecycle';
-import { getRequiredImportBatch } from './import-callback-helpers';
-import { applyRefinement } from './import-core-refinement';
-import { runSqliteSnapshotImportCore } from './import-core-runner';
+} from './import_batch_lifecycle';
+import { getRequiredImportBatch } from './import_callback_helpers';
+import { applyRefinement } from './import_core_refinement';
+import { runSqliteSnapshotImportCore } from './import_core_runner';
 import { parseSnapshotJsonPayload } from './import_snapshot';
 
-import type { ImportResult, SqliteSnapshotInput } from './import-types';
+import type { ImportResult, SqliteSnapshotInput } from './import_types';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

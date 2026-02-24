@@ -3,7 +3,7 @@ import { ConvexError } from 'convex/values';
 import {
   clearUserImportDataInChunks,
   deleteUserDocsChunkForImportTable,
-} from './import-replace-all-cleanup';
+} from './import_replace_all_cleanup';
 import {
   buildLeagueCreatedAtByEarliestWeekDate,
   normalizeImportDateStrict,
@@ -29,7 +29,7 @@ import {
   type SessionRefinementInput,
   type SnapshotImportCoreResult,
   type SqliteSnapshotInput,
-} from './import-types';
+} from './import_types';
 
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';

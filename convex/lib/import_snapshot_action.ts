@@ -3,15 +3,15 @@ import {
   deleteUserDocsChunkForImportMutationRef,
   importSqliteSnapshotAfterCleanupMutationRef,
   persistRawImportChunkForBatchMutationRef,
-} from './import-function-refs';
-import { chunkRows } from './import-raw-mirror';
-import { clearUserImportDataInChunks } from './import-replace-all-cleanup';
+} from './import_function_refs';
+import { chunkRows } from './import_raw_mirror';
+import { clearUserImportDataInChunks } from './import_replace_all_cleanup';
 import {
   DEFAULT_RAW_IMPORT_CHUNK_SIZE,
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   type ImportResult,
   type SqliteSnapshotInput,
-} from './import-types';
+} from './import_types';
 
 import type { Id } from '../_generated/dataModel';
 

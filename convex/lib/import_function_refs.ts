@@ -1,6 +1,6 @@
 import { makeFunctionReference } from 'convex/server';
 
-import type { ImportResult, RawImportTable } from './import-types';
+import type { ImportResult, RawImportTable } from './import_types';
 import type { Doc, Id } from '../_generated/dataModel';
 
 export const getBatchByIdForDispatchQueryRef = makeFunctionReference<
@@ -40,7 +40,7 @@ export const deleteUserDocsChunkForImportMutationRef = makeFunctionReference<
   'mutation',
   {
     userId: Id<'users'>;
-    table: import('./import-types').ReplaceAllCleanupTable;
+    table: import('./import_types').ReplaceAllCleanupTable;
     chunkSize?: number;
   },
   { deleted: number }

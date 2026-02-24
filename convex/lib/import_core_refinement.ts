@@ -11,7 +11,7 @@ import type {
   RefinementResult,
   RefinementWarning,
   SessionRefinementInput,
-} from './import-types';
+} from './import_types';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

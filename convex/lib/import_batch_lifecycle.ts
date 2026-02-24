@@ -3,7 +3,7 @@ import type {
   RefinementResult,
   RefinementWarning,
   SnapshotImportCoreResult,
-} from './import-types';
+} from './import_types';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

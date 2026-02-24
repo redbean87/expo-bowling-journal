@@ -1,8 +1,8 @@
 import { ConvexError } from 'convex/values';
 
-import { completeImportBatch } from './import-batch-lifecycle';
+import { completeImportBatch } from './import_batch_lifecycle';
 
-import type { RefinementResult, RefinementWarning } from './import-types';
+import type { RefinementResult, RefinementWarning } from './import_types';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

@@ -1,6 +1,6 @@
 import { ConvexError } from 'convex/values';
 
-import { EMPTY_IMPORT_COUNTS } from './import-types';
+import { EMPTY_IMPORT_COUNTS } from './import_types';
 import { normalizeOptionalText } from './import_refinement';
 
 import type { Id } from '../_generated/dataModel';

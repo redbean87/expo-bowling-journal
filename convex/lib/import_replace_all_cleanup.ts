@@ -1,6 +1,6 @@
-import { REPLACE_ALL_CLEANUP_TABLES } from './import-types';
+import { REPLACE_ALL_CLEANUP_TABLES } from './import_types';
 
-import type { ReplaceAllCleanupTable } from './import-types';
+import type { ReplaceAllCleanupTable } from './import_types';
 import type { Id, TableNames } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

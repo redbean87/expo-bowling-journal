@@ -1,11 +1,11 @@
 import { ConvexError } from 'convex/values';
 
-import { insertRawImportRow } from './import-raw-mirror';
+import { insertRawImportRow } from './import_raw_mirror';
 import {
   EMPTY_IMPORT_COUNTS,
   type RawImportRow,
   type RawImportTable,
-} from './import-types';
+} from './import_types';
 import { normalizeOptionalText } from './import_refinement';
 
 import type { Id } from '../_generated/dataModel';

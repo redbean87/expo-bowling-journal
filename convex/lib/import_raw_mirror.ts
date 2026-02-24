@@ -1,6 +1,6 @@
 import { ConvexError } from 'convex/values';
 
-import type { RawImportRow, RawImportTable } from './import-types';
+import type { RawImportRow, RawImportTable } from './import_types';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 

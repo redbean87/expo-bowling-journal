@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { computeImportedGameStats } from '../../convex/lib/import_game_stats';
+import {
+  buildImportedGameFramePreview,
+  computeImportedGameStats,
+} from '../../convex/lib/import_game_stats';
 
 function standingMask(standingPins: number) {
   if (standingPins <= 0) {
@@ -97,4 +100,18 @@ test('returns fallback score and zero counts when no frame rows are present', ()
   assert.equal(stats.strikes, 0);
   assert.equal(stats.spares, 0);
   assert.equal(stats.opens, 0);
+});
+
+test('buildImportedGameFramePreview preserves split markers from imported pins', () => {
+  const preview = buildImportedGameFramePreview([
+    {
+      sqliteId: 1,
+      frameNum: 0,
+      pins: 576,
+      flags: 195,
+    },
+  ]);
+
+  assert.equal(preview[0]?.text, '8 /');
+  assert.equal(preview[0]?.hasSplit, true);
 });

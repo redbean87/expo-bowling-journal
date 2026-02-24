@@ -11,37 +11,37 @@ import {
   completeSnapshotImportForBatch,
   getRequiredImportBatch,
   persistCanonicalFramesForBatch,
-} from './lib/import-callback-helpers';
+} from './lib/import_callback_helpers';
 import {
   getCallbackNonceByValue,
   getImportBatchById,
   getImportStatusForUser,
   insertCallbackNonce,
   updateImportBatchStatus,
-} from './lib/import-callback-state';
-import { applyRefinement } from './lib/import-core-refinement';
+} from './lib/import_callback_state';
+import { applyRefinement } from './lib/import_core_refinement';
 import {
   dispatchImportQueueActionRef,
   getBatchByIdForDispatchQueryRef,
   updateBatchStatusForDispatchMutationRef,
-} from './lib/import-function-refs';
-import { dispatchImportQueueToWorker } from './lib/import-queue-dispatch';
-import { deleteUserDocsChunkForImportTable } from './lib/import-replace-all-cleanup';
-import { runImportSqliteSnapshotAction } from './lib/import-snapshot-action';
+} from './lib/import_function_refs';
+import { dispatchImportQueueToWorker } from './lib/import_queue_dispatch';
+import { deleteUserDocsChunkForImportTable } from './lib/import_replace_all_cleanup';
+import { runImportSqliteSnapshotAction } from './lib/import_snapshot_action';
 import {
   importSqliteSnapshotAfterCleanupCore,
   submitParsedSnapshotForCallbackCore,
   submitParsedSnapshotJsonForCallbackCore,
-} from './lib/import-snapshot-runner';
+} from './lib/import_snapshot_runner';
 import {
   createSnapshotImportBatch,
   persistRawImportRowsForBatch,
-} from './lib/import-snapshot-storage';
-import { startImportBatch } from './lib/import-start';
+} from './lib/import_snapshot_storage';
+import { startImportBatch } from './lib/import_start';
 import {
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   type RawImportRow,
-} from './lib/import-types';
+} from './lib/import_types';
 import {
   batchIdArgs,
   createImportBatchForSnapshotArgs,
@@ -59,7 +59,7 @@ import {
   submitParsedSnapshotJsonArgs,
   sqliteSnapshotArgs,
   updateBatchStatusArgs,
-} from './lib/import-validators';
+} from './lib/import_validators';
 import { normalizeTimezoneOffsetMinutes } from './lib/import_dates';
 import { normalizeNullableInteger } from './lib/import_refinement';
 

@@ -19,16 +19,18 @@ type ImportedPreviewFrame = {
   roll1: number;
   roll2: number | null;
   roll3: number | null;
-  pins: null;
+  pins: number | null;
 };
 
 type DecodedFrameRow = {
+  source: ImportedFrameRow;
   roll1: number;
   roll2: number;
   flags: number;
 };
 
 type ParsedGameFrame = {
+  source: ImportedFrameRow;
   frameRolls: number[];
   isStrike: boolean;
   isSpare: boolean;
@@ -37,6 +39,8 @@ type ParsedGameFrame = {
 
 const FULL_PIN_MASK = 0x3ff;
 const SECOND_ROLL_SHIFT = 10;
+const THIRD_ROLL_SHIFT = 20;
+const MANUAL_PIN_PACK_MARKER = 1 << 30;
 const STRIKE_FLAG = 193;
 
 function clamp(value: number, min: number, max: number) {
@@ -66,10 +70,48 @@ function decodeFrameRow(row: ImportedFrameRow): DecodedFrameRow {
   const roll2 = clamp(standingAfterRoll1 - standingAfterRoll2, 0, 10 - roll1);
 
   return {
+    source: row,
     roll1,
     roll2,
     flags: row.flags ?? 0,
   };
+}
+
+function maskFromCount(value: number | null | undefined) {
+  if (value === undefined || value === null || value <= 0) {
+    return 0;
+  }
+
+  if (value >= 10) {
+    return FULL_PIN_MASK;
+  }
+
+  return (1 << value) - 1;
+}
+
+function buildManualPinsPayload(
+  source: ImportedFrameRow,
+  roll1: number,
+  roll2: number | null,
+  roll3: number | null
+) {
+  const packedPins =
+    source.pins ?? FULL_PIN_MASK | (FULL_PIN_MASK << SECOND_ROLL_SHIFT);
+  const standingAfterRoll1Mask = packedPins & FULL_PIN_MASK;
+  const standingAfterRoll2Mask =
+    (packedPins >> SECOND_ROLL_SHIFT) & FULL_PIN_MASK;
+  const roll1Mask =
+    roll1 === 10 ? FULL_PIN_MASK : FULL_PIN_MASK & ~standingAfterRoll1Mask;
+  const roll2Mask =
+    roll2 === null ? 0 : standingAfterRoll1Mask & ~standingAfterRoll2Mask;
+  const roll3Mask = maskFromCount(roll3);
+
+  return (
+    MANUAL_PIN_PACK_MARKER |
+    (roll1Mask & FULL_PIN_MASK) |
+    ((roll2Mask & FULL_PIN_MASK) << SECOND_ROLL_SHIFT) |
+    ((roll3Mask & FULL_PIN_MASK) << THIRD_ROLL_SHIFT)
+  );
 }
 
 function scoreFrames(frames: ParsedGameFrame[]): number {
@@ -135,6 +177,7 @@ function parseFrames(rows: ImportedFrameRow[]) {
 
     if (isStrike) {
       frames.push({
+        source: row.source,
         frameRolls: [10],
         isStrike: true,
         isSpare: false,
@@ -146,6 +189,7 @@ function parseFrames(rows: ImportedFrameRow[]) {
     const roll2 = clamp(row.roll2, 0, 10 - row.roll1);
     const isSpare = row.roll1 + roll2 === 10;
     frames.push({
+      source: row.source,
       frameRolls: [row.roll1, roll2],
       isStrike: false,
       isSpare,
@@ -165,6 +209,7 @@ function parseFrames(rows: ImportedFrameRow[]) {
       const bonusRoll1 = bonusRow1?.roll1 ?? tenthRow.roll2;
       const bonusRoll2 = bonusRow2?.roll1 ?? bonusRow1?.roll2 ?? 0;
       frames.push({
+        source: tenthRow.source,
         frameRolls: [10, bonusRoll1, bonusRoll2],
         isStrike: true,
         isSpare: false,
@@ -176,6 +221,7 @@ function parseFrames(rows: ImportedFrameRow[]) {
 
       if (isSpare) {
         frames.push({
+          source: tenthRow.source,
           frameRolls: [tenthRow.roll1, roll2, bonusRow1?.roll1 ?? 0],
           isStrike: false,
           isSpare: true,
@@ -183,6 +229,7 @@ function parseFrames(rows: ImportedFrameRow[]) {
         });
       } else {
         frames.push({
+          source: tenthRow.source,
           frameRolls: [tenthRow.roll1, roll2],
           isStrike: false,
           isSpare: false,
@@ -230,7 +277,12 @@ export function buildImportedGameFramePreview(rows: ImportedFrameRow[]) {
       roll1: frame.frameRolls[0] ?? 0,
       roll2: frame.frameRolls.length > 1 ? (frame.frameRolls[1] ?? null) : null,
       roll3: frame.frameRolls.length > 2 ? (frame.frameRolls[2] ?? null) : null,
-      pins: null,
+      pins: buildManualPinsPayload(
+        frame.source,
+        frame.frameRolls[0] ?? 0,
+        frame.frameRolls.length > 1 ? (frame.frameRolls[1] ?? null) : null,
+        frame.frameRolls.length > 2 ? (frame.frameRolls[2] ?? null) : null
+      ),
     })
   );
 
