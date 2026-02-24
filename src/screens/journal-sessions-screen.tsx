@@ -1,7 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -15,7 +15,10 @@ import {
   View,
 } from 'react-native';
 
-import { getCreateModalTranslateY } from './journal/modal-layout-utils';
+import {
+  loadJournalClientSyncMap,
+  type JournalClientSyncMap,
+} from './journal/journal-client-sync-map-storage';
 import {
   createQueuedSessionCreateEntry,
   isRetryableCreateError,
@@ -23,13 +26,10 @@ import {
   type QueuedSessionCreateEntry,
 } from './journal/journal-create-queue';
 import {
-  loadJournalClientSyncMap,
-  type JournalClientSyncMap,
-} from './journal/journal-client-sync-map-storage';
-import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal/journal-create-queue-storage';
+import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
   findSessionIdForDate,
   formatIsoDateLabel,
@@ -111,6 +111,7 @@ export default function JournalSessionsScreen() {
     leagueClientSyncId?: string | string[];
     startTonight?: string | string[];
   }>();
+
   const rawLeagueId = getFirstParam(params.leagueId);
   const leagueClientSyncIdParam = getFirstParam(params.leagueClientSyncId);
   const leagueClientSyncId =
@@ -121,6 +122,29 @@ export default function JournalSessionsScreen() {
       ? (rawLeagueId as LeagueId)
       : null;
   const startTonight = getFirstParam(params.startTonight) === '1';
+  const toGamesRouteParams = useCallback(
+    (target: {
+      leagueId: string;
+      sessionId: string;
+      sessionClientSyncId?: string | null;
+      sessionDate?: string | null;
+      sessionWeekNumber?: number | null;
+    }) => {
+      return {
+        leagueId: target.leagueId,
+        sessionId: target.sessionId,
+        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+        ...(target.sessionClientSyncId
+          ? { sessionClientSyncId: target.sessionClientSyncId }
+          : {}),
+        ...(target.sessionDate ? { sessionDate: target.sessionDate } : {}),
+        ...(typeof target.sessionWeekNumber === 'number'
+          ? { sessionWeekNumber: String(target.sessionWeekNumber) }
+          : {}),
+      };
+    },
+    [leagueClientSyncId]
+  );
   const { leagues } = useLeagues();
   const {
     sessions,
@@ -489,14 +513,13 @@ export default function JournalSessionsScreen() {
       setPendingCreateClientSyncId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: {
+        params: toGamesRouteParams({
           leagueId: targetLeagueId ?? `draft-${targetLeagueClientSyncId}`,
           sessionId: `draft-${clientSyncId}`,
-          ...(targetLeagueClientSyncId
-            ? { leagueClientSyncId: targetLeagueClientSyncId }
-            : {}),
           sessionClientSyncId: clientSyncId,
-        } as never,
+          sessionDate: date,
+          sessionWeekNumber: weekNumber ?? null,
+        }) as never,
       } as never);
     };
 
@@ -527,7 +550,12 @@ export default function JournalSessionsScreen() {
       setPendingCreateClientSyncId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: { leagueId: targetLeagueId, sessionId } as never,
+        params: toGamesRouteParams({
+          leagueId: targetLeagueId,
+          sessionId,
+          sessionDate: date,
+          sessionWeekNumber: weekNumber ?? null,
+        }) as never,
       } as never);
     } catch (caught) {
       if (isRetryableCreateError(caught)) {
@@ -745,6 +773,7 @@ export default function JournalSessionsScreen() {
           leagueId,
           sessionId: existingSessionId,
           startEntry: '1',
+          sessionDate: today,
         } as never,
       } as never);
       return;
@@ -762,6 +791,7 @@ export default function JournalSessionsScreen() {
             leagueId,
             sessionId,
             startEntry: '1',
+            sessionDate: today,
           } as never,
         } as never);
       } catch (caught) {
@@ -838,17 +868,22 @@ export default function JournalSessionsScreen() {
                     router.push({
                       pathname:
                         '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                      params: {
+                      params: toGamesRouteParams({
                         leagueId:
                           leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
                         sessionId:
                           session.sessionId ??
                           `draft-${session.clientSyncId ?? 'session'}`,
-                        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-                        ...(session.clientSyncId
-                          ? { sessionClientSyncId: session.clientSyncId }
-                          : {}),
-                      } as never,
+                        sessionClientSyncId: session.clientSyncId,
+                        sessionDate: session.date,
+                        sessionWeekNumber:
+                          session.weekNumber ??
+                          (session.sessionId
+                            ? (derivedWeekNumberBySessionId.get(
+                                session.sessionId as SessionId
+                              ) ?? null)
+                            : null),
+                      }) as never,
                     } as never)
                   }
                 >

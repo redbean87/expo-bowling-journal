@@ -24,6 +24,11 @@ export function GameSaveQueueSyncer() {
       return;
     }
 
+    await flushJournalCreateQueueWithLock({
+      createLeague: createLeagueMutation,
+      createSession: createSessionMutation,
+    });
+
     await flushQueuedGameSavesWithLock({
       createGame: createGameMutation,
       updateGame: updateGameMutation,
@@ -35,11 +40,6 @@ export function GameSaveQueueSyncer() {
           void removeLocalGameDraft(entry.queueId);
         }
       },
-    });
-
-    await flushJournalCreateQueueWithLock({
-      createLeague: createLeagueMutation,
-      createSession: createSessionMutation,
     });
   }, [
     createGameMutation,

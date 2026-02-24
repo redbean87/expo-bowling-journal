@@ -180,3 +180,103 @@ test('reconcileGamesForDisplay reuses stable createdAt after queue handoff settl
 
   assert.equal(display[0]?.createdAt, BASE_TIME - 5_000);
 });
+
+test('reconcileGamesForDisplay keeps local capture order during reconnect replay', () => {
+  const handoff = new Map<string, string>();
+  const stableCreatedAt = new Map<string, number>();
+  const queuedGames = [
+    buildQueuedGame({
+      queueId: 'session-1::new::draft-1',
+      draftNonce: 'draft-1',
+      createdAt: BASE_TIME + 100,
+      totalScore: 101,
+    }),
+    buildQueuedGame({
+      queueId: 'session-1::new::draft-2',
+      draftNonce: 'draft-2',
+      createdAt: BASE_TIME + 200,
+      totalScore: 102,
+    }),
+    buildQueuedGame({
+      queueId: 'session-1::new::draft-3',
+      draftNonce: 'draft-3',
+      createdAt: BASE_TIME + 300,
+      totalScore: 103,
+    }),
+  ];
+
+  const serverGame1 = buildServerGame({
+    id: 'server-1',
+    clientSyncId: 'draft-1',
+    createdAt: BASE_TIME + 50_000,
+    totalScore: 101,
+  });
+  const serverGame2 = buildServerGame({
+    id: 'server-2',
+    clientSyncId: 'draft-2',
+    createdAt: BASE_TIME + 10_000,
+    totalScore: 102,
+  });
+  const serverGame3 = buildServerGame({
+    id: 'server-3',
+    clientSyncId: 'draft-3',
+    createdAt: BASE_TIME - 10_000,
+    totalScore: 103,
+  });
+
+  const firstPass = reconcileGamesForDisplay({
+    serverGames: [],
+    queuedGames,
+    handoffByQueueId: handoff,
+    stableCreatedAtByGameId: stableCreatedAt,
+  });
+
+  assert.equal(firstPass.length, 3);
+  assert.deepEqual(
+    firstPass.map((item) => item.totalScore),
+    [101, 102, 103]
+  );
+
+  const secondPass = reconcileGamesForDisplay({
+    serverGames: [serverGame2],
+    queuedGames,
+    handoffByQueueId: handoff,
+    stableCreatedAtByGameId: stableCreatedAt,
+  });
+
+  assert.equal(secondPass.length, 3);
+  assert.deepEqual(
+    secondPass.map((item) => item.totalScore),
+    [101, 102, 103]
+  );
+
+  const thirdPass = reconcileGamesForDisplay({
+    serverGames: [serverGame1, serverGame2, serverGame3],
+    queuedGames,
+    handoffByQueueId: handoff,
+    stableCreatedAtByGameId: stableCreatedAt,
+  });
+
+  assert.equal(thirdPass.length, 3);
+  assert.deepEqual(
+    thirdPass.map((item) => item.routeGameId),
+    ['server-1', 'server-2', 'server-3']
+  );
+
+  const settledPass = reconcileGamesForDisplay({
+    serverGames: [serverGame1, serverGame2, serverGame3],
+    queuedGames: [],
+    handoffByQueueId: handoff,
+    stableCreatedAtByGameId: stableCreatedAt,
+  });
+
+  assert.equal(settledPass.length, 3);
+  assert.deepEqual(
+    settledPass.map((item) => item.routeGameId),
+    ['server-1', 'server-2', 'server-3']
+  );
+  assert.deepEqual(
+    settledPass.map((item) => item.totalScore),
+    [101, 102, 103]
+  );
+});

@@ -8,8 +8,8 @@ import {
   flushQueuedGameSavesWithLock,
   isQueuedGameSaveFlushInFlight,
 } from '@/screens/game-editor/game-save-queue-sync';
-import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
 import { loadJournalCreateQueue } from '@/screens/journal/journal-create-queue-storage';
+import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
 
 type QueueStatusEntry = {
@@ -50,15 +50,15 @@ export function useQueueSyncStatus() {
     setIsRetryingNow(true);
 
     try {
+      await flushJournalCreateQueueWithLock({
+        createLeague: createLeagueMutation,
+        createSession: createSessionMutation,
+        force: true,
+      });
       await flushQueuedGameSavesWithLock({
         createGame: createGameMutation,
         updateGame: updateGameMutation,
         replaceFramesForGame: replaceFramesMutation,
-        force: true,
-      });
-      await flushJournalCreateQueueWithLock({
-        createLeague: createLeagueMutation,
-        createSession: createSessionMutation,
         force: true,
       });
     } finally {

@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   useFocusEffect,
   useIsFocused,
@@ -5,7 +6,6 @@ import {
 } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   ActionSheetIOS,
   Alert,
@@ -34,6 +34,11 @@ import {
   persistGameSaveQueue,
 } from './game-editor/game-save-queue-storage';
 import {
+  type QueuedLeagueCreateEntry,
+  type QueuedSessionCreateEntry,
+} from './journal/journal-create-queue';
+import { loadJournalCreateQueue } from './journal/journal-create-queue-storage';
+import {
   loadJournalClientSyncMap,
   type JournalClientSyncMap,
 } from './journal/journal-client-sync-map-storage';
@@ -43,8 +48,8 @@ import {
   formatSessionWeekLabel,
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
-import { reconcileGamesForDisplay } from './journal-games-reconciliation';
 import { normalizeGamesPerSession } from './journal-games-night-summary';
+import { reconcileGamesForDisplay } from './journal-games-reconciliation';
 
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
@@ -103,6 +108,11 @@ type QueueDerivedGame = {
 type PendingHandoffEntry = {
   queuedGame: QueueDerivedGame;
   expiresAt: number;
+};
+
+type QueuedSessionContext = {
+  date: string | null;
+  weekNumber: number | null;
 };
 
 type StartEntryTarget = {
@@ -342,6 +352,8 @@ export default function JournalGamesScreen() {
     leagueClientSyncId?: string | string[];
     sessionId?: string | string[];
     sessionClientSyncId?: string | string[];
+    sessionDate?: string | string[];
+    sessionWeekNumber?: string | string[];
     startEntry?: string | string[];
   }>();
   const rawLeagueId = getFirstParam(params.leagueId);
@@ -363,6 +375,14 @@ export default function JournalGamesScreen() {
       ? (rawSessionId as SessionId)
       : null;
   const startEntry = getFirstParam(params.startEntry) === '1';
+  const fallbackSessionDate = getFirstParam(params.sessionDate);
+  const fallbackSessionWeekNumberValue = getFirstParam(
+    params.sessionWeekNumber
+  );
+  const fallbackSessionWeekNumber =
+    fallbackSessionWeekNumberValue === null
+      ? null
+      : Number.parseInt(fallbackSessionWeekNumberValue, 10);
   const canCreateGameTarget = Boolean(
     (leagueId || leagueClientSyncId) && (sessionId || sessionClientSyncId)
   );
@@ -384,6 +404,12 @@ export default function JournalGamesScreen() {
     leagues: {},
     sessions: {},
   });
+  const [queuedSessionContext, setQueuedSessionContext] =
+    useState<QueuedSessionContext>({
+      date: null,
+      weekNumber: null,
+    });
+  const [draftLeagueName, setDraftLeagueName] = useState<string | null>(null);
   const syncedHandoffByQueueIdRef = useRef(new Map<string, string>());
   const stableCreatedAtByGameIdRef = useRef(new Map<string, number>());
   const queuedSessionEntriesRef = useRef<QueuedGameSaveEntry[]>([]);
@@ -413,6 +439,83 @@ export default function JournalGamesScreen() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const refreshQueuedSessionContext = async () => {
+      if (!leagueClientSyncId && !sessionClientSyncId) {
+        if (isMounted) {
+          setDraftLeagueName(null);
+          setQueuedSessionContext({ date: null, weekNumber: null });
+        }
+
+        return;
+      }
+
+      const queueEntries = await loadJournalCreateQueue();
+
+      if (leagueClientSyncId) {
+        const queuedLeague = queueEntries.find(
+          (entry): entry is QueuedLeagueCreateEntry =>
+            entry.entityType === 'league-create' &&
+            entry.clientSyncId === leagueClientSyncId
+        );
+
+        if (isMounted) {
+          setDraftLeagueName(queuedLeague?.payload.name ?? null);
+        }
+      } else if (isMounted) {
+        setDraftLeagueName(null);
+      }
+
+      if (!sessionClientSyncId) {
+        if (isMounted) {
+          setQueuedSessionContext({ date: null, weekNumber: null });
+        }
+
+        return;
+      }
+
+      const queuedSessionEntry = queueEntries.find(
+        (entry): entry is QueuedSessionCreateEntry =>
+          entry.entityType === 'session-create' &&
+          entry.clientSyncId === sessionClientSyncId
+      );
+
+      if (!queuedSessionEntry) {
+        return;
+      }
+
+      const nextContext: QueuedSessionContext = {
+        date: queuedSessionEntry.payload.date,
+        weekNumber: queuedSessionEntry.payload.weekNumber ?? null,
+      };
+
+      if (isMounted) {
+        setQueuedSessionContext((current) => {
+          if (
+            current.date === nextContext.date &&
+            current.weekNumber === nextContext.weekNumber
+          ) {
+            return current;
+          }
+
+          return nextContext;
+        });
+      }
+    };
+
+    void refreshQueuedSessionContext();
+    const interval = setInterval(() => {
+      void refreshQueuedSessionContext();
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [leagueClientSyncId, sessionClientSyncId]);
+
+  useEffect(() => {
     if (!isFocused) {
       return;
     }
@@ -439,9 +542,17 @@ export default function JournalGamesScreen() {
       params: {
         leagueId: mappedLeagueId,
         sessionId: mappedSessionId,
+        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
+        ...(fallbackSessionDate ? { sessionDate: fallbackSessionDate } : {}),
+        ...(Number.isFinite(fallbackSessionWeekNumber)
+          ? { sessionWeekNumber: String(fallbackSessionWeekNumber) }
+          : {}),
       } as never,
     } as never);
   }, [
+    fallbackSessionDate,
+    fallbackSessionWeekNumber,
     isFocused,
     leagueClientSyncId,
     leagueId,
@@ -589,13 +700,29 @@ export default function JournalGamesScreen() {
     }, [refreshQueuedEntries])
   );
 
-  const league = useMemo(() => {
-    if (!leagueId) {
+  const selectedLeague = useMemo(() => {
+    if (leagueId) {
+      return leagues.find((candidate) => candidate._id === leagueId) ?? null;
+    }
+
+    if (!leagueClientSyncId) {
       return null;
     }
 
-    return leagues.find((candidate) => candidate._id === leagueId) ?? null;
-  }, [leagueId, leagues]);
+    return (
+      leagues.find((candidate) => {
+        const clientSyncId =
+          typeof (candidate as { clientSyncId?: string | null })
+            .clientSyncId === 'string'
+            ? (candidate as { clientSyncId?: string | null }).clientSyncId
+            : null;
+
+        return clientSyncId === leagueClientSyncId;
+      }) ?? null
+    );
+  }, [leagueClientSyncId, leagueId, leagues]);
+
+  const leagueName = selectedLeague?.name ?? draftLeagueName;
 
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
@@ -618,15 +745,20 @@ export default function JournalGamesScreen() {
   }, [sessionId, sessions]);
 
   useEffect(() => {
-    const leagueName = league?.name ?? null;
     const sessionWeek = selectedSession
       ? (selectedSession.weekNumber ??
         derivedWeekNumberBySessionId.get(selectedSession._id) ??
         null)
-      : null;
+      : Number.isFinite(fallbackSessionWeekNumber)
+        ? fallbackSessionWeekNumber
+        : queuedSessionContext.weekNumber;
     const sessionDate = selectedSession
       ? formatIsoDateLabel(selectedSession.date)
-      : null;
+      : fallbackSessionDate
+        ? formatIsoDateLabel(fallbackSessionDate)
+        : queuedSessionContext.date
+          ? formatIsoDateLabel(queuedSessionContext.date)
+          : null;
     const sessionLabel =
       sessionWeek !== null && sessionDate
         ? `${formatSessionWeekLabel(sessionWeek)} · ${sessionDate}`
@@ -644,7 +776,16 @@ export default function JournalGamesScreen() {
       headerTitle: 'Games',
       title: 'Games',
     });
-  }, [derivedWeekNumberBySessionId, league?.name, navigation, selectedSession]);
+  }, [
+    derivedWeekNumberBySessionId,
+    fallbackSessionDate,
+    fallbackSessionWeekNumber,
+    leagueName,
+    navigation,
+    queuedSessionContext.date,
+    queuedSessionContext.weekNumber,
+    selectedSession,
+  ]);
 
   const displayGames = useMemo(() => {
     const serverGames = toOldestFirstGames(games).map((game) => ({
@@ -719,8 +860,9 @@ export default function JournalGamesScreen() {
   }, [games, pendingHandoffEntries, queuedSessionEntries]);
 
   const nightSummary = useMemo(
-    () => buildDisplayNightSummary(displayGames, league?.gamesPerSession),
-    [displayGames, league?.gamesPerSession]
+    () =>
+      buildDisplayNightSummary(displayGames, selectedLeague?.gamesPerSession),
+    [displayGames, selectedLeague?.gamesPerSession]
   );
 
   const openGameEditor = (gameId: string, draftNonce: string | null = null) => {
@@ -948,7 +1090,7 @@ export default function JournalGamesScreen() {
           {!isGamesLoading && !sessionId && displayGames.length === 0 ? (
             <Text style={styles.meta}>
               {sessionClientSyncId
-                ? 'Session is syncing. Games will appear shortly.'
+                ? 'No games in this session yet. Tap + to add one.'
                 : 'Session not found.'}
             </Text>
           ) : null}
