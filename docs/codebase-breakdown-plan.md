@@ -146,11 +146,12 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- In progress
 
 **Completed**
 
-- None yet.
+- `src/screens/journal/components/create-league-modal.tsx`
+- `src/screens/journal/components/league-actions-modal.tsx`
 
 **Remaining**
 
@@ -176,6 +177,7 @@ Each target should use this structure so status is obvious at a glance:
 - `src/screens/journal/journal-offline-create.ts`
 - `src/screens/journal/journal-action-sheet.ts`
 - `src/screens/journal/components/league-row-card.tsx`
+- `src/screens/journal/components/league-actions-modal.tsx`
 - `src/screens/journal/components/session-row-card.tsx`
 - `src/screens/journal/components/game-row-card.tsx`
 - `src/screens/journal/components/create-league-modal.tsx`

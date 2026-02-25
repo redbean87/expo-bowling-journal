@@ -83,6 +83,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Fix legacy 10th-frame roll/mask mismatches (list vs editor totals), add standing-aware roll reconstruction, and run frame-pin mismatch backfills
 - [x] Refactor game editor autosave/queue sync into `use-game-editor-autosave-sync` to keep screen focused on orchestration + render
 - [x] Extract game editor details/footer render sections into dedicated components to keep `game-editor-screen` orchestration-focused
+- [x] Start journal screen P0-C split by extracting league create/actions modals into dedicated components
 
 ## Decision Log
 
