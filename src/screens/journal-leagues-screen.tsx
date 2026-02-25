@@ -3,9 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,11 +24,12 @@ import {
 import { CreateLeagueModal } from './journal/components/create-league-modal';
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
+import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { SyncStatusChip } from '@/components/sync-status-chip';
-import { Button, FloatingActionButton } from '@/components/ui';
+import { FloatingActionButton } from '@/components/ui';
 import {
   useLeagues,
   useQueueSyncStatus,
@@ -711,82 +710,19 @@ export default function JournalLeaguesScreen() {
           visible={isLeagueActionsVisible}
         />
 
-        <Modal
-          animationType="fade"
-          transparent
+        <LeagueSyncStatusModal
+          formatRelativeTime={formatRelativeTime}
+          formatRetryTime={formatRetryTime}
+          isRetryingNow={isRetryingNow}
+          modalTranslateY={modalTranslateY}
+          now={now}
+          onClose={() => setIsSyncStatusVisible(false)}
+          onRetryNow={() => {
+            void retryNow();
+          }}
+          queueStatus={queueStatus}
           visible={isSyncStatusVisible}
-          onRequestClose={() => setIsSyncStatusVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={() => setIsSyncStatusVisible(false)}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                { transform: [{ translateY: modalTranslateY }] },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Sync status</Text>
-                <Pressable
-                  accessibilityLabel="Close sync status dialog"
-                  accessibilityRole="button"
-                  onPress={() => setIsSyncStatusVisible(false)}
-                  style={({ pressed }) => [
-                    styles.modalCloseButton,
-                    pressed ? styles.modalCloseButtonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.modalCloseLabel}>X</Text>
-                </Pressable>
-              </View>
-              <Text style={styles.meta}>
-                Queued saves: {queueStatus.queuedCount}
-              </Text>
-              {queueStatus.oldestPendingAt ? (
-                <Text style={styles.meta}>
-                  Oldest pending:{' '}
-                  {formatRelativeTime(queueStatus.oldestPendingAt, now)}
-                </Text>
-              ) : null}
-              {queueStatus.nextRetryAt ? (
-                <Text style={styles.meta}>
-                  Next retry: {formatRetryTime(queueStatus.nextRetryAt, now)}
-                </Text>
-              ) : null}
-              {queueStatus.latestActionableError ? (
-                <Text style={styles.errorText}>
-                  {queueStatus.latestActionableError}
-                </Text>
-              ) : null}
-              <View style={styles.modalActions}>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    disabled={
-                      isRetryingNow ||
-                      queueStatus.queuedCount === 0 ||
-                      queueStatus.state === 'syncing'
-                    }
-                    label={isRetryingNow ? 'Retrying...' : 'Retry now'}
-                    onPress={() => {
-                      void retryNow();
-                    }}
-                    variant="secondary"
-                  />
-                </View>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    label="Close"
-                    onPress={() => setIsSyncStatusVisible(false)}
-                    variant="ghost"
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        />
       </View>
     </ScreenLayout>
   );
@@ -813,60 +749,5 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(26, 31, 43, 0.35)',
-  },
-  modalBackdropHitbox: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalCloseButtonPressed: {
-    opacity: 0.8,
-  },
-  modalCloseLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  modalActionButton: {
-    flex: 1,
   },
 });
