@@ -24,6 +24,8 @@ import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal/journal-create-queue-storage';
+import { CreateLeagueModal } from './journal/components/create-league-modal';
+import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
@@ -750,178 +752,32 @@ export default function JournalLeaguesScreen() {
           }}
         />
 
-        <Modal
-          animationType="slide"
-          transparent
+        <CreateLeagueModal
+          buildSuggestions={buildSuggestions}
+          createHouse={createHouse}
+          houseOptions={houseOptions}
+          isCreatingLeagueRequest={isCreatingLeagueRequest}
+          leagueError={leagueError}
+          leagueGamesPerSession={leagueGamesPerSession}
+          leagueHouseId={leagueHouseId}
+          leagueName={leagueName}
+          modalTranslateY={modalTranslateY}
+          onClose={() => setIsCreateModalVisible(false)}
+          onCreate={onCreateLeague}
+          onGamesPerSessionChange={setLeagueGamesPerSession}
+          onLeagueHouseSelect={(option) => setLeagueHouseId(option.id)}
+          onLeagueNameChange={setLeagueName}
+          recentHouseOptions={recentHouseOptions}
           visible={isCreateModalVisible}
-          onRequestClose={() => setIsCreateModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={() => setIsCreateModalVisible(false)}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                { transform: [{ translateY: modalTranslateY }] },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Create league</Text>
-                <Pressable
-                  accessibilityLabel="Close create league dialog"
-                  accessibilityRole="button"
-                  onPress={() => setIsCreateModalVisible(false)}
-                  style={({ pressed }) => [
-                    styles.modalCloseButton,
-                    pressed ? styles.modalCloseButtonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.modalCloseLabel}>X</Text>
-                </Pressable>
-              </View>
-              <Input
-                autoCapitalize="words"
-                autoCorrect={false}
-                onChangeText={setLeagueName}
-                placeholder="League name"
-                value={leagueName}
-              />
-              <Input
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="number-pad"
-                onChangeText={setLeagueGamesPerSession}
-                placeholder="Games per session (optional)"
-                value={leagueGamesPerSession}
-              />
-              <ReferenceCombobox
-                allOptions={houseOptions}
-                createLabel="Add house"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createHouse}
-                onSelect={(option) => setLeagueHouseId(option.id)}
-                placeholder="House (optional)"
-                recentOptions={recentHouseOptions}
-                valueId={leagueHouseId}
-              />
-              {leagueError ? (
-                <Text style={styles.errorText}>{leagueError}</Text>
-              ) : null}
-              <View style={styles.modalActions}>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    disabled={isCreatingLeagueRequest}
-                    label={isCreatingLeagueRequest ? 'Creating...' : 'Create'}
-                    onPress={onCreateLeague}
-                    variant="secondary"
-                  />
-                </View>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    disabled={isCreatingLeagueRequest}
-                    label="Cancel"
-                    onPress={() => setIsCreateModalVisible(false)}
-                    variant="ghost"
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        />
 
-        <Modal
-          animationType="fade"
-          transparent
+        <LeagueActionsModal
+          modalTranslateY={modalTranslateY}
+          onAction={runLeagueAction}
+          onClose={closeLeagueActions}
+          target={leagueActionTarget}
           visible={isLeagueActionsVisible}
-          onRequestClose={closeLeagueActions}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={closeLeagueActions}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                styles.actionModalCard,
-                { transform: [{ translateY: modalTranslateY }] },
-              ]}
-            >
-              <View style={styles.actionModalHeader}>
-                <Text numberOfLines={1} style={styles.actionModalTitle}>
-                  {leagueActionTarget?.name ?? 'League'}
-                </Text>
-              </View>
-              <View style={styles.actionList}>
-                <Pressable
-                  onPress={() => {
-                    if (!leagueActionTarget) {
-                      return;
-                    }
-
-                    closeLeagueActions();
-                    runLeagueAction('quick-start', leagueActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemLabel}>Quick start</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (!leagueActionTarget) {
-                      return;
-                    }
-
-                    closeLeagueActions();
-                    runLeagueAction('edit', leagueActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemLabel}>Edit league</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (!leagueActionTarget) {
-                      return;
-                    }
-
-                    closeLeagueActions();
-                    runLeagueAction('delete', leagueActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemDeleteLabel}>
-                    Delete league
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={closeLeagueActions}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemCancel,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        />
 
         <Modal
           animationType="fade"
@@ -1130,56 +986,5 @@ const styles = StyleSheet.create({
   },
   modalActionButton: {
     flex: 1,
-  },
-  actionModalCard: {
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  actionModalHeader: {
-    paddingTop: 2,
-  },
-  actionModalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  actionList: {
-    marginTop: spacing.xs,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSubtle,
-  },
-  actionItem: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  actionItemWithDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  actionItemCancel: {
-    backgroundColor: colors.surface,
-  },
-  actionItemPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  actionItemLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  actionItemDeleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.danger,
-  },
-  actionItemCancelLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textSecondary,
   },
 });
