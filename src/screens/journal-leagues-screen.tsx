@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -26,12 +25,12 @@ import {
 } from './journal/journal-create-queue-storage';
 import { CreateLeagueModal } from './journal/components/create-league-modal';
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
+import { LeagueRowCard } from './journal/components/league-row-card';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { ReferenceCombobox } from '@/components/reference-combobox';
 import { SyncStatusChip } from '@/components/sync-status-chip';
-import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
+import { Button, FloatingActionButton } from '@/components/ui';
 import {
   useLeagues,
   useQueueSyncStatus,
@@ -640,107 +639,40 @@ export default function JournalLeaguesScreen() {
           ) : null}
 
           {displayLeagues.map((league) => (
-            <Card
+            <LeagueRowCard
               key={league.id}
-              style={[
-                styles.rowCard,
-                editingLeagueId === league.leagueId
-                  ? styles.rowCardActive
-                  : null,
-              ]}
-            >
-              <View style={styles.rowHeader}>
-                <Pressable
-                  onPress={() => navigateToLeagueSessions(league)}
-                  style={({ pressed }) => [
-                    styles.leagueContent,
-                    pressed ? styles.leagueContentPressed : null,
-                  ]}
-                >
-                  <Text style={styles.rowTitle}>{league.name}</Text>
-                  <Text style={styles.meta}>
-                    {league.houseName ?? 'No house set'}
-                  </Text>
-                  <Text style={styles.meta}>
-                    Target games: {league.gamesPerSession ?? 'Not set'}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityLabel={`League actions for ${league.name}`}
-                  disabled={
-                    league.isDraft || deletingLeagueId === league.leagueId
-                  }
-                  hitSlop={8}
-                  onPress={() =>
-                    openLeagueActions({
-                      leagueId: league.leagueId ?? '',
-                      name: league.name,
-                      gamesPerSession: league.gamesPerSession ?? null,
-                      houseId: league.houseId,
-                    })
-                  }
-                  style={({ pressed }) => [
-                    styles.menuButton,
-                    pressed ? styles.menuButtonPressed : null,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="more-vert"
-                    size={22}
-                    color={colors.textPrimary}
-                  />
-                </Pressable>
-              </View>
-
-              {league.leagueId && editingLeagueId === league.leagueId ? (
-                <View style={styles.editSection}>
-                  <Input
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    onChangeText={setEditingLeagueName}
-                    placeholder="League name"
-                    value={editingLeagueName}
-                  />
-                  <Input
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="number-pad"
-                    onChangeText={setEditingLeagueGamesPerSession}
-                    placeholder="Games per session (optional)"
-                    value={editingLeagueGamesPerSession}
-                  />
-                  <ReferenceCombobox
-                    allOptions={houseOptions}
-                    createLabel="Add house"
-                    getSuggestions={buildSuggestions}
-                    onQuickAdd={createHouse}
-                    onSelect={(option) => setEditingLeagueHouseId(option.id)}
-                    placeholder="House (optional)"
-                    recentOptions={recentHouseOptions}
-                    valueId={editingLeagueHouseId}
-                  />
-                  <View style={styles.editActionsRow}>
-                    <View style={styles.editActionButton}>
-                      <Button
-                        disabled={isSavingLeagueEdit}
-                        label={isSavingLeagueEdit ? 'Saving...' : 'Save'}
-                        onPress={() => void onSaveLeagueEdit()}
-                        variant="secondary"
-                      />
-                    </View>
-                    <View style={styles.editActionButton}>
-                      <Button
-                        disabled={isSavingLeagueEdit}
-                        label="Cancel"
-                        onPress={cancelEditingLeague}
-                        variant="ghost"
-                      />
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-            </Card>
+              buildSuggestions={buildSuggestions}
+              createHouse={createHouse}
+              editingLeagueGamesPerSession={editingLeagueGamesPerSession}
+              editingLeagueHouseId={editingLeagueHouseId}
+              editingLeagueName={editingLeagueName}
+              houseOptions={houseOptions}
+              isDeleting={deletingLeagueId === league.leagueId}
+              isEditing={editingLeagueId === league.leagueId}
+              isSavingLeagueEdit={isSavingLeagueEdit}
+              league={league}
+              onCancelEditingLeague={cancelEditingLeague}
+              onEditingLeagueGamesPerSessionChange={
+                setEditingLeagueGamesPerSession
+              }
+              onEditingLeagueHouseSelect={(option) =>
+                setEditingLeagueHouseId(option.id)
+              }
+              onEditingLeagueNameChange={setEditingLeagueName}
+              onNavigate={() => navigateToLeagueSessions(league)}
+              onOpenActions={() =>
+                openLeagueActions({
+                  leagueId: league.leagueId ?? '',
+                  name: league.name,
+                  gamesPerSession: league.gamesPerSession ?? null,
+                  houseId: league.houseId,
+                })
+              }
+              onSaveLeagueEdit={() => {
+                void onSaveLeagueEdit();
+              }}
+              recentHouseOptions={recentHouseOptions}
+            />
           ))}
         </ScrollView>
 
@@ -877,60 +809,10 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     color: colors.danger,
   },
-  rowTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  leagueContent: {
-    gap: spacing.xs,
-    flex: 1,
-  },
-  leagueContentPressed: {
-    opacity: 0.82,
-  },
-  rowHeader: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  menuButton: {
-    width: 40,
-    height: 44,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  menuButtonPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  editSection: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  editActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  editActionButton: {
-    flex: 1,
-  },
   meta: {
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
-  },
-  rowCard: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
-    gap: spacing.xs,
-  },
-  rowCardActive: {
-    position: 'relative',
-    zIndex: 30,
-    elevation: 30,
   },
   modalBackdrop: {
     flex: 1,

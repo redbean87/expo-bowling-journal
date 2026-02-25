@@ -152,6 +152,7 @@ Each target should use this structure so status is obvious at a glance:
 
 - `src/screens/journal/components/create-league-modal.tsx`
 - `src/screens/journal/components/league-actions-modal.tsx`
+- `src/screens/journal/components/league-row-card.tsx`
 
 **Remaining**
 

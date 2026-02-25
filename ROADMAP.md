@@ -84,6 +84,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Refactor game editor autosave/queue sync into `use-game-editor-autosave-sync` to keep screen focused on orchestration + render
 - [x] Extract game editor details/footer render sections into dedicated components to keep `game-editor-screen` orchestration-focused
 - [x] Start journal screen P0-C split by extracting league create/actions modals into dedicated components
+- [x] Continue journal P0-C by extracting league row card rendering into `src/screens/journal/components/league-row-card.tsx`
 
 ## Decision Log
 
