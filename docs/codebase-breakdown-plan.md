@@ -146,7 +146,7 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- In progress
+- In progress (near-complete)
 
 **Completed**
 
@@ -161,10 +161,10 @@ Each target should use this structure so status is obvious at a glance:
 - `src/screens/journal/components/session-row-card.tsx`
 - `src/screens/journal/components/game-actions-modal.tsx`
 - `src/screens/journal/components/game-row-card.tsx`
+- `src/screens/journal/journal-games-display.ts`
 
 **Remaining**
 
-- Extract games-screen orchestration helpers from `src/screens/journal-games-screen.tsx` (night summary + display mapping composition).
 - Optional: add `src/screens/journal/journal-action-sheet.ts` to centralize non-iOS/web action handling across journal screens.
 
 **Current pain**
@@ -173,7 +173,6 @@ Each target should use this structure so status is obvious at a glance:
 
 **Breakdown opportunities**
 
-- Finish extracting games-screen orchestration helpers so presentation and data composition stay separate.
 - Optionally centralize non-iOS/web action-sheet handling with a shared helper.
 - Keep each screen focused on data flow and composition.
 
