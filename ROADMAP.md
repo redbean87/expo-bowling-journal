@@ -81,6 +81,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Polish offline games-list reconciliation on reconnect to eliminate remaining queued-to-synced visual churn
 - [x] Refactor game editor hydration/restore and local draft reconcile flow into `use-game-editor-hydration` to keep screen orchestration-focused
 - [x] Fix legacy 10th-frame roll/mask mismatches (list vs editor totals), add standing-aware roll reconstruction, and run frame-pin mismatch backfills
+- [x] Refactor game editor autosave/queue sync into `use-game-editor-autosave-sync` to keep screen focused on orchestration + render
 
 ## Decision Log
 
