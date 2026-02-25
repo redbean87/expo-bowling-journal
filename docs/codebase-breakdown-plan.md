@@ -154,6 +154,8 @@ Each target should use this structure so status is obvious at a glance:
 - `src/screens/journal/components/league-actions-modal.tsx`
 - `src/screens/journal/components/league-row-card.tsx`
 - `src/screens/journal/components/league-sync-status-modal.tsx`
+- `src/screens/journal/journal-route-params.ts`
+- `src/screens/journal/journal-offline-create.ts`
 
 **Remaining**
 
