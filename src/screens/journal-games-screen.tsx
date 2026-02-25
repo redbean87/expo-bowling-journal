@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -42,6 +41,7 @@ import {
   loadJournalClientSyncMap,
   type JournalClientSyncMap,
 } from './journal/journal-client-sync-map-storage';
+import { GameActionsModal } from './journal/components/game-actions-modal';
 import { getFirstParam } from './journal/journal-route-params';
 import {
   formatIsoDateLabel,
@@ -1251,55 +1251,12 @@ export default function JournalGamesScreen() {
           }
         />
 
-        <Modal
-          animationType="fade"
-          transparent
+        <GameActionsModal
+          onClose={closeGameActions}
+          onDelete={runGameAction}
+          target={gameActionTarget}
           visible={isGameActionsVisible}
-          onRequestClose={closeGameActions}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={closeGameActions}
-            />
-            <View style={[styles.modalCard, styles.actionModalCard]}>
-              <View style={styles.actionModalHeader}>
-                <Text numberOfLines={1} style={styles.actionModalTitle}>
-                  {gameActionTarget?.title ?? 'Game'}
-                </Text>
-              </View>
-              <View style={styles.actionList}>
-                <Pressable
-                  onPress={() => {
-                    if (!gameActionTarget) {
-                      return;
-                    }
-
-                    closeGameActions();
-                    runGameAction(gameActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemDeleteLabel}>Delete game</Text>
-                </Pressable>
-                <Pressable
-                  onPress={closeGameActions}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemCancel,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        />
       </View>
     </ScreenLayout>
   );
@@ -1433,71 +1390,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 10,
     gap: spacing.xs,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(26, 31, 43, 0.35)',
-  },
-  modalBackdropHitbox: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionModalCard: {
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  actionModalHeader: {
-    paddingTop: 2,
-  },
-  actionModalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  actionList: {
-    marginTop: spacing.xs,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSubtle,
-  },
-  actionItem: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  actionItemWithDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  actionItemCancel: {
-    backgroundColor: colors.surface,
-  },
-  actionItemPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  actionItemDeleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.danger,
-  },
-  actionItemCancelLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textSecondary,
   },
 });
