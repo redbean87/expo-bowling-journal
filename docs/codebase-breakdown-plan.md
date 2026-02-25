@@ -160,12 +160,11 @@ Each target should use this structure so status is obvious at a glance:
 - `src/screens/journal/components/create-session-modal.tsx`
 - `src/screens/journal/components/session-row-card.tsx`
 - `src/screens/journal/components/game-actions-modal.tsx`
+- `src/screens/journal/components/game-row-card.tsx`
 
 **Remaining**
 
-- Extract shared journal helpers (route parsing, offline create/retry, action sheet wiring).
-- Extract row cards + create/edit modal sections into dedicated components.
-- Reduce each screen to orchestration-focused composition.
+- Reduce `src/screens/journal-games-screen.tsx` toward orchestration-focused composition.
 
 **Current pain**
 

@@ -91,6 +91,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Continue journal P0-C by extracting session actions/create modals into dedicated components
 - [x] Continue journal P0-C by extracting session row rendering/edit section into `src/screens/journal/components/session-row-card.tsx`
 - [x] Continue journal P0-C by extracting game actions modal into `src/screens/journal/components/game-actions-modal.tsx`
+- [x] Continue journal P0-C by extracting game row rendering/preview section into `src/screens/journal/components/game-row-card.tsx`
 
 ## Decision Log
 
