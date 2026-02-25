@@ -20,6 +20,14 @@ This document tracks where we should split large files into smaller, focused mod
 - **P1**: Medium impact
 - **P2**: Nice-to-have cleanup
 
+## Progress Tracking Format
+
+Each target should use this structure so status is obvious at a glance:
+
+- `Status`: `Not started` | `In progress` | `Done`
+- `Completed`: concrete files/tasks finished in this target
+- `Remaining`: concrete files/tasks still open for this target
+
 ---
 
 ## P0 Breakdown Targets
@@ -28,7 +36,16 @@ This document tracks where we should split large files into smaller, focused mod
 
 **Status**
 
-- P0-A is largely completed in this workstream; `convex/imports.ts` is now primarily wiring/export orchestration.
+- Done
+
+**Completed**
+
+- P0-A is completed in this workstream; `convex/imports.ts` is now primarily wiring/export orchestration.
+- Thin export/wiring module pattern established for import pipeline submodules.
+
+**Remaining**
+
+- None for P0-A.
 
 **Current pain**
 
@@ -77,6 +94,24 @@ This document tracks where we should split large files into smaller, focused mod
 
 ### 2) `src/screens/game-editor-screen.tsx` (~1802 lines)
 
+**Status**
+
+- Done
+
+**Completed**
+
+- `src/screens/game-editor/use-game-editor-route-context.ts`
+- `src/screens/game-editor/game-editor-screen-utils.ts`
+- `src/screens/game-editor/use-signed-in-history.ts`
+- `src/screens/game-editor/use-game-editor-hydration.ts`
+- `src/screens/game-editor/use-game-editor-autosave-sync.ts`
+- `src/screens/game-editor/game-editor-details-section.tsx`
+- `src/screens/game-editor/game-editor-footer-actions.tsx`
+
+**Remaining**
+
+- None for P0-B.
+
 **Current pain**
 
 - Route parsing, hydration, local draft restore, autosave, queue flush, pin interactions, and UI all in one screen.
@@ -94,8 +129,7 @@ This document tracks where we should split large files into smaller, focused mod
 
 - `src/screens/game-editor/use-game-editor-route-context.ts`
 - `src/screens/game-editor/use-game-editor-hydration.ts`
-- `src/screens/game-editor/use-game-editor-autosave.ts`
-- `src/screens/game-editor/use-game-editor-queue-sync.ts`
+- `src/screens/game-editor/use-game-editor-autosave-sync.ts`
 - `src/screens/game-editor/game-editor-details-section.tsx`
 - `src/screens/game-editor/game-editor-footer-actions.tsx`
 - `src/screens/game-editor-screen.tsx` (orchestration only)
@@ -109,6 +143,20 @@ This document tracks where we should split large files into smaller, focused mod
 #### `src/screens/journal-sessions-screen.tsx` (~1380 lines)
 
 #### `src/screens/journal-leagues-screen.tsx` (~1184 lines)
+
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Extract shared journal helpers (route parsing, offline create/retry, action sheet wiring).
+- Extract row cards + create/edit modal sections into dedicated components.
+- Reduce each screen to orchestration-focused composition.
 
 **Current pain**
 
@@ -140,6 +188,18 @@ This document tracks where we should split large files into smaller, focused mod
 
 ### 4) `src/screens/game-editor/game-editor-frame-utils.ts` (~958 lines)
 
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Split frame utility domains (mask math, validation, symbols, scoring, splits, cursor navigation).
+
 **Current pain**
 
 - Contains multiple domains in one file: mask math, validation, split logic, symbols, scoring, cursor navigation.
@@ -163,6 +223,19 @@ This document tracks where we should split large files into smaller, focused mod
 
 ### 5) `convex/http.ts` (~574 lines)
 
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Extract callback auth + payload parsing + processing helpers.
+- Keep route file minimal.
+
 **Current pain**
 
 - Signature validation, replay protection, payload parsing, cleanup, import execution, raw persistence, canonical frame persistence in one handler.
@@ -185,6 +258,18 @@ This document tracks where we should split large files into smaller, focused mod
 
 ### 6) `src/hooks/journal/use-import-backup.ts` (~363 lines)
 
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Split file picker, validation, and upload transport from hook state machine.
+
 **Current pain**
 
 - Web picker fallback, file validation, worker upload orchestration, and state all in one hook.
@@ -204,6 +289,18 @@ This document tracks where we should split large files into smaller, focused mod
 ---
 
 ### 7) `src/components/reference-combobox.tsx` (~397 lines)
+
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Extract combobox interaction/state hook and dropdown rendering component.
 
 **Current pain**
 
@@ -226,6 +323,18 @@ This document tracks where we should split large files into smaller, focused mod
 
 ### 8) `src/services/journal/types.ts` (~295 lines)
 
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Split service types by domain and add index barrel.
+
 Split by domain:
 
 - `src/services/journal/types/core.ts`
@@ -235,12 +344,36 @@ Split by domain:
 
 ### 9) `src/screens/game-editor/pin-deck.tsx` (~368 lines)
 
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Extract gesture logic and layout helpers into dedicated modules.
+
 Extract gesture logic:
 
 - `src/screens/game-editor/use-pin-deck-gesture.ts`
 - `src/screens/game-editor/pin-deck-layout.ts`
 
 ### 10) `src/screens/game-editor/game-save-queue-sync.ts` (~314 lines)
+
+**Status**
+
+- Not started
+
+**Completed**
+
+- None yet.
+
+**Remaining**
+
+- Extract queue mutation core and storage/mapping helpers.
 
 Extract queue mutation helpers + draft session mapping:
 
@@ -262,8 +395,8 @@ Extract queue mutation helpers + draft session mapping:
 ## Suggested Rollout (small commits)
 
 1. **P0-A**: Break `convex/imports.ts` into internal modules with no behavior change.
-2. **P0-B (Next Active)**: Split `game-editor-screen.tsx` into hooks/components.
-3. **P0-C**: Split journal screens and extract shared journal helpers.
+2. **P0-B**: Split `game-editor-screen.tsx` into hooks/components.
+3. **P0-C (Next Active)**: Split journal screens and extract shared journal helpers.
 4. **P1-A**: Split frame utility mega-file by domain.
 5. **P1-B**: Split callback handling in `convex/http.ts`.
 6. **P1-C**: Split import backup hook internals.
