@@ -4,13 +4,14 @@ import {
   ActivityIndicator,
   LayoutAnimation,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
 import { ActiveFrameCard } from './game-editor/active-frame-card';
+import { GameEditorDetailsSection } from './game-editor/game-editor-details-section';
+import { GameEditorFooterActions } from './game-editor/game-editor-footer-actions';
 import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import {
   EMPTY_FRAMES,
@@ -50,8 +51,6 @@ import {
 
 import type { GameId } from '@/services/journal';
 
-import { ReferenceCombobox } from '@/components/reference-combobox';
-import { Button } from '@/components/ui';
 import {
   useGameEditor,
   useGames,
@@ -659,49 +658,21 @@ export default function GameEditorScreen() {
           onSelectFrame={onSelectFrame}
         />
 
-        <View
-          style={[
-            styles.detailsSection,
-            isDetailsVisible ? styles.detailsSectionOpen : null,
-          ]}
-        >
-          <Pressable
-            onPress={onToggleDetails}
-            style={({ pressed }) => [
-              styles.detailsToggle,
-              pressed ? styles.detailsTogglePressed : null,
-            ]}
-          >
-            <Text style={styles.detailsToggleLabel}>
-              {isDetailsVisible ? 'Hide details' : 'Add details'}
-            </Text>
-          </Pressable>
-
-          {isDetailsVisible ? (
-            <View style={styles.detailsFields}>
-              <ReferenceCombobox
-                allOptions={patternOptions}
-                createLabel="Add pattern"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createPattern}
-                onSelect={(option) => setSelectedPatternId(option.id)}
-                placeholder="Pattern (optional)"
-                recentOptions={recentPatternOptions}
-                valueId={selectedPatternId}
-              />
-              <ReferenceCombobox
-                allOptions={ballOptions}
-                createLabel="Add ball"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createBall}
-                onSelect={(option) => setSelectedBallId(option.id)}
-                placeholder="Ball (optional)"
-                recentOptions={recentBallOptions}
-                valueId={selectedBallId}
-              />
-            </View>
-          ) : null}
-        </View>
+        <GameEditorDetailsSection
+          ballOptions={ballOptions}
+          buildSuggestions={buildSuggestions}
+          createBall={createBall}
+          createPattern={createPattern}
+          isDetailsVisible={isDetailsVisible}
+          onSelectBall={(option) => setSelectedBallId(option.id)}
+          onSelectPattern={(option) => setSelectedPatternId(option.id)}
+          onToggleDetails={onToggleDetails}
+          patternOptions={patternOptions}
+          recentBallOptions={recentBallOptions}
+          recentPatternOptions={recentPatternOptions}
+          selectedBallId={selectedBallId}
+          selectedPatternId={selectedPatternId}
+        />
 
         <ActiveFrameCard
           activeRollMask={activeRollMask}
@@ -715,43 +686,15 @@ export default function GameEditorScreen() {
         />
       </View>
 
-      <View style={styles.actionsFooter}>
-        <View style={styles.actionsRow}>
-          <View style={styles.stickyActionButton}>
-            {shouldShowCompletionActions ? (
-              <Button
-                disabled={!canNavigateSessionFlows}
-                label="Games"
-                onPress={onGoToGames}
-                size="lg"
-                variant="secondary"
-              />
-            ) : (
-              <Pressable
-                onPress={onSetFullRack}
-                style={({ pressed }) => [
-                  styles.strikeButton,
-                  pressed ? styles.strikeButtonPressed : null,
-                ]}
-              >
-                <Text style={styles.strikeButtonLabel}>{shortcutLabel}</Text>
-              </Pressable>
-            )}
-          </View>
-          <View style={styles.stickyActionButton}>
-            {shouldShowCompletionActions ? (
-              <Button
-                disabled={!canNavigateSessionFlows}
-                label="Next game"
-                onPress={onGoToNextGame}
-                size="lg"
-              />
-            ) : (
-              <Button label="Next" onPress={onCommitRoll} size="lg" />
-            )}
-          </View>
-        </View>
-      </View>
+      <GameEditorFooterActions
+        canNavigateSessionFlows={canNavigateSessionFlows}
+        onCommitRoll={onCommitRoll}
+        onGoToGames={onGoToGames}
+        onGoToNextGame={onGoToNextGame}
+        onSetFullRack={onSetFullRack}
+        shouldShowCompletionActions={shouldShowCompletionActions}
+        shortcutLabel={shortcutLabel}
+      />
     </View>
   );
 }
@@ -768,30 +711,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  detailsSection: {
-    gap: spacing.xs,
-  },
-  detailsSectionOpen: {
-    position: 'relative',
-    zIndex: 30,
-    elevation: 30,
-  },
-  detailsToggle: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  detailsTogglePressed: {
-    opacity: 0.75,
-  },
-  detailsToggleLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.accent,
-  },
-  detailsFields: {
-    gap: spacing.xs,
-  },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -802,37 +721,5 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: typeScale.body,
     color: colors.textSecondary,
-  },
-  actionsFooter: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  stickyActionButton: {
-    flex: 1,
-  },
-  strikeButton: {
-    height: 52,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  strikeButtonPressed: {
-    opacity: 0.82,
-  },
-  strikeButtonLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.accent,
   },
 });
