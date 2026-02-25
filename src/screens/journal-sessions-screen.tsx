@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,6 +28,8 @@ import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal/journal-create-queue-storage';
+import { CreateSessionModal } from './journal/components/create-session-modal';
+import { SessionActionsModal } from './journal/components/session-actions-modal';
 import {
   isNavigatorOffline,
   withTimeout,
@@ -991,183 +992,43 @@ export default function JournalSessionsScreen() {
           onPress={openCreateModal}
         />
 
-        <Modal
-          animationType="fade"
-          transparent
+        <SessionActionsModal
+          modalTranslateY={modalTranslateY}
+          onAction={runSessionAction}
+          onClose={closeSessionActions}
+          target={sessionActionTarget}
           visible={isSessionActionsVisible}
-          onRequestClose={closeSessionActions}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={closeSessionActions}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                styles.actionModalCard,
-                { transform: [{ translateY: modalTranslateY }] },
-              ]}
-            >
-              <View style={styles.actionModalHeader}>
-                <Text numberOfLines={1} style={styles.actionModalTitle}>
-                  {sessionActionTarget?.title ?? 'Session'}
-                </Text>
-              </View>
-              <View style={styles.actionList}>
-                <Pressable
-                  onPress={() => {
-                    if (!sessionActionTarget) {
-                      return;
-                    }
+        />
 
-                    closeSessionActions();
-                    runSessionAction('edit', sessionActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemLabel}>Edit session</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (!sessionActionTarget) {
-                      return;
-                    }
-
-                    closeSessionActions();
-                    runSessionAction('delete', sessionActionTarget);
-                  }}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemWithDivider,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemDeleteLabel}>
-                    Delete session
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={closeSessionActions}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    styles.actionItemCancel,
-                    pressed ? styles.actionItemPressed : null,
-                  ]}
-                >
-                  <Text style={styles.actionItemCancelLabel}>Cancel</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          animationType="slide"
-          transparent
+        <CreateSessionModal
+          ballOptions={ballOptions}
+          buildSuggestions={buildSuggestions}
+          canCreateSessionTarget={canCreateSessionTarget}
+          createBall={createBall}
+          createHouse={createHouse}
+          createPattern={createPattern}
+          houseOptions={houseOptions}
+          isCreatingSessionRequest={isCreatingSessionRequest}
+          modalTranslateY={modalTranslateY}
+          onClose={() => setIsCreateModalVisible(false)}
+          onCreate={onCreateSession}
+          onSessionBallSelect={(option) => setSessionBallId(option.id)}
+          onSessionDateChange={setSessionDate}
+          onSessionHouseSelect={(option) => setSessionHouseId(option.id)}
+          onSessionPatternSelect={(option) => setSessionPatternId(option.id)}
+          onSessionWeekNumberChange={setSessionWeekNumber}
+          patternOptions={patternOptions}
+          recentBallOptions={recentBallOptions}
+          recentHouseOptions={recentHouseOptions}
+          recentPatternOptions={recentPatternOptions}
+          sessionBallId={sessionBallId}
+          sessionDate={sessionDate}
+          sessionError={sessionError}
+          sessionHouseId={sessionHouseId}
+          sessionPatternId={sessionPatternId}
+          sessionWeekNumber={sessionWeekNumber}
           visible={isCreateModalVisible}
-          onRequestClose={() => setIsCreateModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={styles.modalBackdropHitbox}
-              onPress={() => setIsCreateModalVisible(false)}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                { transform: [{ translateY: modalTranslateY }] },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Create session</Text>
-                <Pressable
-                  accessibilityLabel="Close create session dialog"
-                  accessibilityRole="button"
-                  onPress={() => setIsCreateModalVisible(false)}
-                  style={({ pressed }) => [
-                    styles.modalCloseButton,
-                    pressed ? styles.modalCloseButtonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.modalCloseLabel}>X</Text>
-                </Pressable>
-              </View>
-              <Input
-                autoCapitalize="none"
-                autoCorrect={false}
-                onChangeText={setSessionDate}
-                placeholder="YYYY-MM-DD"
-                value={sessionDate}
-              />
-              <Input
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="number-pad"
-                onChangeText={setSessionWeekNumber}
-                placeholder="Week number (optional)"
-                value={sessionWeekNumber}
-              />
-              <ReferenceCombobox
-                allOptions={houseOptions}
-                createLabel="Add house"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createHouse}
-                onSelect={(option) => setSessionHouseId(option.id)}
-                placeholder="House (optional)"
-                recentOptions={recentHouseOptions}
-                valueId={sessionHouseId}
-              />
-              <ReferenceCombobox
-                allOptions={patternOptions}
-                createLabel="Add pattern"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createPattern}
-                onSelect={(option) => setSessionPatternId(option.id)}
-                placeholder="Pattern (optional)"
-                recentOptions={recentPatternOptions}
-                valueId={sessionPatternId}
-              />
-              <ReferenceCombobox
-                allOptions={ballOptions}
-                createLabel="Add ball"
-                getSuggestions={buildSuggestions}
-                onQuickAdd={createBall}
-                onSelect={(option) => setSessionBallId(option.id)}
-                placeholder="Ball (optional)"
-                recentOptions={recentBallOptions}
-                valueId={sessionBallId}
-              />
-              {sessionError ? (
-                <Text style={styles.errorText}>{sessionError}</Text>
-              ) : null}
-              <View style={styles.modalActions}>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    disabled={
-                      isCreatingSessionRequest || !canCreateSessionTarget
-                    }
-                    label={isCreatingSessionRequest ? 'Creating...' : 'Create'}
-                    onPress={onCreateSession}
-                    variant="secondary"
-                  />
-                </View>
-                <View style={styles.modalActionButton}>
-                  <Button
-                    disabled={isCreatingSessionRequest}
-                    label="Cancel"
-                    onPress={() => setIsCreateModalVisible(false)}
-                    variant="ghost"
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        />
       </View>
     </ScreenLayout>
   );
@@ -1243,111 +1104,5 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 30,
     elevation: 30,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(26, 31, 43, 0.35)',
-  },
-  modalBackdropHitbox: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalCloseButtonPressed: {
-    opacity: 0.8,
-  },
-  modalCloseLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  modalActionButton: {
-    flex: 1,
-  },
-  actionModalCard: {
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  actionModalHeader: {
-    paddingTop: 2,
-  },
-  actionModalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  actionList: {
-    marginTop: spacing.xs,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSubtle,
-  },
-  actionItem: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  actionItemWithDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  actionItemCancel: {
-    backgroundColor: colors.surface,
-  },
-  actionItemPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  actionItemLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  actionItemDeleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.danger,
-  },
-  actionItemCancelLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textSecondary,
   },
 });
