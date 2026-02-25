@@ -26,9 +26,7 @@ import {
   getRollValue,
   getStandingMaskForField,
   getVisibleRollFields,
-  normalizeDateValue,
   sanitizeFrameDraftsForEntry,
-  toFrameDrafts,
   type FrameDraft,
   type RollField,
 } from './game-editor/game-editor-frame-utils';
@@ -38,18 +36,12 @@ import {
   clearDownstreamRolls,
   createDraftNonce,
   getDefaultMaskForField,
-  hasAnyFrameDraftValue,
   isOfflineLikely,
   maskHasPin,
   setPinState,
   togglePinInMask,
 } from './game-editor/game-editor-screen-utils';
-import {
-  loadLocalGameDraft,
-  removeLocalGameDraft,
-  upsertLocalGameDraft,
-} from './game-editor/game-local-draft-storage';
-import { shouldRestoreLocalDraft } from './game-editor/game-local-draft-utils';
+import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
 import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
@@ -67,6 +59,7 @@ import {
   isQueuedGameSaveFlushInFlight,
 } from './game-editor/game-save-queue-sync';
 import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
+import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
 import { useSignedInHistory } from './game-editor/use-signed-in-history';
 import {
   formatGameSequenceLabel,
@@ -138,8 +131,6 @@ export default function GameEditorScreen() {
   const [inputError, setInputError] = useState<string | null>(null);
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle');
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
-  const [didHydrate, setDidHydrate] = useState(false);
-  const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
   const [isCanonicalizingRoute, setIsCanonicalizingRoute] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(
     null
@@ -187,23 +178,6 @@ export default function GameEditorScreen() {
 
     return formatGameSequenceLabel(gameIndex + 1);
   }, [gameId, isCreateMode, orderedSessionGames]);
-  const nextExistingGameId = useMemo(() => {
-    const currentGameId = draftGameId ?? gameId;
-
-    if (!currentGameId) {
-      return null;
-    }
-
-    const currentGameIndex = orderedSessionGames.findIndex(
-      (candidate) => candidate._id === currentGameId
-    );
-
-    if (currentGameIndex === -1) {
-      return null;
-    }
-
-    return orderedSessionGames[currentGameIndex + 1]?._id ?? null;
-  }, [draftGameId, gameId, orderedSessionGames]);
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
     const weekMap = new Map<string, number>();
@@ -257,6 +231,44 @@ export default function GameEditorScreen() {
 
     return buildGameSaveQueueId(String(sessionId), gameId, activeDraftNonce);
   }, [activeDraftNonce, gameId, sessionId]);
+  const { didHydrate, draftGameId, setDraftGameId } = useGameEditorHydration({
+    game,
+    frames,
+    gameId,
+    isAuthenticated,
+    isCreateMode,
+    localDraftId,
+    date,
+    frameDrafts,
+    selectedPatternId,
+    selectedBallId,
+    autosaveState,
+    setDate,
+    setFrameDrafts,
+    setActiveFrameIndex,
+    setActiveField,
+    setSelectedPatternId,
+    setSelectedBallId,
+    lastAppliedServerSignatureRef,
+    lastSavedSignatureRef,
+  });
+  const nextExistingGameId = useMemo(() => {
+    const currentGameId = draftGameId ?? gameId;
+
+    if (!currentGameId) {
+      return null;
+    }
+
+    const currentGameIndex = orderedSessionGames.findIndex(
+      (candidate) => candidate._id === currentGameId
+    );
+
+    if (currentGameIndex === -1) {
+      return null;
+    }
+
+    return orderedSessionGames[currentGameIndex + 1]?._id ?? null;
+  }, [draftGameId, gameId, orderedSessionGames]);
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
@@ -577,354 +589,6 @@ export default function GameEditorScreen() {
       void promoteDraftToQueue({ updateUi: false });
     };
   }, [promoteDraftToQueue]);
-
-  useEffect(() => {
-    if (didHydrate) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const hydrateEditor = async () => {
-      if (isCreateMode) {
-        const defaultDate = new Date().toISOString().slice(0, 10);
-        const defaultDrafts = EMPTY_FRAMES;
-        const defaultPatternId = null;
-        const defaultBallId = null;
-        const incomingServerSignature = buildSyncSignature(
-          null,
-          defaultDate,
-          defaultDrafts,
-          defaultPatternId,
-          defaultBallId
-        );
-        let nextDate = defaultDate;
-        let nextDrafts = defaultDrafts;
-        let nextPatternId: string | null = defaultPatternId;
-        let nextBallId: string | null = defaultBallId;
-
-        if (localDraftId) {
-          const localDraft = await loadLocalGameDraft(localDraftId);
-
-          if (localDraft) {
-            if (isAuthenticated && !isOfflineLikely()) {
-              const queuedEntries = await loadGameSaveQueue();
-              const hasPendingQueueEntry = queuedEntries.some(
-                (entry) => entry.queueId === localDraftId
-              );
-
-              if (!hasPendingQueueEntry) {
-                await removeLocalGameDraft(localDraftId);
-              } else {
-                const sanitizedDate = normalizeDateValue(localDraft.date);
-                const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
-                  localDraft.frameDrafts
-                );
-                const localSignature = buildSyncSignature(
-                  null,
-                  sanitizedDate,
-                  sanitizedDrafts,
-                  localDraft.patternId,
-                  localDraft.ballId
-                );
-
-                if (
-                  shouldRestoreLocalDraft({
-                    isCreateMode: true,
-                    incomingServerSignature,
-                    localDraftSignature: localSignature,
-                    localDraftBaseServerSignature:
-                      localDraft.baseServerSignature,
-                  })
-                ) {
-                  nextDate = sanitizedDate;
-                  nextDrafts = sanitizedDrafts;
-                  nextPatternId = localDraft.patternId;
-                  nextBallId = localDraft.ballId;
-                }
-              }
-            } else {
-              const sanitizedDate = normalizeDateValue(localDraft.date);
-              const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
-                localDraft.frameDrafts
-              );
-              const localSignature = buildSyncSignature(
-                null,
-                sanitizedDate,
-                sanitizedDrafts,
-                localDraft.patternId,
-                localDraft.ballId
-              );
-
-              if (
-                shouldRestoreLocalDraft({
-                  isCreateMode: true,
-                  incomingServerSignature,
-                  localDraftSignature: localSignature,
-                  localDraftBaseServerSignature: localDraft.baseServerSignature,
-                })
-              ) {
-                nextDate = sanitizedDate;
-                nextDrafts = sanitizedDrafts;
-                nextPatternId = localDraft.patternId;
-                nextBallId = localDraft.ballId;
-              }
-            }
-          }
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
-        const suggestedField = getPreferredRollField(
-          suggestedFrameIndex,
-          nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
-        );
-
-        setDate(nextDate);
-        setFrameDrafts(nextDrafts);
-        setSelectedPatternId(nextPatternId);
-        setSelectedBallId(nextBallId);
-        setActiveFrameIndex(suggestedFrameIndex);
-        setActiveField(suggestedField);
-        setDraftGameId(null);
-        lastAppliedServerSignatureRef.current = incomingServerSignature;
-        lastSavedSignatureRef.current = buildPersistedSignature(
-          null,
-          defaultDate,
-          defaultDrafts,
-          defaultPatternId,
-          defaultBallId
-        );
-        setDidHydrate(true);
-        return;
-      }
-
-      if (!game || frames === undefined) {
-        return;
-      }
-
-      const hydratedDrafts = toFrameDrafts(frames);
-      const { drafts: incomingDrafts } =
-        sanitizeFrameDraftsForEntry(hydratedDrafts);
-      const incomingDate = normalizeDateValue(game.date);
-      const incomingServerSignature = buildSyncSignature(
-        gameId,
-        incomingDate,
-        incomingDrafts,
-        game.patternId ? String(game.patternId) : null,
-        game.ballId ? String(game.ballId) : null
-      );
-      let nextDate = incomingDate;
-      let nextDrafts = incomingDrafts;
-      let nextPatternId = game.patternId ? String(game.patternId) : null;
-      let nextBallId = game.ballId ? String(game.ballId) : null;
-
-      if (localDraftId) {
-        const localDraft = await loadLocalGameDraft(localDraftId);
-
-        if (localDraft) {
-          const sanitizedDate = normalizeDateValue(localDraft.date);
-          const { drafts: sanitizedDrafts } = sanitizeFrameDraftsForEntry(
-            localDraft.frameDrafts
-          );
-          const localSignature = buildSyncSignature(
-            gameId,
-            sanitizedDate,
-            sanitizedDrafts,
-            localDraft.patternId,
-            localDraft.ballId
-          );
-
-          if (
-            shouldRestoreLocalDraft({
-              isCreateMode: false,
-              incomingServerSignature,
-              localDraftSignature: localSignature,
-              localDraftBaseServerSignature: localDraft.baseServerSignature,
-            })
-          ) {
-            nextDate = sanitizedDate;
-            nextDrafts = sanitizedDrafts;
-            nextPatternId = localDraft.patternId;
-            nextBallId = localDraft.ballId;
-          } else if (localSignature === incomingServerSignature) {
-            void removeLocalGameDraft(localDraftId);
-          }
-        }
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      const suggestedFrameIndex = findSuggestedFrameIndex(nextDrafts);
-      const suggestedField = getPreferredRollField(
-        suggestedFrameIndex,
-        nextDrafts[suggestedFrameIndex] ?? EMPTY_FRAMES[0]
-      );
-
-      setDate(nextDate);
-      setFrameDrafts(nextDrafts);
-      setSelectedPatternId(nextPatternId);
-      setSelectedBallId(nextBallId);
-      setActiveFrameIndex(suggestedFrameIndex);
-      setActiveField(suggestedField);
-      setDraftGameId(gameId);
-      lastAppliedServerSignatureRef.current = incomingServerSignature;
-      lastSavedSignatureRef.current = buildPersistedSignature(
-        gameId,
-        incomingDate,
-        incomingDrafts,
-        game.patternId ? String(game.patternId) : null,
-        game.ballId ? String(game.ballId) : null
-      );
-      setDidHydrate(true);
-    };
-
-    void hydrateEditor();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    didHydrate,
-    frames,
-    game,
-    gameId,
-    isAuthenticated,
-    isCreateMode,
-    localDraftId,
-  ]);
-
-  useEffect(() => {
-    if (!didHydrate || !localDraftId) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const timer = setTimeout(() => {
-      void (async () => {
-        const normalizedDate = normalizeDateValue(date);
-        const { drafts: sanitizedDrafts } =
-          sanitizeFrameDraftsForEntry(frameDrafts);
-        const currentSignature = buildSyncSignature(
-          gameId,
-          normalizedDate,
-          sanitizedDrafts,
-          selectedPatternId,
-          selectedBallId
-        );
-        const baselineSignature = lastAppliedServerSignatureRef.current;
-
-        if (
-          currentSignature === baselineSignature ||
-          (isCreateMode && !hasAnyFrameDraftValue(sanitizedDrafts))
-        ) {
-          await removeLocalGameDraft(localDraftId);
-          return;
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        await upsertLocalGameDraft({
-          draftId: localDraftId,
-          date: normalizedDate,
-          frameDrafts: sanitizedDrafts,
-          patternId: selectedPatternId,
-          ballId: selectedBallId,
-          signature: currentSignature,
-          baseServerSignature: baselineSignature,
-          updatedAt: Date.now(),
-        });
-      })();
-    }, 50);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [
-    date,
-    didHydrate,
-    frameDrafts,
-    gameId,
-    isCreateMode,
-    localDraftId,
-    selectedBallId,
-    selectedPatternId,
-  ]);
-
-  useEffect(() => {
-    if (!didHydrate || isCreateMode || !game || frames === undefined) {
-      return;
-    }
-
-    const hydratedDrafts = toFrameDrafts(frames);
-    const { drafts: incomingDrafts } =
-      sanitizeFrameDraftsForEntry(hydratedDrafts);
-    const incomingDate = normalizeDateValue(game.date);
-    const incomingSignature = buildSyncSignature(
-      gameId,
-      incomingDate,
-      incomingDrafts,
-      game.patternId ? String(game.patternId) : null,
-      game.ballId ? String(game.ballId) : null
-    );
-
-    if (incomingSignature === lastAppliedServerSignatureRef.current) {
-      return;
-    }
-
-    const { drafts: localDrafts } = sanitizeFrameDraftsForEntry(frameDrafts);
-    const localSignature = buildSyncSignature(
-      gameId,
-      date,
-      localDrafts,
-      selectedPatternId,
-      selectedBallId
-    );
-
-    if (localSignature === incomingSignature) {
-      lastAppliedServerSignatureRef.current = incomingSignature;
-      return;
-    }
-
-    const isLocalClean =
-      localSignature === lastAppliedServerSignatureRef.current &&
-      autosaveState !== 'saving';
-
-    if (isLocalClean) {
-      setDate(incomingDate);
-      setFrameDrafts(incomingDrafts);
-      setSelectedPatternId(game.patternId ? String(game.patternId) : null);
-      setSelectedBallId(game.ballId ? String(game.ballId) : null);
-      lastAppliedServerSignatureRef.current = incomingSignature;
-      lastSavedSignatureRef.current = buildPersistedSignature(
-        gameId,
-        incomingDate,
-        incomingDrafts,
-        game.patternId ? String(game.patternId) : null,
-        game.ballId ? String(game.ballId) : null
-      );
-    }
-  }, [
-    autosaveState,
-    date,
-    didHydrate,
-    frameDrafts,
-    frames,
-    game,
-    gameId,
-    isCreateMode,
-    selectedBallId,
-    selectedPatternId,
-  ]);
 
   useEffect(() => {
     setInputError(null);
