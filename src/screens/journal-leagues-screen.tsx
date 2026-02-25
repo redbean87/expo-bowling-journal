@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActionSheetIOS,
   Alert,
   Platform,
   ScrollView,
@@ -29,6 +28,7 @@ import {
   isNavigatorOffline,
   withTimeout,
 } from './journal/journal-offline-create';
+import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
@@ -453,55 +453,26 @@ export default function JournalLeaguesScreen() {
   };
 
   const openLeagueActions = (target: LeagueActionTarget) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    const handled = openJournalNativeActionSheet({
+      title: target.name,
+      actions: [
         {
-          options: ['Quick start', 'Edit league', 'Delete league', 'Cancel'],
-          cancelButtonIndex: 3,
-          destructiveButtonIndex: 2,
-          title: target.name,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            runLeagueAction('quick-start', target);
-            return;
-          }
-
-          if (buttonIndex === 1) {
-            runLeagueAction('edit', target);
-            return;
-          }
-
-          if (buttonIndex === 2) {
-            runLeagueAction('delete', target);
-          }
-        }
-      );
-
-      return;
-    }
-
-    if (Platform.OS === 'android') {
-      Alert.alert(target.name, undefined, [
-        {
-          text: 'Quick start',
+          label: 'Quick start',
           onPress: () => runLeagueAction('quick-start', target),
         },
         {
-          text: 'Edit league',
+          label: 'Edit league',
           onPress: () => runLeagueAction('edit', target),
         },
         {
-          text: 'Delete league',
-          style: 'destructive',
+          label: 'Delete league',
+          destructive: true,
           onPress: () => runLeagueAction('delete', target),
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]);
+      ],
+    });
 
+    if (handled) {
       return;
     }
 

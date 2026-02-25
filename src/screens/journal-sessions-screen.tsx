@@ -2,7 +2,6 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
   Alert,
   Platform,
   ScrollView,
@@ -33,6 +32,7 @@ import {
   isNavigatorOffline,
   withTimeout,
 } from './journal/journal-offline-create';
+import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import { getFirstParam } from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
@@ -669,46 +669,22 @@ export default function JournalSessionsScreen() {
   };
 
   const openSessionActions = (target: SessionActionTarget) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    const handled = openJournalNativeActionSheet({
+      title: target.title,
+      actions: [
         {
-          options: ['Edit session', 'Delete session', 'Cancel'],
-          cancelButtonIndex: 2,
-          destructiveButtonIndex: 1,
-          title: target.title,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            runSessionAction('edit', target);
-            return;
-          }
-
-          if (buttonIndex === 1) {
-            runSessionAction('delete', target);
-          }
-        }
-      );
-
-      return;
-    }
-
-    if (Platform.OS === 'android') {
-      Alert.alert(target.title, undefined, [
-        {
-          text: 'Edit session',
+          label: 'Edit session',
           onPress: () => runSessionAction('edit', target),
         },
         {
-          text: 'Delete session',
-          style: 'destructive',
+          label: 'Delete session',
+          destructive: true,
           onPress: () => runSessionAction('delete', target),
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]);
+      ],
+    });
 
+    if (handled) {
       return;
     }
 

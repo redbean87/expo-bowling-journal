@@ -6,7 +6,6 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
   Alert,
   Platform,
   ScrollView,
@@ -43,6 +42,7 @@ import {
 } from './journal/journal-client-sync-map-storage';
 import { GameActionsModal } from './journal/components/game-actions-modal';
 import { GameRowCard } from './journal/components/game-row-card';
+import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import { getFirstParam } from './journal/journal-route-params';
 import {
   formatIsoDateLabel,
@@ -623,37 +623,18 @@ export default function JournalGamesScreen() {
   };
 
   const openGameActions = (target: GameActionTarget) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    const handled = openJournalNativeActionSheet({
+      title: target.title,
+      actions: [
         {
-          options: ['Delete game', 'Cancel'],
-          cancelButtonIndex: 1,
-          destructiveButtonIndex: 0,
-          title: target.title,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            runGameAction(target);
-          }
-        }
-      );
-
-      return;
-    }
-
-    if (Platform.OS === 'android') {
-      Alert.alert(target.title, undefined, [
-        {
-          text: 'Delete game',
-          style: 'destructive',
+          label: 'Delete game',
+          destructive: true,
           onPress: () => runGameAction(target),
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]);
+      ],
+    });
 
+    if (handled) {
       return;
     }
 
