@@ -15,6 +15,7 @@ When an item is complete, move it to `## Completed`.
 - [ ] Add CI automation for Expo web preview/production deploys
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
+- [ ] Unify journal create/action affordances (FAB vs overflow menu) with a single platform-consistent interaction pattern
 - [ ] Team/coach sharing model
 
 ## Completed
@@ -89,6 +90,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Continue journal P0-C by extracting shared route/offline helper modules for leagues, sessions, and games screens
 - [x] Continue journal P0-C by extracting session actions/create modals into dedicated components
 - [x] Continue journal P0-C by extracting session row rendering/edit section into `src/screens/journal/components/session-row-card.tsx`
+- [x] Continue journal P0-C by extracting game actions modal into `src/screens/journal/components/game-actions-modal.tsx`
 
 ## Decision Log
 
