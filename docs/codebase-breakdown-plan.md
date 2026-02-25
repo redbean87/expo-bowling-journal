@@ -158,6 +158,7 @@ Each target should use this structure so status is obvious at a glance:
 - `src/screens/journal/journal-offline-create.ts`
 - `src/screens/journal/components/session-actions-modal.tsx`
 - `src/screens/journal/components/create-session-modal.tsx`
+- `src/screens/journal/components/session-row-card.tsx`
 
 **Remaining**
 
