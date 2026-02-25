@@ -2,19 +2,16 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  AppState,
   LayoutAnimation,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  type AppStateStatus,
   View,
 } from 'react-native';
 
 import { ActiveFrameCard } from './game-editor/active-frame-card';
 import { FrameProgressStrip } from './game-editor/frame-progress-strip';
-import { buildAutosaveGuardResult } from './game-editor/game-editor-autosave-utils';
 import {
   EMPTY_FRAMES,
   FULL_PIN_MASK,
@@ -31,33 +28,16 @@ import {
   type RollField,
 } from './game-editor/game-editor-frame-utils';
 import {
-  buildPersistedSignature,
-  buildSyncSignature,
   clearDownstreamRolls,
   createDraftNonce,
   getDefaultMaskForField,
-  isOfflineLikely,
   maskHasPin,
   setPinState,
   togglePinInMask,
 } from './game-editor/game-editor-screen-utils';
 import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
-import {
-  buildGameSaveQueueId,
-  createQueuedGameSaveEntry,
-  getActionableSaveErrorMessage,
-  getQueuedGameSaveEntry,
-  isRetryableSaveError,
-  upsertQueuedGameSaveEntry,
-} from './game-editor/game-save-queue';
-import {
-  loadGameSaveQueue,
-  persistGameSaveQueue,
-} from './game-editor/game-save-queue-storage';
-import {
-  flushQueuedGameSavesWithLock,
-  isQueuedGameSaveFlushInFlight,
-} from './game-editor/game-save-queue-sync';
+import { buildGameSaveQueueId } from './game-editor/game-save-queue';
+import { useGameEditorAutosaveSync } from './game-editor/use-game-editor-autosave-sync';
 import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
 import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
 import { useSignedInHistory } from './game-editor/use-signed-in-history';
@@ -330,89 +310,6 @@ export default function GameEditorScreen() {
     await removeLocalGameDraft(localDraftId);
   }, [localDraftId]);
 
-  const promoteDraftToQueue = useCallback(
-    async ({ updateUi }: { updateUi: boolean }) => {
-      const shouldQueueLocally =
-        hasSignedInBefore && (!isAuthenticated || isOfflineLikely());
-
-      if (!didHydrate || !shouldQueueLocally) {
-        return false;
-      }
-
-      const activeGameId = draftGameId;
-      const { drafts: sanitizedDrafts } =
-        sanitizeFrameDraftsForEntry(frameDrafts);
-      const autosavePlan = buildAutosaveGuardResult({
-        isAuthenticated,
-        hasSignedInBefore,
-        date,
-        frameDrafts: sanitizedDrafts,
-        isCreateMode,
-        currentGameId: activeGameId,
-      });
-
-      if (autosavePlan.status !== 'ready') {
-        return false;
-      }
-
-      const queueSessionId = rawSessionId ?? game?.sessionId;
-
-      if (!queueSessionId) {
-        return false;
-      }
-
-      const saveSignature = JSON.stringify({
-        gameId: activeGameId ?? 'new',
-        date: autosavePlan.trimmedDate,
-        frames: autosavePlan.payloadFrames,
-        patternId: selectedPatternId,
-        ballId: selectedBallId,
-      });
-
-      const now = Date.now();
-      const queueEntry = createQueuedGameSaveEntry(
-        {
-          sessionId: String(queueSessionId),
-          sessionClientSyncId,
-          gameId: activeGameId ? String(activeGameId) : null,
-          draftNonce: activeGameId ? null : activeDraftNonce,
-          date: autosavePlan.trimmedDate,
-          frames: autosavePlan.payloadFrames,
-          signature: saveSignature,
-        },
-        now
-      );
-      const queueEntries = upsertQueuedGameSaveEntry(
-        await loadGameSaveQueue(),
-        queueEntry
-      );
-
-      await persistGameSaveQueue(queueEntries);
-
-      if (updateUi) {
-        setAutosaveState('queued');
-        setAutosaveError(null);
-      }
-
-      return true;
-    },
-    [
-      activeDraftNonce,
-      date,
-      didHydrate,
-      draftGameId,
-      frameDrafts,
-      game?.sessionId,
-      rawSessionId,
-      hasSignedInBefore,
-      isAuthenticated,
-      isCreateMode,
-      selectedBallId,
-      selectedPatternId,
-      sessionClientSyncId,
-    ]
-  );
-
   const replaceNewRouteWithGameId = useCallback(
     (nextGameId: GameId) => {
       if (gameIdParam !== 'new') {
@@ -442,116 +339,6 @@ export default function GameEditorScreen() {
     }
   }, [gameIdParam]);
 
-  const flushQueuedSaves = useCallback(async () => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    if (isOfflineLikely()) {
-      return;
-    }
-
-    if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
-      return;
-    }
-
-    isQueuedFlushInFlightRef.current = true;
-
-    try {
-      const queueEntries = await loadGameSaveQueue();
-      const dueEntries = queueEntries
-        .filter((entry) => entry.nextRetryAt <= Date.now())
-        .sort((left, right) => left.updatedAt - right.updatedAt);
-
-      if (dueEntries.length === 0) {
-        return;
-      }
-
-      setAutosaveState((currentState) =>
-        currentState === 'saving' ? currentState : 'syncingQueued'
-      );
-
-      const activeQueueIds = new Set<string>();
-
-      if (sessionId) {
-        const activeSessionId = String(sessionId);
-        activeQueueIds.add(
-          buildGameSaveQueueId(
-            activeSessionId,
-            draftGameId ?? gameId,
-            activeDraftNonce
-          )
-        );
-        activeQueueIds.add(
-          buildGameSaveQueueId(activeSessionId, null, activeDraftNonce)
-        );
-        activeQueueIds.add(buildGameSaveQueueId(activeSessionId, null));
-      }
-
-      const { remainingEntries } = await flushQueuedGameSavesWithLock({
-        createGame,
-        updateGame,
-        replaceFramesForGame,
-        onEntrySynced: ({
-          entry,
-          originalQueueId,
-          targetGameId,
-          wasCreated,
-        }) => {
-          if (wasCreated) {
-            setDraftGameId(targetGameId);
-            replaceNewRouteWithGameId(targetGameId);
-          }
-
-          lastSavedSignatureRef.current = entry.signature;
-
-          if (
-            sessionId &&
-            (activeQueueIds.has(entry.queueId) ||
-              activeQueueIds.has(originalQueueId))
-          ) {
-            setAutosaveError(null);
-            setAutosaveState('saved');
-            void clearLocalDraft();
-          }
-        },
-        onEntryFailedNonRetryable: ({ entry, originalQueueId, error }) => {
-          const actionableMessage = getActionableSaveErrorMessage(error);
-
-          if (
-            actionableMessage &&
-            (activeQueueIds.has(entry.queueId) ||
-              activeQueueIds.has(originalQueueId))
-          ) {
-            setAutosaveState('error');
-            setAutosaveError(actionableMessage);
-          }
-        },
-      });
-
-      if (remainingEntries.length > 0) {
-        setAutosaveState('queued');
-      } else {
-        setAutosaveState((currentState) =>
-          currentState === 'syncingQueued' ? 'saved' : currentState
-        );
-      }
-    } finally {
-      isQueuedFlushInFlightRef.current = false;
-    }
-  }, [
-    clearLocalDraft,
-    createGame,
-    activeDraftNonce,
-    draftGameId,
-    gameId,
-    isAuthenticated,
-    replaceNewRouteWithGameId,
-    replaceFramesForGame,
-    sessionId,
-    updateGame,
-  ]);
-
   useEffect(() => {
     navigation.setOptions({
       headerTitle: gameName,
@@ -559,36 +346,39 @@ export default function GameEditorScreen() {
     });
   }, [gameName, navigation, sessionContextLabel]);
 
-  useEffect(() => {
-    if (!didHydrate) {
-      return;
-    }
-
-    void flushQueuedSaves();
-  }, [didHydrate, flushQueuedSaves]);
-
-  useEffect(() => {
-    const onAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        void flushQueuedSaves();
-        return;
-      }
-
-      void promoteDraftToQueue({ updateUi: false });
-    };
-
-    const subscription = AppState.addEventListener('change', onAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, [flushQueuedSaves, promoteDraftToQueue]);
-
-  useEffect(() => {
-    return () => {
-      void promoteDraftToQueue({ updateUi: false });
-    };
-  }, [promoteDraftToQueue]);
+  useGameEditorAutosaveSync({
+    didHydrate,
+    isAuthenticated,
+    hasSignedInBefore,
+    isCreateMode,
+    isDraftSessionContext,
+    date,
+    frameDrafts,
+    setFrameDrafts,
+    selectedPatternId,
+    selectedBallId,
+    draftGameId,
+    setDraftGameId,
+    gameId,
+    rawSessionId,
+    sessionId,
+    gameSessionId: game?.sessionId ?? null,
+    sessionClientSyncId,
+    activeDraftNonce,
+    createGame,
+    updateGame,
+    replaceFramesForGame,
+    replaceNewRouteWithGameId,
+    clearLocalDraft,
+    setAutosaveState,
+    setAutosaveError,
+    isAutosaveInFlightRef,
+    isQueuedFlushInFlightRef,
+    hasQueuedAutosaveRef,
+    saveSequenceRef,
+    lastSavedSignatureRef,
+    lastAppliedServerSignatureRef,
+  });
 
   useEffect(() => {
     setInputError(null);
@@ -848,260 +638,6 @@ export default function GameEditorScreen() {
 
     setIsDetailsVisible((current) => !current);
   };
-
-  useEffect(() => {
-    if (!didHydrate) {
-      return;
-    }
-
-    const persist = async () => {
-      if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
-        hasQueuedAutosaveRef.current = true;
-        return;
-      }
-
-      if (isQueuedGameSaveFlushInFlight()) {
-        hasQueuedAutosaveRef.current = true;
-        return;
-      }
-
-      const activeGameId = draftGameId;
-      const { drafts: sanitizedDrafts, changed } =
-        sanitizeFrameDraftsForEntry(frameDrafts);
-
-      if (changed) {
-        setFrameDrafts(sanitizedDrafts);
-      }
-
-      const autosavePlan = buildAutosaveGuardResult({
-        isAuthenticated,
-        hasSignedInBefore,
-        date,
-        frameDrafts: sanitizedDrafts,
-        isCreateMode,
-        currentGameId: activeGameId,
-      });
-
-      if (autosavePlan.status === 'blocked') {
-        setAutosaveState('error');
-        setAutosaveError(autosavePlan.message);
-        return;
-      }
-
-      if (autosavePlan.status === 'idle') {
-        setAutosaveState('idle');
-        return;
-      }
-
-      const { trimmedDate, payloadFrames } = autosavePlan;
-      const saveSignature =
-        buildPersistedSignature(
-          activeGameId,
-          trimmedDate,
-          sanitizedDrafts,
-          selectedPatternId,
-          selectedBallId
-        ) ??
-        JSON.stringify({
-          gameId: activeGameId ?? 'new',
-          date: trimmedDate,
-          frames: payloadFrames,
-          patternId: selectedPatternId,
-          ballId: selectedBallId,
-        });
-
-      if (saveSignature === lastSavedSignatureRef.current) {
-        setAutosaveState('saved');
-        return;
-      }
-
-      isAutosaveInFlightRef.current = true;
-      setAutosaveState('saving');
-      setAutosaveError(null);
-      const saveSequence = saveSequenceRef.current + 1;
-      saveSequenceRef.current = saveSequence;
-      let attemptedGameId = activeGameId;
-
-      const queueEntryForLocalSave = async () => {
-        const queueSessionId = rawSessionId ?? sessionId ?? game?.sessionId;
-
-        if (!queueSessionId) {
-          return false;
-        }
-
-        const now = Date.now();
-        const queueEntry = createQueuedGameSaveEntry(
-          {
-            sessionId: String(queueSessionId),
-            sessionClientSyncId,
-            gameId: attemptedGameId ? String(attemptedGameId) : null,
-            draftNonce: attemptedGameId ? null : activeDraftNonce,
-            date: trimmedDate,
-            frames: payloadFrames,
-            signature: saveSignature,
-          },
-          now
-        );
-        const queueEntries = upsertQueuedGameSaveEntry(
-          await loadGameSaveQueue(),
-          queueEntry
-        );
-
-        await persistGameSaveQueue(queueEntries);
-
-        if (saveSequenceRef.current === saveSequence) {
-          setAutosaveState('queued');
-          setAutosaveError(null);
-        }
-
-        return true;
-      };
-
-      try {
-        if (
-          hasSignedInBefore &&
-          (!isAuthenticated || isOfflineLikely() || isDraftSessionContext)
-        ) {
-          if (await queueEntryForLocalSave()) {
-            return;
-          }
-        }
-
-        let nextGameId = activeGameId;
-
-        if (isCreateMode) {
-          if (!sessionId) {
-            if (isDraftSessionContext && (await queueEntryForLocalSave())) {
-              return;
-            }
-
-            throw new Error('Session is required when creating a game.');
-          }
-
-          if (!nextGameId) {
-            const queueEntries = await loadGameSaveQueue();
-            const pendingNewGameEntry = getQueuedGameSaveEntry(
-              queueEntries,
-              String(rawSessionId ?? sessionId),
-              null,
-              activeDraftNonce
-            );
-
-            if (pendingNewGameEntry) {
-              if (await queueEntryForLocalSave()) {
-                return;
-              }
-            }
-          }
-
-          if (!nextGameId) {
-            nextGameId = await createGame({
-              sessionId,
-              date: trimmedDate,
-              clientSyncId: activeDraftNonce,
-              patternId: selectedPatternId as never,
-              ballId: selectedBallId as never,
-            });
-            setDraftGameId(nextGameId);
-            replaceNewRouteWithGameId(nextGameId);
-          } else {
-            await updateGame({
-              gameId: nextGameId,
-              date: trimmedDate,
-              patternId: selectedPatternId as never,
-              ballId: selectedBallId as never,
-            });
-          }
-        } else {
-          if (!nextGameId) {
-            throw new Error('Game not found.');
-          }
-
-          await updateGame({
-            gameId: nextGameId,
-            date: trimmedDate,
-            patternId: selectedPatternId as never,
-            ballId: selectedBallId as never,
-          });
-        }
-
-        if (!nextGameId) {
-          throw new Error('Game not found.');
-        }
-
-        attemptedGameId = nextGameId;
-
-        await replaceFramesForGame({
-          gameId: nextGameId,
-          frames: payloadFrames,
-        });
-
-        lastSavedSignatureRef.current = saveSignature;
-
-        if (saveSequenceRef.current === saveSequence) {
-          setAutosaveState('saved');
-          setAutosaveError(null);
-          void clearLocalDraft();
-          lastAppliedServerSignatureRef.current = buildSyncSignature(
-            nextGameId,
-            trimmedDate,
-            sanitizedDrafts,
-            selectedPatternId,
-            selectedBallId
-          );
-        }
-      } catch (caught) {
-        const actionableMessage = getActionableSaveErrorMessage(caught);
-
-        if (isRetryableSaveError(caught)) {
-          if (await queueEntryForLocalSave()) {
-            return;
-          }
-        }
-
-        if (saveSequenceRef.current === saveSequence) {
-          setAutosaveState('error');
-          setAutosaveError(
-            actionableMessage ?? 'Unable to save game. Keep editing to retry.'
-          );
-        }
-      } finally {
-        isAutosaveInFlightRef.current = false;
-
-        if (hasQueuedAutosaveRef.current) {
-          hasQueuedAutosaveRef.current = false;
-          void persist();
-        }
-      }
-    };
-
-    const timer = setTimeout(() => {
-      void persist();
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [
-    createGame,
-    activeDraftNonce,
-    date,
-    didHydrate,
-    draftGameId,
-    frameDrafts,
-    game,
-    hasSignedInBefore,
-    isAuthenticated,
-    isCreateMode,
-    isDraftSessionContext,
-    rawSessionId,
-    replaceNewRouteWithGameId,
-    replaceFramesForGame,
-    sessionClientSyncId,
-    sessionId,
-    updateGame,
-    clearLocalDraft,
-    selectedBallId,
-    selectedPatternId,
-  ]);
 
   if (!isCreateMode && isLoading && !didHydrate && !isCanonicalizingRoute) {
     return (
