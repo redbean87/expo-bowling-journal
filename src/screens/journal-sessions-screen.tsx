@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -6,7 +5,6 @@ import {
   ActionSheetIOS,
   Alert,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +28,7 @@ import {
 } from './journal/journal-create-queue-storage';
 import { CreateSessionModal } from './journal/components/create-session-modal';
 import { SessionActionsModal } from './journal/components/session-actions-modal';
+import { SessionRowCard } from './journal/components/session-row-card';
 import {
   isNavigatorOffline,
   withTimeout,
@@ -46,8 +45,7 @@ import {
 import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { ReferenceCombobox } from '@/components/reference-combobox';
-import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
+import { FloatingActionButton } from '@/components/ui';
 import { useLeagues, useReferenceData, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 import { createClientSyncId } from '@/utils/client-sync-id';
@@ -824,165 +822,94 @@ export default function JournalSessionsScreen() {
           ) : null}
 
           {displaySessions.map((session) => (
-            <Card
+            <SessionRowCard
               key={session.id}
-              style={[
-                styles.rowCard,
-                editingSessionId === session.sessionId
-                  ? styles.rowCardActive
-                  : null,
-              ]}
-            >
-              <View style={styles.rowHeader}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.sessionContent,
-                    pressed ? styles.rowPressed : null,
-                  ]}
-                  onPress={() =>
-                    router.push({
-                      pathname:
-                        '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                      params: toGamesRouteParams({
-                        leagueId:
-                          leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
-                        sessionId:
-                          session.sessionId ??
-                          `draft-${session.clientSyncId ?? 'session'}`,
-                        sessionClientSyncId: session.clientSyncId,
-                        sessionDate: session.date,
-                        sessionWeekNumber:
-                          session.weekNumber ??
-                          (session.sessionId
-                            ? (derivedWeekNumberBySessionId.get(
-                                session.sessionId as SessionId
-                              ) ?? null)
-                            : null),
-                      }) as never,
-                    } as never)
-                  }
-                >
-                  <Text style={styles.rowTitle}>
-                    {formatSessionWeekLabel(
+              ballOptions={ballOptions}
+              buildSuggestions={buildSuggestions}
+              createBall={createBall}
+              createHouse={createHouse}
+              createPattern={createPattern}
+              editingSessionBallId={editingSessionBallId}
+              editingSessionDate={editingSessionDate}
+              editingSessionHouseId={editingSessionHouseId}
+              editingSessionPatternId={editingSessionPatternId}
+              editingSessionWeekNumber={editingSessionWeekNumber}
+              houseOptions={houseOptions}
+              isDeleting={deletingSessionId === session.sessionId}
+              isEditing={editingSessionId === session.sessionId}
+              isSavingSessionEdit={isSavingSessionEdit}
+              onCancelEditingSession={cancelEditingSession}
+              onEditingSessionBallSelect={(option) =>
+                setEditingSessionBallId(option.id)
+              }
+              onEditingSessionDateChange={setEditingSessionDate}
+              onEditingSessionHouseSelect={(option) =>
+                setEditingSessionHouseId(option.id)
+              }
+              onEditingSessionPatternSelect={(option) =>
+                setEditingSessionPatternId(option.id)
+              }
+              onEditingSessionWeekNumberChange={setEditingSessionWeekNumber}
+              onNavigate={() =>
+                router.push({
+                  pathname:
+                    '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+                  params: toGamesRouteParams({
+                    leagueId:
+                      leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
+                    sessionId:
+                      session.sessionId ??
+                      `draft-${session.clientSyncId ?? 'session'}`,
+                    sessionClientSyncId: session.clientSyncId,
+                    sessionDate: session.date,
+                    sessionWeekNumber:
                       session.weekNumber ??
-                        (session.sessionId
-                          ? (derivedWeekNumberBySessionId.get(
-                              session.sessionId as SessionId
-                            ) ?? null)
-                          : null) ??
-                        1
-                    )}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {formatIsoDateLabel(session.date)}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={`Session actions for ${formatIsoDateLabel(session.date)}`}
-                  disabled={
-                    session.isDraft || deletingSessionId === session.sessionId
-                  }
-                  hitSlop={8}
-                  onPress={() =>
-                    openSessionActions({
-                      sessionId: session.sessionId ?? '',
-                      date: session.date,
-                      weekNumber: session.weekNumber ?? null,
-                      houseId: session.houseId,
-                      patternId: session.patternId,
-                      ballId: session.ballId,
-                      title: `${formatSessionWeekLabel(
-                        session.weekNumber ??
-                          (session.sessionId
-                            ? (derivedWeekNumberBySessionId.get(
-                                session.sessionId as SessionId
-                              ) ?? null)
-                            : null) ??
-                          1
-                      )} - ${formatIsoDateLabel(session.date)}`,
-                    })
-                  }
-                  style={({ pressed }) => [
-                    styles.menuButton,
-                    pressed ? styles.menuButtonPressed : null,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="more-vert"
-                    size={22}
-                    color={colors.textPrimary}
-                  />
-                </Pressable>
-              </View>
-
-              {session.sessionId && editingSessionId === session.sessionId ? (
-                <View style={styles.editSection}>
-                  <Input
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onChangeText={setEditingSessionDate}
-                    placeholder="YYYY-MM-DD"
-                    value={editingSessionDate}
-                  />
-                  <Input
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="number-pad"
-                    onChangeText={setEditingSessionWeekNumber}
-                    placeholder="Week number (optional)"
-                    value={editingSessionWeekNumber}
-                  />
-                  <ReferenceCombobox
-                    allOptions={houseOptions}
-                    createLabel="Add house"
-                    getSuggestions={buildSuggestions}
-                    onQuickAdd={createHouse}
-                    onSelect={(option) => setEditingSessionHouseId(option.id)}
-                    placeholder="House (optional)"
-                    recentOptions={recentHouseOptions}
-                    valueId={editingSessionHouseId}
-                  />
-                  <ReferenceCombobox
-                    allOptions={patternOptions}
-                    createLabel="Add pattern"
-                    getSuggestions={buildSuggestions}
-                    onQuickAdd={createPattern}
-                    onSelect={(option) => setEditingSessionPatternId(option.id)}
-                    placeholder="Pattern (optional)"
-                    recentOptions={recentPatternOptions}
-                    valueId={editingSessionPatternId}
-                  />
-                  <ReferenceCombobox
-                    allOptions={ballOptions}
-                    createLabel="Add ball"
-                    getSuggestions={buildSuggestions}
-                    onQuickAdd={createBall}
-                    onSelect={(option) => setEditingSessionBallId(option.id)}
-                    placeholder="Ball (optional)"
-                    recentOptions={recentBallOptions}
-                    valueId={editingSessionBallId}
-                  />
-                  <View style={styles.editActionsRow}>
-                    <View style={styles.editActionButton}>
-                      <Button
-                        disabled={isSavingSessionEdit}
-                        label={isSavingSessionEdit ? 'Saving...' : 'Save'}
-                        onPress={() => void onSaveSessionEdit()}
-                        variant="secondary"
-                      />
-                    </View>
-                    <View style={styles.editActionButton}>
-                      <Button
-                        disabled={isSavingSessionEdit}
-                        label="Cancel"
-                        onPress={cancelEditingSession}
-                        variant="ghost"
-                      />
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-            </Card>
+                      (session.sessionId
+                        ? (derivedWeekNumberBySessionId.get(
+                            session.sessionId as SessionId
+                          ) ?? null)
+                        : null),
+                  }) as never,
+                } as never)
+              }
+              onOpenActions={() =>
+                openSessionActions({
+                  sessionId: session.sessionId ?? '',
+                  date: session.date,
+                  weekNumber: session.weekNumber ?? null,
+                  houseId: session.houseId,
+                  patternId: session.patternId,
+                  ballId: session.ballId,
+                  title: `${formatSessionWeekLabel(
+                    session.weekNumber ??
+                      (session.sessionId
+                        ? (derivedWeekNumberBySessionId.get(
+                            session.sessionId as SessionId
+                          ) ?? null)
+                        : null) ??
+                      1
+                  )} - ${formatIsoDateLabel(session.date)}`,
+                })
+              }
+              onSaveSessionEdit={() => {
+                void onSaveSessionEdit();
+              }}
+              patternOptions={patternOptions}
+              recentBallOptions={recentBallOptions}
+              recentHouseOptions={recentHouseOptions}
+              recentPatternOptions={recentPatternOptions}
+              session={session}
+              sessionDateLabel={formatIsoDateLabel(session.date)}
+              sessionWeekLabel={formatSessionWeekLabel(
+                session.weekNumber ??
+                  (session.sessionId
+                    ? (derivedWeekNumberBySessionId.get(
+                        session.sessionId as SessionId
+                      ) ?? null)
+                    : null) ??
+                  1
+              )}
+            />
           ))}
         </ScrollView>
 
@@ -1051,58 +978,9 @@ const styles = StyleSheet.create({
     fontSize: typeScale.bodySm,
     color: colors.danger,
   },
-  rowTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  rowPressed: {
-    opacity: 0.82,
-  },
-  rowHeader: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  sessionContent: {
-    flex: 1,
-  },
-  menuButton: {
-    width: 40,
-    height: 44,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  menuButtonPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  editSection: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  editActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  editActionButton: {
-    flex: 1,
-  },
   meta: {
     fontSize: typeScale.bodySm,
     lineHeight: lineHeight.compact,
     color: colors.textSecondary,
-  },
-  rowCard: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
-    gap: spacing.xs,
-  },
-  rowCardActive: {
-    position: 'relative',
-    zIndex: 30,
-    elevation: 30,
   },
 });
