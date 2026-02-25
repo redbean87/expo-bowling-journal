@@ -108,6 +108,7 @@ When an item is complete, move it to `## Completed`.
 - Offline editor autosave queue dedupe key is `sessionId + (gameId || draftNonce)` with latest-local-edit-wins behavior per draft attempt
 - Game editor frame hydration now reconciles packed manual pin masks with stored roll counts using standing-aware bonus-roll reconstruction (prevents false frame-10 roll3 validation noise, e.g. `X9/`)
 - Added user/internal frame-pin mismatch repair backfills; internal backfill run repaired existing legacy mismatches and post-run dry-check reported zero remaining candidates
+- Journal P0-C leagues/sessions/games modal and row extractions are complete; remaining P0-C scope is games-screen orchestration helper cleanup and optional action-sheet consolidation
 
 ## Risks / Unknowns
 

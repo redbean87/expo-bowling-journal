@@ -164,7 +164,8 @@ Each target should use this structure so status is obvious at a glance:
 
 **Remaining**
 
-- Reduce `src/screens/journal-games-screen.tsx` toward orchestration-focused composition.
+- Extract games-screen orchestration helpers from `src/screens/journal-games-screen.tsx` (night summary + display mapping composition).
+- Optional: add `src/screens/journal/journal-action-sheet.ts` to centralize non-iOS/web action handling across journal screens.
 
 **Current pain**
 
@@ -172,10 +173,8 @@ Each target should use this structure so status is obvious at a glance:
 
 **Breakdown opportunities**
 
-- Extract shared "offline/create with timeout + retry" helpers.
-- Extract route param parsing and draft-sync-map resolution utilities.
-- Extract repeated action modal logic.
-- Extract row cards and modal form sections into dedicated components.
+- Finish extracting games-screen orchestration helpers so presentation and data composition stay separate.
+- Optionally centralize non-iOS/web action-sheet handling with a shared helper.
 - Keep each screen focused on data flow and composition.
 
 **Proposed files**
