@@ -16,6 +16,7 @@ When an item is complete, move it to `## Completed`.
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
 - [ ] Unify journal create/action affordances (FAB vs overflow menu) with a single platform-consistent interaction pattern
+- [ ] Validate native iOS/Android flows (builds + smoke tests for journal/game-editor offline and queue paths)
 - [ ] Team/coach sharing model
 
 ## Completed
@@ -93,6 +94,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Continue journal P0-C by extracting game actions modal into `src/screens/journal/components/game-actions-modal.tsx`
 - [x] Continue journal P0-C by extracting game row rendering/preview section into `src/screens/journal/components/game-row-card.tsx`
 - [x] Continue journal P0-C by extracting games display/night-summary composition helpers into `src/screens/journal/journal-games-display.ts`
+- [x] Continue journal P0-C by centralizing native row action sheets in `src/screens/journal/journal-action-sheet.ts` across leagues/sessions/games
 
 ## Decision Log
 
