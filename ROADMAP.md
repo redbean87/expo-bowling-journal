@@ -79,6 +79,8 @@ When an item is complete, move it to `## Completed`.
 - [x] Add installable web app metadata/icons for PWA-ready home-screen installs (no service-worker caching yet)
 - [x] End-to-end offline retry testing and conflict handling for single-user device flow
 - [x] Polish offline games-list reconciliation on reconnect to eliminate remaining queued-to-synced visual churn
+- [x] Refactor game editor hydration/restore and local draft reconcile flow into `use-game-editor-hydration` to keep screen orchestration-focused
+- [x] Fix legacy 10th-frame roll/mask mismatches (list vs editor totals), add standing-aware roll reconstruction, and run frame-pin mismatch backfills
 
 ## Decision Log
 
@@ -93,6 +95,8 @@ When an item is complete, move it to `## Completed`.
 - Raw import mirror persistence for callback/direct snapshot paths is chunked across all `importRaw*` tables before normalized import execution
 - Prioritize mobile-first data capture and offline resiliency ahead of analytics/reporting polish
 - Offline editor autosave queue dedupe key is `sessionId + (gameId || draftNonce)` with latest-local-edit-wins behavior per draft attempt
+- Game editor frame hydration now reconciles packed manual pin masks with stored roll counts using standing-aware bonus-roll reconstruction (prevents false frame-10 roll3 validation noise, e.g. `X9/`)
+- Added user/internal frame-pin mismatch repair backfills; internal backfill run repaired existing legacy mismatches and post-run dry-check reported zero remaining candidates
 
 ## Risks / Unknowns
 
