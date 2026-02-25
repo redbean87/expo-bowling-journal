@@ -86,6 +86,18 @@ function maskFromCount(value: number | null | undefined) {
   return (1 << value) - 1;
 }
 
+function reconcileMaskForRoll(mask: number, roll: number | null) {
+  if (roll === null) {
+    return 0;
+  }
+
+  if (bitCount(mask) === roll) {
+    return mask;
+  }
+
+  return maskFromCount(roll);
+}
+
 function packManualPinsMasks(
   roll1Mask: number,
   roll2Mask: number,
@@ -110,11 +122,14 @@ function buildManualPinsPayload(
   const standingAfterRoll1Mask = packedPins & FULL_PIN_MASK;
   const standingAfterRoll2Mask =
     (packedPins >> SECOND_ROLL_SHIFT) & FULL_PIN_MASK;
-  const roll1Mask =
+  const roll1MaskFromSource =
     roll1 === 10 ? FULL_PIN_MASK : FULL_PIN_MASK & ~standingAfterRoll1Mask;
-  const roll2Mask =
+  const roll2MaskFromSource =
     roll2 === null ? 0 : standingAfterRoll1Mask & ~standingAfterRoll2Mask;
-  const roll3Mask = maskFromCount(roll3);
+  const roll3MaskFromSource = maskFromCount(roll3);
+  const roll1Mask = reconcileMaskForRoll(roll1MaskFromSource, roll1);
+  const roll2Mask = reconcileMaskForRoll(roll2MaskFromSource, roll2);
+  const roll3Mask = reconcileMaskForRoll(roll3MaskFromSource, roll3);
 
   return packManualPinsMasks(roll1Mask, roll2Mask, roll3Mask);
 }

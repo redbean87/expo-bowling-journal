@@ -7,6 +7,7 @@ import {
   getFrameSymbolParts,
   getFrameSymbolSummary,
   getFrameSplitFlags,
+  getFrameInlineError,
   getSettledRunningTotals,
   getNextCursorAfterEntry,
   getStandingMaskForField,
@@ -127,8 +128,46 @@ test('toFrameDrafts restores manual packed pins when available', () => {
   assert.deepEqual(drafts[0], {
     roll1Mask: 0b11,
     roll2Mask: 0b100,
-    roll3Mask: 0,
+    roll3Mask: null,
   });
+});
+
+test('toFrameDrafts prefers stored roll counts when packed pins mismatch', () => {
+  const packedPins =
+    1073741824 | 0b1111111111 | (0b0000000000 << 10) | (0b1111111111 << 20);
+  const drafts = toFrameDrafts([
+    {
+      frameNumber: 10,
+      roll1: 10,
+      roll2: 10,
+      roll3: 10,
+      pins: packedPins,
+    },
+  ]);
+
+  assert.deepEqual(drafts[9], {
+    roll1Mask: 0b1111111111,
+    roll2Mask: 0b1111111111,
+    roll3Mask: 0b1111111111,
+  });
+});
+
+test('toFrameDrafts reconstructs standing-valid tenth bonus masks', () => {
+  const packedPins =
+    1073741824 | 0b1111111111 | (0b0000000000 << 10) | (0b1111111111 << 20);
+  const drafts = toFrameDrafts([
+    {
+      frameNumber: 10,
+      roll1: 10,
+      roll2: 9,
+      roll3: 1,
+      pins: packedPins,
+    },
+  ]);
+  const tenth = drafts[9]!;
+
+  assert.equal(getFrameSymbolSummary(9, tenth), 'X9/');
+  assert.equal(getFrameInlineError(9, tenth), null);
 });
 
 test('formats frame symbols for frames 1-9', () => {

@@ -11,6 +11,8 @@ import type { Id } from '../../convex/_generated/dataModel';
 
 const FULL_PIN_MASK = 0x3ff;
 const MANUAL_PIN_PACK_MARKER = 1 << 30;
+const SECOND_ROLL_SHIFT = 10;
+const THIRD_ROLL_SHIFT = 20;
 
 function asGameId(value: string) {
   return value as Id<'games'>;
@@ -30,6 +32,18 @@ function standingMask(standingPins: number) {
   }
 
   return (1 << standingPins) - 1;
+}
+
+function bitCount(value: number) {
+  let working = value & FULL_PIN_MASK;
+  let count = 0;
+
+  while (working !== 0) {
+    working &= working - 1;
+    count += 1;
+  }
+
+  return count;
 }
 
 function buildFrameRow(
@@ -159,4 +173,37 @@ test('large import frame plan yields multiple default-size chunks', () => {
     chunks.every((chunk) => chunk.length <= DEFAULT_CANONICAL_FRAME_CHUNK_SIZE),
     true
   );
+});
+
+test('buildCanonicalFrameInserts keeps tenth bonus masks aligned with canonical rolls', () => {
+  const gameId = asGameId('game_tenth_bonus_alignment');
+  const rows = [
+    ...Array.from({ length: 9 }, (_, frameIndex) =>
+      buildFrameRow(frameIndex + 1, 500, frameIndex, 9, 0, 195)
+    ),
+    buildFrameRow(10, 500, 9, 10, 0, 193),
+    buildFrameRow(11, 500, 10, 7, 3, 195),
+  ];
+
+  const inserts = buildCanonicalFrameInserts({
+    frames: rows,
+    gameIdMappings: [{ sqliteGameId: 500, gameId }],
+    ballIdMappings: [{ sqliteBallId: 7, ballId: asBallId('ball_7') }],
+  });
+  const tenth = inserts.find((frame) => frame.frameNumber === 10);
+
+  assert.notEqual(tenth, undefined);
+  assert.equal(tenth?.roll1, 10);
+  assert.equal(tenth?.roll2, 7);
+  assert.equal(tenth?.roll3, 3);
+
+  const packedPins = tenth?.pins ?? 0;
+  const roll1Mask = packedPins & FULL_PIN_MASK;
+  const roll2Mask = (packedPins >> SECOND_ROLL_SHIFT) & FULL_PIN_MASK;
+  const roll3Mask = (packedPins >> THIRD_ROLL_SHIFT) & FULL_PIN_MASK;
+
+  assert.equal((packedPins & MANUAL_PIN_PACK_MARKER) !== 0, true);
+  assert.equal(bitCount(roll1Mask), 10);
+  assert.equal(bitCount(roll2Mask), 7);
+  assert.equal(bitCount(roll3Mask), 3);
 });

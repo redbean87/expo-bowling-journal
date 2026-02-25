@@ -81,6 +81,63 @@ function maskFromCount(count: number | null | undefined): number | null {
   return (1 << count) - 1;
 }
 
+function maskFromCountWithinStanding(
+  count: number | null | undefined,
+  standingMask: number
+): number | null {
+  if (count === undefined || count === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(count) || count < 0 || count > 10) {
+    return null;
+  }
+
+  if (count === 0) {
+    return 0;
+  }
+
+  let remaining = count;
+  let result = 0;
+
+  for (let bit = 0; bit < 10 && remaining > 0; bit += 1) {
+    const pinBit = 1 << bit;
+
+    if ((standingMask & pinBit) !== 0) {
+      result |= pinBit;
+      remaining -= 1;
+    }
+  }
+
+  if (remaining > 0) {
+    return standingMask;
+  }
+
+  return result;
+}
+
+function resolveMaskFromStoredRoll(
+  mask: number | null,
+  roll: number | null | undefined,
+  standingMask: number
+): number | null {
+  const rollMask = maskFromCountWithinStanding(roll, standingMask);
+
+  if (rollMask === null) {
+    return null;
+  }
+
+  if (mask === null) {
+    return rollMask;
+  }
+
+  if (bitCount(mask) === roll && (mask & ~standingMask) === 0) {
+    return mask;
+  }
+
+  return rollMask;
+}
+
 export function getRollValue(mask: number | null): number | null {
   if (mask === null) {
     return null;
@@ -148,10 +205,43 @@ export function toFrameDrafts(
     const unpacked = unpackManualPins(frame.pins);
 
     if (unpacked) {
+      const roll1Mask = resolveMaskFromStoredRoll(
+        normalizeMask(unpacked.roll1Mask),
+        frame.roll1,
+        FULL_PIN_MASK
+      );
+      const roll2StandingMask = getStandingMaskForField(
+        index,
+        {
+          roll1Mask,
+          roll2Mask: null,
+          roll3Mask: null,
+        },
+        'roll2Mask'
+      );
+      const roll2Mask = resolveMaskFromStoredRoll(
+        normalizeMask(unpacked.roll2Mask),
+        frame.roll2,
+        roll2StandingMask
+      );
+      const roll3StandingMask = getStandingMaskForField(
+        index,
+        {
+          roll1Mask,
+          roll2Mask,
+          roll3Mask: null,
+        },
+        'roll3Mask'
+      );
+
       drafts[index] = {
-        roll1Mask: normalizeMask(unpacked.roll1Mask),
-        roll2Mask: normalizeMask(unpacked.roll2Mask),
-        roll3Mask: normalizeMask(unpacked.roll3Mask),
+        roll1Mask,
+        roll2Mask,
+        roll3Mask: resolveMaskFromStoredRoll(
+          normalizeMask(unpacked.roll3Mask),
+          frame.roll3,
+          roll3StandingMask
+        ),
       };
       continue;
     }
