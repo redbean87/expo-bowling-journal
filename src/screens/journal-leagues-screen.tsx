@@ -25,6 +25,10 @@ import { CreateLeagueModal } from './journal/components/create-league-modal';
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
+import {
+  isNavigatorOffline,
+  withTimeout,
+} from './journal/journal-offline-create';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
@@ -88,31 +92,6 @@ function formatRetryTime(timestamp: number | null, now: number) {
 
   const hours = Math.ceil(minutes / 60);
   return `in ${String(hours)}h`;
-}
-
-function isNavigatorOffline() {
-  return (
-    typeof globalThis.navigator !== 'undefined' &&
-    globalThis.navigator.onLine === false
-  );
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error('Create request timed out.'));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-  }
 }
 
 type LeagueActionTarget = {

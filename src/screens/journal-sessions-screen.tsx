@@ -29,6 +29,11 @@ import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal/journal-create-queue-storage';
+import {
+  isNavigatorOffline,
+  withTimeout,
+} from './journal/journal-offline-create';
+import { getFirstParam } from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
   findSessionIdForDate,
@@ -45,39 +50,6 @@ import { Button, Card, FloatingActionButton, Input } from '@/components/ui';
 import { useLeagues, useReferenceData, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 import { createClientSyncId } from '@/utils/client-sync-id';
-
-function getFirstParam(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
-}
-
-function isNavigatorOffline() {
-  return (
-    typeof globalThis.navigator !== 'undefined' &&
-    globalThis.navigator.onLine === false
-  );
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error('Create request timed out.'));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
 
 type SessionActionTarget = {
   sessionId: string;

@@ -42,6 +42,7 @@ import {
   loadJournalClientSyncMap,
   type JournalClientSyncMap,
 } from './journal/journal-client-sync-map-storage';
+import { getFirstParam } from './journal/journal-route-params';
 import {
   formatIsoDateLabel,
   formatGameSequenceLabel,
@@ -57,14 +58,6 @@ import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card, FloatingActionButton } from '@/components/ui';
 import { useGames, useLeagues, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
-
-function getFirstParam(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
-}
 
 type PreviewItem = {
   text: string;
