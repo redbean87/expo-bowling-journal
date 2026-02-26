@@ -1,6 +1,7 @@
 import {
   useEffect,
   useCallback,
+  useState,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -117,6 +118,8 @@ export function useGameEditorAutosaveSync({
   lastSavedSignatureRef,
   lastAppliedServerSignatureRef,
 }: UseGameEditorAutosaveSyncInput) {
+  const [autosaveRetryTick, setAutosaveRetryTick] = useState(0);
+
   const promoteDraftToQueue = useCallback(
     async ({ updateUi }: { updateUi: boolean }) => {
       const shouldQueueLocally =
@@ -570,7 +573,7 @@ export function useGameEditorAutosaveSync({
 
         if (hasQueuedAutosaveRef.current) {
           hasQueuedAutosaveRef.current = false;
-          void persist();
+          setAutosaveRetryTick((currentTick) => currentTick + 1);
         }
       }
     };
@@ -608,6 +611,7 @@ export function useGameEditorAutosaveSync({
     sessionId,
     setAutosaveError,
     setAutosaveState,
+    autosaveRetryTick,
     setDraftGameId,
     setFrameDrafts,
     updateGame,

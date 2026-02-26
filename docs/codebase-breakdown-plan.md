@@ -197,15 +197,21 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/screens/game-editor/frame-mask-utils.ts`
+- `src/screens/game-editor/frame-validation.ts`
+- `src/screens/game-editor/frame-symbols.ts`
+- `src/screens/game-editor/frame-splits.ts`
+- `src/screens/game-editor/frame-scoring.ts`
+- `src/screens/game-editor/frame-cursor.ts`
+- `src/screens/game-editor/game-editor-frame-utils.ts` (compatibility barrel)
 
 **Remaining**
 
-- Split frame utility domains (mask math, validation, symbols, scoring, splits, cursor navigation).
+- None for P1-A.
 
 **Current pain**
 

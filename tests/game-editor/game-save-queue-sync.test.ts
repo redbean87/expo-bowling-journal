@@ -72,6 +72,60 @@ test('flushQueuedGameSavesWithLock reuses in-flight queue flush', async () => {
   assert.equal(loadCalls, 1);
 });
 
+test('flushQueuedGameSavesWithLock avoids duplicate create for overlapping new-draft flushes', async () => {
+  const createdEntry = createQueueEntry({
+    gameId: null,
+    draftNonce: 'draft-overlap',
+    queueId: buildGameSaveQueueId('session-1', null, 'draft-overlap'),
+    nextRetryAt: BASE_TIME,
+  });
+  let queueState: QueuedGameSaveEntry[] = [createdEntry];
+  let resolveCreate: (() => void) | undefined;
+  const createGate = new Promise<void>((resolve) => {
+    resolveCreate = resolve;
+  });
+  let createCount = 0;
+
+  const first = flushQueuedGameSavesWithLock({
+    createGame: async () => {
+      createCount += 1;
+      await createGate;
+      return 'game-overlap-1' as never;
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async () => undefined,
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  const second = flushQueuedGameSavesWithLock({
+    createGame: async () => {
+      createCount += 1;
+      return 'game-overlap-2' as never;
+    },
+    updateGame: async () => undefined,
+    replaceFramesForGame: async () => undefined,
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+  });
+
+  assert.equal(first, second);
+
+  if (!resolveCreate) {
+    throw new Error('Expected create gate to be initialized.');
+  }
+
+  resolveCreate();
+  await Promise.all([first, second]);
+
+  assert.equal(createCount, 1);
+  assert.deepEqual(queueState, []);
+});
+
 test('flushQueuedGameSaves creates missing game ids and removes synced entries', async () => {
   const createdEntry = createQueueEntry({
     gameId: null,
