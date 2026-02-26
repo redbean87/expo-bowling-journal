@@ -162,7 +162,9 @@ npm --prefix worker run check # Validate worker TypeScript/lint setup
 This project supports web deployments through EAS Hosting with separate preview and production environments.
 
 The web build includes installable PWA metadata (manifest, icons, theme color) for home-screen installs.
-Service-worker caching is intentionally not enabled yet, so offline first-load behavior is unchanged.
+A lifecycle-only service worker is registered so open sessions can apply new deploys from an in-app update prompt.
+Runtime asset/data caching is intentionally not enabled yet, so offline first-load behavior is unchanged.
+Each `npm run build:web` run rewrites `public/sw.js` with a unique build id so open sessions can detect every deploy.
 
 ### One-time setup
 
@@ -216,7 +218,8 @@ Convex Auth is integrated into app flows:
 - Ensure `.env` exists and includes `EXPO_PUBLIC_CONVEX_URL`
 - Restart Expo after env changes
 - For web deploys, run `eas env:pull --environment <preview|production>` before `npm run build:web`
-- If a deploy still serves an old bundle, hard refresh (`Ctrl+Shift+R`) and reload
+- If a deploy is available while the app is open, use the in-app `Update now` prompt to refresh in place
+- If an old bundle still appears, hard refresh (`Ctrl+Shift+R`) and reload
 
 **"Missing EXPO_PUBLIC_IMPORT_WORKER_URL"**
 

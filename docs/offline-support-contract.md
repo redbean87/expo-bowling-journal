@@ -7,6 +7,7 @@ This document defines what is currently guaranteed to work offline versus what i
 - Single-user, single-device workflow
 - Prior sign-in is required
 - League-night capture reliability is prioritized over broad offline CRUD parity
+- Web PWA update lifecycle supports in-app refresh prompts without forcing app close/reopen
 
 ## Support Levels
 
@@ -35,6 +36,13 @@ This document defines what is currently guaranteed to work offline versus what i
 - Reconnect drains queued game writes under normal network recovery.
 - No duplicate game creation from retry/replay in normal single-device flows.
 - Final synced game state reflects latest local edits.
+
+## Web PWA Notes
+
+- Installability is supported via manifest/icons.
+- A lifecycle-only service worker is used for update detection and activation.
+- Update behavior: when a new deploy is detected in an open session, the app can prompt for `Update now`, activate the waiting worker, and reload in place.
+- Runtime asset/data caching is not enabled yet, so first-load offline behavior is unchanged.
 
 ## Planned Expansion (v2)
 

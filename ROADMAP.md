@@ -79,6 +79,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Polish journal list cards with overflow action menus and consistent icon-based navigation affordances
 - [x] Add contextual journal headers (league/week/date/game-name) with hierarchy-aware title/subtitle behavior
 - [x] Add installable web app metadata/icons for PWA-ready home-screen installs (no service-worker caching yet)
+- [x] Add in-app PWA update prompt flow (waiting worker detection + skip-waiting activation + reload)
 - [x] End-to-end offline retry testing and conflict handling for single-user device flow
 - [x] Polish offline games-list reconciliation on reconnect to eliminate remaining queued-to-synced visual churn
 - [x] Refactor game editor hydration/restore and local draft reconcile flow into `use-game-editor-hydration` to keep screen orchestration-focused

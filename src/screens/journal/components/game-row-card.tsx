@@ -178,11 +178,11 @@ const styles = StyleSheet.create({
   },
   gameContent: {
     flex: 1,
-    marginTop: spacing.xs,
+    marginTop: 0,
   },
   menuButton: {
     width: 40,
-    height: 44,
+    height: 36,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   previewGrid: {
     gap: spacing.xs,
-    marginTop: spacing.sm,
+    marginTop: 0,
   },
   previewRow: {
     flexDirection: 'row',

@@ -40,6 +40,8 @@ Thanks for contributing to the Bowling Journal app.
   2. `npm run build:web`
   3. `npm run deploy:web:prod`
 
+`npm run build:web` automatically rewrites `public/sw.js` with a unique build id so in-app PWA update prompts can detect each new deploy.
+
 Environment policy:
 
 - `preview` includes `EXPO_PUBLIC_CONVEX_URL` only

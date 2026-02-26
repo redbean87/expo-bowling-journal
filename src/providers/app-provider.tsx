@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { persistHasSignedInBefore } from '@/auth/prior-sign-in-storage';
 import { tokenStorage } from '@/auth/token-storage';
+import { PwaUpdateBanner } from '@/components/pwa-update-banner';
 import { env } from '@/config/env';
 import { PreferencesProvider } from '@/providers/preferences-provider';
 
@@ -16,6 +17,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       <PreferencesProvider>
         <ConvexAuthProvider client={convex} storage={tokenStorage}>
           <SignInHistoryTracker />
+          <PwaUpdateBanner />
           {children}
         </ConvexAuthProvider>
       </PreferencesProvider>
