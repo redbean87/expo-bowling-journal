@@ -18,6 +18,7 @@ When an item is complete, move it to `## Completed`.
 - [ ] Unify journal create/action affordances (FAB vs overflow menu) with a single platform-consistent interaction pattern
 - [ ] Validate native iOS/Android flows (builds + smoke tests for journal/game-editor offline and queue paths)
 - [ ] Team/coach sharing model
+- [ ] Add lightweight CI/reporting for file-size drift (largest files + threshold alerts)
 
 ## Completed
 
@@ -113,6 +114,7 @@ When an item is complete, move it to `## Completed`.
 - Game editor frame hydration now reconciles packed manual pin masks with stored roll counts using standing-aware bonus-roll reconstruction (prevents false frame-10 roll3 validation noise, e.g. `X9/`)
 - Added user/internal frame-pin mismatch repair backfills; internal backfill run repaired existing legacy mismatches and post-run dry-check reported zero remaining candidates
 - Journal P0-C leagues/sessions/games modal and row extractions are complete; remaining P0-C scope is games-screen orchestration helper cleanup and optional action-sheet consolidation
+- Code-health guardrails now enforce file-size thresholds and extraction policy; see `docs/code-health-guardrails.md`
 
 ## Risks / Unknowns
 

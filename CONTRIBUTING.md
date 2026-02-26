@@ -56,6 +56,14 @@ Environment policy:
 - Avoid `any` unless unavoidable
 - Use kebab-case for file names
 
+## Code health guardrails
+
+- Follow `docs/code-health-guardrails.md` for file-size thresholds and extraction policy.
+- Prefer keeping implementation files at or below ~200 lines when practical.
+- At ~250+ lines, prefer extraction before adding more logic.
+- Do not continue adding logic to 400+ line files without splitting first.
+- If immediate extraction is unsafe for scope/timing, add a concrete follow-up in `ROADMAP.md`.
+
 ## Default session workflow
 
 Unless a task explicitly says otherwise:
@@ -92,6 +100,7 @@ For roadmap execution updates, report in this order:
 4. Run `npm test` or `npm run test:import`
 5. Run `npm --prefix worker run check` if worker files changed
 6. Update `ROADMAP.md` when a roadmap item is completed
+7. Confirm code-health guardrails are satisfied (or roadmap follow-up added)
 
 ## Offline contract docs
 

@@ -4,6 +4,11 @@
 
 This document tracks where we should split large files into smaller, focused modules so the project is easier to understand, test, and maintain.
 
+## Status
+
+- Completed (historical reference).
+- Ongoing prevention guardrails live in `docs/code-health-guardrails.md`, `AGENTS.md`, and `CONTRIBUTING.md`.
+
 ## Principles
 
 - Keep screens focused on orchestration (UI composition + navigation), not deep business logic.

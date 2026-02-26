@@ -66,6 +66,23 @@ scripts/
 - Repeated patterns across screens -> `src/components/`
 - Screen-only sections -> `src/screens/<screen-name>/`
 
+## Codebase Size Guardrails
+
+Detailed reference: `docs/code-health-guardrails.md`
+
+Use these thresholds to prevent large-file regressions:
+
+- **Ideal**: Keep most implementation files at or below ~200 lines.
+- **Review threshold**: At ~250 lines, prefer extraction before adding more logic.
+- **Hard-stop threshold**: At 400+ lines, do not continue adding logic without splitting first.
+
+When touching larger files:
+
+- If a touched file is already above ~250 lines and the change adds meaningful new logic, include extraction in the same workstream when practical.
+- If immediate extraction is unsafe for scope/timing, add a concrete follow-up item to `ROADMAP.md` in the same workstream.
+- Keep screen route files orchestration-focused; business logic belongs in hooks/services/utilities.
+- When extracting, keep behavior unchanged and add/update focused regression tests.
+
 ### TypeScript
 
 - Use strict typing; avoid `any` unless unavoidable
