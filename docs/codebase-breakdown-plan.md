@@ -413,11 +413,11 @@ Extract queue mutation helpers + draft session mapping:
 
 ## Cross-Cutting Duplications to Consolidate
 
-- `getFirstParam` appears in multiple places (journal screens, frame utils, nav route utils).
-- `isNavigatorOffline` duplicated in journal screens.
-- `withTimeout` duplicated in league/session screens.
-- `createDraftNonce` duplicated in games/editor screens.
-- Similar split-detection/frame-preview logic exists in both client and Convex (`game-editor-frame-utils` and `convex/lib/game_frame_preview.ts`); align behavior with shared tests even if runtime sharing is not practical.
+- Status: Done
+- `getFirstParam` centralized in `src/utils/route-params.ts` and reused by route consumers.
+- `isNavigatorOffline` and `withTimeout` centralized in `src/screens/journal/journal-offline-create.ts` and reused by journal screens.
+- `createDraftNonce` centralized in `src/utils/draft-nonce.ts` and reused by game/editor screens.
+- Added client/Convex frame preview parity tests in `tests/import/frame-preview-parity.test.ts` to keep split/text behavior aligned.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   getFrameSymbolSummary,
   getFrameSplitFlags,
   getFrameInlineError,
+  getProvisionalTotalScore,
   getSettledRunningTotals,
   getNextCursorAfterEntry,
   getStandingMaskForField,
@@ -425,6 +426,24 @@ test('getSettledRunningTotals keeps tenth blank until bonus roll is entered', ()
   const withRoll3 = getSettledRunningTotals(drafts);
 
   assert.equal(withRoll3[9], 30);
+});
+
+test('getProvisionalTotalScore mirrors server-style partial strike scoring', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+  drafts[0] = { roll1Mask: toMask(10), roll2Mask: null, roll3Mask: null };
+  drafts[1] = { roll1Mask: toMask(10), roll2Mask: null, roll3Mask: null };
+  drafts[2] = { roll1Mask: toMask(10), roll2Mask: null, roll3Mask: null };
+
+  assert.equal(getProvisionalTotalScore(drafts), 60);
+  assert.equal(getSettledRunningTotals(drafts)[2], null);
+});
+
+test('getProvisionalTotalScore includes partial follow-up frame points', () => {
+  const drafts = EMPTY_FRAMES.map((frame) => ({ ...frame }));
+  drafts[0] = { roll1Mask: toMask(7), roll2Mask: toMask(3), roll3Mask: null };
+  drafts[1] = { roll1Mask: toMask(4), roll2Mask: null, roll3Mask: null };
+
+  assert.equal(getProvisionalTotalScore(drafts), 18);
 });
 
 test('classic split leave is detected', () => {

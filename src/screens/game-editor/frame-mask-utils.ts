@@ -22,15 +22,7 @@ export const EMPTY_FRAMES: FrameDraft[] = Array.from({ length: 10 }, () => ({
   ...EMPTY_FRAME_DRAFT,
 }));
 
-export function getFirstParam(
-  value: string | string[] | undefined
-): string | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
-}
+export { getFirstParam } from '@/utils/route-params';
 
 export function normalizeDateValue(value: string) {
   return value.slice(0, 10);

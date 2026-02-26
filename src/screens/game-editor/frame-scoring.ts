@@ -186,3 +186,46 @@ export function getSettledRunningTotals(
 
   return totals;
 }
+
+export function getProvisionalTotalScore(frameDrafts: FrameDraft[]): number {
+  const { frames, rolls } = parseScoreFrames(frameDrafts);
+  let totalScore = 0;
+
+  for (let frameIndex = 0; frameIndex < 10; frameIndex += 1) {
+    const frame = frames[frameIndex];
+
+    if (!frame || !frame.hasStarted) {
+      break;
+    }
+
+    if (frameIndex < 9) {
+      if (frame.isStrike) {
+        const bonusRoll1 = rolls[frame.startRollIndex + 1] ?? 0;
+        const bonusRoll2 = rolls[frame.startRollIndex + 2] ?? 0;
+        totalScore += 10 + bonusRoll1 + bonusRoll2;
+        continue;
+      }
+
+      const roll1 = frame.rolls[0] ?? 0;
+      const roll2 = frame.rolls[1] ?? null;
+
+      if (roll2 === null) {
+        totalScore += roll1;
+        continue;
+      }
+
+      if (frame.isSpare) {
+        const bonusRoll = rolls[frame.startRollIndex + 2] ?? 0;
+        totalScore += 10 + bonusRoll;
+        continue;
+      }
+
+      totalScore += roll1 + roll2;
+      continue;
+    }
+
+    totalScore += frame.rolls.reduce((sum, value) => sum + value, 0);
+  }
+
+  return totalScore;
+}

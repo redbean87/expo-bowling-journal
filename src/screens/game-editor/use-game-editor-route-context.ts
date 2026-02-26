@@ -1,8 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import { getFirstParam } from './game-editor-frame-utils';
-
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
+
+import { getFirstParam } from '@/utils/route-params';
 
 export function useGameEditorRouteContext() {
   const params = useLocalSearchParams<{

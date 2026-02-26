@@ -1,7 +1,7 @@
 import {
   getFrameSplitFlags,
   getFrameSymbolParts,
-  getSettledRunningTotals,
+  getProvisionalTotalScore,
   toFrameDrafts,
 } from '../game-editor/game-editor-frame-utils';
 import { type QueuedGameSaveEntry } from '../game-editor/game-save-queue';
@@ -131,18 +131,6 @@ function summarizePreviewMarks(
   };
 }
 
-function toTotalScoreFromRunningTotals(values: Array<number | null>) {
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const value = values[index];
-
-    if (value !== null) {
-      return value;
-    }
-  }
-
-  return 0;
-}
-
 export function buildQueueDerivedGame(
   entry: QueuedGameSaveEntry
 ): QueueDerivedGame {
@@ -160,7 +148,7 @@ export function buildQueueDerivedGame(
     .filter((item) => item.text.trim().length > 0);
 
   const previewMarks = summarizePreviewMarks(framePreviewItems);
-  const runningTotals = getSettledRunningTotals(frameDrafts);
+  const totalScore = getProvisionalTotalScore(frameDrafts);
 
   return {
     queueId: entry.queueId,
@@ -168,7 +156,7 @@ export function buildQueueDerivedGame(
     gameId: entry.gameId,
     draftNonce: entry.draftNonce,
     createdAt: entry.createdAt,
-    totalScore: toTotalScoreFromRunningTotals(runningTotals),
+    totalScore,
     strikes: previewMarks.strikeMarks,
     spares: previewMarks.spareMarks,
     opens: previewMarks.openFrames,

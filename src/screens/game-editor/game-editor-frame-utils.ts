@@ -17,7 +17,10 @@ export {
   getNextCursorAfterEntry,
   getPreferredRollField,
 } from './frame-cursor';
-export { getSettledRunningTotals } from './frame-scoring';
+export {
+  getProvisionalTotalScore,
+  getSettledRunningTotals,
+} from './frame-scoring';
 export {
   getFrameSplitFlags,
   isSplitLeaveMask,

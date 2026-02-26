@@ -56,6 +56,7 @@ import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card, FloatingActionButton } from '@/components/ui';
 import { useGames, useLeagues, useSessions } from '@/hooks/journal';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { createDraftNonce } from '@/utils/draft-nonce';
 
 type QueuedSessionContext = {
   date: string | null;
@@ -68,12 +69,6 @@ type GameActionTarget = {
   label: string;
   title: string;
 };
-
-function createDraftNonce() {
-  const timestampPart = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).slice(2, 10);
-  return `${timestampPart}-${randomPart}`;
-}
 
 export default function JournalGamesScreen() {
   const isFocused = useIsFocused();

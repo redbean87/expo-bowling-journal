@@ -7,6 +7,7 @@ import {
 } from './game-editor-frame-utils';
 
 import type { GameId } from '@/services/journal';
+export { createDraftNonce } from '@/utils/draft-nonce';
 
 export function togglePinInMask(mask: number, pinNumber: number) {
   return mask ^ (1 << (pinNumber - 1));
@@ -75,12 +76,6 @@ export function hasAnyFrameDraftValue(frameDrafts: FrameDraft[]) {
       frame.roll2Mask !== null ||
       frame.roll3Mask !== null
   );
-}
-
-export function createDraftNonce() {
-  const timestampPart = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).slice(2, 10);
-  return `${timestampPart}-${randomPart}`;
 }
 
 export function isOfflineLikely() {
