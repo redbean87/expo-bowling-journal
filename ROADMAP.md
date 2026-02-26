@@ -19,6 +19,7 @@ When an item is complete, move it to `## Completed`.
 - [ ] Validate native iOS/Android flows (builds + smoke tests for journal/game-editor offline and queue paths)
 - [ ] Team/coach sharing model
 - [ ] Add lightweight CI/reporting for file-size drift (largest files + threshold alerts)
+- [ ] Reduce hard-stop and review-threshold files from `docs/code-size-audit.md` in small extraction batches
 
 ## Completed
 
