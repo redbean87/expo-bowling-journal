@@ -5,26 +5,43 @@ import test from 'node:test';
 
 test('callback importing path keeps snapshotJson transport and chunked raw/canonical frame persistence', async () => {
   const httpPath = resolve(process.cwd(), 'convex', 'http.ts');
-  const source = await readFile(httpPath, 'utf8');
+  const processingPath = resolve(
+    process.cwd(),
+    'convex',
+    'lib',
+    'import_callback_processing.ts'
+  );
+  const httpSource = await readFile(httpPath, 'utf8');
+  const processingSource = await readFile(processingPath, 'utf8');
 
+  assert.equal(httpSource.includes('processImportCallbackPayload'), true);
   assert.equal(
-    source.includes('submitParsedSnapshotJsonForCallbackMutation'),
+    processingSource.includes('submitParsedSnapshotJsonForCallbackMutation'),
     true
   );
   assert.equal(
-    source.includes('snapshotJson: payload.snapshotJson as string'),
-    true
-  );
-  assert.equal(source.includes('deleteUserDocsChunkForImportMutation'), true);
-  assert.equal(source.includes('skipReplaceAllCleanup: true'), true);
-  assert.equal(source.includes('persistRawImportChunkForBatchMutation'), true);
-  assert.equal(source.includes('skipRawMirrorPersistence: true'), true);
-  assert.equal(
-    source.includes('persistCanonicalFrameChunkForCallbackMutation'),
+    processingSource.includes('snapshotJson: payload.snapshotJson as string'),
     true
   );
   assert.equal(
-    source.includes('completeSnapshotImportForCallbackMutation'),
+    processingSource.includes('deleteUserDocsChunkForImportMutation'),
+    true
+  );
+  assert.equal(processingSource.includes('skipReplaceAllCleanup: true'), true);
+  assert.equal(
+    processingSource.includes('persistRawImportChunkForBatchMutation'),
+    true
+  );
+  assert.equal(
+    processingSource.includes('skipRawMirrorPersistence: true'),
+    true
+  );
+  assert.equal(
+    processingSource.includes('persistCanonicalFrameChunkForCallbackMutation'),
+    true
+  );
+  assert.equal(
+    processingSource.includes('completeSnapshotImportForCallbackMutation'),
     true
   );
 });

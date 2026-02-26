@@ -238,16 +238,19 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `convex/lib/import_callback_auth.ts`
+- `convex/lib/import_callback_payload.ts`
+- `convex/lib/import_callback_processing.ts`
+- `convex/http.ts` (routes only)
+- `tests/import/callback_runtime_path_regression.test.ts` updated for extracted callback modules
 
 **Remaining**
 
-- Extract callback auth + payload parsing + processing helpers.
-- Keep route file minimal.
+- None for P1-B.
 
 **Current pain**
 
@@ -273,15 +276,18 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/hooks/journal/import-backup/file-picker-web.ts`
+- `src/hooks/journal/import-backup/file-validation.ts`
+- `src/hooks/journal/import-backup/import-upload-client.ts`
+- `src/hooks/journal/use-import-backup.ts` (state + orchestration)
 
 **Remaining**
 
-- Split file picker, validation, and upload transport from hook state machine.
+- None for P1-C.
 
 **Current pain**
 
@@ -305,15 +311,17 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/components/reference-combobox/use-reference-combobox.ts`
+- `src/components/reference-combobox/reference-combobox-dropdown.tsx`
+- `src/components/reference-combobox.tsx`
 
 **Remaining**
 
-- Extract combobox interaction/state hook and dropdown rendering component.
+- None for P1-D.
 
 **Current pain**
 
@@ -338,15 +346,19 @@ Each target should use this structure so status is obvious at a glance:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/services/journal/types/core.ts`
+- `src/services/journal/types/imports.ts`
+- `src/services/journal/types/mutations.ts`
+- `src/services/journal/types/index.ts`
+- `src/services/journal/types.ts` (compatibility barrel)
 
 **Remaining**
 
-- Split service types by domain and add index barrel.
+- None for P2-A.
 
 Split by domain:
 
@@ -359,15 +371,17 @@ Split by domain:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/screens/game-editor/use-pin-deck-gesture.ts`
+- `src/screens/game-editor/pin-deck-layout.ts`
+- `src/screens/game-editor/pin-deck.tsx`
 
 **Remaining**
 
-- Extract gesture logic and layout helpers into dedicated modules.
+- None for P2-B.
 
 Extract gesture logic:
 
@@ -378,15 +392,17 @@ Extract gesture logic:
 
 **Status**
 
-- Not started
+- Done
 
 **Completed**
 
-- None yet.
+- `src/screens/game-editor/game-save-queue-sync-core.ts`
+- `src/screens/game-editor/game-save-queue-sync-storage.ts`
+- `src/screens/game-editor/game-save-queue-sync.ts`
 
 **Remaining**
 
-- Extract queue mutation core and storage/mapping helpers.
+- None for P2-C.
 
 Extract queue mutation helpers + draft session mapping:
 
