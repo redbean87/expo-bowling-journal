@@ -13,6 +13,11 @@ import {
   type FrameDraft,
 } from './game-editor-frame-utils';
 import {
+  buildPersistedSignature,
+  buildSyncSignature,
+  isOfflineLikely,
+} from './game-editor-screen-utils';
+import {
   buildGameSaveQueueId,
   createQueuedGameSaveEntry,
   getActionableSaveErrorMessage,
@@ -28,11 +33,6 @@ import {
   flushQueuedGameSavesWithLock,
   isQueuedGameSaveFlushInFlight,
 } from './game-save-queue-sync';
-import {
-  buildPersistedSignature,
-  buildSyncSignature,
-  isOfflineLikely,
-} from './game-editor-screen-utils';
 
 import type {
   CreateGameInput,

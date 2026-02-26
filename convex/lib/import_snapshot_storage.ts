@@ -1,12 +1,12 @@
 import { ConvexError } from 'convex/values';
 
 import { insertRawImportRow } from './import_raw_mirror';
+import { normalizeOptionalText } from './import_refinement';
 import {
   EMPTY_IMPORT_COUNTS,
   type RawImportRow,
   type RawImportTable,
 } from './import_types';
-import { normalizeOptionalText } from './import_refinement';
 
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';

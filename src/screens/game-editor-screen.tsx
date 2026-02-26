@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 
 import { ActiveFrameCard } from './game-editor/active-frame-card';
+import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import { GameEditorDetailsSection } from './game-editor/game-editor-details-section';
 import { GameEditorFooterActions } from './game-editor/game-editor-footer-actions';
-import { FrameProgressStrip } from './game-editor/frame-progress-strip';
 import {
   EMPTY_FRAMES,
   FULL_PIN_MASK,
@@ -24,7 +24,6 @@ import {
   getRollValue,
   getStandingMaskForField,
   getVisibleRollFields,
-  sanitizeFrameDraftsForEntry,
   type FrameDraft,
   type RollField,
 } from './game-editor/game-editor-frame-utils';
@@ -39,8 +38,8 @@ import {
 import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
 import { buildGameSaveQueueId } from './game-editor/game-save-queue';
 import { useGameEditorAutosaveSync } from './game-editor/use-game-editor-autosave-sync';
-import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
 import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
+import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
 import { useSignedInHistory } from './game-editor/use-signed-in-history';
 import {
   formatGameSequenceLabel,
