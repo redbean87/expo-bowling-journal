@@ -113,11 +113,14 @@ export default function GameEditorScreen() {
   const [date, setDate] = useState('');
   const [frameDrafts, setFrameDrafts] = useState<FrameDraft[]>(EMPTY_FRAMES);
   const [activeFrameIndex, setActiveFrameIndex] = useState(0);
-  const [activeField, setActiveField] = useState<RollField>('roll1Mask');
-  const [inputError, setInputError] = useState<string | null>(null);
+  const [requestedActiveField, setActiveField] =
+    useState<RollField>('roll1Mask');
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle');
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
-  const [isCanonicalizingRoute, setIsCanonicalizingRoute] = useState(false);
+  const [isCanonicalizingRoutePending, setIsCanonicalizingRoutePending] =
+    useState(false);
+  const isCanonicalizingRoute =
+    isCanonicalizingRoutePending && gameIdParam === 'new';
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(
     null
   );
@@ -408,8 +411,11 @@ export default function GameEditorScreen() {
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
+  const activeField = visibleRollFields.includes(requestedActiveField)
+    ? requestedActiveField
+    : getPreferredRollField(activeFrameIndex, activeFrame);
   const frameRuleError = getFrameInlineError(activeFrameIndex, activeFrame);
-  const inlineError = inputError ?? frameRuleError;
+  const inlineError = frameRuleError;
   const activeStandingMask = getStandingMaskForField(
     activeFrameIndex,
     activeFrame,
@@ -499,7 +505,7 @@ export default function GameEditorScreen() {
         return;
       }
 
-      setIsCanonicalizingRoute(true);
+      setIsCanonicalizingRoutePending(true);
       navigation.setParams({
         leagueId: rawLeagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
         sessionId: rawSessionId ?? `draft-${sessionClientSyncId ?? 'session'}`,
@@ -515,12 +521,6 @@ export default function GameEditorScreen() {
       sessionClientSyncId,
     ]
   );
-
-  useEffect(() => {
-    if (gameIdParam !== 'new') {
-      setIsCanonicalizingRoute(false);
-    }
-  }, [gameIdParam]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -563,23 +563,9 @@ export default function GameEditorScreen() {
     lastAppliedServerSignatureRef,
   });
 
-  useEffect(() => {
-    setInputError(null);
-  }, [activeFrameIndex, activeField]);
-
-  useEffect(() => {
-    if (visibleRollFields.includes(activeField)) {
-      return;
-    }
-
-    const preferredField = getPreferredRollField(activeFrameIndex, activeFrame);
-    setActiveField(preferredField);
-  }, [activeField, activeFrame, activeFrameIndex, visibleRollFields]);
-
   const onSelectFrame = (frameIndex: number) => {
     setActiveFrameIndex(frameIndex);
     setActiveField('roll1Mask');
-    setInputError(null);
   };
 
   const updateActiveFrame = (
@@ -587,7 +573,6 @@ export default function GameEditorScreen() {
     nextField?: RollField
   ) => {
     setAutosaveError(null);
-    setInputError(null);
 
     setFrameDrafts((currentDrafts) => {
       const nextDrafts = [...currentDrafts];
