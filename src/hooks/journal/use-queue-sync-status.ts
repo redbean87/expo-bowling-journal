@@ -27,7 +27,11 @@ export function useQueueSyncStatus() {
     convexJournalService.replaceFramesForGame
   );
   const createLeagueMutation = useMutation(convexJournalService.createLeague);
+  const updateLeagueMutation = useMutation(convexJournalService.updateLeague);
+  const removeLeagueMutation = useMutation(convexJournalService.removeLeague);
   const createSessionMutation = useMutation(convexJournalService.createSession);
+  const updateSessionMutation = useMutation(convexJournalService.updateSession);
+  const removeSessionMutation = useMutation(convexJournalService.removeSession);
 
   const [queueEntries, setQueueEntries] = useState<QueueStatusEntry[]>([]);
   const [checkedAt, setCheckedAt] = useState(Date.now());
@@ -52,7 +56,11 @@ export function useQueueSyncStatus() {
     try {
       await flushJournalCreateQueueWithLock({
         createLeague: createLeagueMutation,
+        updateLeague: updateLeagueMutation,
+        removeLeague: removeLeagueMutation,
         createSession: createSessionMutation,
+        updateSession: updateSessionMutation,
+        removeSession: removeSessionMutation,
         force: true,
       });
       await flushQueuedGameSavesWithLock({
@@ -70,8 +78,12 @@ export function useQueueSyncStatus() {
     createLeagueMutation,
     createSessionMutation,
     isAuthenticated,
+    removeLeagueMutation,
+    removeSessionMutation,
     refreshStatus,
     replaceFramesMutation,
+    updateLeagueMutation,
+    updateSessionMutation,
     updateGameMutation,
   ]);
 

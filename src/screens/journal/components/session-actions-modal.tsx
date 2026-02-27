@@ -3,7 +3,9 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 type SessionActionTarget = {
-  sessionId: string;
+  rowId: string;
+  sessionId: string | null;
+  sessionClientSyncId: string | null;
   date: string;
   weekNumber: number | null;
   houseId: string | null;

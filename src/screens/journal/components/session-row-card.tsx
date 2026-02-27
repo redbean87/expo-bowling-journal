@@ -7,18 +7,7 @@ import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button, Card, Input } from '@/components/ui';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
-type DisplaySession = {
-  id: string;
-  sessionId: string | null;
-  date: string;
-  houseId: string | null;
-  patternId: string | null;
-  ballId: string | null;
-  isDraft: boolean;
-};
-
 type SessionRowCardProps = {
-  session: DisplaySession;
   isEditing: boolean;
   isDeleting: boolean;
   isSavingSessionEdit: boolean;
@@ -55,7 +44,6 @@ type SessionRowCardProps = {
 };
 
 export function SessionRowCard({
-  session,
   isEditing,
   isDeleting,
   isSavingSessionEdit,
@@ -101,7 +89,7 @@ export function SessionRowCard({
         </Pressable>
         <Pressable
           accessibilityLabel={`Session actions for ${sessionDateLabel}`}
-          disabled={session.isDraft || isDeleting}
+          disabled={isDeleting}
           hitSlop={8}
           onPress={onOpenActions}
           style={({ pressed }) => [
@@ -117,7 +105,7 @@ export function SessionRowCard({
         </Pressable>
       </View>
 
-      {session.sessionId && isEditing ? (
+      {isEditing ? (
         <View style={styles.editSection}>
           <Input
             autoCapitalize="none"

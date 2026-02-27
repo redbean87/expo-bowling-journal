@@ -20,7 +20,9 @@ import {
   type JournalClientSyncMap,
 } from './journal/journal-client-sync-map-storage';
 import {
+  createQueuedSessionDeleteEntry,
   createQueuedSessionCreateEntry,
+  createQueuedSessionUpdateEntry,
   isRetryableCreateError,
   upsertQueuedJournalCreateEntry,
   type QueuedSessionCreateEntry,
@@ -51,7 +53,9 @@ import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 import { createClientSyncId } from '@/utils/client-sync-id';
 
 type SessionActionTarget = {
-  sessionId: string;
+  rowId: string;
+  sessionId: string | null;
+  sessionClientSyncId: string | null;
   date: string;
   weekNumber: number | null;
   houseId: string | null;
@@ -138,7 +142,15 @@ export default function JournalSessionsScreen() {
   const [sessionActionError, setSessionActionError] = useState<string | null>(
     null
   );
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionRowId, setEditingSessionRowId] = useState<string | null>(
+    null
+  );
+  const [editingSessionServerId, setEditingSessionServerId] = useState<
+    string | null
+  >(null);
+  const [editingSessionClientSyncId, setEditingSessionClientSyncId] = useState<
+    string | null
+  >(null);
   const [editingSessionDate, setEditingSessionDate] = useState('');
   const [editingSessionWeekNumber, setEditingSessionWeekNumber] = useState('');
   const [editingSessionHouseId, setEditingSessionHouseId] = useState<
@@ -151,9 +163,9 @@ export default function JournalSessionsScreen() {
     string | null
   >(null);
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
-    null
-  );
+  const [deletingSessionRowId, setDeletingSessionRowId] = useState<
+    string | null
+  >(null);
   const [pendingCreateClientSyncId, setPendingCreateClientSyncId] = useState<
     string | null
   >(null);
@@ -173,7 +185,7 @@ export default function JournalSessionsScreen() {
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const shouldLoadReferenceData =
-    isCreateModalVisible || editingSessionId !== null;
+    isCreateModalVisible || editingSessionRowId !== null;
   const {
     ballOptions,
     patternOptions,
@@ -412,7 +424,6 @@ export default function JournalSessionsScreen() {
 
   const onCreateSession = async () => {
     setSessionError(null);
-    setIsCreatingSessionRequest(true);
     const clientSyncId =
       pendingCreateClientSyncId ?? createClientSyncId('session');
     const targetLeagueId = leagueId ?? selectedLeague?._id ?? null;
@@ -496,6 +507,8 @@ export default function JournalSessionsScreen() {
       } as never);
     };
 
+    setIsCreatingSessionRequest(true);
+
     try {
       if (!targetLeagueId || isNavigatorOffline()) {
         await queueSessionCreate();
@@ -546,7 +559,9 @@ export default function JournalSessionsScreen() {
   };
 
   const startEditingSession = (
-    sessionId: string,
+    rowId: string,
+    sessionId: string | null,
+    sessionClientSyncId: string | null,
     date: string,
     weekNumber: number | null,
     houseId: string | null,
@@ -554,7 +569,9 @@ export default function JournalSessionsScreen() {
     ballId: string | null
   ) => {
     setSessionActionError(null);
-    setEditingSessionId(sessionId);
+    setEditingSessionRowId(rowId);
+    setEditingSessionServerId(sessionId);
+    setEditingSessionClientSyncId(sessionClientSyncId);
     setEditingSessionDate(date);
     setEditingSessionWeekNumber(weekNumber === null ? '' : String(weekNumber));
     setEditingSessionHouseId(houseId);
@@ -563,7 +580,9 @@ export default function JournalSessionsScreen() {
   };
 
   const cancelEditingSession = () => {
-    setEditingSessionId(null);
+    setEditingSessionRowId(null);
+    setEditingSessionServerId(null);
+    setEditingSessionClientSyncId(null);
     setEditingSessionDate('');
     setEditingSessionWeekNumber('');
     setEditingSessionHouseId(null);
@@ -572,7 +591,7 @@ export default function JournalSessionsScreen() {
   };
 
   const onSaveSessionEdit = async () => {
-    if (!editingSessionId) {
+    if (!editingSessionRowId) {
       return;
     }
 
@@ -600,9 +619,38 @@ export default function JournalSessionsScreen() {
 
     setIsSavingSessionEdit(true);
 
+    const queueSessionUpdate = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedSessionUpdateEntry(
+        {
+          sessionId: editingSessionServerId as never,
+          sessionClientSyncId: editingSessionClientSyncId,
+          date,
+          weekNumber,
+          houseId: editingSessionHouseId as never,
+          patternId: editingSessionPatternId as never,
+          ballId: editingSessionBallId as never,
+        },
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      await refreshQueuedSessionCreates();
+      cancelEditingSession();
+    };
+
     try {
+      if (!editingSessionServerId || isNavigatorOffline()) {
+        await queueSessionUpdate();
+        return;
+      }
+
       await updateSession({
-        sessionId: editingSessionId as SessionId,
+        sessionId: editingSessionServerId as SessionId,
         date,
         weekNumber,
         houseId: editingSessionHouseId as never,
@@ -611,6 +659,11 @@ export default function JournalSessionsScreen() {
       });
       cancelEditingSession();
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueSessionUpdate();
+        return;
+      }
+
       setSessionActionError(
         caught instanceof Error ? caught.message : 'Unable to update session.'
       );
@@ -619,28 +672,60 @@ export default function JournalSessionsScreen() {
     }
   };
 
-  const onDeleteSession = async (sessionId: string, date: string) => {
+  const onDeleteSession = async (target: SessionActionTarget) => {
     setSessionActionError(null);
-    const isConfirmed = await confirmDeleteSession(date);
+    const isConfirmed = await confirmDeleteSession(target.date);
 
     if (!isConfirmed) {
       return;
     }
 
-    setDeletingSessionId(sessionId);
+    setDeletingSessionRowId(target.rowId);
+
+    const queueSessionDelete = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedSessionDeleteEntry(
+        {
+          sessionId: target.sessionId as never,
+          sessionClientSyncId: target.sessionClientSyncId,
+        },
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      await refreshQueuedSessionCreates();
+
+      if (editingSessionRowId === target.rowId) {
+        cancelEditingSession();
+      }
+    };
 
     try {
-      await removeSession({ sessionId: sessionId as SessionId });
+      if (!target.sessionId || isNavigatorOffline()) {
+        await queueSessionDelete();
+        return;
+      }
 
-      if (editingSessionId === sessionId) {
+      await removeSession({ sessionId: target.sessionId as SessionId });
+
+      if (editingSessionRowId === target.rowId) {
         cancelEditingSession();
       }
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueSessionDelete();
+        return;
+      }
+
       setSessionActionError(
         caught instanceof Error ? caught.message : 'Unable to delete session.'
       );
     } finally {
-      setDeletingSessionId(null);
+      setDeletingSessionRowId(null);
     }
   };
 
@@ -655,7 +740,9 @@ export default function JournalSessionsScreen() {
   ) => {
     if (action === 'edit') {
       startEditingSession(
+        target.rowId,
         target.sessionId,
+        target.sessionClientSyncId,
         target.date,
         target.weekNumber,
         target.houseId,
@@ -665,7 +752,7 @@ export default function JournalSessionsScreen() {
       return;
     }
 
-    void onDeleteSession(target.sessionId, target.date);
+    void onDeleteSession(target);
   };
 
   const openSessionActions = (target: SessionActionTarget) => {
@@ -811,8 +898,8 @@ export default function JournalSessionsScreen() {
               editingSessionPatternId={editingSessionPatternId}
               editingSessionWeekNumber={editingSessionWeekNumber}
               houseOptions={houseOptions}
-              isDeleting={deletingSessionId === session.sessionId}
-              isEditing={editingSessionId === session.sessionId}
+              isDeleting={deletingSessionRowId === session.id}
+              isEditing={editingSessionRowId === session.id}
               isSavingSessionEdit={isSavingSessionEdit}
               onCancelEditingSession={cancelEditingSession}
               onEditingSessionBallSelect={(option) =>
@@ -850,7 +937,9 @@ export default function JournalSessionsScreen() {
               }
               onOpenActions={() =>
                 openSessionActions({
-                  sessionId: session.sessionId ?? '',
+                  rowId: session.id,
+                  sessionId: session.sessionId,
+                  sessionClientSyncId: session.clientSyncId,
                   date: session.date,
                   weekNumber: session.weekNumber ?? null,
                   houseId: session.houseId,
@@ -874,7 +963,6 @@ export default function JournalSessionsScreen() {
               recentBallOptions={recentBallOptions}
               recentHouseOptions={recentHouseOptions}
               recentPatternOptions={recentPatternOptions}
-              session={session}
               sessionDateLabel={formatIsoDateLabel(session.date)}
               sessionWeekLabel={formatSessionWeekLabel(
                 session.weekNumber ??

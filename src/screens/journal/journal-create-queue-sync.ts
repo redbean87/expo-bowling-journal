@@ -19,12 +19,20 @@ import type {
   CreateLeagueInput,
   CreateSessionInput,
   LeagueId,
+  RemoveLeagueInput,
+  RemoveSessionInput,
   SessionId,
+  UpdateLeagueInput,
+  UpdateSessionInput,
 } from '@/services/journal';
 
 type QueueMutations = {
   createLeague: (input: CreateLeagueInput) => Promise<LeagueId>;
+  updateLeague: (input: UpdateLeagueInput) => Promise<LeagueId>;
+  removeLeague: (input: RemoveLeagueInput) => Promise<LeagueId>;
   createSession: (input: CreateSessionInput) => Promise<SessionId>;
+  updateSession: (input: UpdateSessionInput) => Promise<SessionId>;
+  removeSession: (input: RemoveSessionInput) => Promise<SessionId>;
 };
 
 type QueueStorage = {
@@ -71,7 +79,11 @@ async function applyQueueMutation(
 
 export async function flushJournalCreateQueue({
   createLeague,
+  updateLeague,
+  removeLeague,
   createSession,
+  updateSession,
+  removeSession,
   loadQueue = loadJournalCreateQueue,
   persistQueue = persistJournalCreateQueue,
   force = false,
@@ -105,7 +117,64 @@ export async function flushJournalCreateQueue({
           latestDueEntry.clientSyncId,
           leagueId
         );
-      } else {
+      } else if (latestDueEntry.entityType === 'league-update') {
+        let targetLeagueId = latestDueEntry.leagueId ?? null;
+
+        if (!targetLeagueId && latestDueEntry.leagueClientSyncId) {
+          const syncMap = await loadJournalClientSyncMap();
+          targetLeagueId =
+            (syncMap.leagues[latestDueEntry.leagueClientSyncId] as
+              | LeagueId
+              | undefined) ?? null;
+        }
+
+        if (!targetLeagueId) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                'Waiting for league sync before updating league.',
+                Date.now()
+              )
+          );
+          continue;
+        }
+
+        await updateLeague({
+          leagueId: targetLeagueId,
+          ...latestDueEntry.payload,
+        });
+      } else if (latestDueEntry.entityType === 'league-delete') {
+        let targetLeagueId = latestDueEntry.leagueId ?? null;
+
+        if (!targetLeagueId && latestDueEntry.leagueClientSyncId) {
+          const syncMap = await loadJournalClientSyncMap();
+          targetLeagueId =
+            (syncMap.leagues[latestDueEntry.leagueClientSyncId] as
+              | LeagueId
+              | undefined) ?? null;
+        }
+
+        if (!targetLeagueId) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                'Waiting for league sync before deleting league.',
+                Date.now()
+              )
+          );
+          continue;
+        }
+
+        await removeLeague({ leagueId: targetLeagueId });
+      } else if (latestDueEntry.entityType === 'session-create') {
         let targetLeagueId = latestDueEntry.payload.leagueId ?? null;
 
         if (!targetLeagueId && latestDueEntry.payload.leagueClientSyncId) {
@@ -145,6 +214,63 @@ export async function flushJournalCreateQueue({
           latestDueEntry.clientSyncId,
           sessionId
         );
+      } else if (latestDueEntry.entityType === 'session-update') {
+        let targetSessionId = latestDueEntry.sessionId ?? null;
+
+        if (!targetSessionId && latestDueEntry.sessionClientSyncId) {
+          const syncMap = await loadJournalClientSyncMap();
+          targetSessionId =
+            (syncMap.sessions[latestDueEntry.sessionClientSyncId] as
+              | SessionId
+              | undefined) ?? null;
+        }
+
+        if (!targetSessionId) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                'Waiting for session sync before updating session.',
+                Date.now()
+              )
+          );
+          continue;
+        }
+
+        await updateSession({
+          sessionId: targetSessionId,
+          ...latestDueEntry.payload,
+        });
+      } else {
+        let targetSessionId = latestDueEntry.sessionId ?? null;
+
+        if (!targetSessionId && latestDueEntry.sessionClientSyncId) {
+          const syncMap = await loadJournalClientSyncMap();
+          targetSessionId =
+            (syncMap.sessions[latestDueEntry.sessionClientSyncId] as
+              | SessionId
+              | undefined) ?? null;
+        }
+
+        if (!targetSessionId) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                'Waiting for session sync before deleting session.',
+                Date.now()
+              )
+          );
+          continue;
+        }
+
+        await removeSession({ sessionId: targetSessionId });
       }
 
       queueEntries = await applyQueueMutation(

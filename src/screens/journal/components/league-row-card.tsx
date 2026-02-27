@@ -81,7 +81,7 @@ export function LeagueRowCard({
 
         <Pressable
           accessibilityLabel={`League actions for ${league.name}`}
-          disabled={league.isDraft || isDeleting}
+          disabled={isDeleting}
           hitSlop={8}
           onPress={onOpenActions}
           style={({ pressed }) => [
@@ -97,7 +97,7 @@ export function LeagueRowCard({
         </Pressable>
       </View>
 
-      {league.leagueId && isEditing ? (
+      {isEditing ? (
         <View style={styles.editSection}>
           <Input
             autoCapitalize="words"

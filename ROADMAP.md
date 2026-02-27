@@ -7,7 +7,7 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Expand guaranteed offline coverage to league/session/reference CRUD with deterministic replay and latest-local-edit-wins policy
+- [ ] Extend guaranteed offline coverage to reference quick-add create flows with deterministic replay and latest-local-edit-wins policy
 - [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] Data export and backup tooling
 - [ ] Analytics views (trend lines, consistency, spare conversion)
@@ -98,6 +98,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Continue journal P0-C by extracting game row rendering/preview section into `src/screens/journal/components/game-row-card.tsx`
 - [x] Continue journal P0-C by extracting games display/night-summary composition helpers into `src/screens/journal/journal-games-display.ts`
 - [x] Continue journal P0-C by centralizing native row action sheets in `src/screens/journal/journal-action-sheet.ts` across leagues/sessions/games
+- [x] Expand guaranteed offline coverage to league/session edit/delete flows with deterministic replay and latest-local-edit-wins policy
 
 ## Decision Log
 

@@ -12,11 +12,17 @@ function isQueueEntry(value: unknown): value is QueuedJournalCreateEntry {
 
   const candidate = value as Partial<QueuedJournalCreateEntry>;
 
+  const isKnownEntityType =
+    candidate.entityType === 'league-create' ||
+    candidate.entityType === 'league-update' ||
+    candidate.entityType === 'league-delete' ||
+    candidate.entityType === 'session-create' ||
+    candidate.entityType === 'session-update' ||
+    candidate.entityType === 'session-delete';
+
   return (
     typeof candidate.queueId === 'string' &&
-    (candidate.entityType === 'league-create' ||
-      candidate.entityType === 'session-create') &&
-    typeof candidate.clientSyncId === 'string' &&
+    isKnownEntityType &&
     typeof candidate.payload === 'object' &&
     candidate.payload !== null &&
     typeof candidate.attemptCount === 'number' &&

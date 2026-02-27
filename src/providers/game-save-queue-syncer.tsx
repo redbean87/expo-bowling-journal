@@ -14,7 +14,11 @@ export function GameSaveQueueSyncer() {
     convexJournalService.replaceFramesForGame
   );
   const createLeagueMutation = useMutation(convexJournalService.createLeague);
+  const updateLeagueMutation = useMutation(convexJournalService.updateLeague);
+  const removeLeagueMutation = useMutation(convexJournalService.removeLeague);
   const createSessionMutation = useMutation(convexJournalService.createSession);
+  const updateSessionMutation = useMutation(convexJournalService.updateSession);
+  const removeSessionMutation = useMutation(convexJournalService.removeSession);
 
   const flushQueue = useCallback(async () => {
     if (
@@ -26,7 +30,11 @@ export function GameSaveQueueSyncer() {
 
     await flushJournalCreateQueueWithLock({
       createLeague: createLeagueMutation,
+      updateLeague: updateLeagueMutation,
+      removeLeague: removeLeagueMutation,
       createSession: createSessionMutation,
+      updateSession: updateSessionMutation,
+      removeSession: removeSessionMutation,
     });
 
     await flushQueuedGameSavesWithLock({
@@ -45,7 +53,11 @@ export function GameSaveQueueSyncer() {
     createGameMutation,
     createLeagueMutation,
     createSessionMutation,
+    removeLeagueMutation,
+    removeSessionMutation,
     replaceFramesMutation,
+    updateLeagueMutation,
+    updateSessionMutation,
     updateGameMutation,
   ]);
 

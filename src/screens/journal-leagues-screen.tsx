@@ -16,7 +16,9 @@ import { LeagueRowCard } from './journal/components/league-row-card';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import {
+  createQueuedLeagueDeleteEntry,
   createQueuedLeagueCreateEntry,
+  createQueuedLeagueUpdateEntry,
   isRetryableCreateError,
   upsertQueuedJournalCreateEntry,
   type QueuedLeagueCreateEntry,
@@ -95,7 +97,9 @@ function formatRetryTime(timestamp: number | null, now: number) {
 }
 
 type LeagueActionTarget = {
-  leagueId: string;
+  rowId: string;
+  leagueId: string | null;
+  leagueClientSyncId: string | null;
   name: string;
   gamesPerSession: number | null;
   houseId: string | null;
@@ -130,7 +134,15 @@ export default function JournalLeaguesScreen() {
   const [leagueActionError, setLeagueActionError] = useState<string | null>(
     null
   );
-  const [editingLeagueId, setEditingLeagueId] = useState<string | null>(null);
+  const [editingLeagueRowId, setEditingLeagueRowId] = useState<string | null>(
+    null
+  );
+  const [editingLeagueServerId, setEditingLeagueServerId] = useState<
+    string | null
+  >(null);
+  const [editingLeagueClientSyncId, setEditingLeagueClientSyncId] = useState<
+    string | null
+  >(null);
   const [editingLeagueName, setEditingLeagueName] = useState('');
   const [editingLeagueGamesPerSession, setEditingLeagueGamesPerSession] =
     useState('');
@@ -138,7 +150,9 @@ export default function JournalLeaguesScreen() {
     string | null
   >(null);
   const [isSavingLeagueEdit, setIsSavingLeagueEdit] = useState(false);
-  const [deletingLeagueId, setDeletingLeagueId] = useState<string | null>(null);
+  const [deletingLeagueRowId, setDeletingLeagueRowId] = useState<string | null>(
+    null
+  );
   const [isLeagueActionsVisible, setIsLeagueActionsVisible] = useState(false);
   const [leagueActionTarget, setLeagueActionTarget] =
     useState<LeagueActionTarget | null>(null);
@@ -152,7 +166,7 @@ export default function JournalLeaguesScreen() {
   >([]);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
   const shouldLoadReferenceData =
-    isCreateModalVisible || editingLeagueId !== null;
+    isCreateModalVisible || editingLeagueRowId !== null;
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
     useReferenceData({ enabled: shouldLoadReferenceData });
   const {
@@ -221,7 +235,6 @@ export default function JournalLeaguesScreen() {
 
   const onCreateLeague = async () => {
     setLeagueError(null);
-    setIsCreatingLeagueRequest(true);
     const clientSyncId =
       pendingCreateClientSyncId ?? createClientSyncId('league');
     const name = leagueName.trim();
@@ -290,6 +303,8 @@ export default function JournalLeaguesScreen() {
       });
     };
 
+    setIsCreatingLeagueRequest(true);
+
     try {
       if (isNavigatorOffline()) {
         await queueLeagueCreate();
@@ -331,13 +346,17 @@ export default function JournalLeaguesScreen() {
   };
 
   const startEditingLeague = (
-    leagueId: string,
+    rowId: string,
+    leagueId: string | null,
+    leagueClientSyncId: string | null,
     name: string,
     gamesPerSession: number | null,
     houseId: string | null
   ) => {
     setLeagueActionError(null);
-    setEditingLeagueId(leagueId);
+    setEditingLeagueRowId(rowId);
+    setEditingLeagueServerId(leagueId);
+    setEditingLeagueClientSyncId(leagueClientSyncId);
     setEditingLeagueName(name);
     setEditingLeagueGamesPerSession(
       gamesPerSession === null ? '' : String(gamesPerSession)
@@ -346,14 +365,16 @@ export default function JournalLeaguesScreen() {
   };
 
   const cancelEditingLeague = () => {
-    setEditingLeagueId(null);
+    setEditingLeagueRowId(null);
+    setEditingLeagueServerId(null);
+    setEditingLeagueClientSyncId(null);
     setEditingLeagueName('');
     setEditingLeagueGamesPerSession('');
     setEditingLeagueHouseId(null);
   };
 
   const onSaveLeagueEdit = async () => {
-    if (!editingLeagueId) {
+    if (!editingLeagueRowId) {
       return;
     }
 
@@ -383,15 +404,47 @@ export default function JournalLeaguesScreen() {
 
     setIsSavingLeagueEdit(true);
 
+    const queueLeagueUpdate = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedLeagueUpdateEntry(
+        {
+          leagueId: editingLeagueServerId as never,
+          leagueClientSyncId: editingLeagueClientSyncId,
+          name,
+          gamesPerSession,
+          houseId: editingLeagueHouseId as never,
+        },
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      await refreshQueuedLeagueCreates();
+      cancelEditingLeague();
+    };
+
     try {
+      if (!editingLeagueServerId || isNavigatorOffline()) {
+        await queueLeagueUpdate();
+        return;
+      }
+
       await updateLeague({
-        leagueId: editingLeagueId as never,
+        leagueId: editingLeagueServerId as never,
         name,
         gamesPerSession,
         houseId: editingLeagueHouseId as never,
       });
       cancelEditingLeague();
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueLeagueUpdate();
+        return;
+      }
+
       setLeagueActionError(
         caught instanceof Error ? caught.message : 'Unable to update league.'
       );
@@ -400,28 +453,60 @@ export default function JournalLeaguesScreen() {
     }
   };
 
-  const onDeleteLeague = async (leagueId: string, name: string) => {
+  const onDeleteLeague = async (target: LeagueActionTarget) => {
     setLeagueActionError(null);
-    const isConfirmed = await confirmDeleteLeague(name);
+    const isConfirmed = await confirmDeleteLeague(target.name);
 
     if (!isConfirmed) {
       return;
     }
 
-    setDeletingLeagueId(leagueId);
+    setDeletingLeagueRowId(target.rowId);
+
+    const queueLeagueDelete = async () => {
+      const now = Date.now();
+      const queuedEntry = createQueuedLeagueDeleteEntry(
+        {
+          leagueId: target.leagueId as never,
+          leagueClientSyncId: target.leagueClientSyncId,
+        },
+        now
+      );
+      const currentQueue = await loadJournalCreateQueue();
+      const nextQueue = upsertQueuedJournalCreateEntry(
+        currentQueue,
+        queuedEntry
+      );
+      await persistJournalCreateQueue(nextQueue);
+      await refreshQueuedLeagueCreates();
+
+      if (editingLeagueRowId === target.rowId) {
+        cancelEditingLeague();
+      }
+    };
 
     try {
-      await removeLeague({ leagueId: leagueId as never });
+      if (!target.leagueId || isNavigatorOffline()) {
+        await queueLeagueDelete();
+        return;
+      }
 
-      if (editingLeagueId === leagueId) {
+      await removeLeague({ leagueId: target.leagueId as never });
+
+      if (editingLeagueRowId === target.rowId) {
         cancelEditingLeague();
       }
     } catch (caught) {
+      if (isRetryableCreateError(caught)) {
+        await queueLeagueDelete();
+        return;
+      }
+
       setLeagueActionError(
         caught instanceof Error ? caught.message : 'Unable to delete league.'
       );
     } finally {
-      setDeletingLeagueId(null);
+      setDeletingLeagueRowId(null);
     }
   };
 
@@ -435,13 +520,28 @@ export default function JournalLeaguesScreen() {
     target: LeagueActionTarget
   ) => {
     if (action === 'quick-start') {
-      startLeagueNight(target.leagueId);
+      if (target.leagueId) {
+        startLeagueNight(target.leagueId);
+      } else {
+        router.push({
+          pathname: '/journal/[leagueId]/sessions' as never,
+          params: {
+            leagueId: target.rowId,
+            ...(target.leagueClientSyncId
+              ? { leagueClientSyncId: target.leagueClientSyncId }
+              : {}),
+            startTonight: '1',
+          } as never,
+        } as never);
+      }
       return;
     }
 
     if (action === 'edit') {
       startEditingLeague(
+        target.rowId,
         target.leagueId,
+        target.leagueClientSyncId,
         target.name,
         target.gamesPerSession,
         target.houseId
@@ -449,7 +549,7 @@ export default function JournalLeaguesScreen() {
       return;
     }
 
-    void onDeleteLeague(target.leagueId, target.name);
+    void onDeleteLeague(target);
   };
 
   const openLeagueActions = (target: LeagueActionTarget) => {
@@ -596,8 +696,8 @@ export default function JournalLeaguesScreen() {
               editingLeagueHouseId={editingLeagueHouseId}
               editingLeagueName={editingLeagueName}
               houseOptions={houseOptions}
-              isDeleting={deletingLeagueId === league.leagueId}
-              isEditing={editingLeagueId === league.leagueId}
+              isDeleting={deletingLeagueRowId === league.id}
+              isEditing={editingLeagueRowId === league.id}
               isSavingLeagueEdit={isSavingLeagueEdit}
               league={league}
               onCancelEditingLeague={cancelEditingLeague}
@@ -611,7 +711,9 @@ export default function JournalLeaguesScreen() {
               onNavigate={() => navigateToLeagueSessions(league)}
               onOpenActions={() =>
                 openLeagueActions({
-                  leagueId: league.leagueId ?? '',
+                  rowId: league.id,
+                  leagueId: league.leagueId,
+                  leagueClientSyncId: league.clientSyncId,
                   name: league.name,
                   gamesPerSession: league.gamesPerSession ?? null,
                   houseId: league.houseId,

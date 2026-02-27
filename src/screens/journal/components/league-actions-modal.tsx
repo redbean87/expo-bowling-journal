@@ -3,7 +3,9 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typeScale } from '@/theme/tokens';
 
 type LeagueActionTarget = {
-  leagueId: string;
+  rowId: string;
+  leagueId: string | null;
+  leagueClientSyncId: string | null;
   name: string;
   gamesPerSession: number | null;
   houseId: string | null;
