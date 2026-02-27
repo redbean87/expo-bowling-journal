@@ -1,10 +1,17 @@
 import { useMutation } from 'convex/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { removeLocalGameDraft } from '@/screens/game-editor/game-local-draft-storage';
 import { flushQueuedGameSavesWithLock } from '@/screens/game-editor/game-save-queue-sync';
 import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
+import { isNavigatorOffline } from '@/screens/journal/journal-offline-create';
+import { subscribeQueueSyncState } from '@/screens/journal/queue-sync-events';
+import {
+  didRestoreConnectivity,
+  loadQueueSyncPresence,
+  shouldRunQueueSyncInterval,
+} from '@/screens/journal/queue-sync-presence';
 import { flushReferenceCreateQueueWithLock } from '@/screens/journal/reference-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
 
@@ -23,12 +30,22 @@ export function GameSaveQueueSyncer() {
   const createBallMutation = useMutation(convexJournalService.createBall);
   const createPatternMutation = useMutation(convexJournalService.createPattern);
   const createHouseMutation = useMutation(convexJournalService.createHouse);
+  const [hasPendingEntries, setHasPendingEntries] = useState(false);
+  const [isAppActive, setIsAppActive] = useState(
+    AppState.currentState === 'active'
+  );
+  const [isOnline, setIsOnline] = useState(!isNavigatorOffline());
+  const isOnlineRef = useRef(isOnline);
+
+  const refreshQueuePresence = useCallback(async () => {
+    const presence = await loadQueueSyncPresence();
+    setHasPendingEntries(presence.hasPendingEntries);
+    return presence;
+  }, []);
 
   const flushQueue = useCallback(async () => {
-    if (
-      typeof globalThis.navigator !== 'undefined' &&
-      globalThis.navigator.onLine === false
-    ) {
+    if (isNavigatorOffline()) {
+      await refreshQueuePresence();
       return;
     }
 
@@ -59,6 +76,8 @@ export function GameSaveQueueSyncer() {
         }
       },
     });
+
+    await refreshQueuePresence();
   }, [
     createGameMutation,
     createBallMutation,
@@ -72,15 +91,37 @@ export function GameSaveQueueSyncer() {
     updateLeagueMutation,
     updateSessionMutation,
     updateGameMutation,
+    refreshQueuePresence,
   ]);
 
+  const shouldPoll = useMemo(
+    () =>
+      shouldRunQueueSyncInterval({
+        isAppActive,
+        isOnline,
+        hasPendingEntries,
+      }),
+    [hasPendingEntries, isAppActive, isOnline]
+  );
+
   useEffect(() => {
-    void flushQueue();
-  }, [flushQueue]);
+    const initialFlush = setTimeout(() => {
+      void refreshQueuePresence();
+      void flushQueue();
+    }, 0);
+
+    return () => {
+      clearTimeout(initialFlush);
+    };
+  }, [flushQueue, refreshQueuePresence]);
 
   useEffect(() => {
     const onAppStateChange = (nextState: AppStateStatus) => {
+      const active = nextState === 'active';
+      setIsAppActive(active);
+
       if (nextState === 'active') {
+        void refreshQueuePresence();
         void flushQueue();
       }
     };
@@ -90,9 +131,56 @@ export function GameSaveQueueSyncer() {
     return () => {
       subscription.remove();
     };
-  }, [flushQueue]);
+  }, [flushQueue, refreshQueuePresence]);
 
   useEffect(() => {
+    const unsubscribe = subscribeQueueSyncState(() => {
+      void refreshQueuePresence();
+
+      if (isAppActive && isOnlineRef.current) {
+        void flushQueue();
+      }
+    });
+
+    return unsubscribe;
+  }, [flushQueue, isAppActive, refreshQueuePresence]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const onOnline = () => {
+      const nextOnline = true;
+      const previousOnline = isOnlineRef.current;
+      isOnlineRef.current = nextOnline;
+      setIsOnline(nextOnline);
+
+      if (didRestoreConnectivity({ previousOnline, nextOnline })) {
+        void refreshQueuePresence();
+        void flushQueue();
+      }
+    };
+
+    const onOffline = () => {
+      isOnlineRef.current = false;
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [flushQueue, refreshQueuePresence]);
+
+  useEffect(() => {
+    if (!shouldPoll) {
+      return;
+    }
+
     const interval = setInterval(() => {
       void flushQueue();
     }, 5000);
@@ -100,7 +188,7 @@ export function GameSaveQueueSyncer() {
     return () => {
       clearInterval(interval);
     };
-  }, [flushQueue]);
+  }, [flushQueue, shouldPoll]);
 
   return null;
 }

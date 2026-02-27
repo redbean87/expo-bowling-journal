@@ -7,7 +7,6 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [ ] Data export and backup tooling
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Split preview/production Convex deployments for web hosting environments
@@ -99,6 +98,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Continue journal P0-C by centralizing native row action sheets in `src/screens/journal/journal-action-sheet.ts` across leagues/sessions/games
 - [x] Expand guaranteed offline coverage to league/session edit/delete flows with deterministic replay and latest-local-edit-wins policy
 - [x] Extend guaranteed offline coverage to reference quick-add create flows with deterministic replay and latest-local-edit-wins policy
+- [x] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 
 ## Decision Log
 
@@ -117,6 +117,7 @@ When an item is complete, move it to `## Completed`.
 - Added user/internal frame-pin mismatch repair backfills; internal backfill run repaired existing legacy mismatches and post-run dry-check reported zero remaining candidates
 - Journal P0-C leagues/sessions/games modal and row extractions are complete; remaining P0-C scope is games-screen orchestration helper cleanup and optional action-sheet consolidation
 - Code-health guardrails now enforce file-size thresholds and extraction policy; see `docs/code-health-guardrails.md`
+- Queue sync now flushes on reconnect, foreground, and queue-change events, with interval polling active only while pending entries exist
 
 ## Risks / Unknowns
 

@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+import { notifyQueueSyncStateChanged } from './queue-sync-events';
+
 import type { QueuedJournalCreateEntry } from './journal-create-queue';
 
 const JOURNAL_CREATE_QUEUE_STORAGE_KEY = 'journal:create-queue:v1';
@@ -78,4 +80,5 @@ export async function persistJournalCreateQueue(
   entries: QueuedJournalCreateEntry[]
 ) {
   await setStoredValue(JSON.stringify(entries));
+  notifyQueueSyncStateChanged();
 }

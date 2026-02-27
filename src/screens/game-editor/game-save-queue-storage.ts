@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+import { notifyQueueSyncStateChanged } from '../journal/queue-sync-events';
+
 import type { QueuedGameSaveEntry } from './game-save-queue';
 
 const GAME_SAVE_QUEUE_STORAGE_KEY = 'journal:game-save-queue:v1';
@@ -90,4 +92,5 @@ export async function loadGameSaveQueue(): Promise<QueuedGameSaveEntry[]> {
 
 export async function persistGameSaveQueue(entries: QueuedGameSaveEntry[]) {
   await setStoredValue(JSON.stringify(entries));
+  notifyQueueSyncStateChanged();
 }

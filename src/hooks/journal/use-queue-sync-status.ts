@@ -10,6 +10,7 @@ import {
 } from '@/screens/game-editor/game-save-queue-sync';
 import { loadJournalCreateQueue } from '@/screens/journal/journal-create-queue-storage';
 import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
+import { subscribeQueueSyncState } from '@/screens/journal/queue-sync-events';
 import { loadReferenceCreateQueue } from '@/screens/journal/reference-create-queue-storage';
 import { flushReferenceCreateQueueWithLock } from '@/screens/journal/reference-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
@@ -113,6 +114,10 @@ export function useQueueSyncStatus() {
   }, [refreshStatus]);
 
   useEffect(() => {
+    if (queueEntries.length === 0) {
+      return;
+    }
+
     const interval = setInterval(() => {
       void refreshStatus();
     }, 3000);
@@ -120,7 +125,7 @@ export function useQueueSyncStatus() {
     return () => {
       clearInterval(interval);
     };
-  }, [refreshStatus]);
+  }, [queueEntries.length, refreshStatus]);
 
   useEffect(() => {
     const onAppStateChange = (nextState: AppStateStatus) => {
@@ -133,6 +138,30 @@ export function useQueueSyncStatus() {
 
     return () => {
       subscription.remove();
+    };
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeQueueSyncState(() => {
+      void refreshStatus();
+    });
+
+    return unsubscribe;
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const onOnline = () => {
+      void refreshStatus();
+    };
+
+    window.addEventListener('online', onOnline);
+
+    return () => {
+      window.removeEventListener('online', onOnline);
     };
   }, [refreshStatus]);
 

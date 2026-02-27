@@ -50,5 +50,5 @@ This document defines what is currently guaranteed to work offline versus what i
 
 ## Planned Expansion (v4)
 
-- Shift queue sync from fixed polling to adaptive/event-driven triggers.
-- Re-validate and publish an updated contract once queue trigger behavior is updated.
+- Add offline-capable runtime/app-shell caching for web PWA cold-start support.
+- Re-validate and publish an updated contract once web cold-start guarantees are expanded.
