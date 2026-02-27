@@ -22,6 +22,7 @@ expo-env.d.ts
 worker/.dev.vars
 worker/.wrangler/
 Backup.pinpal
+*.db
 
 # Local UX reference screenshots (keep folders, ignore images/files)
 docs/ux-reference/competitor-app/*

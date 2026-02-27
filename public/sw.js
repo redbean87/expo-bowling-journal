@@ -1,4 +1,4 @@
-const BUILD_ID = '916dafc-20260227040128';
+const BUILD_ID = '7ca139e-20260227190804';
 
 globalThis.addEventListener('install', () => {
   void BUILD_ID;
