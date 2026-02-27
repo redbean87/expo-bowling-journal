@@ -41,3 +41,4 @@ export type {
   StartImportInput,
   StartImportResult,
 } from './imports';
+export type { SqliteBackupSnapshot } from './exports';

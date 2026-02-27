@@ -6,6 +6,8 @@ import {
   framesReplaceForGameMutation,
   importsApplyPostImportRefinementMutation,
   importsGetImportStatusQuery,
+  exportsGetSqliteBackupSnapshotBaseQuery,
+  exportsGetSqliteBackupFramesChunkQuery,
   importsSqliteSnapshotMutation,
   importsStartImportMutation,
   gamesCreateMutation,
@@ -58,4 +60,6 @@ export const convexJournalService = {
   importSqliteSnapshot: importsSqliteSnapshotMutation,
   startImport: importsStartImportMutation,
   getImportStatus: importsGetImportStatusQuery,
+  getSqliteBackupSnapshotBase: exportsGetSqliteBackupSnapshotBaseQuery,
+  getSqliteBackupFramesChunk: exportsGetSqliteBackupFramesChunkQuery,
 } as const;

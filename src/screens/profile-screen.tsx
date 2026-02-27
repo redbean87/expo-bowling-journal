@@ -15,7 +15,7 @@ import { Button, Card } from '@/components/ui';
 import { env } from '@/config/env';
 import { type ScoreboardLayoutMode } from '@/config/preferences-storage';
 import { viewerQuery } from '@/convex/functions';
-import { useImportBackup } from '@/hooks/journal';
+import { useExportSqliteBackup, useImportBackup } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
 import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
 
@@ -39,6 +39,8 @@ export default function ProfileScreen() {
     isUploading,
     error,
   } = useImportBackup();
+  const { exportSqliteBackup, isExporting, exportError, lastExportFileName } =
+    useExportSqliteBackup();
 
   const status = importStatus?.status ?? null;
   const isImporting =
@@ -88,6 +90,15 @@ export default function ProfileScreen() {
           </Text>
 
           <Button
+            disabled={isExporting || !isAuthenticated || !env.importWorkerUrl}
+            label={
+              isExporting ? 'Exporting backup...' : 'Export SQLite backup (.db)'
+            }
+            onPress={() => void exportSqliteBackup(env.importWorkerUrl)}
+            variant="secondary"
+          />
+
+          <Button
             label="Choose backup file"
             onPress={() => void pickBackupFile()}
             variant="secondary"
@@ -120,7 +131,14 @@ export default function ProfileScreen() {
             </Text>
           ) : null}
           {isUploading ? <ActivityIndicator color={colors.accent} /> : null}
+          {isExporting ? <ActivityIndicator color={colors.accent} /> : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {exportError ? (
+            <Text style={styles.errorText}>{exportError}</Text>
+          ) : null}
+          {lastExportFileName ? (
+            <Text style={styles.meta}>Downloaded: {lastExportFileName}</Text>
+          ) : null}
         </Card>
 
         {importStatus ? (

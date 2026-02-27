@@ -7,7 +7,6 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Data export and backup tooling
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Split preview/production Convex deployments for web hosting environments
 - [ ] Add CI automation for Expo web preview/production deploys
@@ -99,6 +98,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Expand guaranteed offline coverage to league/session edit/delete flows with deterministic replay and latest-local-edit-wins policy
 - [x] Extend guaranteed offline coverage to reference quick-add create flows with deterministic replay and latest-local-edit-wins policy
 - [x] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
+- [x] Data export and backup tooling
 
 ## Decision Log
 
@@ -118,6 +118,7 @@ When an item is complete, move it to `## Completed`.
 - Journal P0-C leagues/sessions/games modal and row extractions are complete; remaining P0-C scope is games-screen orchestration helper cleanup and optional action-sheet consolidation
 - Code-health guardrails now enforce file-size thresholds and extraction policy; see `docs/code-health-guardrails.md`
 - Queue sync now flushes on reconnect, foreground, and queue-change events, with interval polling active only while pending entries exist
+- Added neutral SQLite backup export (`.db`) with compatibility core tables plus always-present `bj_*` extension tables for richer app restore
 
 ## Risks / Unknowns
 

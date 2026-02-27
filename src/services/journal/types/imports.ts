@@ -121,6 +121,22 @@ export type ImportSqliteSnapshotInput = {
     footBoard?: number | null;
     targetBoard?: number | null;
   }>;
+  bjMeta?: Array<{
+    key: string;
+    value: string;
+  }>;
+  bjSessionExt?: Array<{
+    weekFk: number;
+    laneContextJson?: string | null;
+    notesJson?: string | null;
+  }>;
+  bjGameExt?: Array<{
+    gameFk: number;
+    laneContextJson?: string | null;
+    ballSwitchesJson?: string | null;
+    handicap?: number | null;
+    notesJson?: string | null;
+  }>;
 };
 
 export type ImportSqliteSnapshotResult = {

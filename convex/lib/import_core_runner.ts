@@ -100,6 +100,79 @@ function normalizeDate(
   };
 }
 
+function parseOptionalJsonValue<T>(value: string | null | undefined): T | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+type PlaceholderGameRow = {
+  sqliteId: number;
+  score?: number | null;
+  notes?: string | null;
+  lane?: number | null;
+};
+
+type PlaceholderFrameRow = {
+  flags?: number | null;
+};
+
+type PlaceholderGameExtension = {
+  laneContextJson?: string | null;
+  ballSwitchesJson?: string | null;
+  handicap?: number | null;
+  notesJson?: string | null;
+};
+
+export function shouldSkipPlaceholderGameRow(args: {
+  row: PlaceholderGameRow;
+  rawFrames: PlaceholderFrameRow[];
+  extension: PlaceholderGameExtension | undefined;
+}) {
+  const hasPopulatedFrameRows = args.rawFrames.some(
+    (frame) => (frame.flags ?? 0) !== 0
+  );
+
+  if (hasPopulatedFrameRows) {
+    return false;
+  }
+
+  const score = normalizeNullableInteger(args.row.score, 0, 400) ?? 0;
+
+  if (score > 0) {
+    return false;
+  }
+
+  const hasBaseNotes = normalizeOptionalText(args.row.notes) !== null;
+  const hasBaseLane = normalizeNullableInteger(args.row.lane, 1, 80) !== null;
+  const hasExtNotes =
+    parseOptionalJsonValue<string>(args.extension?.notesJson) !== null;
+  const hasExtLaneContext =
+    parseOptionalJsonValue<Record<string, unknown>>(
+      args.extension?.laneContextJson
+    ) !== null;
+  const hasExtBallSwitches =
+    parseOptionalJsonValue<unknown[]>(args.extension?.ballSwitchesJson) !==
+    null;
+  const hasExtHandicap =
+    normalizeNullableInteger(args.extension?.handicap, -400, 400) !== null;
+
+  return !(
+    hasBaseNotes ||
+    hasBaseLane ||
+    hasExtNotes ||
+    hasExtLaneContext ||
+    hasExtBallSwitches ||
+    hasExtHandicap
+  );
+}
+
 export async function runSqliteSnapshotImportCore(
   ctx: MutationCtx,
   userId: Id<'users'>,
@@ -117,6 +190,12 @@ export async function runSqliteSnapshotImportCore(
     new Date(importedAt).toISOString().slice(0, 10);
   const importWarnings: RefinementWarning[] = [];
   const shouldPersistRawMirrors = !options?.skipRawMirrorPersistence;
+  const bjSessionExtByWeekFk = new Map(
+    (args.bjSessionExt ?? []).map((entry) => [entry.weekFk, entry] as const)
+  );
+  const bjGameExtByGameFk = new Map(
+    (args.bjGameExt ?? []).map((entry) => [entry.gameFk, entry] as const)
+  );
 
   if (!options?.skipReplaceAllCleanup) {
     await clearUserImportDataInChunks((table) =>
@@ -501,14 +580,27 @@ export async function runSqliteSnapshotImportCore(
       });
     }
 
+    const rawFrames = framesByGame.get(row.sqliteId) ?? [];
+    const ext = bjGameExtByGameFk.get(row.sqliteId);
+
+    if (
+      shouldSkipPlaceholderGameRow({
+        row,
+        rawFrames,
+        extension: ext,
+      })
+    ) {
+      importWarnings.push({
+        recordType: 'game',
+        recordId: String(row.sqliteId),
+        message: 'placeholder game row was skipped',
+      });
+      continue;
+    }
+
     const fallbackScore = normalizeNullableInteger(row.score, 0, 400) ?? 0;
-    const computedStats = computeImportedGameStats(
-      framesByGame.get(row.sqliteId) ?? [],
-      fallbackScore
-    );
-    const framePreview = buildImportedGameFramePreview(
-      framesByGame.get(row.sqliteId) ?? []
-    );
+    const computedStats = computeImportedGameStats(rawFrames, fallbackScore);
+    const framePreview = buildImportedGameFramePreview(rawFrames);
 
     const gameId = await ctx.db.insert('games', {
       userId,
@@ -541,8 +633,13 @@ export async function runSqliteSnapshotImportCore(
       continue;
     }
 
-    const notes = normalizeOptionalText(week.notes);
-    const laneContext = laneContextFromLane(week.lane);
+    const ext = bjSessionExtByWeekFk.get(week.sqliteId);
+    const extNotes = parseOptionalJsonValue<string>(ext?.notesJson);
+    const extLaneContext = parseOptionalJsonValue<
+      SessionRefinementInput['laneContext']
+    >(ext?.laneContextJson);
+    const notes = normalizeOptionalText(extNotes ?? week.notes);
+    const laneContext = extLaneContext ?? laneContextFromLane(week.lane);
 
     if (notes === null && laneContext === null) {
       continue;
@@ -564,8 +661,16 @@ export async function runSqliteSnapshotImportCore(
       continue;
     }
 
-    const laneContext = laneContextFromLane(gameRow.lane);
-    const notes = normalizeOptionalText(gameRow.notes);
+    const ext = bjGameExtByGameFk.get(gameRow.sqliteId);
+    const extLaneContext = parseOptionalJsonValue<
+      GameRefinementInput['laneContext']
+    >(ext?.laneContextJson);
+    const extBallSwitches = parseOptionalJsonValue<
+      GameRefinementInput['ballSwitches']
+    >(ext?.ballSwitchesJson);
+    const extNotes = parseOptionalJsonValue<string>(ext?.notesJson);
+    const laneContext = extLaneContext ?? laneContextFromLane(gameRow.lane);
+    const notes = normalizeOptionalText(extNotes ?? gameRow.notes);
     const rawFrames = framesByGame.get(gameRow.sqliteId) ?? [];
     const sortedFrames = [...rawFrames].sort((left, right) => {
       const leftFrame = left.frameNum ?? Number.MAX_SAFE_INTEGER;
@@ -617,10 +722,11 @@ export async function runSqliteSnapshotImportCore(
 
     gameRefinements.push({
       gameId,
-      handicap: null,
+      handicap: ext?.handicap ?? null,
       notes,
       laneContext,
-      ballSwitches: ballSwitches.length > 0 ? ballSwitches : null,
+      ballSwitches:
+        extBallSwitches ?? (ballSwitches.length > 0 ? ballSwitches : null),
     });
   }
 

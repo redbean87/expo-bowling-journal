@@ -95,6 +95,25 @@ export const sqliteFrameValidator = v.object({
   targetBoard: v.optional(v.union(v.number(), v.null())),
 });
 
+export const sqliteBjMetaValidator = v.object({
+  key: v.string(),
+  value: v.string(),
+});
+
+export const sqliteBjSessionExtValidator = v.object({
+  weekFk: v.number(),
+  laneContextJson: v.optional(v.union(v.string(), v.null())),
+  notesJson: v.optional(v.union(v.string(), v.null())),
+});
+
+export const sqliteBjGameExtValidator = v.object({
+  gameFk: v.number(),
+  laneContextJson: v.optional(v.union(v.string(), v.null())),
+  ballSwitchesJson: v.optional(v.union(v.string(), v.null())),
+  handicap: v.optional(v.union(v.number(), v.null())),
+  notesJson: v.optional(v.union(v.string(), v.null())),
+});
+
 export const canonicalFrameInsertValidator = v.object({
   gameId: v.id('games'),
   frameNumber: v.number(),
@@ -146,6 +165,9 @@ export const sqliteSnapshotArgs = {
   weeks: v.array(sqliteWeekValidator),
   games: v.array(sqliteGameValidator),
   frames: v.array(sqliteFrameValidator),
+  bjMeta: v.optional(v.array(sqliteBjMetaValidator)),
+  bjSessionExt: v.optional(v.array(sqliteBjSessionExtValidator)),
+  bjGameExt: v.optional(v.array(sqliteBjGameExtValidator)),
 };
 
 export const postImportRefinementArgs = {

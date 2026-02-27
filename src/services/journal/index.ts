@@ -30,6 +30,7 @@ export type {
   ReplaceFramesInput,
   Session,
   SessionId,
+  SqliteBackupSnapshot,
   StartImportInput,
   StartImportResult,
   UpdateGameInput,

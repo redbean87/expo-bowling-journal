@@ -45,6 +45,12 @@ const REQUIRED_TABLES = {
   },
 };
 
+const OPTIONAL_TABLES = {
+  bj_meta: true,
+  bj_session_ext: true,
+  bj_game_ext: true,
+};
+
 let sqlJsPromise;
 const SQL_JS_DIST_BASE_URL = 'https://sql.js.org/dist';
 
@@ -359,6 +365,17 @@ function getSchemaAndRows(parsed, tableName) {
   return { schemaEntry, tableRows };
 }
 
+function getOptionalSchemaAndRows(parsed, tableName) {
+  const schemaEntry = parsed.schema[tableName];
+  const tableRows = parsed.rows[tableName];
+
+  if (!schemaEntry || !Array.isArray(tableRows)) {
+    return null;
+  }
+
+  return { schemaEntry, tableRows };
+}
+
 export function mapParsedBackupToSnapshot(parsed, options = {}) {
   assertParsedBackupShape(parsed);
 
@@ -378,6 +395,12 @@ export function mapParsedBackupToSnapshot(parsed, options = {}) {
   const weeksPayload = getSchemaAndRows(parsed, 'week');
   const gamesPayload = getSchemaAndRows(parsed, 'game');
   const framesPayload = getSchemaAndRows(parsed, 'frame');
+  const bjMetaPayload = getOptionalSchemaAndRows(parsed, 'bj_meta');
+  const bjSessionExtPayload = getOptionalSchemaAndRows(
+    parsed,
+    'bj_session_ext'
+  );
+  const bjGameExtPayload = getOptionalSchemaAndRows(parsed, 'bj_game_ext');
 
   const houseColumns = buildColumnLookup(housesPayload.schemaEntry);
   const patternColumns = buildColumnLookup(patternsPayload.schemaEntry);
@@ -386,6 +409,15 @@ export function mapParsedBackupToSnapshot(parsed, options = {}) {
   const weekColumns = buildColumnLookup(weeksPayload.schemaEntry);
   const gameColumns = buildColumnLookup(gamesPayload.schemaEntry);
   const frameColumns = buildColumnLookup(framesPayload.schemaEntry);
+  const bjMetaColumns = bjMetaPayload
+    ? buildColumnLookup(bjMetaPayload.schemaEntry)
+    : null;
+  const bjSessionExtColumns = bjSessionExtPayload
+    ? buildColumnLookup(bjSessionExtPayload.schemaEntry)
+    : null;
+  const bjGameExtColumns = bjGameExtPayload
+    ? buildColumnLookup(bjGameExtPayload.schemaEntry)
+    : null;
 
   const houses = mapRows(housesPayload.tableRows, (row, rowIndex) => ({
     sqliteId: toNullableInteger(
@@ -624,6 +656,68 @@ export function mapParsedBackupToSnapshot(parsed, options = {}) {
     ),
   }));
 
+  const bjMeta =
+    !bjMetaPayload || !bjMetaColumns
+      ? []
+      : mapRows(bjMetaPayload.tableRows, (row, rowIndex) => {
+          const key = toNullableText(readField(row, bjMetaColumns, ['key']));
+          const value = toNullableText(
+            readField(row, bjMetaColumns, ['value'])
+          );
+
+          if (!key || !value) {
+            throw new SqliteParseError(
+              'INVALID_ROW',
+              `bj_meta row ${String(rowIndex + 1)} must include key and value`
+            );
+          }
+
+          return { key, value };
+        });
+  const bjSessionExt =
+    !bjSessionExtPayload || !bjSessionExtColumns
+      ? []
+      : mapRows(bjSessionExtPayload.tableRows, (row, rowIndex) => ({
+          weekFk: toNullableInteger(
+            readField(row, bjSessionExtColumns, [
+              'weekFk',
+              'week_fk',
+              'week_id',
+            ]),
+            `bj_session_ext row ${String(rowIndex + 1)} weekFk`,
+            true
+          ),
+          laneContextJson: toNullableText(
+            readField(row, bjSessionExtColumns, ['laneContextJson'])
+          ),
+          notesJson: toNullableText(
+            readField(row, bjSessionExtColumns, ['notesJson'])
+          ),
+        }));
+  const bjGameExt =
+    !bjGameExtPayload || !bjGameExtColumns
+      ? []
+      : mapRows(bjGameExtPayload.tableRows, (row, rowIndex) => ({
+          gameFk: toNullableInteger(
+            readField(row, bjGameExtColumns, ['gameFk', 'game_fk', 'game_id']),
+            `bj_game_ext row ${String(rowIndex + 1)} gameFk`,
+            true
+          ),
+          laneContextJson: toNullableText(
+            readField(row, bjGameExtColumns, ['laneContextJson'])
+          ),
+          ballSwitchesJson: toNullableText(
+            readField(row, bjGameExtColumns, ['ballSwitchesJson'])
+          ),
+          handicap: toNullableInteger(
+            readField(row, bjGameExtColumns, ['handicap']),
+            `bj_game_ext row ${String(rowIndex + 1)} handicap`
+          ),
+          notesJson: toNullableText(
+            readField(row, bjGameExtColumns, ['notesJson'])
+          ),
+        }));
+
   return {
     sourceFileName,
     sourceHash,
@@ -634,6 +728,9 @@ export function mapParsedBackupToSnapshot(parsed, options = {}) {
     weeks,
     games,
     frames,
+    bjMeta,
+    bjSessionExt,
+    bjGameExt,
   };
 }
 
@@ -699,6 +796,26 @@ export async function parseBackupDatabase(sourceArrayBuffer, options = {}) {
       schema[expectedTableName] = {
         tableName: actualTableName,
         requiredColumns,
+        availableColumns: [...columnIndex.values()],
+      };
+      rows[expectedTableName] = selectAllRows(database, actualTableName);
+    }
+
+    for (const expectedTableName of Object.keys(OPTIONAL_TABLES)) {
+      const actualTableName = availableTables.get(
+        expectedTableName.toLowerCase()
+      );
+
+      if (!actualTableName) {
+        continue;
+      }
+
+      const columnRows = getTableColumns(database, actualTableName);
+      const columnIndex = indexColumns(columnRows);
+
+      schema[expectedTableName] = {
+        tableName: actualTableName,
+        requiredColumns: {},
         availableColumns: [...columnIndex.values()],
       };
       rows[expectedTableName] = selectAllRows(database, actualTableName);

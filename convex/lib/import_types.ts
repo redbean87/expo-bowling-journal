@@ -62,6 +62,22 @@ export type SqliteSnapshotInput = {
   weeks: Array<Doc<'importRawWeeks'>['raw']>;
   games: Array<Doc<'importRawGames'>['raw']>;
   frames: Array<Doc<'importRawFrames'>['raw']>;
+  bjMeta?: Array<{
+    key: string;
+    value: string;
+  }>;
+  bjSessionExt?: Array<{
+    weekFk: number;
+    laneContextJson?: string | null;
+    notesJson?: string | null;
+  }>;
+  bjGameExt?: Array<{
+    gameFk: number;
+    laneContextJson?: string | null;
+    ballSwitchesJson?: string | null;
+    handicap?: number | null;
+    notesJson?: string | null;
+  }>;
 };
 
 export const EMPTY_IMPORT_COUNTS = {

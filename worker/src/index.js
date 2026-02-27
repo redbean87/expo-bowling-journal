@@ -1,6 +1,7 @@
 import sqlWasmModule from 'sql.js/dist/sql-wasm.wasm';
 
 import { buildImportingSnapshotJsonCallbackPayload } from './callback_payload.js';
+import { buildSqliteBackupBytes } from './sqlite_exporter.js';
 import {
   SqliteParseError,
   parseBackupDatabaseToSnapshot,
@@ -64,6 +65,27 @@ function unauthorized(request, env, message = 'Unauthorized') {
 
 function methodNotAllowed(request, env) {
   return json(request, env, { error: 'Method not allowed' }, 405);
+}
+
+function sanitizeDownloadFileName(fileName) {
+  if (typeof fileName !== 'string') {
+    return null;
+  }
+
+  const trimmed = fileName.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const withoutPath = trimmed.replace(/[/\\]/g, '-');
+  const cleaned = withoutPath.replace(/[^a-zA-Z0-9._-]/g, '-');
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return cleaned.toLowerCase().endsWith('.db') ? cleaned : `${cleaned}.db`;
 }
 
 function internalError(request, env, message) {
@@ -503,6 +525,42 @@ export default {
         r2Key: key,
         bytes: bytes.byteLength,
       });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/exports/sqlite') {
+      const body = await parseJsonBody(request);
+
+      if (!body || typeof body !== 'object') {
+        return badRequest(request, env, 'Invalid JSON body');
+      }
+
+      if (!body.snapshot || typeof body.snapshot !== 'object') {
+        return badRequest(request, env, 'Missing snapshot payload');
+      }
+
+      try {
+        const sqliteBytes = await buildSqliteBackupBytes(body.snapshot, {
+          wasmModule: sqlWasmModule,
+        });
+        const defaultName = `bowling-journal-${new Date()
+          .toISOString()
+          .slice(0, 10)}.db`;
+        const fileName = sanitizeDownloadFileName(body.fileName) ?? defaultName;
+
+        return new Response(sqliteBytes, {
+          status: 200,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-disposition': `attachment; filename="${fileName}"`,
+            ...corsHeaders(request, env),
+          },
+        });
+      } catch (caught) {
+        const errorMessage =
+          caught instanceof Error ? caught.message : 'SQLite export failed';
+
+        return badRequest(request, env, `Export failed: ${errorMessage}`);
+      }
     }
 
     if (
