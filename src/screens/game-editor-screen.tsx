@@ -355,7 +355,11 @@ export default function GameEditorScreen() {
     shouldShowCompletionActions,
     targetGames,
   ]);
-  const canNavigateSessionFlows = Boolean(leagueId && sessionId);
+  const targetLeagueRouteId = leagueId ?? rawLeagueId ?? null;
+  const targetSessionRouteId = sessionId ?? rawSessionId ?? null;
+  const canNavigateSessionFlows = Boolean(
+    targetLeagueRouteId && targetSessionRouteId
+  );
   const autosaveMessage = useMemo(() => {
     if (autosaveState === 'error') {
       if (autosaveError && autosaveError === frameRuleError) {
@@ -661,21 +665,23 @@ export default function GameEditorScreen() {
   };
 
   const onGoToGames = () => {
-    if (!leagueId || !sessionId) {
+    if (!targetLeagueRouteId || !targetSessionRouteId) {
       return;
     }
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games',
       params: {
-        leagueId,
-        sessionId,
+        leagueId: targetLeagueRouteId,
+        sessionId: targetSessionRouteId,
+        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
       },
     });
   };
 
   const onGoToNextGame = () => {
-    if (!leagueId || !sessionId) {
+    if (!targetLeagueRouteId || !targetSessionRouteId) {
       return;
     }
 
@@ -683,8 +689,10 @@ export default function GameEditorScreen() {
       router.replace({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
         params: {
-          leagueId,
-          sessionId,
+          leagueId: targetLeagueRouteId,
+          sessionId: targetSessionRouteId,
+          ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+          ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
           gameId: nextExistingGameId,
         },
       });
@@ -694,8 +702,10 @@ export default function GameEditorScreen() {
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
       params: {
-        leagueId,
-        sessionId,
+        leagueId: targetLeagueRouteId,
+        sessionId: targetSessionRouteId,
+        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
+        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
         gameId: 'new',
         draftNonce: createDraftNonce(),
       },
