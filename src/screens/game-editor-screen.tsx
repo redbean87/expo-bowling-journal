@@ -282,12 +282,15 @@ export default function GameEditorScreen() {
     return dateLabel;
   }, [derivedWeekNumberBySessionId, selectedSession]);
   const localDraftId = useMemo(() => {
-    if (!sessionId) {
+    const activeSessionId =
+      rawSessionId ?? (sessionId ? String(sessionId) : null);
+
+    if (!activeSessionId) {
       return null;
     }
 
-    return buildGameSaveQueueId(String(sessionId), gameId, activeDraftNonce);
-  }, [activeDraftNonce, gameId, sessionId]);
+    return buildGameSaveQueueId(activeSessionId, gameId, activeDraftNonce);
+  }, [activeDraftNonce, gameId, rawSessionId, sessionId]);
   const { didHydrate, draftGameId, setDraftGameId } = useGameEditorHydration({
     game,
     frames,
