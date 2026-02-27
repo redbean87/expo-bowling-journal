@@ -41,6 +41,7 @@ import { useGameEditorAutosaveSync } from './game-editor/use-game-editor-autosav
 import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
 import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
 import { useSignedInHistory } from './game-editor/use-signed-in-history';
+import { loadGameSaveQueue } from './game-editor/game-save-queue-storage';
 import {
   formatGameSequenceLabel,
   formatIsoDateLabel,
@@ -117,6 +118,9 @@ export default function GameEditorScreen() {
   );
   const [selectedBallId, setSelectedBallId] = useState<string | null>(null);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+  const [queuedSessionGameEntries, setQueuedSessionGameEntries] = useState<
+    Awaited<ReturnType<typeof loadGameSaveQueue>>
+  >([]);
 
   const isAutosaveInFlightRef = useRef(false);
   const isQueuedFlushInFlightRef = useRef(false);
@@ -139,9 +143,49 @@ export default function GameEditorScreen() {
     () => toOldestFirstGames(sessionGames),
     [sessionGames]
   );
+  const activeDraftNonce = useMemo(() => {
+    if (!isCreateMode) {
+      return null;
+    }
+
+    return draftNonceParam && draftNonceParam.trim().length > 0
+      ? draftNonceParam
+      : createDraftNonce();
+  }, [draftNonceParam, isCreateMode]);
+  const activeSessionQueueKey =
+    rawSessionId ?? (sessionId ? String(sessionId) : null);
+  const queuedNewGamesInSession = useMemo(() => {
+    return [...queuedSessionGameEntries]
+      .filter((entry) => entry.gameId === null)
+      .sort((left, right) => left.createdAt - right.createdAt);
+  }, [queuedSessionGameEntries]);
+  const createModeGameNumber = useMemo(() => {
+    const serverGameCount = orderedSessionGames.length;
+
+    if (!isCreateMode) {
+      return serverGameCount + 1;
+    }
+
+    if (activeDraftNonce) {
+      const queuedIndex = queuedNewGamesInSession.findIndex(
+        (entry) => entry.draftNonce === activeDraftNonce
+      );
+
+      if (queuedIndex >= 0) {
+        return serverGameCount + queuedIndex + 1;
+      }
+    }
+
+    return serverGameCount + queuedNewGamesInSession.length + 1;
+  }, [
+    activeDraftNonce,
+    isCreateMode,
+    orderedSessionGames.length,
+    queuedNewGamesInSession,
+  ]);
   const gameName = useMemo(() => {
     if (isCreateMode) {
-      return formatGameSequenceLabel(orderedSessionGames.length + 1);
+      return formatGameSequenceLabel(createModeGameNumber);
     }
 
     if (!gameId) {
@@ -157,7 +201,7 @@ export default function GameEditorScreen() {
     }
 
     return formatGameSequenceLabel(gameIndex + 1);
-  }, [gameId, isCreateMode, orderedSessionGames]);
+  }, [createModeGameNumber, gameId, isCreateMode, orderedSessionGames]);
   const selectedLeague = useMemo(() => {
     if (leagueId) {
       return leagues.find((candidate) => candidate._id === leagueId) ?? null;
@@ -229,15 +273,6 @@ export default function GameEditorScreen() {
 
     return dateLabel;
   }, [derivedWeekNumberBySessionId, selectedSession]);
-  const activeDraftNonce = useMemo(() => {
-    if (!isCreateMode) {
-      return null;
-    }
-
-    return draftNonceParam && draftNonceParam.trim().length > 0
-      ? draftNonceParam
-      : createDraftNonce();
-  }, [draftNonceParam, isCreateMode]);
   const localDraftId = useMemo(() => {
     if (!sessionId) {
       return null;
@@ -285,7 +320,7 @@ export default function GameEditorScreen() {
   }, [draftGameId, gameId, orderedSessionGames]);
   const currentGameNumber = useMemo(() => {
     if (isCreateMode) {
-      return orderedSessionGames.length + 1;
+      return createModeGameNumber;
     }
 
     const currentGameId = draftGameId ?? gameId;
@@ -303,7 +338,68 @@ export default function GameEditorScreen() {
     }
 
     return currentGameIndex + 1;
-  }, [draftGameId, gameId, isCreateMode, orderedSessionGames]);
+  }, [
+    createModeGameNumber,
+    draftGameId,
+    gameId,
+    isCreateMode,
+    orderedSessionGames,
+  ]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshQueuedSessionGames = async () => {
+      if (!activeSessionQueueKey && !sessionClientSyncId) {
+        if (isMounted) {
+          setQueuedSessionGameEntries([]);
+        }
+        return;
+      }
+
+      const queueEntries = await loadGameSaveQueue();
+      const filteredEntries = queueEntries.filter(
+        (entry) =>
+          (activeSessionQueueKey !== null &&
+            entry.sessionId === activeSessionQueueKey) ||
+          (sessionClientSyncId !== null &&
+            entry.sessionClientSyncId === sessionClientSyncId)
+      );
+
+      if (!isMounted) {
+        return;
+      }
+
+      setQueuedSessionGameEntries((currentEntries) => {
+        if (
+          currentEntries.length === filteredEntries.length &&
+          currentEntries.every((entry, index) => {
+            const other = filteredEntries[index];
+            return (
+              other &&
+              entry.queueId === other.queueId &&
+              entry.updatedAt === other.updatedAt &&
+              entry.signature === other.signature
+            );
+          })
+        ) {
+          return currentEntries;
+        }
+
+        return filteredEntries;
+      });
+    };
+
+    void refreshQueuedSessionGames();
+    const intervalId = setInterval(() => {
+      void refreshQueuedSessionGames();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [activeSessionQueueKey, sessionClientSyncId]);
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
