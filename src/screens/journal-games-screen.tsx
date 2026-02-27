@@ -43,7 +43,12 @@ import {
   buildStartEntryTarget,
   type PendingHandoffEntry,
 } from './journal/journal-games-display';
-import { getFirstParam } from './journal/journal-route-params';
+import {
+  buildJournalGameEditorRouteParams,
+  buildJournalGamesRouteParams,
+  getFirstParam,
+  resolveJournalRouteIds,
+} from './journal/journal-route-params';
 import {
   formatIsoDateLabel,
   formatGameSequenceLabel,
@@ -266,16 +271,16 @@ export default function JournalGamesScreen() {
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-      params: {
+      params: buildJournalGamesRouteParams({
         leagueId: mappedLeagueId,
         sessionId: mappedSessionId,
-        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
-        ...(fallbackSessionDate ? { sessionDate: fallbackSessionDate } : {}),
-        ...(Number.isFinite(fallbackSessionWeekNumber)
-          ? { sessionWeekNumber: String(fallbackSessionWeekNumber) }
-          : {}),
-      } as never,
+        leagueClientSyncId,
+        sessionClientSyncId,
+        sessionDate: fallbackSessionDate,
+        sessionWeekNumber: Number.isFinite(fallbackSessionWeekNumber)
+          ? fallbackSessionWeekNumber
+          : null,
+      }) as never,
     } as never);
   }, [
     fallbackSessionDate,
@@ -531,14 +536,27 @@ export default function JournalGamesScreen() {
   );
 
   const openGameEditor = (gameId: string, draftNonce: string | null = null) => {
+    const { leagueRouteId, sessionRouteId } = resolveJournalRouteIds({
+      leagueId,
+      rawLeagueId,
+      sessionId,
+      rawSessionId,
+    });
+
+    if (!leagueRouteId || !sessionRouteId) {
+      return;
+    }
+
     router.push({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-      params: {
-        leagueId: leagueId ?? '',
-        sessionId: sessionId ?? '',
+      params: buildJournalGameEditorRouteParams({
+        leagueId: leagueRouteId,
+        sessionId: sessionRouteId,
+        leagueClientSyncId,
+        sessionClientSyncId,
         gameId,
-        ...(draftNonce ? { draftNonce } : {}),
-      },
+        draftNonce,
+      }),
     });
   };
 
@@ -646,7 +664,14 @@ export default function JournalGamesScreen() {
       return;
     }
 
-    if (!leagueId || !sessionId || isGamesLoading) {
+    const { leagueRouteId, sessionRouteId } = resolveJournalRouteIds({
+      leagueId,
+      rawLeagueId,
+      sessionId,
+      rawSessionId,
+    });
+
+    if (!leagueRouteId || !sessionRouteId || isGamesLoading) {
       return;
     }
 
@@ -655,21 +680,25 @@ export default function JournalGamesScreen() {
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-      params: {
-        leagueId,
-        sessionId,
+      params: buildJournalGameEditorRouteParams({
+        leagueId: leagueRouteId,
+        sessionId: sessionRouteId,
+        leagueClientSyncId,
+        sessionClientSyncId,
         gameId: startEntryTarget.gameId,
-        ...(startEntryTarget.draftNonce
-          ? { draftNonce: startEntryTarget.draftNonce }
-          : {}),
-      },
+        draftNonce: startEntryTarget.draftNonce,
+      }),
     });
   }, [
     displayGames,
     isFocused,
     isGamesLoading,
+    leagueClientSyncId,
     leagueId,
+    rawLeagueId,
+    rawSessionId,
     router,
+    sessionClientSyncId,
     sessionId,
     startEntry,
   ]);
@@ -769,15 +798,15 @@ export default function JournalGamesScreen() {
             router.push({
               pathname:
                 '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-              params: {
+              params: buildJournalGameEditorRouteParams({
                 leagueId: leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
                 sessionId:
                   sessionId ?? `draft-${sessionClientSyncId ?? 'session'}`,
-                ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-                ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
+                leagueClientSyncId,
+                sessionClientSyncId,
                 gameId: 'new',
                 draftNonce: createDraftNonce(),
-              },
+              }),
             })
           }
         />

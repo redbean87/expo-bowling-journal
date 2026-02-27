@@ -37,11 +37,16 @@ import {
 } from './game-editor/game-editor-screen-utils';
 import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
 import { buildGameSaveQueueId } from './game-editor/game-save-queue';
+import { loadGameSaveQueue } from './game-editor/game-save-queue-storage';
 import { useGameEditorAutosaveSync } from './game-editor/use-game-editor-autosave-sync';
 import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
 import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
 import { useSignedInHistory } from './game-editor/use-signed-in-history';
-import { loadGameSaveQueue } from './game-editor/game-save-queue-storage';
+import {
+  buildJournalGameEditorRouteParams,
+  buildJournalGamesRouteParams,
+  resolveJournalRouteIds,
+} from './journal/journal-route-params';
 import {
   formatGameSequenceLabel,
   formatIsoDateLabel,
@@ -451,8 +456,15 @@ export default function GameEditorScreen() {
     shouldShowCompletionActions,
     targetGames,
   ]);
-  const targetLeagueRouteId = leagueId ?? rawLeagueId ?? null;
-  const targetSessionRouteId = sessionId ?? rawSessionId ?? null;
+  const {
+    leagueRouteId: targetLeagueRouteId,
+    sessionRouteId: targetSessionRouteId,
+  } = resolveJournalRouteIds({
+    leagueId,
+    rawLeagueId,
+    sessionId,
+    rawSessionId,
+  });
   const canNavigateSessionFlows = Boolean(
     targetLeagueRouteId && targetSessionRouteId
   );
@@ -767,12 +779,12 @@ export default function GameEditorScreen() {
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games',
-      params: {
+      params: buildJournalGamesRouteParams({
         leagueId: targetLeagueRouteId,
         sessionId: targetSessionRouteId,
-        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
-      },
+        leagueClientSyncId,
+        sessionClientSyncId,
+      }),
     });
   };
 
@@ -784,27 +796,27 @@ export default function GameEditorScreen() {
     if (nextExistingGameId) {
       router.replace({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-        params: {
+        params: buildJournalGameEditorRouteParams({
           leagueId: targetLeagueRouteId,
           sessionId: targetSessionRouteId,
-          ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-          ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
+          leagueClientSyncId,
+          sessionClientSyncId,
           gameId: nextExistingGameId,
-        },
+        }),
       });
       return;
     }
 
     router.replace({
       pathname: '/journal/[leagueId]/sessions/[sessionId]/games/[gameId]',
-      params: {
+      params: buildJournalGameEditorRouteParams({
         leagueId: targetLeagueRouteId,
         sessionId: targetSessionRouteId,
-        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-        ...(sessionClientSyncId ? { sessionClientSyncId } : {}),
+        leagueClientSyncId,
+        sessionClientSyncId,
         gameId: 'new',
         draftNonce: createDraftNonce(),
-      },
+      }),
     });
   };
 

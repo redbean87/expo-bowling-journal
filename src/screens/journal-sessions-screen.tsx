@@ -35,10 +35,12 @@ import {
   isNavigatorOffline,
   withTimeout,
 } from './journal/journal-offline-create';
-import { getFirstParam } from './journal/journal-route-params';
+import {
+  buildJournalGamesRouteParams,
+  getFirstParam,
+} from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 import {
-  findSessionIdForDate,
   formatIsoDateLabel,
   formatIsoDateForToday,
   formatSessionWeekLabel,
@@ -97,29 +99,6 @@ export default function JournalSessionsScreen() {
       ? (rawLeagueId as LeagueId)
       : null;
   const startTonight = getFirstParam(params.startTonight) === '1';
-  const toGamesRouteParams = useCallback(
-    (target: {
-      leagueId: string;
-      sessionId: string;
-      sessionClientSyncId?: string | null;
-      sessionDate?: string | null;
-      sessionWeekNumber?: number | null;
-    }) => {
-      return {
-        leagueId: target.leagueId,
-        sessionId: target.sessionId,
-        ...(leagueClientSyncId ? { leagueClientSyncId } : {}),
-        ...(target.sessionClientSyncId
-          ? { sessionClientSyncId: target.sessionClientSyncId }
-          : {}),
-        ...(target.sessionDate ? { sessionDate: target.sessionDate } : {}),
-        ...(typeof target.sessionWeekNumber === 'number'
-          ? { sessionWeekNumber: String(target.sessionWeekNumber) }
-          : {}),
-      };
-    },
-    [leagueClientSyncId]
-  );
   const { leagues } = useLeagues();
   const {
     sessions,
@@ -349,6 +328,40 @@ export default function JournalSessionsScreen() {
 
     return [...queuedDrafts, ...serverSessions];
   }, [queuedSessionCreates, sessions]);
+  const getNextSessionWeekNumber = useCallback(
+    (sessionCreateEntries: QueuedSessionCreateEntry[]) => {
+      const candidateWeeks: number[] = [];
+
+      sessions.forEach((session) => {
+        const derivedWeek =
+          session.weekNumber ??
+          derivedWeekNumberBySessionId.get(session._id) ??
+          null;
+
+        if (typeof derivedWeek === 'number' && Number.isInteger(derivedWeek)) {
+          candidateWeeks.push(derivedWeek);
+        }
+      });
+
+      sessionCreateEntries.forEach((entry) => {
+        const queuedWeek = entry.payload.weekNumber;
+
+        if (typeof queuedWeek === 'number' && Number.isInteger(queuedWeek)) {
+          candidateWeeks.push(queuedWeek);
+        }
+      });
+
+      if (candidateWeeks.length > 0) {
+        return Math.max(...candidateWeeks) + 1;
+      }
+
+      return sessions.length + sessionCreateEntries.length + 1;
+    },
+    [derivedWeekNumberBySessionId, sessions]
+  );
+  const suggestedSessionWeekNumber = useMemo(() => {
+    return getNextSessionWeekNumber(queuedSessionCreates);
+  }, [getNextSessionWeekNumber, queuedSessionCreates]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -497,9 +510,10 @@ export default function JournalSessionsScreen() {
       setPendingCreateClientSyncId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: toGamesRouteParams({
+        params: buildJournalGamesRouteParams({
           leagueId: targetLeagueId ?? `draft-${targetLeagueClientSyncId}`,
           sessionId: `draft-${clientSyncId}`,
+          leagueClientSyncId,
           sessionClientSyncId: clientSyncId,
           sessionDate: date,
           sessionWeekNumber: weekNumber ?? null,
@@ -536,9 +550,10 @@ export default function JournalSessionsScreen() {
       setPendingCreateClientSyncId(null);
       router.push({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: toGamesRouteParams({
+        params: buildJournalGamesRouteParams({
           leagueId: targetLeagueId,
           sessionId,
+          leagueClientSyncId,
           sessionDate: date,
           sessionWeekNumber: weekNumber ?? null,
         }) as never,
@@ -779,11 +794,57 @@ export default function JournalSessionsScreen() {
     setIsSessionActionsVisible(true);
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = useCallback(() => {
     setSessionError(null);
     setSessionHouseId(defaultSessionHouseId);
+    setSessionWeekNumber(String(suggestedSessionWeekNumber));
     setIsCreateModalVisible(true);
-  };
+
+    void (async () => {
+      const [queueEntries, latestSyncMap] = await Promise.all([
+        loadJournalCreateQueue(),
+        loadJournalClientSyncMap(),
+      ]);
+
+      const matchingQueuedCreates = queueEntries.filter((entry) => {
+        if (entry.entityType !== 'session-create') {
+          return false;
+        }
+
+        if (leagueId && entry.payload.leagueId === leagueId) {
+          return true;
+        }
+
+        if (
+          leagueId &&
+          entry.payload.leagueClientSyncId &&
+          latestSyncMap.leagues[entry.payload.leagueClientSyncId] === leagueId
+        ) {
+          return true;
+        }
+
+        if (
+          !leagueId &&
+          leagueClientSyncId &&
+          entry.payload.leagueClientSyncId === leagueClientSyncId
+        ) {
+          return true;
+        }
+
+        return false;
+      }) as QueuedSessionCreateEntry[];
+
+      setSessionWeekNumber(
+        String(getNextSessionWeekNumber(matchingQueuedCreates))
+      );
+    })();
+  }, [
+    defaultSessionHouseId,
+    getNextSessionWeekNumber,
+    leagueClientSyncId,
+    leagueId,
+    suggestedSessionWeekNumber,
+  ]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -794,24 +855,74 @@ export default function JournalSessionsScreen() {
       return;
     }
 
-    if (!leagueId || isSessionsLoading || isCreatingSession) {
+    const targetLeagueRouteId = leagueId ?? rawLeagueId;
+
+    if (!targetLeagueRouteId || isSessionsLoading || isCreatingSession) {
       return;
     }
 
     hasHandledStartTonightRef.current = true;
     const today = formatIsoDateForToday();
-    const existingSessionId = findSessionIdForDate(sessions, today);
+    const existingDisplaySession = displaySessions.find(
+      (session) => session.date === today
+    );
 
-    if (existingSessionId) {
+    if (existingDisplaySession) {
+      const targetSessionRouteId =
+        existingDisplaySession.sessionId ??
+        `draft-${existingDisplaySession.clientSyncId ?? 'session'}`;
+
       router.replace({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: {
-          leagueId,
-          sessionId: existingSessionId,
-          startEntry: '1',
+        params: buildJournalGamesRouteParams({
+          leagueId: targetLeagueRouteId,
+          sessionId: targetSessionRouteId,
+          leagueClientSyncId,
+          sessionClientSyncId: existingDisplaySession.clientSyncId,
           sessionDate: today,
-        } as never,
+          sessionWeekNumber: existingDisplaySession.weekNumber,
+          startEntry: true,
+        }) as never,
       } as never);
+      return;
+    }
+
+    if (!leagueId && leagueClientSyncId) {
+      void (async () => {
+        const clientSyncId = createClientSyncId('session');
+        const queuedEntry = createQueuedSessionCreateEntry(
+          {
+            leagueId: null as never,
+            date: today,
+          },
+          clientSyncId,
+          leagueClientSyncId,
+          Date.now()
+        );
+        const currentQueue = await loadJournalCreateQueue();
+        const nextQueue = upsertQueuedJournalCreateEntry(
+          currentQueue,
+          queuedEntry
+        );
+        await persistJournalCreateQueue(nextQueue);
+        await refreshQueuedSessionCreates();
+
+        router.replace({
+          pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+          params: buildJournalGamesRouteParams({
+            leagueId: targetLeagueRouteId,
+            sessionId: `draft-${clientSyncId}`,
+            leagueClientSyncId,
+            sessionClientSyncId: clientSyncId,
+            sessionDate: today,
+          }) as never,
+        } as never);
+      })();
+
+      return;
+    }
+
+    if (!leagueId) {
       return;
     }
 
@@ -823,12 +934,12 @@ export default function JournalSessionsScreen() {
         });
         router.replace({
           pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-          params: {
-            leagueId,
+          params: buildJournalGamesRouteParams({
+            leagueId: targetLeagueRouteId,
             sessionId,
-            startEntry: '1',
+            leagueClientSyncId,
             sessionDate: today,
-          } as never,
+          }) as never,
         } as never);
       } catch (caught) {
         setSessionError(
@@ -840,12 +951,15 @@ export default function JournalSessionsScreen() {
     })();
   }, [
     createSession,
+    displaySessions,
     isCreatingSession,
     isFocused,
     isSessionsLoading,
+    leagueClientSyncId,
     leagueId,
+    rawLeagueId,
+    refreshQueuedSessionCreates,
     router,
-    sessions,
     startTonight,
   ]);
 
@@ -917,12 +1031,13 @@ export default function JournalSessionsScreen() {
                 router.push({
                   pathname:
                     '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-                  params: toGamesRouteParams({
+                  params: buildJournalGamesRouteParams({
                     leagueId:
                       leagueId ?? `draft-${leagueClientSyncId ?? 'league'}`,
                     sessionId:
                       session.sessionId ??
                       `draft-${session.clientSyncId ?? 'session'}`,
+                    leagueClientSyncId,
                     sessionClientSyncId: session.clientSyncId,
                     sessionDate: session.date,
                     sessionWeekNumber:
