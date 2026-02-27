@@ -5,6 +5,7 @@ import { colors, spacing, typeScale } from '@/theme/tokens';
 
 type GameEditorFooterActionsProps = {
   shouldShowCompletionActions: boolean;
+  shouldPreferFinishAction: boolean;
   canNavigateSessionFlows: boolean;
   shortcutLabel: string;
   onGoToGames: () => void;
@@ -15,6 +16,7 @@ type GameEditorFooterActionsProps = {
 
 export function GameEditorFooterActions({
   shouldShowCompletionActions,
+  shouldPreferFinishAction,
   canNavigateSessionFlows,
   shortcutLabel,
   onGoToGames,
@@ -22,6 +24,19 @@ export function GameEditorFooterActions({
   onSetFullRack,
   onCommitRoll,
 }: GameEditorFooterActionsProps) {
+  const completionSecondaryLabel = shouldPreferFinishAction
+    ? 'New game'
+    : 'Games';
+  const completionSecondaryAction = shouldPreferFinishAction
+    ? onGoToNextGame
+    : onGoToGames;
+  const completionPrimaryLabel = shouldPreferFinishAction
+    ? 'Finish'
+    : 'Next game';
+  const completionPrimaryAction = shouldPreferFinishAction
+    ? onGoToGames
+    : onGoToNextGame;
+
   return (
     <View style={styles.actionsFooter}>
       <View style={styles.actionsRow}>
@@ -29,8 +44,8 @@ export function GameEditorFooterActions({
           {shouldShowCompletionActions ? (
             <Button
               disabled={!canNavigateSessionFlows}
-              label="Games"
-              onPress={onGoToGames}
+              label={completionSecondaryLabel}
+              onPress={completionSecondaryAction}
               size="lg"
               variant="secondary"
             />
@@ -50,8 +65,8 @@ export function GameEditorFooterActions({
           {shouldShowCompletionActions ? (
             <Button
               disabled={!canNavigateSessionFlows}
-              label="Next game"
-              onPress={onGoToNextGame}
+              label={completionPrimaryLabel}
+              onPress={completionPrimaryAction}
               size="lg"
             />
           ) : (

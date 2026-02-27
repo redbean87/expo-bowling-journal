@@ -53,6 +53,7 @@ import type { GameId } from '@/services/journal';
 import {
   useGameEditor,
   useGames,
+  useLeagues,
   useReferenceData,
   useSessions,
 } from '@/hooks/journal';
@@ -99,6 +100,7 @@ export default function GameEditorScreen() {
     replaceFramesForGame,
   } = useGameEditor(gameId);
   const { games: sessionGames } = useGames(sessionId);
+  const { leagues } = useLeagues();
   const { sessions } = useSessions(leagueId);
   const { scoreboardLayout } = usePreferences();
 
@@ -156,6 +158,40 @@ export default function GameEditorScreen() {
 
     return formatGameSequenceLabel(gameIndex + 1);
   }, [gameId, isCreateMode, orderedSessionGames]);
+  const selectedLeague = useMemo(() => {
+    if (leagueId) {
+      return leagues.find((candidate) => candidate._id === leagueId) ?? null;
+    }
+
+    if (!leagueClientSyncId) {
+      return null;
+    }
+
+    return (
+      leagues.find((candidate) => {
+        const clientSyncId =
+          typeof (candidate as { clientSyncId?: string | null })
+            .clientSyncId === 'string'
+            ? (candidate as { clientSyncId?: string | null }).clientSyncId
+            : null;
+
+        return clientSyncId === leagueClientSyncId;
+      }) ?? null
+    );
+  }, [leagueClientSyncId, leagueId, leagues]);
+  const targetGames = useMemo<number | null>(() => {
+    const gamesPerSession = selectedLeague?.gamesPerSession;
+
+    if (typeof gamesPerSession !== 'number') {
+      return null;
+    }
+
+    if (!Number.isInteger(gamesPerSession) || gamesPerSession < 1) {
+      return null;
+    }
+
+    return gamesPerSession;
+  }, [selectedLeague?.gamesPerSession]);
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
     const weekMap = new Map<string, number>();
@@ -247,6 +283,27 @@ export default function GameEditorScreen() {
 
     return orderedSessionGames[currentGameIndex + 1]?._id ?? null;
   }, [draftGameId, gameId, orderedSessionGames]);
+  const currentGameNumber = useMemo(() => {
+    if (isCreateMode) {
+      return orderedSessionGames.length + 1;
+    }
+
+    const currentGameId = draftGameId ?? gameId;
+
+    if (!currentGameId) {
+      return null;
+    }
+
+    const currentGameIndex = orderedSessionGames.findIndex(
+      (candidate) => candidate._id === currentGameId
+    );
+
+    if (currentGameIndex === -1) {
+      return null;
+    }
+
+    return currentGameIndex + 1;
+  }, [draftGameId, gameId, isCreateMode, orderedSessionGames]);
 
   const activeFrame = frameDrafts[activeFrameIndex] ?? EMPTY_FRAMES[0];
   const visibleRollFields = getVisibleRollFields(activeFrameIndex, activeFrame);
@@ -282,6 +339,22 @@ export default function GameEditorScreen() {
     isGameComplete &&
     activeFrameIndex === terminalCursor.frameIndex &&
     activeField === terminalCursor.field;
+  const shouldPreferFinishAction = useMemo(() => {
+    if (!shouldShowCompletionActions || targetGames === null) {
+      return false;
+    }
+
+    if (currentGameNumber === null || currentGameNumber < targetGames) {
+      return false;
+    }
+
+    return nextExistingGameId === null;
+  }, [
+    currentGameNumber,
+    nextExistingGameId,
+    shouldShowCompletionActions,
+    targetGames,
+  ]);
   const canNavigateSessionFlows = Boolean(leagueId && sessionId);
   const autosaveMessage = useMemo(() => {
     if (autosaveState === 'error') {
@@ -691,6 +764,7 @@ export default function GameEditorScreen() {
         onGoToGames={onGoToGames}
         onGoToNextGame={onGoToNextGame}
         onSetFullRack={onSetFullRack}
+        shouldPreferFinishAction={shouldPreferFinishAction}
         shouldShowCompletionActions={shouldShowCompletionActions}
         shortcutLabel={shortcutLabel}
       />
