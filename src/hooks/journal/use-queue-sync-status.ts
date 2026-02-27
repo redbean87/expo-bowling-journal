@@ -10,6 +10,8 @@ import {
 } from '@/screens/game-editor/game-save-queue-sync';
 import { loadJournalCreateQueue } from '@/screens/journal/journal-create-queue-storage';
 import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
+import { loadReferenceCreateQueue } from '@/screens/journal/reference-create-queue-storage';
+import { flushReferenceCreateQueueWithLock } from '@/screens/journal/reference-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
 
 type QueueStatusEntry = {
@@ -32,17 +34,26 @@ export function useQueueSyncStatus() {
   const createSessionMutation = useMutation(convexJournalService.createSession);
   const updateSessionMutation = useMutation(convexJournalService.updateSession);
   const removeSessionMutation = useMutation(convexJournalService.removeSession);
+  const createBallMutation = useMutation(convexJournalService.createBall);
+  const createPatternMutation = useMutation(convexJournalService.createPattern);
+  const createHouseMutation = useMutation(convexJournalService.createHouse);
 
   const [queueEntries, setQueueEntries] = useState<QueueStatusEntry[]>([]);
   const [checkedAt, setCheckedAt] = useState(Date.now());
   const [isRetryingNow, setIsRetryingNow] = useState(false);
 
   const refreshStatus = useCallback(async () => {
-    const [gameEntries, createEntries] = await Promise.all([
-      loadGameSaveQueue(),
-      loadJournalCreateQueue(),
+    const [gameEntries, createEntries, referenceCreateEntries] =
+      await Promise.all([
+        loadGameSaveQueue(),
+        loadJournalCreateQueue(),
+        loadReferenceCreateQueue(),
+      ]);
+    setQueueEntries([
+      ...gameEntries,
+      ...createEntries,
+      ...referenceCreateEntries,
     ]);
-    setQueueEntries([...gameEntries, ...createEntries]);
     setCheckedAt(Date.now());
   }, []);
 
@@ -54,6 +65,13 @@ export function useQueueSyncStatus() {
     setIsRetryingNow(true);
 
     try {
+      await flushReferenceCreateQueueWithLock({
+        createHouse: createHouseMutation,
+        createPattern: createPatternMutation,
+        createBall: createBallMutation,
+        force: true,
+      });
+
       await flushJournalCreateQueueWithLock({
         createLeague: createLeagueMutation,
         updateLeague: updateLeagueMutation,
@@ -75,7 +93,10 @@ export function useQueueSyncStatus() {
     }
   }, [
     createGameMutation,
+    createBallMutation,
+    createHouseMutation,
     createLeagueMutation,
+    createPatternMutation,
     createSessionMutation,
     isAuthenticated,
     removeLeagueMutation,

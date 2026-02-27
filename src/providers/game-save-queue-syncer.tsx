@@ -5,6 +5,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { removeLocalGameDraft } from '@/screens/game-editor/game-local-draft-storage';
 import { flushQueuedGameSavesWithLock } from '@/screens/game-editor/game-save-queue-sync';
 import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
+import { flushReferenceCreateQueueWithLock } from '@/screens/journal/reference-create-queue-sync';
 import { convexJournalService } from '@/services/journal';
 
 export function GameSaveQueueSyncer() {
@@ -19,6 +20,9 @@ export function GameSaveQueueSyncer() {
   const createSessionMutation = useMutation(convexJournalService.createSession);
   const updateSessionMutation = useMutation(convexJournalService.updateSession);
   const removeSessionMutation = useMutation(convexJournalService.removeSession);
+  const createBallMutation = useMutation(convexJournalService.createBall);
+  const createPatternMutation = useMutation(convexJournalService.createPattern);
+  const createHouseMutation = useMutation(convexJournalService.createHouse);
 
   const flushQueue = useCallback(async () => {
     if (
@@ -27,6 +31,12 @@ export function GameSaveQueueSyncer() {
     ) {
       return;
     }
+
+    await flushReferenceCreateQueueWithLock({
+      createHouse: createHouseMutation,
+      createPattern: createPatternMutation,
+      createBall: createBallMutation,
+    });
 
     await flushJournalCreateQueueWithLock({
       createLeague: createLeagueMutation,
@@ -51,7 +61,10 @@ export function GameSaveQueueSyncer() {
     });
   }, [
     createGameMutation,
+    createBallMutation,
+    createHouseMutation,
     createLeagueMutation,
+    createPatternMutation,
     createSessionMutation,
     removeLeagueMutation,
     removeSessionMutation,

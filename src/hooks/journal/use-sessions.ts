@@ -1,6 +1,8 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
+import { resolveReferenceIdForMutation } from './reference-id-resolution';
+
 import {
   convexJournalService,
   type CreateSessionInput,
@@ -25,7 +27,28 @@ export function useSessions(leagueId: LeagueId | null) {
       setIsCreating(true);
 
       try {
-        return await createSessionMutation(input);
+        const [resolvedHouseId, resolvedPatternId, resolvedBallId] =
+          await Promise.all([
+            resolveReferenceIdForMutation(
+              'house',
+              input.houseId ? String(input.houseId) : null
+            ),
+            resolveReferenceIdForMutation(
+              'pattern',
+              input.patternId ? String(input.patternId) : null
+            ),
+            resolveReferenceIdForMutation(
+              'ball',
+              input.ballId ? String(input.ballId) : null
+            ),
+          ]);
+
+        return await createSessionMutation({
+          ...input,
+          houseId: (resolvedHouseId as never) ?? null,
+          patternId: (resolvedPatternId as never) ?? null,
+          ballId: (resolvedBallId as never) ?? null,
+        });
       } finally {
         setIsCreating(false);
       }
@@ -35,7 +58,28 @@ export function useSessions(leagueId: LeagueId | null) {
 
   const updateSession = useCallback(
     async (input: UpdateSessionInput) => {
-      return await updateSessionMutation(input);
+      const [resolvedHouseId, resolvedPatternId, resolvedBallId] =
+        await Promise.all([
+          resolveReferenceIdForMutation(
+            'house',
+            input.houseId ? String(input.houseId) : null
+          ),
+          resolveReferenceIdForMutation(
+            'pattern',
+            input.patternId ? String(input.patternId) : null
+          ),
+          resolveReferenceIdForMutation(
+            'ball',
+            input.ballId ? String(input.ballId) : null
+          ),
+        ]);
+
+      return await updateSessionMutation({
+        ...input,
+        houseId: (resolvedHouseId as never) ?? null,
+        patternId: (resolvedPatternId as never) ?? null,
+        ballId: (resolvedBallId as never) ?? null,
+      });
     },
     [updateSessionMutation]
   );

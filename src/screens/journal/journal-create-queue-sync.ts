@@ -14,6 +14,7 @@ import {
   loadJournalCreateQueue,
   persistJournalCreateQueue,
 } from './journal-create-queue-storage';
+import { resolveReferenceIdFromSyncMap } from './reference-draft-id';
 
 import type {
   CreateLeagueInput,
@@ -66,6 +67,28 @@ function getEntryByQueueId(
   return entries.find((entry) => entry.queueId === queueId) ?? null;
 }
 
+function resolveQueuedReferenceId({
+  referenceId,
+  syncMap,
+}: {
+  referenceId: string | null | undefined;
+  syncMap: Awaited<ReturnType<typeof loadJournalClientSyncMap>>;
+}) {
+  const resolution = resolveReferenceIdFromSyncMap(referenceId, syncMap);
+
+  if (resolution.pendingDraftReference) {
+    return {
+      resolvedId: null,
+      missingReferenceType: resolution.pendingDraftReference.referenceType,
+    } as const;
+  }
+
+  return {
+    resolvedId: resolution.resolvedId,
+    missingReferenceType: null,
+  } as const;
+}
+
 async function applyQueueMutation(
   loadQueue: () => Promise<QueuedJournalCreateEntry[]>,
   persistQueue: (entries: QueuedJournalCreateEntry[]) => Promise<void>,
@@ -108,8 +131,32 @@ export async function flushJournalCreateQueue({
 
     try {
       if (latestDueEntry.entityType === 'league-create') {
+        const syncMap = await loadJournalClientSyncMap();
+        const resolvedHouseId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.houseId
+            ? String(latestDueEntry.payload.houseId)
+            : null,
+          syncMap,
+        });
+
+        if (resolvedHouseId.missingReferenceType) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                `Waiting for ${resolvedHouseId.missingReferenceType} sync before creating league.`,
+                Date.now()
+              )
+          );
+          continue;
+        }
+
         const leagueId = await createLeague({
           ...latestDueEntry.payload,
+          houseId: (resolvedHouseId.resolvedId as never) ?? null,
           clientSyncId: latestDueEntry.clientSyncId,
         });
 
@@ -118,6 +165,7 @@ export async function flushJournalCreateQueue({
           leagueId
         );
       } else if (latestDueEntry.entityType === 'league-update') {
+        const syncMap = await loadJournalClientSyncMap();
         let targetLeagueId = latestDueEntry.leagueId ?? null;
 
         if (!targetLeagueId && latestDueEntry.leagueClientSyncId) {
@@ -143,9 +191,32 @@ export async function flushJournalCreateQueue({
           continue;
         }
 
+        const resolvedHouseId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.houseId
+            ? String(latestDueEntry.payload.houseId)
+            : null,
+          syncMap,
+        });
+
+        if (resolvedHouseId.missingReferenceType) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                `Waiting for ${resolvedHouseId.missingReferenceType} sync before updating league.`,
+                Date.now()
+              )
+          );
+          continue;
+        }
+
         await updateLeague({
           leagueId: targetLeagueId,
           ...latestDueEntry.payload,
+          houseId: (resolvedHouseId.resolvedId as never) ?? null,
         });
       } else if (latestDueEntry.entityType === 'league-delete') {
         let targetLeagueId = latestDueEntry.leagueId ?? null;
@@ -175,6 +246,7 @@ export async function flushJournalCreateQueue({
 
         await removeLeague({ leagueId: targetLeagueId });
       } else if (latestDueEntry.entityType === 'session-create') {
+        const syncMap = await loadJournalClientSyncMap();
         let targetLeagueId = latestDueEntry.payload.leagueId ?? null;
 
         if (!targetLeagueId && latestDueEntry.payload.leagueClientSyncId) {
@@ -200,13 +272,51 @@ export async function flushJournalCreateQueue({
           continue;
         }
 
+        const resolvedHouseId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.houseId
+            ? String(latestDueEntry.payload.houseId)
+            : null,
+          syncMap,
+        });
+        const resolvedPatternId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.patternId
+            ? String(latestDueEntry.payload.patternId)
+            : null,
+          syncMap,
+        });
+        const resolvedBallId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.ballId
+            ? String(latestDueEntry.payload.ballId)
+            : null,
+          syncMap,
+        });
+        const missingReferenceType =
+          resolvedHouseId.missingReferenceType ??
+          resolvedPatternId.missingReferenceType ??
+          resolvedBallId.missingReferenceType;
+
+        if (missingReferenceType) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                `Waiting for ${missingReferenceType} sync before creating session.`,
+                Date.now()
+              )
+          );
+          continue;
+        }
+
         const sessionId = await createSession({
           leagueId: targetLeagueId,
           date: latestDueEntry.payload.date,
           weekNumber: latestDueEntry.payload.weekNumber,
-          houseId: latestDueEntry.payload.houseId,
-          patternId: latestDueEntry.payload.patternId,
-          ballId: latestDueEntry.payload.ballId,
+          houseId: (resolvedHouseId.resolvedId as never) ?? null,
+          patternId: (resolvedPatternId.resolvedId as never) ?? null,
+          ballId: (resolvedBallId.resolvedId as never) ?? null,
           clientSyncId: latestDueEntry.clientSyncId,
         });
 
@@ -215,6 +325,7 @@ export async function flushJournalCreateQueue({
           sessionId
         );
       } else if (latestDueEntry.entityType === 'session-update') {
+        const syncMap = await loadJournalClientSyncMap();
         let targetSessionId = latestDueEntry.sessionId ?? null;
 
         if (!targetSessionId && latestDueEntry.sessionClientSyncId) {
@@ -240,9 +351,50 @@ export async function flushJournalCreateQueue({
           continue;
         }
 
+        const resolvedHouseId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.houseId
+            ? String(latestDueEntry.payload.houseId)
+            : null,
+          syncMap,
+        });
+        const resolvedPatternId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.patternId
+            ? String(latestDueEntry.payload.patternId)
+            : null,
+          syncMap,
+        });
+        const resolvedBallId = resolveQueuedReferenceId({
+          referenceId: latestDueEntry.payload.ballId
+            ? String(latestDueEntry.payload.ballId)
+            : null,
+          syncMap,
+        });
+        const missingReferenceType =
+          resolvedHouseId.missingReferenceType ??
+          resolvedPatternId.missingReferenceType ??
+          resolvedBallId.missingReferenceType;
+
+        if (missingReferenceType) {
+          queueEntries = await applyQueueMutation(
+            loadQueue,
+            persistQueue,
+            (entries) =>
+              markQueuedJournalCreateEntryRetry(
+                entries,
+                latestDueEntry.queueId,
+                `Waiting for ${missingReferenceType} sync before updating session.`,
+                Date.now()
+              )
+          );
+          continue;
+        }
+
         await updateSession({
           sessionId: targetSessionId,
           ...latestDueEntry.payload,
+          houseId: (resolvedHouseId.resolvedId as never) ?? null,
+          patternId: (resolvedPatternId.resolvedId as never) ?? null,
+          ballId: (resolvedBallId.resolvedId as never) ?? null,
         });
       } else {
         let targetSessionId = latestDueEntry.sessionId ?? null;

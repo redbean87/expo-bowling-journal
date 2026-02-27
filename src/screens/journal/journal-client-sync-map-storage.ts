@@ -6,11 +6,17 @@ const JOURNAL_CLIENT_SYNC_MAP_STORAGE_KEY = 'journal:client-sync-map:v1';
 export type JournalClientSyncMap = {
   leagues: Record<string, string>;
   sessions: Record<string, string>;
+  houses: Record<string, string>;
+  patterns: Record<string, string>;
+  balls: Record<string, string>;
 };
 
 const EMPTY_MAP: JournalClientSyncMap = {
   leagues: {},
   sessions: {},
+  houses: {},
+  patterns: {},
+  balls: {},
 };
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -57,6 +63,9 @@ export async function loadJournalClientSyncMap(): Promise<JournalClientSyncMap> 
     return {
       leagues: isStringRecord(candidate.leagues) ? candidate.leagues : {},
       sessions: isStringRecord(candidate.sessions) ? candidate.sessions : {},
+      houses: isStringRecord(candidate.houses) ? candidate.houses : {},
+      patterns: isStringRecord(candidate.patterns) ? candidate.patterns : {},
+      balls: isStringRecord(candidate.balls) ? candidate.balls : {},
     };
   } catch {
     return EMPTY_MAP;
@@ -82,5 +91,32 @@ export async function upsertSessionClientSyncMapping(
 ) {
   const map = await loadJournalClientSyncMap();
   map.sessions[clientSyncId] = sessionId;
+  await persistJournalClientSyncMap(map);
+}
+
+export async function upsertHouseClientSyncMapping(
+  clientSyncId: string,
+  houseId: string
+) {
+  const map = await loadJournalClientSyncMap();
+  map.houses[clientSyncId] = houseId;
+  await persistJournalClientSyncMap(map);
+}
+
+export async function upsertPatternClientSyncMapping(
+  clientSyncId: string,
+  patternId: string
+) {
+  const map = await loadJournalClientSyncMap();
+  map.patterns[clientSyncId] = patternId;
+  await persistJournalClientSyncMap(map);
+}
+
+export async function upsertBallClientSyncMapping(
+  clientSyncId: string,
+  ballId: string
+) {
+  const map = await loadJournalClientSyncMap();
+  map.balls[clientSyncId] = ballId;
   await persistJournalClientSyncMap(map);
 }

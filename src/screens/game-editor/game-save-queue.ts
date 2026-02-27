@@ -9,6 +9,8 @@ export type QueuedGameSaveEntry = {
   gameId: string | null;
   draftNonce: string | null;
   date: string;
+  patternId: string | null;
+  ballId: string | null;
   frames: EditableFrameInput[];
   signature: string;
   attemptCount: number;
@@ -25,6 +27,8 @@ type NewQueuedGameSaveInput = {
   gameId: string | null;
   draftNonce?: string | null;
   date: string;
+  patternId?: string | null;
+  ballId?: string | null;
   frames: EditableFrameInput[];
   signature: string;
 };
@@ -76,6 +80,8 @@ export function createQueuedGameSaveEntry(
     gameId: input.gameId,
     draftNonce: input.gameId ? null : normalizedDraftNonce,
     date: input.date,
+    patternId: typeof input.patternId === 'string' ? input.patternId : null,
+    ballId: typeof input.ballId === 'string' ? input.ballId : null,
     frames: input.frames,
     signature: input.signature,
     attemptCount: 0,

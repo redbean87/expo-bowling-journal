@@ -160,6 +160,9 @@ export default function JournalSessionsScreen() {
   const [syncMap, setSyncMap] = useState<JournalClientSyncMap>({
     leagues: {},
     sessions: {},
+    houses: {},
+    patterns: {},
+    balls: {},
   });
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);

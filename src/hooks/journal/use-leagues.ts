@@ -1,6 +1,8 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
+import { resolveReferenceIdForMutation } from './reference-id-resolution';
+
 import {
   convexJournalService,
   type CreateLeagueInput,
@@ -24,7 +26,15 @@ export function useLeagues() {
       setIsCreating(true);
 
       try {
-        return await createLeagueMutation(input);
+        const resolvedHouseId = await resolveReferenceIdForMutation(
+          'house',
+          input.houseId ? String(input.houseId) : null
+        );
+
+        return await createLeagueMutation({
+          ...input,
+          houseId: (resolvedHouseId as never) ?? null,
+        });
       } finally {
         setIsCreating(false);
       }
@@ -34,7 +44,15 @@ export function useLeagues() {
 
   const updateLeague = useCallback(
     async (input: UpdateLeagueInput) => {
-      return await updateLeagueMutation(input);
+      const resolvedHouseId = await resolveReferenceIdForMutation(
+        'house',
+        input.houseId ? String(input.houseId) : null
+      );
+
+      return await updateLeagueMutation({
+        ...input,
+        houseId: (resolvedHouseId as never) ?? null,
+      });
     },
     [updateLeagueMutation]
   );

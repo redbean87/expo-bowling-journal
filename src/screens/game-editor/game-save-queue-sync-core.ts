@@ -12,6 +12,10 @@ import {
   loadJournalSyncMapDefault,
   removeQueuedEntryIfSignatureMatches,
 } from './game-save-queue-sync-storage';
+import {
+  parseDraftReferenceId,
+  resolveReferenceIdFromSyncMap,
+} from '../journal/reference-draft-id';
 
 import type {
   CreateGameInput,
@@ -90,9 +94,21 @@ export async function flushQueuedGameSavesCore({
     let wasCreated = false;
 
     try {
+      let syncMapCache: Awaited<
+        ReturnType<typeof loadJournalSyncMapDefault>
+      > | null = null;
+      const loadSyncMap = async () => {
+        if (syncMapCache) {
+          return syncMapCache;
+        }
+
+        syncMapCache = await loadJournalSyncMapDefault();
+        return syncMapCache;
+      };
+
       if (queueEntry.sessionId.startsWith('draft-')) {
         const fallbackClientSyncId = queueEntry.sessionId.slice(6);
-        const syncMap = await loadJournalSyncMapDefault();
+        const syncMap = await loadSyncMap();
         const mappedSessionId = queueEntry.sessionClientSyncId
           ? syncMap.sessions[queueEntry.sessionClientSyncId]
           : syncMap.sessions[fallbackClientSyncId];
@@ -142,11 +158,80 @@ export async function flushQueuedGameSavesCore({
         }
       }
 
+      const hasDraftPatternId =
+        parseDraftReferenceId(queueEntry.patternId) !== null;
+      const hasDraftBallId = parseDraftReferenceId(queueEntry.ballId) !== null;
+      const syncMap =
+        hasDraftPatternId || hasDraftBallId ? await loadSyncMap() : null;
+      const patternResolution = syncMap
+        ? resolveReferenceIdFromSyncMap(queueEntry.patternId, syncMap)
+        : { resolvedId: queueEntry.patternId, pendingDraftReference: null };
+      const ballResolution = syncMap
+        ? resolveReferenceIdFromSyncMap(queueEntry.ballId, syncMap)
+        : { resolvedId: queueEntry.ballId, pendingDraftReference: null };
+      const missingReferenceType =
+        patternResolution.pendingDraftReference?.referenceType ??
+        ballResolution.pendingDraftReference?.referenceType ??
+        null;
+
+      if (missingReferenceType) {
+        queueEntries = await applyQueueMutation(
+          loadQueue,
+          persistQueue,
+          (entries) =>
+            markQueuedGameSaveEntryRetry(
+              entries,
+              queueEntry.queueId,
+              `Waiting for ${missingReferenceType} sync before saving game details.`,
+              Date.now()
+            )
+        );
+        continue;
+      }
+
+      const resolvedPatternId = patternResolution.resolvedId ?? null;
+      const resolvedBallId = ballResolution.resolvedId ?? null;
+
+      if (
+        resolvedPatternId !== queueEntry.patternId ||
+        resolvedBallId !== queueEntry.ballId
+      ) {
+        queueEntries = await applyQueueMutation(
+          loadQueue,
+          persistQueue,
+          (entries) =>
+            entries.map((entry) => {
+              if (entry.queueId !== queueEntry.queueId) {
+                return entry;
+              }
+
+              return {
+                ...entry,
+                patternId: resolvedPatternId,
+                ballId: resolvedBallId,
+                updatedAt: Date.now(),
+              };
+            })
+        );
+
+        const refreshedEntries = await loadQueue();
+        const refreshedQueueEntry = getEntryByQueueId(
+          refreshedEntries,
+          queueEntry.queueId
+        );
+
+        if (refreshedQueueEntry) {
+          queueEntry = refreshedQueueEntry;
+        }
+      }
+
       if (!targetGameId) {
         const createdGameId = await createGame({
           sessionId: targetSessionId,
           date: queueEntry.date,
           clientSyncId: queueEntry.draftNonce ?? queueEntry.queueId,
+          patternId: (resolvedPatternId as never) ?? null,
+          ballId: (resolvedBallId as never) ?? null,
         });
         const migratedAt = Date.now();
         queueEntries = await applyQueueMutation(
@@ -181,6 +266,8 @@ export async function flushQueuedGameSavesCore({
         await updateGame({
           gameId: targetGameId,
           date: queueEntry.date,
+          patternId: (resolvedPatternId as never) ?? null,
+          ballId: (resolvedBallId as never) ?? null,
         });
       }
 

@@ -135,6 +135,9 @@ export default function JournalGamesScreen() {
   const [syncMap, setSyncMap] = useState<JournalClientSyncMap>({
     leagues: {},
     sessions: {},
+    houses: {},
+    patterns: {},
+    balls: {},
   });
   const [queuedSessionContext, setQueuedSessionContext] =
     useState<QueuedSessionContext>({

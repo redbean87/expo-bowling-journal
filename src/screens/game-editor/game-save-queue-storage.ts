@@ -23,6 +23,12 @@ function isQueuedGameSaveEntry(value: unknown): value is QueuedGameSaveEntry {
       candidate.draftNonce === null ||
       typeof candidate.draftNonce === 'undefined') &&
     typeof candidate.date === 'string' &&
+    (typeof candidate.patternId === 'string' ||
+      candidate.patternId === null ||
+      typeof candidate.patternId === 'undefined') &&
+    (typeof candidate.ballId === 'string' ||
+      candidate.ballId === null ||
+      typeof candidate.ballId === 'undefined') &&
     Array.isArray(candidate.frames) &&
     typeof candidate.signature === 'string' &&
     typeof candidate.attemptCount === 'number' &&
@@ -74,6 +80,8 @@ export async function loadGameSaveQueue(): Promise<QueuedGameSaveEntry[]> {
           : null,
       draftNonce:
         typeof entry.draftNonce === 'string' ? entry.draftNonce : null,
+      patternId: typeof entry.patternId === 'string' ? entry.patternId : null,
+      ballId: typeof entry.ballId === 'string' ? entry.ballId : null,
     }));
   } catch {
     return [];

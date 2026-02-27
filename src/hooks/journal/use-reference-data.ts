@@ -1,7 +1,30 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import {
+  loadJournalClientSyncMap,
+  type JournalClientSyncMap,
+} from '@/screens/journal/journal-client-sync-map-storage';
+import {
+  isNavigatorOffline,
+  withTimeout,
+} from '@/screens/journal/journal-offline-create';
+import {
+  createQueuedReferenceCreateEntry,
+  isRetryableReferenceCreateError,
+  upsertQueuedReferenceCreateEntry,
+  type QueuedReferenceCreateEntry,
+} from '@/screens/journal/reference-create-queue';
+import {
+  loadReferenceCreateQueue,
+  persistReferenceCreateQueue,
+} from '@/screens/journal/reference-create-queue-storage';
+import {
+  buildDraftReferenceId,
+  type ReferenceType,
+} from '@/screens/journal/reference-draft-id';
 import { convexJournalService } from '@/services/journal';
+import { createClientSyncId } from '@/utils/client-sync-id';
 import { buildRankedReferenceSuggestions } from '@/utils/reference-combobox-utils';
 
 export type ReferenceOption<TId extends string> = {
@@ -36,6 +59,72 @@ function findNameById<TId extends string>(
   return options.find((option) => option.id === id)?.label ?? null;
 }
 
+function getReferenceMapByType(
+  syncMap: JournalClientSyncMap,
+  referenceType: ReferenceType
+) {
+  if (referenceType === 'house') {
+    return syncMap.houses;
+  }
+
+  if (referenceType === 'pattern') {
+    return syncMap.patterns;
+  }
+
+  return syncMap.balls;
+}
+
+function toQueuedReferenceOptions(
+  entries: QueuedReferenceCreateEntry[],
+  referenceType: ReferenceType,
+  syncMap: JournalClientSyncMap
+) {
+  const resolvedReferenceMap = getReferenceMapByType(syncMap, referenceType);
+  const latestByClientSyncId = new Map<string, QueuedReferenceCreateEntry>();
+
+  for (const entry of entries) {
+    if (entry.referenceType !== referenceType) {
+      continue;
+    }
+
+    if (resolvedReferenceMap[entry.clientSyncId]) {
+      continue;
+    }
+
+    const existing = latestByClientSyncId.get(entry.clientSyncId);
+
+    if (!existing || entry.updatedAt >= existing.updatedAt) {
+      latestByClientSyncId.set(entry.clientSyncId, entry);
+    }
+  }
+
+  return [...latestByClientSyncId.values()]
+    .sort((left, right) => left.createdAt - right.createdAt)
+    .map((entry) => ({
+      id: buildDraftReferenceId(referenceType, entry.clientSyncId),
+      label: entry.name,
+      secondaryLabel: 'Queued offline',
+    }));
+}
+
+function mergeReferenceOptions<TId extends string>(
+  baseOptions: ReferenceOption<TId>[],
+  draftOptions: ReferenceOption<string>[]
+) {
+  const seenIds = new Set<string>();
+
+  const merged = [...draftOptions, ...baseOptions].filter((option) => {
+    if (seenIds.has(option.id)) {
+      return false;
+    }
+
+    seenIds.add(option.id);
+    return true;
+  });
+
+  return merged;
+}
+
 export function useReferenceData(options?: {
   enabled?: boolean;
   includeRecent?: boolean;
@@ -44,6 +133,16 @@ export function useReferenceData(options?: {
   const includeRecent = options?.includeRecent ?? true;
   const { isAuthenticated } = useConvexAuth();
   const shouldQuery = isAuthenticated && enabled;
+  const [queuedReferenceCreates, setQueuedReferenceCreates] = useState<
+    QueuedReferenceCreateEntry[]
+  >([]);
+  const [syncMap, setSyncMap] = useState<JournalClientSyncMap>({
+    leagues: {},
+    sessions: {},
+    houses: {},
+    patterns: {},
+    balls: {},
+  });
   const balls = useQuery(
     convexJournalService.listBalls,
     shouldQuery ? {} : 'skip'
@@ -73,14 +172,24 @@ export function useReferenceData(options?: {
   const createPatternMutation = useMutation(convexJournalService.createPattern);
   const createHouseMutation = useMutation(convexJournalService.createHouse);
 
-  const ballOptions = useMemo(
+  const refreshQueuedReferenceCreates = useCallback(async () => {
+    const [entries, nextSyncMap] = await Promise.all([
+      loadReferenceCreateQueue(),
+      loadJournalClientSyncMap(),
+    ]);
+
+    setQueuedReferenceCreates(entries);
+    setSyncMap(nextSyncMap);
+  }, []);
+
+  const serverBallOptions = useMemo(
     () =>
       toNameSortedOptions(
         (balls ?? []).map((ball) => ({ ...ball, _id: String(ball._id) }))
       ),
     [balls]
   );
-  const patternOptions = useMemo(
+  const serverPatternOptions = useMemo(
     () =>
       toNameSortedOptions(
         (patterns ?? []).map((pattern) => ({
@@ -90,12 +199,38 @@ export function useReferenceData(options?: {
       ),
     [patterns]
   );
-  const houseOptions = useMemo(
+  const serverHouseOptions = useMemo(
     () =>
       toNameSortedOptions(
         (houses ?? []).map((house) => ({ ...house, _id: String(house._id) }))
       ),
     [houses]
+  );
+
+  const draftBallOptions = useMemo(
+    () => toQueuedReferenceOptions(queuedReferenceCreates, 'ball', syncMap),
+    [queuedReferenceCreates, syncMap]
+  );
+  const draftPatternOptions = useMemo(
+    () => toQueuedReferenceOptions(queuedReferenceCreates, 'pattern', syncMap),
+    [queuedReferenceCreates, syncMap]
+  );
+  const draftHouseOptions = useMemo(
+    () => toQueuedReferenceOptions(queuedReferenceCreates, 'house', syncMap),
+    [queuedReferenceCreates, syncMap]
+  );
+
+  const ballOptions = useMemo(
+    () => mergeReferenceOptions(serverBallOptions, draftBallOptions),
+    [draftBallOptions, serverBallOptions]
+  );
+  const patternOptions = useMemo(
+    () => mergeReferenceOptions(serverPatternOptions, draftPatternOptions),
+    [draftPatternOptions, serverPatternOptions]
+  );
+  const houseOptions = useMemo(
+    () => mergeReferenceOptions(serverHouseOptions, draftHouseOptions),
+    [draftHouseOptions, serverHouseOptions]
   );
 
   const recentBallOptions = useMemo(
@@ -126,40 +261,145 @@ export function useReferenceData(options?: {
     [recentHouses]
   );
 
-  const createBall = useCallback(
-    async (name: string) => {
-      const createdId = await createBallMutation({ name: name.trim() });
-      const id = String(createdId) as string;
+  const queueReferenceCreate = useCallback(
+    async (referenceType: ReferenceType, trimmedName: string) => {
+      const clientSyncId = createClientSyncId(referenceType);
+      const queuedEntry = createQueuedReferenceCreateEntry({
+        referenceType,
+        clientSyncId,
+        name: trimmedName,
+        now: Date.now(),
+      });
+      const nextQueue = upsertQueuedReferenceCreateEntry(
+        await loadReferenceCreateQueue(),
+        queuedEntry
+      );
+      await persistReferenceCreateQueue(nextQueue);
+      await refreshQueuedReferenceCreates();
+
       return {
-        id,
-        label: findNameById(ballOptions, id) ?? name.trim(),
+        id: buildDraftReferenceId(referenceType, clientSyncId),
+        label: trimmedName,
       };
     },
-    [ballOptions, createBallMutation]
+    [refreshQueuedReferenceCreates]
+  );
+
+  const createBall = useCallback(
+    async (name: string) => {
+      const trimmedName = name.trim();
+
+      if (trimmedName.length === 0) {
+        throw new Error('Ball name is required');
+      }
+
+      if (isNavigatorOffline()) {
+        return queueReferenceCreate('ball', trimmedName);
+      }
+
+      try {
+        const createdId = await withTimeout(
+          createBallMutation({ name: trimmedName }),
+          4500
+        );
+        void refreshQueuedReferenceCreates();
+        const id = String(createdId) as string;
+        return {
+          id,
+          label: findNameById(ballOptions, id) ?? trimmedName,
+        };
+      } catch (caught) {
+        if (isRetryableReferenceCreateError(caught)) {
+          return queueReferenceCreate('ball', trimmedName);
+        }
+
+        throw caught;
+      }
+    },
+    [
+      ballOptions,
+      createBallMutation,
+      queueReferenceCreate,
+      refreshQueuedReferenceCreates,
+    ]
   );
 
   const createPattern = useCallback(
     async (name: string) => {
-      const createdId = await createPatternMutation({ name: name.trim() });
-      const id = String(createdId) as string;
-      return {
-        id,
-        label: findNameById(patternOptions, id) ?? name.trim(),
-      };
+      const trimmedName = name.trim();
+
+      if (trimmedName.length === 0) {
+        throw new Error('Pattern name is required');
+      }
+
+      if (isNavigatorOffline()) {
+        return queueReferenceCreate('pattern', trimmedName);
+      }
+
+      try {
+        const createdId = await withTimeout(
+          createPatternMutation({ name: trimmedName }),
+          4500
+        );
+        void refreshQueuedReferenceCreates();
+        const id = String(createdId) as string;
+        return {
+          id,
+          label: findNameById(patternOptions, id) ?? trimmedName,
+        };
+      } catch (caught) {
+        if (isRetryableReferenceCreateError(caught)) {
+          return queueReferenceCreate('pattern', trimmedName);
+        }
+
+        throw caught;
+      }
     },
-    [createPatternMutation, patternOptions]
+    [
+      createPatternMutation,
+      patternOptions,
+      queueReferenceCreate,
+      refreshQueuedReferenceCreates,
+    ]
   );
 
   const createHouse = useCallback(
     async (name: string) => {
-      const createdId = await createHouseMutation({ name: name.trim() });
-      const id = String(createdId) as string;
-      return {
-        id,
-        label: findNameById(houseOptions, id) ?? name.trim(),
-      };
+      const trimmedName = name.trim();
+
+      if (trimmedName.length === 0) {
+        throw new Error('House name is required');
+      }
+
+      if (isNavigatorOffline()) {
+        return queueReferenceCreate('house', trimmedName);
+      }
+
+      try {
+        const createdId = await withTimeout(
+          createHouseMutation({ name: trimmedName }),
+          4500
+        );
+        void refreshQueuedReferenceCreates();
+        const id = String(createdId) as string;
+        return {
+          id,
+          label: findNameById(houseOptions, id) ?? trimmedName,
+        };
+      } catch (caught) {
+        if (isRetryableReferenceCreateError(caught)) {
+          return queueReferenceCreate('house', trimmedName);
+        }
+
+        throw caught;
+      }
     },
-    [createHouseMutation, houseOptions]
+    [
+      createHouseMutation,
+      houseOptions,
+      queueReferenceCreate,
+      refreshQueuedReferenceCreates,
+    ]
   );
 
   const buildSuggestions = useCallback(
@@ -172,6 +412,25 @@ export function useReferenceData(options?: {
     },
     []
   );
+
+  useEffect(() => {
+    if (!enabled || !isAuthenticated) {
+      return;
+    }
+
+    const initialRefresh = setTimeout(() => {
+      void refreshQueuedReferenceCreates();
+    }, 0);
+
+    const interval = setInterval(() => {
+      void refreshQueuedReferenceCreates();
+    }, 2000);
+
+    return () => {
+      clearTimeout(initialRefresh);
+      clearInterval(interval);
+    };
+  }, [enabled, isAuthenticated, refreshQueuedReferenceCreates]);
 
   return {
     ballOptions,

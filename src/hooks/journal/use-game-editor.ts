@@ -1,6 +1,8 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useState } from 'react';
 
+import { resolveReferenceIdForMutation } from './reference-id-resolution';
+
 import {
   convexJournalService,
   type CreateGameInput,
@@ -33,7 +35,22 @@ export function useGameEditor(gameId: GameId | null) {
       setIsSaving(true);
 
       try {
-        return await createGameMutation(input);
+        const [resolvedPatternId, resolvedBallId] = await Promise.all([
+          resolveReferenceIdForMutation(
+            'pattern',
+            input.patternId ? String(input.patternId) : null
+          ),
+          resolveReferenceIdForMutation(
+            'ball',
+            input.ballId ? String(input.ballId) : null
+          ),
+        ]);
+
+        return await createGameMutation({
+          ...input,
+          patternId: (resolvedPatternId as never) ?? null,
+          ballId: (resolvedBallId as never) ?? null,
+        });
       } finally {
         setIsSaving(false);
       }
@@ -46,7 +63,22 @@ export function useGameEditor(gameId: GameId | null) {
       setIsSaving(true);
 
       try {
-        return await updateGameMutation(input);
+        const [resolvedPatternId, resolvedBallId] = await Promise.all([
+          resolveReferenceIdForMutation(
+            'pattern',
+            input.patternId ? String(input.patternId) : null
+          ),
+          resolveReferenceIdForMutation(
+            'ball',
+            input.ballId ? String(input.ballId) : null
+          ),
+        ]);
+
+        return await updateGameMutation({
+          ...input,
+          patternId: (resolvedPatternId as never) ?? null,
+          ballId: (resolvedBallId as never) ?? null,
+        });
       } finally {
         setIsSaving(false);
       }
