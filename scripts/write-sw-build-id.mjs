@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function getGitSha() {
@@ -26,31 +26,21 @@ function getUtcTimestamp() {
   return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
-function buildServiceWorker(buildId) {
-  return `const BUILD_ID = '${buildId}';
+function updateServiceWorkerBuildId(swContent, buildId) {
+  const buildIdPattern = /^const BUILD_ID = '.*';/m;
 
-globalThis.addEventListener('install', () => {
-  void BUILD_ID;
-});
-
-globalThis.addEventListener('activate', (event) => {
-  event.waitUntil(globalThis.clients.claim());
-});
-
-globalThis.addEventListener('message', (event) => {
-  if (event.data?.type !== 'SKIP_WAITING') {
-    return;
+  if (!buildIdPattern.test(swContent)) {
+    throw new Error('Unable to locate BUILD_ID declaration in public/sw.js');
   }
 
-  void globalThis.skipWaiting();
-});
-`;
+  return swContent.replace(buildIdPattern, `const BUILD_ID = '${buildId}';`);
 }
 
 function main() {
   const buildId = `${getGitSha()}-${getUtcTimestamp()}`;
   const swPath = resolve(process.cwd(), 'public', 'sw.js');
-  const swContent = buildServiceWorker(buildId);
+  const existingSwContent = readFileSync(swPath, 'utf8');
+  const swContent = updateServiceWorkerBuildId(existingSwContent, buildId);
 
   writeFileSync(swPath, swContent, 'utf8');
   console.log(`Updated service worker build id: ${buildId}`);
