@@ -5,6 +5,7 @@ import { Card } from '@/components/ui';
 import {
   type ColorModePreference,
   type ScoreboardLayoutMode,
+  type ThemeFlavorPreference,
 } from '@/config/preferences-storage';
 import {
   lineHeight,
@@ -19,6 +20,8 @@ type ProfilePreferencesCardProps = {
   setScoreboardLayout: (mode: ScoreboardLayoutMode) => void;
   colorModePreference: ColorModePreference;
   setColorModePreference: (mode: ColorModePreference) => void;
+  themeFlavorPreference: ThemeFlavorPreference;
+  setThemeFlavorPreference: (flavor: ThemeFlavorPreference) => void;
   isHydrated: boolean;
 };
 
@@ -59,11 +62,26 @@ const colorModeOptions: Option<ColorModePreference>[] = [
   },
 ];
 
+const themeFlavorOptions: Option<ThemeFlavorPreference>[] = [
+  {
+    label: 'Default',
+    value: 'default',
+    description: 'Use the app default accent palette.',
+  },
+  {
+    label: 'Shinobi Blend',
+    value: 'shinobi',
+    description: 'Blend Naruto orange with Sasuke indigo accents.',
+  },
+];
+
 export function ProfilePreferencesCard({
   scoreboardLayout,
   setScoreboardLayout,
   colorModePreference,
   setColorModePreference,
+  themeFlavorPreference,
+  setThemeFlavorPreference,
   isHydrated,
 }: ProfilePreferencesCardProps) {
   const { colors } = useAppTheme();
@@ -82,6 +100,42 @@ export function ProfilePreferencesCard({
             <Pressable
               key={option.value}
               onPress={() => setColorModePreference(option.value)}
+              style={({ pressed }) => [
+                styles.layoutOption,
+                isActive ? styles.layoutOptionActive : null,
+                pressed ? styles.layoutOptionPressed : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.layoutOptionLabel,
+                  isActive ? styles.layoutOptionLabelActive : null,
+                ]}
+              >
+                {option.label}
+              </Text>
+              <Text
+                style={[
+                  styles.layoutOptionDescription,
+                  isActive ? styles.layoutOptionDescriptionActive : null,
+                ]}
+              >
+                {option.description}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={styles.meta}>Theme flavor</Text>
+      <View style={styles.layoutOptionsRow}>
+        {themeFlavorOptions.map((option) => {
+          const isActive = themeFlavorPreference === option.value;
+
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => setThemeFlavorPreference(option.value)}
               style={({ pressed }) => [
                 styles.layoutOption,
                 isActive ? styles.layoutOptionActive : null,

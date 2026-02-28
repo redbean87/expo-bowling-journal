@@ -59,6 +59,8 @@ export default function ProfileScreen() {
     setScoreboardLayout,
     colorModePreference,
     setColorModePreference,
+    themeFlavorPreference,
+    setThemeFlavorPreference,
     isHydrated,
   } = usePreferences();
 
@@ -234,6 +236,8 @@ export default function ProfileScreen() {
           scoreboardLayout={scoreboardLayout}
           setColorModePreference={setColorModePreference}
           setScoreboardLayout={setScoreboardLayout}
+          setThemeFlavorPreference={setThemeFlavorPreference}
+          themeFlavorPreference={themeFlavorPreference}
         />
 
         <Card muted style={styles.sectionCard}>

@@ -76,6 +76,36 @@ export const darkColors: ThemeColors = {
   shadowStrong: '#000000',
 };
 
+export type ThemeFlavor = 'default' | 'shinobi';
+
+const shinobiFlavorByMode: Record<'light' | 'dark', Partial<ThemeColors>> = {
+  light: {
+    accent: '#F97316',
+    accentMuted: '#E9ECFF',
+    accentText: '#1F1307',
+  },
+  dark: {
+    accent: '#FB8A3C',
+    accentMuted: '#2A2F63',
+    accentText: '#1A130B',
+  },
+};
+
+export function withThemeFlavor(
+  colors: ThemeColors,
+  mode: 'light' | 'dark',
+  flavor: ThemeFlavor
+): ThemeColors {
+  if (flavor === 'default') {
+    return colors;
+  }
+
+  return {
+    ...colors,
+    ...shinobiFlavorByMode[mode],
+  };
+}
+
 export const spacing = {
   xs: 4,
   sm: 8,

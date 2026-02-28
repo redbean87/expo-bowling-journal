@@ -11,10 +11,13 @@ import {
 import {
   loadColorModePreference,
   loadScoreboardLayoutMode,
+  loadThemeFlavorPreference,
   persistColorModePreference,
   persistScoreboardLayoutMode,
+  persistThemeFlavorPreference,
   type ColorModePreference,
   type ScoreboardLayoutMode,
+  type ThemeFlavorPreference,
 } from '@/config/preferences-storage';
 
 type PreferencesContextValue = {
@@ -22,6 +25,8 @@ type PreferencesContextValue = {
   setScoreboardLayout: (mode: ScoreboardLayoutMode) => void;
   colorModePreference: ColorModePreference;
   setColorModePreference: (mode: ColorModePreference) => void;
+  themeFlavorPreference: ThemeFlavorPreference;
+  setThemeFlavorPreference: (flavor: ThemeFlavorPreference) => void;
   isHydrated: boolean;
 };
 
@@ -32,6 +37,8 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     useState<ScoreboardLayoutMode>('current');
   const [colorModePreference, setColorModePreferenceState] =
     useState<ColorModePreference>('system');
+  const [themeFlavorPreference, setThemeFlavorPreferenceState] =
+    useState<ThemeFlavorPreference>('default');
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -49,6 +56,12 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
 
         if (isMounted) {
           setColorModePreferenceState(colorMode);
+        }
+
+        const themeFlavor = await loadThemeFlavorPreference();
+
+        if (isMounted) {
+          setThemeFlavorPreferenceState(themeFlavor);
         }
       } finally {
         if (isMounted) {
@@ -76,12 +89,23 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     void persistColorModePreference(mode);
   }, []);
 
+  const setThemeFlavorPreference = useCallback(
+    (flavor: ThemeFlavorPreference) => {
+      setThemeFlavorPreferenceState(flavor);
+
+      void persistThemeFlavorPreference(flavor);
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       scoreboardLayout,
       setScoreboardLayout,
       colorModePreference,
       setColorModePreference,
+      themeFlavorPreference,
+      setThemeFlavorPreference,
       isHydrated,
     }),
     [
@@ -90,6 +114,8 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
       scoreboardLayout,
       setColorModePreference,
       setScoreboardLayout,
+      setThemeFlavorPreference,
+      themeFlavorPreference,
     ]
   );
 
