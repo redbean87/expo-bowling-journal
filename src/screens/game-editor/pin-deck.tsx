@@ -11,7 +11,8 @@ import {
 import { getPinDeckDimensions, isPinSet, PIN_ROWS } from './pin-deck-layout';
 import { usePinDeckGesture } from './use-pin-deck-gesture';
 
-import { colors, radius, typeScale } from '@/theme/tokens';
+import { radius, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type PinDeckProps = {
   selectedMask: number;
@@ -30,6 +31,8 @@ export function PinDeck({
   onSetPinStanding,
   onTogglePin,
 }: PinDeckProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width, height } = useWindowDimensions();
   const { topRowWidth, deckHeight, slotWidth } = useMemo(
     () =>
@@ -121,59 +124,60 @@ export function PinDeck({
   );
 }
 
-const styles = StyleSheet.create({
-  deck: {
-    justifyContent: 'space-between',
-    alignSelf: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    width: '100%',
-  },
-  rowSpread: {
-    justifyContent: 'space-between',
-  },
-  rowSingle: {
-    justifyContent: 'center',
-  },
-  pin: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinStanding: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  pinKnocked: {
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-  },
-  pinDown: {
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
-    opacity: 0.5,
-  },
-  pinPressed: {
-    opacity: 0.82,
-  },
-  pinLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  pinLabelDown: {
-    color: colors.textSecondary,
-  },
-  pinLabelStanding: {
-    color: colors.accentText,
-  },
-  pinLabelKnocked: {
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    deck: {
+      justifyContent: 'space-between',
+      alignSelf: 'center',
+    },
+    row: {
+      flexDirection: 'row',
+      width: '100%',
+    },
+    rowSpread: {
+      justifyContent: 'space-between',
+    },
+    rowSingle: {
+      justifyContent: 'center',
+    },
+    pin: {
+      width: 56,
+      height: 56,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pinStanding: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accent,
+    },
+    pinKnocked: {
+      borderColor: colors.borderStrong,
+      backgroundColor: colors.surface,
+    },
+    pinDown: {
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceSubtle,
+      opacity: 0.5,
+    },
+    pinPressed: {
+      opacity: 0.82,
+    },
+    pinLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    pinLabelDown: {
+      color: colors.textSecondary,
+    },
+    pinLabelStanding: {
+      color: colors.accentText,
+    },
+    pinLabelKnocked: {
+      color: colors.textSecondary,
+    },
+  });

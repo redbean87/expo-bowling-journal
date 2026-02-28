@@ -5,15 +5,24 @@ import {
   Unauthenticated,
   useQuery,
 } from 'convex/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Input } from '@/components/ui';
 import { viewerQuery } from '@/convex/functions';
-import { colors, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
+import {
+  lineHeight,
+  radius,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 export function AuthGate() {
   const viewer = useQuery(viewerQuery);
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -44,6 +53,8 @@ export function AuthGate() {
 }
 
 function AuthForm() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { signIn } = useAuthActions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -135,27 +146,28 @@ function SignOutButton() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 16,
-  },
-  centered: {
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  title: {
-    fontSize: typeScale.title,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: typeScale.body,
-    lineHeight: lineHeight.body,
-    color: colors.textSecondary,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: typeScale.bodySm,
-    borderRadius: radius.sm,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 16,
+    },
+    centered: {
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    title: {
+      fontSize: typeScale.title,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    subtitle: {
+      fontSize: typeScale.body,
+      lineHeight: lineHeight.body,
+      color: colors.textSecondary,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: typeScale.bodySm,
+      borderRadius: radius.sm,
+    },
+  });

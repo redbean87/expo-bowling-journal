@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button, Input } from '@/components/ui';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type CreateSessionModalProps = {
   visible: boolean;
@@ -69,6 +71,9 @@ export function CreateSessionModal({
   onSessionPatternSelect,
   onSessionBallSelect,
 }: CreateSessionModalProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Modal
       animationType="slide"
@@ -170,64 +175,65 @@ export function CreateSessionModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(26, 31, 43, 0.35)',
-  },
-  modalBackdropHitbox: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalCloseButtonPressed: {
-    opacity: 0.8,
-  },
-  modalCloseLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  errorText: {
-    fontSize: typeScale.bodySm,
-    color: colors.danger,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  modalActionButton: {
-    flex: 1,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    modalBackdrop: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.overlay,
+    },
+    modalBackdropHitbox: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 520,
+      gap: spacing.sm,
+      padding: spacing.lg,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    modalTitle: {
+      fontSize: typeScale.titleSm,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    modalCloseButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modalCloseButtonPressed: {
+      opacity: 0.8,
+    },
+    modalCloseLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    errorText: {
+      fontSize: typeScale.bodySm,
+      color: colors.danger,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    modalActionButton: {
+      flex: 1,
+    },
+  });

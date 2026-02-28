@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ReferenceComboboxDropdown } from './reference-combobox/reference-combobox-dropdown';
@@ -6,7 +7,8 @@ import { useReferenceCombobox } from './reference-combobox/use-reference-combobo
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { Input } from '@/components/ui';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type ReferenceComboboxProps = {
   valueId: string | null;
@@ -33,6 +35,9 @@ export function ReferenceCombobox({
   onQuickAdd,
   getSuggestions,
 }: ReferenceComboboxProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const {
     inputRef,
     displayValue,
@@ -119,32 +124,33 @@ export function ReferenceCombobox({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-  },
-  containerOpen: {
-    zIndex: 20,
-  },
-  inputShell: {
-    position: 'relative',
-    zIndex: 2,
-  },
-  chevronButton: {
-    position: 'absolute',
-    right: spacing.xs,
-    top: 7,
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-  },
-  chevron: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-  optionPressed: {
-    backgroundColor: colors.accentMuted,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      position: 'relative',
+    },
+    containerOpen: {
+      zIndex: 20,
+    },
+    inputShell: {
+      position: 'relative',
+      zIndex: 2,
+    },
+    chevronButton: {
+      position: 'absolute',
+      right: spacing.xs,
+      top: 7,
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+    },
+    chevron: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+    },
+    optionPressed: {
+      backgroundColor: colors.accentMuted,
+    },
+  });

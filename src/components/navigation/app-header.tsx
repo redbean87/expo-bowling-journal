@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,7 +9,8 @@ import { resolveUpTarget } from './app-header-route-utils';
 import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type AppHeaderProps = NativeStackHeaderProps | BottomTabHeaderProps;
 
@@ -50,6 +52,8 @@ function resolveHeaderSubtitle(options: AppHeaderProps['options']) {
 export function AppHeader({ options, route }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const title = resolveHeaderTitle({ options, routeName: route.name });
   const subtitle = resolveHeaderSubtitle(options);
   const upTarget = resolveUpTarget({
@@ -108,68 +112,69 @@ export function AppHeader({ options, route }: AppHeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surfaceSubtle,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderStrong,
-    elevation: 2,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.surfaceSubtle,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderStrong,
+      elevation: 2,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
     },
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-  },
-  rowSingle: {
-    minHeight: 58,
-  },
-  rowWithSubtitle: {
-    minHeight: 64,
-  },
-  sideSlot: {
-    width: 44,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 44,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  backButtonPressed: {
-    backgroundColor: colors.accentMuted,
-  },
-  titleStack: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    paddingHorizontal: spacing.xs,
-  },
-  title: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    maxWidth: '95%',
-  },
-  subtitle: {
-    fontSize: typeScale.bodySm,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-    maxWidth: '92%',
-  },
-});
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+    },
+    rowSingle: {
+      minHeight: 58,
+    },
+    rowWithSubtitle: {
+      minHeight: 64,
+    },
+    sideSlot: {
+      width: 44,
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+    },
+    backButton: {
+      width: 40,
+      height: 44,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    backButtonPressed: {
+      backgroundColor: colors.accentMuted,
+    },
+    titleStack: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      paddingHorizontal: spacing.xs,
+    },
+    title: {
+      fontSize: typeScale.titleSm,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      maxWidth: '95%',
+    },
+    subtitle: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      letterSpacing: 0.2,
+      maxWidth: '92%',
+    },
+  });

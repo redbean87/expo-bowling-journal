@@ -60,7 +60,13 @@ import type { GameId, LeagueId, SessionId } from '@/services/journal';
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card, FloatingActionButton } from '@/components/ui';
 import { useGames, useLeagues, useSessions } from '@/hooks/journal';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import {
+  lineHeight,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 import { createDraftNonce } from '@/utils/draft-nonce';
 
 type QueuedSessionContext = {
@@ -76,6 +82,8 @@ type GameActionTarget = {
 };
 
 export default function JournalGamesScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const router = useRouter();
@@ -825,52 +833,53 @@ export default function JournalGamesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl + 72,
-  },
-  screenBody: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  errorText: {
-    fontSize: typeScale.bodySm,
-    color: colors.danger,
-  },
-  meta: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-  summaryTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  summaryCard: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
-    gap: spacing.xs,
-  },
-  summaryHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    alignItems: 'center',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  summaryValueText: {
-    textAlign: 'right',
-    opacity: 0.8,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    content: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xxl + 72,
+    },
+    screenBody: {
+      flex: 1,
+    },
+    scroll: {
+      flex: 1,
+    },
+    errorText: {
+      fontSize: typeScale.bodySm,
+      color: colors.danger,
+    },
+    meta: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+    summaryTitle: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    summaryCard: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+      gap: spacing.xs,
+    },
+    summaryHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      alignItems: 'center',
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    summaryValueText: {
+      textAlign: 'right',
+      opacity: 0.9,
+    },
+  });

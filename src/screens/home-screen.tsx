@@ -12,9 +12,17 @@ import {
   formatIsoDateForToday,
   formatIsoDateLabel,
 } from '@/screens/journal-fast-lane-utils';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import {
+  lineHeight,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 export default function HomeScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { leagues, isLoading: isLeaguesLoading } = useLeagues();
   const activeLeague = leagues[0] ?? null;
@@ -205,72 +213,73 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
-  },
-  tonightCard: {
-    gap: spacing.sm,
-  },
-  contextCard: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  meta: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-  primaryActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  actionSlot: {
-    flex: 1,
-  },
-  secondaryActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  inlineAction: {
-    paddingVertical: spacing.xs,
-  },
-  inlineActionDisabled: {
-    opacity: 0.45,
-  },
-  inlineActionPressed: {
-    opacity: 0.7,
-  },
-  inlineActionLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  leagueShortcut: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-  },
-  leagueShortcutPressed: {
-    backgroundColor: colors.accentMuted,
-  },
-  leagueShortcutTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xxl,
+    },
+    tonightCard: {
+      gap: spacing.sm,
+    },
+    contextCard: {
+      gap: spacing.sm,
+    },
+    sectionTitle: {
+      fontSize: typeScale.titleSm,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    meta: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+    primaryActionsRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    actionSlot: {
+      flex: 1,
+    },
+    secondaryActionsRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    inlineAction: {
+      paddingVertical: spacing.xs,
+    },
+    inlineActionDisabled: {
+      opacity: 0.6,
+    },
+    inlineActionPressed: {
+      opacity: 0.82,
+    },
+    inlineActionLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    leagueShortcut: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      gap: spacing.xs,
+      backgroundColor: colors.surface,
+    },
+    leagueShortcutPressed: {
+      backgroundColor: colors.accentMuted,
+    },
+    leagueShortcutTitle: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+  });

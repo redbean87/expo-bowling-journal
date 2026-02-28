@@ -1,6 +1,6 @@
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useConvexAuth, useQuery } from 'convex/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,11 +13,17 @@ import {
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Button, Card } from '@/components/ui';
 import { env } from '@/config/env';
-import { type ScoreboardLayoutMode } from '@/config/preferences-storage';
 import { viewerQuery } from '@/convex/functions';
 import { useExportSqliteBackup, useImportBackup } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import { ProfilePreferencesCard } from '@/screens/profile/profile-preferences-card';
+import {
+  lineHeight,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 function formatDate(value: number | null) {
   if (!value) {
@@ -28,6 +34,8 @@ function formatDate(value: number | null) {
 }
 
 export default function ProfileScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
   const viewer = useQuery(viewerQuery);
@@ -46,25 +54,13 @@ export default function ProfileScreen() {
   const isImporting =
     status === 'queued' || status === 'parsing' || status === 'importing';
   const [showImportDetails, setShowImportDetails] = useState(false);
-  const { scoreboardLayout, setScoreboardLayout, isHydrated } =
-    usePreferences();
-
-  const scoreboardLayoutOptions: Array<{
-    label: string;
-    value: ScoreboardLayoutMode;
-    description: string;
-  }> = [
-    {
-      label: 'Current',
-      value: 'current',
-      description: 'Larger, scrollable frame strip while editing.',
-    },
-    {
-      label: 'Compact',
-      value: 'compact',
-      description: 'Fit all 10 frames in one row.',
-    },
-  ];
+  const {
+    scoreboardLayout,
+    setScoreboardLayout,
+    colorModePreference,
+    setColorModePreference,
+    isHydrated,
+  } = usePreferences();
 
   return (
     <ScreenLayout
@@ -232,49 +228,13 @@ export default function ProfileScreen() {
           </Card>
         ) : null}
 
-        <Card muted style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Game entry</Text>
-          <Text style={styles.meta}>Scoreboard layout</Text>
-
-          <View style={styles.layoutOptionsRow}>
-            {scoreboardLayoutOptions.map((option) => {
-              const isActive = scoreboardLayout === option.value;
-
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setScoreboardLayout(option.value)}
-                  style={({ pressed }) => [
-                    styles.layoutOption,
-                    isActive ? styles.layoutOptionActive : null,
-                    pressed ? styles.layoutOptionPressed : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.layoutOptionLabel,
-                      isActive ? styles.layoutOptionLabelActive : null,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.layoutOptionDescription,
-                      isActive ? styles.layoutOptionDescriptionActive : null,
-                    ]}
-                  >
-                    {option.description}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {!isHydrated ? (
-            <Text style={styles.meta}>Loading preference...</Text>
-          ) : null}
-        </Card>
+        <ProfilePreferencesCard
+          colorModePreference={colorModePreference}
+          isHydrated={isHydrated}
+          scoreboardLayout={scoreboardLayout}
+          setColorModePreference={setColorModePreference}
+          setScoreboardLayout={setScoreboardLayout}
+        />
 
         <Card muted style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -296,101 +256,68 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
-  },
-  sectionCard: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  statusBadge: {
-    fontSize: typeScale.bodySm,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  meta: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-  errorText: {
-    fontSize: typeScale.bodySm,
-    color: colors.danger,
-    lineHeight: lineHeight.compact,
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  inlineAction: {
-    paddingVertical: spacing.xs,
-    alignSelf: 'flex-start',
-  },
-  inlineActionPressed: {
-    opacity: 0.72,
-  },
-  inlineActionLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  detailsBlock: {
-    gap: spacing.xs,
-  },
-  countsGrid: {
-    gap: spacing.xs,
-    paddingTop: spacing.xs,
-  },
-  layoutOptionsRow: {
-    gap: spacing.sm,
-  },
-  layoutOption: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-    gap: spacing.xs,
-  },
-  layoutOptionActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentMuted,
-  },
-  layoutOptionPressed: {
-    opacity: 0.82,
-  },
-  layoutOptionLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  layoutOptionLabelActive: {
-    color: colors.accent,
-  },
-  layoutOptionDescription: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-  layoutOptionDescriptionActive: {
-    color: colors.textPrimary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xxl,
+    },
+    sectionCard: {
+      gap: spacing.sm,
+    },
+    sectionTitle: {
+      fontSize: typeScale.titleSm,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    rowBetween: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    statusBadge: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    meta: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+    errorText: {
+      fontSize: typeScale.bodySm,
+      color: colors.danger,
+      lineHeight: lineHeight.compact,
+    },
+    inlineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    inlineAction: {
+      paddingVertical: spacing.xs,
+      alignSelf: 'flex-start',
+    },
+    inlineActionPressed: {
+      opacity: 0.72,
+    },
+    inlineActionLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    detailsBlock: {
+      gap: spacing.xs,
+    },
+    countsGrid: {
+      gap: spacing.xs,
+      paddingTop: spacing.xs,
+    },
+  });

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PinDeck } from './pin-deck';
 
-import { colors, radius, spacing, typeScale } from '@/theme/tokens';
+import { radius, spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type ActiveFrameCardProps = {
   activeRollMask: number | null;
@@ -33,6 +34,8 @@ export function ActiveFrameCard({
   onTogglePin,
 }: ActiveFrameCardProps) {
   const [deckAreaHeight, setDeckAreaHeight] = useState(0);
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -74,40 +77,41 @@ export function ActiveFrameCard({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: spacing.xs,
-    justifyContent: 'flex-start',
-  },
-  deckArea: {
-    flex: 1,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  autosaveOverlay: {
-    position: 'absolute',
-    right: spacing.xs,
-    bottom: spacing.xs,
-  },
-  autosaveText: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-    opacity: 0.62,
-  },
-  autosaveTextError: {
-    color: colors.danger,
-  },
-  inlineErrorContainer: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  inlineError: {
-    color: colors.danger,
-    fontSize: typeScale.bodySm,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      gap: spacing.xs,
+      justifyContent: 'flex-start',
+    },
+    deckArea: {
+      flex: 1,
+      position: 'relative',
+      justifyContent: 'center',
+    },
+    autosaveOverlay: {
+      position: 'absolute',
+      right: spacing.xs,
+      bottom: spacing.xs,
+    },
+    autosaveText: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+      opacity: 0.82,
+    },
+    autosaveTextError: {
+      color: colors.danger,
+    },
+    inlineErrorContainer: {
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: colors.danger,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    inlineError: {
+      color: colors.danger,
+      fontSize: typeScale.bodySm,
+    },
+  });

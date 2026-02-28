@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors, radius, typeScale } from '@/theme/tokens';
+import { radius, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type ButtonProps = {
   label: string;
@@ -17,6 +19,9 @@ export function Button({
   variant = 'primary',
   size = 'md',
 }: ButtonProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       disabled={disabled}
@@ -44,43 +49,44 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  baseLarge: {
-    height: 52,
-  },
-  primary: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: typeScale.body,
-  },
-  primaryLabel: {
-    color: colors.accentText,
-  },
-  secondaryLabel: {
-    color: colors.textPrimary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      height: 40,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+    },
+    baseLarge: {
+      height: 52,
+    },
+    primary: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    secondary: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    disabled: {
+      opacity: 0.6,
+    },
+    label: {
+      fontWeight: '600',
+      fontSize: typeScale.body,
+    },
+    primaryLabel: {
+      color: colors.accentText,
+    },
+    secondaryLabel: {
+      color: colors.textPrimary,
+    },
+  });

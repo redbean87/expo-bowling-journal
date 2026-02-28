@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type GameEditorFooterActionsProps = {
   shouldShowCompletionActions: boolean;
@@ -24,6 +26,8 @@ export function GameEditorFooterActions({
   onSetFullRack,
   onCommitRoll,
 }: GameEditorFooterActionsProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const completionSecondaryLabel = shouldPreferFinishAction
     ? 'New game'
     : 'Games';
@@ -78,37 +82,38 @@ export function GameEditorFooterActions({
   );
 }
 
-const styles = StyleSheet.create({
-  actionsFooter: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  stickyActionButton: {
-    flex: 1,
-  },
-  strikeButton: {
-    height: 52,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  strikeButtonPressed: {
-    opacity: 0.82,
-  },
-  strikeButtonLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.accent,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    actionsFooter: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    stickyActionButton: {
+      flex: 1,
+    },
+    strikeButton: {
+      height: 52,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    strikeButtonPressed: {
+      opacity: 0.82,
+    },
+    strikeButtonLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '500',
+      color: colors.accent,
+    },
+  });

@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type NestedRouteState = {
   index: number;
@@ -59,6 +61,8 @@ export function AppTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const activeTab = state.routes[state.index];
   const activeNestedRouteName = resolveDeepestRouteName(
     (activeTab.state as NestedRouteState | undefined) ?? undefined
@@ -144,62 +148,63 @@ export function AppTabBar({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surfaceSubtle,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderStrong,
-    paddingTop: spacing.xs,
-    elevation: 8,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: {
-      width: 0,
-      height: -2,
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.surfaceSubtle,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderStrong,
+      paddingTop: spacing.xs,
+      elevation: 8,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: {
+        width: 0,
+        height: -2,
+      },
     },
-  },
-  row: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xs,
-    gap: spacing.xs,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-    minHeight: 48,
-    borderRadius: 12,
-  },
-  tabFocused: {
-    backgroundColor: colors.accentMuted,
-  },
-  tabPressed: {
-    opacity: 0.85,
-  },
-  indicator: {
-    width: 26,
-    height: 4,
-    borderRadius: 99,
-  },
-  indicatorVisible: {
-    backgroundColor: colors.accent,
-  },
-  indicatorHidden: {
-    backgroundColor: 'transparent',
-  },
-  label: {
-    fontSize: typeScale.bodySm,
-    fontWeight: '700',
-  },
-  labelFocused: {
-    color: colors.accent,
-  },
-  labelUnfocused: {
-    color: colors.textPrimary,
-    opacity: 0.72,
-  },
-});
+    row: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.xs,
+      gap: spacing.xs,
+    },
+    tab: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      gap: spacing.xs,
+      minHeight: 48,
+      borderRadius: 12,
+    },
+    tabFocused: {
+      backgroundColor: colors.accentMuted,
+    },
+    tabPressed: {
+      opacity: 0.92,
+    },
+    indicator: {
+      width: 26,
+      height: 4,
+      borderRadius: 99,
+    },
+    indicatorVisible: {
+      backgroundColor: colors.accent,
+    },
+    indicatorHidden: {
+      backgroundColor: 'transparent',
+    },
+    label: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '700',
+    },
+    labelFocused: {
+      color: colors.accent,
+    },
+    labelUnfocused: {
+      color: colors.textPrimary,
+      opacity: 0.84,
+    },
+  });

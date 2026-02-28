@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { ReferenceCombobox } from '@/components/reference-combobox';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type GameEditorDetailsSectionProps = {
   isDetailsVisible: boolean;
@@ -40,6 +42,9 @@ export function GameEditorDetailsSection({
   onSelectPattern,
   onSelectBall,
 }: GameEditorDetailsSectionProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View
       style={[
@@ -87,29 +92,30 @@ export function GameEditorDetailsSection({
   );
 }
 
-const styles = StyleSheet.create({
-  detailsSection: {
-    gap: spacing.xs,
-  },
-  detailsSectionOpen: {
-    position: 'relative',
-    zIndex: 30,
-    elevation: 30,
-  },
-  detailsToggle: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  detailsTogglePressed: {
-    opacity: 0.75,
-  },
-  detailsToggleLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.accent,
-  },
-  detailsFields: {
-    gap: spacing.xs,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    detailsSection: {
+      gap: spacing.xs,
+    },
+    detailsSectionOpen: {
+      position: 'relative',
+      zIndex: 30,
+      elevation: 30,
+    },
+    detailsToggle: {
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.xs,
+    },
+    detailsTogglePressed: {
+      opacity: 0.75,
+    },
+    detailsToggleLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '500',
+      color: colors.accent,
+    },
+    detailsFields: {
+      gap: spacing.xs,
+    },
+  });

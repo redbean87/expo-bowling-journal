@@ -64,7 +64,8 @@ import {
   useSessions,
 } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type CursorTarget = {
   frameIndex: number;
@@ -80,6 +81,8 @@ type AutosaveState =
   | 'error';
 
 export default function GameEditorScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation();
   const router = useRouter();
   const {
@@ -878,27 +881,28 @@ export default function GameEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.xs,
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  loadingText: {
-    fontSize: typeScale.body,
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.xs,
+      gap: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    loadingContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+    },
+    loadingText: {
+      fontSize: typeScale.body,
+      color: colors.textSecondary,
+    },
+  });

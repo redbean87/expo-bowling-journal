@@ -99,6 +99,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Extend guaranteed offline coverage to reference quick-add create flows with deterministic replay and latest-local-edit-wins policy
 - [x] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [x] Data export and backup tooling
+- [x] Add app-wide dark mode with system/manual appearance preference
 
 ## Decision Log
 

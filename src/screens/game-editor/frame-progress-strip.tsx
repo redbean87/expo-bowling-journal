@@ -17,7 +17,8 @@ import {
 } from './game-editor-frame-utils';
 
 import { type ScoreboardLayoutMode } from '@/config/preferences-storage';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type FrameProgressStripProps = {
   frameDrafts: FrameDraft[];
@@ -34,6 +35,8 @@ export function FrameProgressStrip({
   layoutMode,
   onSelectFrame,
 }: FrameProgressStripProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width, height } = useWindowDimensions();
   const scrollRef = useRef<ScrollView | null>(null);
   const cellLayoutsRef = useRef<Record<number, { x: number; width: number }>>(
@@ -228,115 +231,118 @@ export function FrameProgressStrip({
   );
 }
 
-const styles = StyleSheet.create({
-  symbolSection: {
-    gap: spacing.xs,
-  },
-  symbolTrack: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  symbolRow: {
-    flexDirection: 'row',
-    paddingRight: 0,
-  },
-  pillPressed: {
-    opacity: 0.82,
-  },
-  symbolCell: {
-    alignItems: 'stretch',
-    justifyContent: 'flex-start',
-    backgroundColor: colors.surfaceSubtle,
-    borderRightWidth: 1,
-    borderColor: colors.border,
-  },
-  symbolCellLast: {
-    borderRightWidth: 0,
-  },
-  symbolCellTenth: {
-    width: 58,
-  },
-  symbolCellActive: {
-    backgroundColor: '#F0F5FF',
-  },
-  symbolText: {
-    fontWeight: '700',
-    color: colors.textPrimary,
-    minHeight: 16,
-  },
-  symbolTextEmpty: {
-    color: colors.textSecondary,
-  },
-  symbolTextActive: {
-    color: colors.accent,
-  },
-  symbolFrameIndex: {
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  symbolFrameIndexActive: {
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  frameNumberRow: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  symbolPartsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: 0,
-  },
-  frameScoreRow: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 0,
-    paddingBottom: 1,
-  },
-  frameScoreText: {
-    fontWeight: '500',
-    color: colors.textPrimary,
-    opacity: 0.68,
-    fontVariant: ['tabular-nums'],
-  },
-  symbolPartSlot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 4,
-    position: 'relative',
-  },
-  symbolTextWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 18,
-  },
-  symbolPartSlotWithDivider: {
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-  },
-  symbolTextSplit: {
-    color: 'rgba(201, 54, 54, 0.82)',
-  },
-  symbolTextSplitActive: {
-    color: 'rgba(201, 54, 54, 0.92)',
-  },
-  symbolPartMarker: {
-    position: 'absolute',
-    left: '50%',
-    marginLeft: -7,
-    bottom: 4,
-    width: 14,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.accent,
-    opacity: 0.72,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    symbolSection: {
+      gap: spacing.xs,
+    },
+    symbolTrack: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    symbolRow: {
+      flexDirection: 'row',
+      paddingRight: 0,
+    },
+    pillPressed: {
+      opacity: 0.9,
+    },
+    symbolCell: {
+      alignItems: 'stretch',
+      justifyContent: 'flex-start',
+      backgroundColor: colors.surfaceSubtle,
+      borderRightWidth: 1,
+      borderColor: colors.border,
+    },
+    symbolCellLast: {
+      borderRightWidth: 0,
+    },
+    symbolCellTenth: {
+      width: 58,
+    },
+    symbolCellActive: {
+      backgroundColor: colors.accentMuted,
+    },
+    symbolText: {
+      fontWeight: '700',
+      color: colors.textPrimary,
+      minHeight: 16,
+    },
+    symbolTextEmpty: {
+      color: colors.textSecondary,
+    },
+    symbolTextActive: {
+      color: colors.accent,
+    },
+    symbolFrameIndex: {
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    symbolFrameIndexActive: {
+      color: colors.accent,
+      fontWeight: '600',
+    },
+    frameNumberRow: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    symbolPartsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      gap: 0,
+    },
+    frameScoreRow: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 0,
+      paddingBottom: 1,
+    },
+    frameScoreText: {
+      fontWeight: '500',
+      color: colors.textPrimary,
+      opacity: 0.84,
+      fontVariant: ['tabular-nums'],
+    },
+    symbolPartSlot: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 4,
+      position: 'relative',
+    },
+    symbolTextWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 18,
+    },
+    symbolPartSlotWithDivider: {
+      borderRightWidth: 1,
+      borderRightColor: colors.border,
+    },
+    symbolTextSplit: {
+      color: colors.danger,
+      opacity: 0.9,
+    },
+    symbolTextSplitActive: {
+      color: colors.danger,
+      opacity: 0.98,
+    },
+    symbolPartMarker: {
+      position: 'absolute',
+      left: '50%',
+      marginLeft: -7,
+      bottom: 4,
+      width: 14,
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: colors.accent,
+      opacity: 0.86,
+    },
+  });

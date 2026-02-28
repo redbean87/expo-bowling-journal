@@ -2,11 +2,17 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const SCOREBOARD_LAYOUT_KEY = 'prefs:scoreboard-layout';
+const COLOR_MODE_PREFERENCE_KEY = 'prefs:color-mode-preference';
 
 export type ScoreboardLayoutMode = 'current' | 'compact';
+export type ColorModePreference = 'system' | 'light' | 'dark';
 
 function isScoreboardLayoutMode(value: string): value is ScoreboardLayoutMode {
   return value === 'current' || value === 'compact';
+}
+
+function isColorModePreference(value: string): value is ColorModePreference {
+  return value === 'system' || value === 'light' || value === 'dark';
 }
 
 async function getStorageItem(key: string) {
@@ -38,4 +44,18 @@ export async function loadScoreboardLayoutMode() {
 
 export async function persistScoreboardLayoutMode(mode: ScoreboardLayoutMode) {
   await setStorageItem(SCOREBOARD_LAYOUT_KEY, mode);
+}
+
+export async function loadColorModePreference() {
+  const value = await getStorageItem(COLOR_MODE_PREFERENCE_KEY);
+
+  if (!value || !isColorModePreference(value)) {
+    return 'system';
+  }
+
+  return value;
+}
+
+export async function persistColorModePreference(mode: ColorModePreference) {
+  await setStorageItem(COLOR_MODE_PREFERENCE_KEY, mode);
 }

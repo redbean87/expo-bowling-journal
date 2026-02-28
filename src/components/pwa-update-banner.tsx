@@ -1,11 +1,15 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePwaUpdate } from '@/hooks/use-pwa-update';
-import { colors, radius, spacing, typeScale } from '@/theme/tokens';
+import { radius, spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 export function PwaUpdateBanner() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { isSupported, isUpdateAvailable, isApplying, applyUpdate } =
     usePwaUpdate();
 
@@ -39,53 +43,54 @@ export function PwaUpdateBanner() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    zIndex: 2000,
-  },
-  banner: {
-    alignSelf: 'center',
-    backgroundColor: colors.textPrimary,
-    borderColor: '#121621',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    maxWidth: 520,
-    padding: spacing.lg,
-    width: '92%',
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: typeScale.titleSm,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  message: {
-    color: '#D8DEE9',
-    fontSize: typeScale.body,
-    marginBottom: spacing.md,
-  },
-  button: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonLabel: {
-    color: colors.accentText,
-    fontSize: typeScale.body,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      left: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      zIndex: 2000,
+    },
+    banner: {
+      alignSelf: 'center',
+      backgroundColor: colors.bannerBackground,
+      borderColor: colors.bannerBackground,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      maxWidth: 520,
+      padding: spacing.lg,
+      width: '92%',
+    },
+    title: {
+      color: colors.bannerTextPrimary,
+      fontSize: typeScale.titleSm,
+      fontWeight: '700',
+      marginBottom: spacing.xs,
+    },
+    message: {
+      color: colors.bannerTextSecondary,
+      fontSize: typeScale.body,
+      marginBottom: spacing.md,
+    },
+    button: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      minHeight: 40,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    buttonPressed: {
+      opacity: 0.85,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonLabel: {
+      color: colors.accentText,
+      fontSize: typeScale.body,
+      fontWeight: '700',
+    },
+  });

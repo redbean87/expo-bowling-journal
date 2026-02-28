@@ -1,8 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import {
+  lineHeight,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type PreviewItem = {
   text: string;
@@ -42,6 +49,8 @@ export function GameRowCard({
   onOpenEditor,
   onOpenActions,
 }: GameRowCardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const framePreviewItems = game.framePreviewItems;
   const previewRowOne = Array.from(
     { length: 5 },
@@ -159,91 +168,93 @@ export function GameRowCard({
   );
 }
 
-const styles = StyleSheet.create({
-  rowTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  rowPressed: {
-    opacity: 0.82,
-  },
-  rowHeader: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  gameHeaderContent: {
-    flex: 1,
-  },
-  gameContent: {
-    flex: 1,
-    marginTop: 0,
-  },
-  menuButton: {
-    width: 40,
-    height: 36,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  menuButtonPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  meta: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-  previewGrid: {
-    gap: spacing.xs,
-    marginTop: 0,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  previewChip: {
-    flex: 1,
-    minHeight: 30,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewChipPlaceholder: {
-    backgroundColor: colors.surfaceSubtle,
-  },
-  previewChipSplit: {
-    borderColor: '#E8C5C2',
-    backgroundColor: '#FEF5F4',
-  },
-  previewChipText: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textPrimary,
-    fontFamily: 'monospace',
-  },
-  previewChipPlaceholderText: {
-    color: colors.textSecondary,
-  },
-  previewChipTextSplit: {
-    color: colors.danger,
-  },
-  previewUnavailableText: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-  rowCard: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
-    gap: spacing.xs,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    rowTitle: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    rowPressed: {
+      opacity: 0.9,
+    },
+    rowHeader: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+    },
+    gameHeaderContent: {
+      flex: 1,
+    },
+    gameContent: {
+      flex: 1,
+      marginTop: 0,
+    },
+    menuButton: {
+      width: 40,
+      height: 36,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    menuButtonPressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    meta: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+    previewGrid: {
+      gap: spacing.xs,
+      marginTop: 0,
+    },
+    previewRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    previewChip: {
+      flex: 1,
+      minHeight: 30,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceSubtle,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    previewChipPlaceholder: {
+      backgroundColor: colors.surfaceSubtle,
+    },
+    previewChipSplit: {
+      borderColor: colors.dangerBorder,
+      backgroundColor: colors.dangerMuted,
+    },
+    previewChipText: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textPrimary,
+      fontFamily: 'monospace',
+    },
+    previewChipPlaceholderText: {
+      color: colors.textSecondary,
+    },
+    previewChipTextSplit: {
+      color: colors.danger,
+      fontWeight: '700',
+    },
+    previewUnavailableText: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+    rowCard: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+      gap: spacing.xs,
+    },
+  });

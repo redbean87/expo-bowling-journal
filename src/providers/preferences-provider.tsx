@@ -9,14 +9,19 @@ import {
 } from 'react';
 
 import {
+  loadColorModePreference,
   loadScoreboardLayoutMode,
+  persistColorModePreference,
   persistScoreboardLayoutMode,
+  type ColorModePreference,
   type ScoreboardLayoutMode,
 } from '@/config/preferences-storage';
 
 type PreferencesContextValue = {
   scoreboardLayout: ScoreboardLayoutMode;
   setScoreboardLayout: (mode: ScoreboardLayoutMode) => void;
+  colorModePreference: ColorModePreference;
+  setColorModePreference: (mode: ColorModePreference) => void;
   isHydrated: boolean;
 };
 
@@ -25,6 +30,8 @@ const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 export function PreferencesProvider({ children }: PropsWithChildren) {
   const [scoreboardLayout, setScoreboardLayoutState] =
     useState<ScoreboardLayoutMode>('current');
+  const [colorModePreference, setColorModePreferenceState] =
+    useState<ColorModePreference>('system');
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -36,6 +43,12 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
 
         if (isMounted) {
           setScoreboardLayoutState(mode);
+        }
+
+        const colorMode = await loadColorModePreference();
+
+        if (isMounted) {
+          setColorModePreferenceState(colorMode);
         }
       } finally {
         if (isMounted) {
@@ -57,9 +70,27 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     void persistScoreboardLayoutMode(mode);
   }, []);
 
+  const setColorModePreference = useCallback((mode: ColorModePreference) => {
+    setColorModePreferenceState(mode);
+
+    void persistColorModePreference(mode);
+  }, []);
+
   const value = useMemo(
-    () => ({ scoreboardLayout, setScoreboardLayout, isHydrated }),
-    [isHydrated, scoreboardLayout, setScoreboardLayout]
+    () => ({
+      scoreboardLayout,
+      setScoreboardLayout,
+      colorModePreference,
+      setColorModePreference,
+      isHydrated,
+    }),
+    [
+      colorModePreference,
+      isHydrated,
+      scoreboardLayout,
+      setColorModePreference,
+      setScoreboardLayout,
+    ]
   );
 
   return (

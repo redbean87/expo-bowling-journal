@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type SessionActionTarget = {
   rowId: string;
@@ -29,6 +31,9 @@ export function SessionActionsModal({
   onClose,
   onAction,
 }: SessionActionsModalProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Modal
       animationType="fade"
@@ -102,76 +107,77 @@ export function SessionActionsModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(26, 31, 43, 0.35)',
-  },
-  modalBackdropHitbox: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 520,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionModalCard: {
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  actionModalHeader: {
-    paddingTop: 2,
-  },
-  actionModalTitle: {
-    fontSize: typeScale.titleSm,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  actionList: {
-    marginTop: spacing.xs,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceSubtle,
-  },
-  actionItem: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  actionItemWithDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  actionItemCancel: {
-    backgroundColor: colors.surface,
-  },
-  actionItemPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  actionItemLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  actionItemDeleteLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.danger,
-  },
-  actionItemCancelLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    modalBackdrop: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.overlay,
+    },
+    modalBackdropHitbox: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 520,
+      gap: spacing.sm,
+      padding: spacing.lg,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actionModalCard: {
+      gap: spacing.xs,
+      padding: spacing.md,
+    },
+    actionModalHeader: {
+      paddingTop: 2,
+    },
+    actionModalTitle: {
+      fontSize: typeScale.titleSm,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    actionList: {
+      marginTop: spacing.xs,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+      backgroundColor: colors.surfaceSubtle,
+    },
+    actionItem: {
+      minHeight: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    actionItemWithDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    actionItemCancel: {
+      backgroundColor: colors.surface,
+    },
+    actionItemPressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    actionItemLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    actionItemDeleteLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.danger,
+    },
+    actionItemCancelLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+  });

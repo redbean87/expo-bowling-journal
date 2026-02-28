@@ -1,11 +1,18 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { ReferenceCombobox } from '@/components/reference-combobox';
 import { Button, Card, Input } from '@/components/ui';
-import { colors, lineHeight, spacing, typeScale } from '@/theme/tokens';
+import {
+  lineHeight,
+  spacing,
+  type ThemeColors,
+  typeScale,
+} from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type DisplayLeague = {
   id: string;
@@ -62,6 +69,9 @@ export function LeagueRowCard({
   onSaveLeagueEdit,
   onCancelEditingLeague,
 }: LeagueRowCardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Card style={[styles.rowCard, isEditing ? styles.rowCardActive : null]}>
       <View style={styles.rowHeader}>
@@ -148,60 +158,61 @@ export function LeagueRowCard({
   );
 }
 
-const styles = StyleSheet.create({
-  rowTitle: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  leagueContent: {
-    gap: spacing.xs,
-    flex: 1,
-  },
-  leagueContentPressed: {
-    opacity: 0.82,
-  },
-  rowHeader: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  menuButton: {
-    width: 40,
-    height: 44,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  menuButtonPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  editSection: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  editActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  editActionButton: {
-    flex: 1,
-  },
-  rowCard: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 10,
-    gap: spacing.xs,
-  },
-  rowCardActive: {
-    position: 'relative',
-    zIndex: 30,
-    elevation: 30,
-  },
-  meta: {
-    fontSize: typeScale.bodySm,
-    lineHeight: lineHeight.compact,
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    rowTitle: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    leagueContent: {
+      gap: spacing.xs,
+      flex: 1,
+    },
+    leagueContentPressed: {
+      opacity: 0.82,
+    },
+    rowHeader: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+    },
+    menuButton: {
+      width: 40,
+      height: 44,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    menuButtonPressed: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    editSection: {
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    editActionsRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    editActionButton: {
+      flex: 1,
+    },
+    rowCard: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+      gap: spacing.xs,
+    },
+    rowCardActive: {
+      position: 'relative',
+      zIndex: 30,
+      elevation: 30,
+    },
+    meta: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+    },
+  });

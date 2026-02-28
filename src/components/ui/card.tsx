@@ -1,4 +1,4 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useMemo } from 'react';
 import {
   Pressable,
   type StyleProp,
@@ -7,7 +7,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing, type ThemeColors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type CardProps = PropsWithChildren<{
   muted?: boolean;
@@ -20,6 +21,9 @@ type PressableCardProps = CardProps & {
 };
 
 export function Card({ muted = false, style, children }: CardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={[styles.base, muted ? styles.muted : null, style]}>
       {children}
@@ -34,6 +38,9 @@ export function PressableCard({
   disabled,
   children,
 }: PressableCardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       disabled={disabled}
@@ -51,22 +58,23 @@ export function PressableCard({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  muted: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  pressed: {
-    opacity: 0.82,
-  },
-  disabled: {
-    opacity: 0.65,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      backgroundColor: colors.surface,
+    },
+    muted: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    pressed: {
+      opacity: 0.82,
+    },
+    disabled: {
+      opacity: 0.65,
+    },
+  });

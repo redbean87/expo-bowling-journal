@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
 import {
   TextInput,
   type TextInputProps,
@@ -6,12 +6,16 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { colors, radius, typeScale } from '@/theme/tokens';
+import { radius, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 export const Input = forwardRef<RNTextInput, TextInputProps>(function Input(
   { style, placeholderTextColor, ...props },
   ref
 ) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <TextInput
       ref={ref}
@@ -22,15 +26,16 @@ export const Input = forwardRef<RNTextInput, TextInputProps>(function Input(
   );
 });
 
-const styles = StyleSheet.create({
-  input: {
-    height: 42,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: colors.textPrimary,
-    paddingHorizontal: 12,
-    fontSize: typeScale.body,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    input: {
+      height: 42,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      color: colors.textPrimary,
+      paddingHorizontal: 12,
+      fontSize: typeScale.body,
+    },
+  });

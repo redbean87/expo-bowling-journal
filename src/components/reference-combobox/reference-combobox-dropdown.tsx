@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
-import { colors, spacing, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 type ReferenceComboboxDropdownProps = {
   hasQuery: boolean;
@@ -36,6 +38,9 @@ export function ReferenceComboboxDropdown({
   onSelectOption,
   onQuickAddPress,
 }: ReferenceComboboxDropdownProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Animated.View style={[styles.dropdown, dropdownAnimationStyle]}>
       <Text style={styles.sectionLabel}>{hasQuery ? 'Matches' : 'Recent'}</Text>
@@ -102,77 +107,78 @@ export function ReferenceComboboxDropdown({
   );
 }
 
-const styles = StyleSheet.create({
-  dropdown: {
-    position: 'absolute',
-    top: 46,
-    left: 0,
-    right: 0,
-    zIndex: 5,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    maxHeight: 220,
-    overflow: 'hidden',
-  },
-  sectionLabel: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-    fontSize: typeScale.bodySm,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  option: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    gap: 2,
-  },
-  optionPressed: {
-    backgroundColor: colors.accentMuted,
-  },
-  optionHighlighted: {
-    backgroundColor: colors.accentMuted,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.accent,
-  },
-  optionLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  optionSubLabel: {
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-  quickAdd: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  quickAddLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  useExisting: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  useExistingLabel: {
-    fontSize: typeScale.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  emptyText: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    fontSize: typeScale.bodySm,
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    dropdown: {
+      position: 'absolute',
+      top: 46,
+      left: 0,
+      right: 0,
+      zIndex: 5,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+      maxHeight: 220,
+      overflow: 'hidden',
+    },
+    sectionLabel: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+      fontSize: typeScale.bodySm,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    option: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      gap: 2,
+    },
+    optionPressed: {
+      backgroundColor: colors.accentMuted,
+    },
+    optionHighlighted: {
+      backgroundColor: colors.accentMuted,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.accent,
+    },
+    optionLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    optionSubLabel: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+    },
+    quickAdd: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    quickAddLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    useExisting: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    useExistingLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    emptyText: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+    },
+  });
