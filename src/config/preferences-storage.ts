@@ -1,13 +1,18 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const SCOREBOARD_LAYOUT_KEY = 'prefs:scoreboard-layout';
-const COLOR_MODE_PREFERENCE_KEY = 'prefs:color-mode-preference';
-const THEME_FLAVOR_PREFERENCE_KEY = 'prefs:theme-flavor-preference';
+const SCOREBOARD_LAYOUT_KEY = 'prefs_scoreboard_layout';
+const COLOR_MODE_PREFERENCE_KEY = 'prefs_color_mode_preference';
+const THEME_FLAVOR_PREFERENCE_KEY = 'prefs_theme_flavor_preference';
 
 export type ScoreboardLayoutMode = 'current' | 'compact';
 export type ColorModePreference = 'system' | 'light' | 'dark';
 export type ThemeFlavorPreference = 'default' | 'shinobi';
+
+function toNativeSecureStoreKey(key: string) {
+  const safeKey = String(key ?? '').replace(/[^a-zA-Z0-9._-]/g, '_');
+  return safeKey.length > 0 ? safeKey : '__default_key__';
+}
 
 function isScoreboardLayoutMode(value: string): value is ScoreboardLayoutMode {
   return value === 'current' || value === 'compact';
@@ -28,7 +33,12 @@ async function getStorageItem(key: string) {
     return globalThis.localStorage.getItem(key);
   }
 
-  return SecureStore.getItemAsync(key);
+  const nativeKey = toNativeSecureStoreKey(key);
+  try {
+    return await SecureStore.getItemAsync(nativeKey);
+  } catch {
+    return null;
+  }
 }
 
 async function setStorageItem(key: string, value: string) {
@@ -37,7 +47,12 @@ async function setStorageItem(key: string, value: string) {
     return;
   }
 
-  await SecureStore.setItemAsync(key, value);
+  const nativeKey = toNativeSecureStoreKey(key);
+  try {
+    await SecureStore.setItemAsync(nativeKey, value);
+  } catch {
+    return;
+  }
 }
 
 export async function loadScoreboardLayoutMode() {
