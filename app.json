@@ -4,6 +4,9 @@
     "slug": "expo-bowling-journal",
     "scheme": "bowlingjournal",
     "version": "1.0.0",
+    "android": {
+      "package": "com.redbean.bowlingjournal"
+    },
     "icon": "./assets/icons/app-icon-1024.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
