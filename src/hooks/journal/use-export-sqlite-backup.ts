@@ -2,6 +2,12 @@ import { useConvex, useConvexAuth } from 'convex/react';
 import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 
+import {
+  parseDownloadFileName,
+  sanitizeBackupFileName,
+} from './export-backup/export-filename';
+import { saveAndShareNativeBackupFile } from './export-backup/native-export-file';
+
 import type { SqliteBackupSnapshot } from '@/services/journal';
 
 import { convexJournalService } from '@/services/journal';
@@ -36,11 +42,6 @@ export function useExportSqliteBackup() {
         return;
       }
 
-      if (Platform.OS !== 'web') {
-        setExportError('SQLite export is currently available on web only.');
-        return;
-      }
-
       setIsExporting(true);
 
       try {
@@ -71,7 +72,11 @@ export function useExportSqliteBackup() {
           ...snapshotWithoutFrames,
           frames,
         };
-        const fileName = getDefaultExportFileName();
+        const defaultFileName = getDefaultExportFileName();
+        const requestedFileName = sanitizeBackupFileName(
+          defaultFileName,
+          defaultFileName
+        );
         const normalizedBaseUrl = workerBaseUrl.replace(/\/+$/, '');
         const exportResponse = await fetch(
           `${normalizedBaseUrl}/exports/sqlite`,
@@ -81,7 +86,7 @@ export function useExportSqliteBackup() {
               'content-type': 'application/json',
             },
             body: JSON.stringify({
-              fileName,
+              fileName: requestedFileName,
               snapshot,
             }),
           }
@@ -95,17 +100,29 @@ export function useExportSqliteBackup() {
         }
 
         const backupBlob = await exportResponse.blob();
-        const objectUrl = URL.createObjectURL(backupBlob);
+        const downloadFileName = parseDownloadFileName(
+          exportResponse.headers.get('content-disposition')
+        );
+        const fileName = sanitizeBackupFileName(
+          downloadFileName,
+          requestedFileName
+        );
 
-        try {
-          const anchor = document.createElement('a');
-          anchor.href = objectUrl;
-          anchor.download = fileName;
-          document.body.append(anchor);
-          anchor.click();
-          anchor.remove();
-        } finally {
-          URL.revokeObjectURL(objectUrl);
+        if (Platform.OS === 'web') {
+          const objectUrl = URL.createObjectURL(backupBlob);
+
+          try {
+            const anchor = document.createElement('a');
+            anchor.href = objectUrl;
+            anchor.download = fileName;
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+          } finally {
+            URL.revokeObjectURL(objectUrl);
+          }
+        } else {
+          await saveAndShareNativeBackupFile(backupBlob, fileName);
         }
 
         setLastExportFileName(fileName);

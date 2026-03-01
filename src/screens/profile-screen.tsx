@@ -135,7 +135,7 @@ export default function ProfileScreen() {
             <Text style={styles.errorText}>{exportError}</Text>
           ) : null}
           {lastExportFileName ? (
-            <Text style={styles.meta}>Downloaded: {lastExportFileName}</Text>
+            <Text style={styles.meta}>Exported: {lastExportFileName}</Text>
           ) : null}
         </Card>
 
