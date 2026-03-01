@@ -22,14 +22,8 @@ function main() {
     return;
   }
 
-  const result = run('pkill', ['-f', 'workerd']);
-
-  if (result.status === 0 || result.status === 1) {
-    console.log('Stopped any running workerd processes (if present).');
-    return;
-  }
-
-  process.exit(result.status ?? 1);
+  spawnSync('killall', ['-q', 'workerd'], { stdio: 'ignore' });
+  console.log('Stopped any running workerd processes (if present).');
 }
 
 main();
