@@ -100,6 +100,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Shift queue sync from fixed polling to adaptive/event-driven triggers (connectivity restore + queue-present interval)
 - [x] Data export and backup tooling
 - [x] Enable native SQLite backup export via share sheet (Android-first, iOS-compatible)
+- [x] Harden native SQLite import URI/file-size handling for Android providers
 - [x] Add app-wide dark mode with system/manual appearance preference
 
 ## Decision Log

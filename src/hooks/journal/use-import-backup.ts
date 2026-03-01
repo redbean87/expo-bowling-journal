@@ -30,6 +30,26 @@ function formatBytes(value: number) {
   return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+async function resolveNativeFileSize(
+  uri: string,
+  reportedSize: number | null | undefined
+) {
+  if (Number.isFinite(reportedSize) && (reportedSize ?? 0) > 0) {
+    return reportedSize as number;
+  }
+
+  try {
+    const fileSystem = await import('expo-file-system/legacy');
+    const info = await fileSystem.getInfoAsync(uri);
+
+    if (info.exists && Number.isFinite(info.size) && info.size > 0) {
+      return info.size;
+    }
+  } catch {}
+
+  return 0;
+}
+
 export function useImportBackup() {
   const [selectedFile, setSelectedFile] = useState<SelectedBackupFile | null>(
     null
@@ -84,7 +104,7 @@ export function useImportBackup() {
 
     setSelectedFile({
       name: asset.name,
-      size: asset.size ?? 0,
+      size: await resolveNativeFileSize(asset.uri, asset.size),
       uri: asset.uri,
       mimeType: asset.mimeType ?? null,
       webFile: null,

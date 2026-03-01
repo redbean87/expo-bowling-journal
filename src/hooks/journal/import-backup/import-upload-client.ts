@@ -40,6 +40,53 @@ function createIdempotencyKey() {
     .slice(2, 10)}`;
 }
 
+function sanitizeCacheSegment(value: string) {
+  const sanitized = value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
+  const trimmed = sanitized.replace(/^-+|-+$/g, '');
+
+  return trimmed.length > 0 ? trimmed : 'backup.sqlite3';
+}
+
+async function readBlobFromUri(uri: string): Promise<Blob> {
+  const response = await fetch(uri);
+
+  if (!response.ok) {
+    throw new Error('Could not read selected backup file.');
+  }
+
+  return response.blob();
+}
+
+async function readBlobFromCacheCopy(selectedFile: SelectedBackupFile): Promise<Blob> {
+  if (!selectedFile.uri) {
+    throw new Error('Selected file is missing a readable URI.');
+  }
+
+  const fileSystem = await import('expo-file-system/legacy');
+
+  if (!fileSystem.cacheDirectory) {
+    throw new Error('Could not read selected backup file.');
+  }
+
+  const cacheFileName = sanitizeCacheSegment(selectedFile.name);
+  const cacheCopyUri = `${fileSystem.cacheDirectory}import-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}-${cacheFileName}`;
+
+  await fileSystem.copyAsync({
+    from: selectedFile.uri,
+    to: cacheCopyUri,
+  });
+
+  try {
+    return await readBlobFromUri(cacheCopyUri);
+  } finally {
+    await fileSystem
+      .deleteAsync(cacheCopyUri, { idempotent: true })
+      .catch(() => undefined);
+  }
+}
+
 async function toUploadBlob(selectedFile: SelectedBackupFile): Promise<Blob> {
   if (selectedFile.webFile) {
     return selectedFile.webFile;
@@ -49,13 +96,15 @@ async function toUploadBlob(selectedFile: SelectedBackupFile): Promise<Blob> {
     throw new Error('Selected file is missing a readable URI.');
   }
 
-  const localFileResponse = await fetch(selectedFile.uri);
-
-  if (!localFileResponse.ok) {
-    throw new Error('Could not read selected backup file.');
+  try {
+    return await readBlobFromUri(selectedFile.uri);
+  } catch {
+    try {
+      return await readBlobFromCacheCopy(selectedFile);
+    } catch {
+      throw new Error('Could not read selected backup file.');
+    }
   }
-
-  return localFileResponse.blob();
 }
 
 export async function uploadBackupFileAndStartImport({
