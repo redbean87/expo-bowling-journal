@@ -149,22 +149,6 @@ export function useQueueSyncStatus() {
     return unsubscribe;
   }, [refreshStatus]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const onOnline = () => {
-      void refreshStatus();
-    };
-
-    window.addEventListener('online', onOnline);
-
-    return () => {
-      window.removeEventListener('online', onOnline);
-    };
-  }, [refreshStatus]);
-
   const status = useMemo(
     () =>
       deriveQueueSyncStatus(

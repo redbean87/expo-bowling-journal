@@ -8,7 +8,6 @@ import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-creat
 import { isNavigatorOffline } from '@/screens/journal/journal-offline-create';
 import { subscribeQueueSyncState } from '@/screens/journal/queue-sync-events';
 import {
-  didRestoreConnectivity,
   loadQueueSyncPresence,
   shouldRunQueueSyncInterval,
 } from '@/screens/journal/queue-sync-presence';
@@ -144,37 +143,6 @@ export function GameSaveQueueSyncer() {
 
     return unsubscribe;
   }, [flushQueue, isAppActive, refreshQueuePresence]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const onOnline = () => {
-      const nextOnline = true;
-      const previousOnline = isOnlineRef.current;
-      isOnlineRef.current = nextOnline;
-      setIsOnline(nextOnline);
-
-      if (didRestoreConnectivity({ previousOnline, nextOnline })) {
-        void refreshQueuePresence();
-        void flushQueue();
-      }
-    };
-
-    const onOffline = () => {
-      isOnlineRef.current = false;
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-
-    return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, [flushQueue, refreshQueuePresence]);
 
   useEffect(() => {
     if (!shouldPoll) {
