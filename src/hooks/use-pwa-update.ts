@@ -20,10 +20,25 @@ export function usePwaUpdate(): UsePwaUpdateResult {
   const supportsServiceWorker =
     Platform.OS === 'web' &&
     typeof navigator !== 'undefined' &&
-    'serviceWorker' in navigator;
+    'serviceWorker' in navigator &&
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost';
   const isSupported = supportsServiceWorker && !registrationFailed;
 
   useEffect(() => {
+    if (
+      Platform.OS === 'web' &&
+      typeof navigator !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      typeof window !== 'undefined' &&
+      window.location.hostname === 'localhost'
+    ) {
+      void navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => regs.forEach((r) => void r.unregister()));
+      return;
+    }
+
     if (!supportsServiceWorker) {
       return;
     }
