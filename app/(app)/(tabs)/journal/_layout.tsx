@@ -1,10 +1,17 @@
 import { Stack } from 'expo-router';
 
 import { AppHeader } from '@/components/navigation/app-header';
+import { useAppTheme } from '@/theme/use-app-theme';
 
 export default function JournalLayout() {
+  const { colors } = useAppTheme();
   return (
-    <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
+    <Stack
+      screenOptions={{
+        header: (props) => <AppHeader {...props} />,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       <Stack.Screen
         name="index"
         options={{

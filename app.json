@@ -4,12 +4,17 @@
     "slug": "expo-bowling-journal",
     "scheme": "bowlingjournal",
     "version": "1.0.0",
+    "backgroundColor": "#F5F7FA",
     "android": {
-      "package": "com.redbean.bowlingjournal"
+      "package": "com.redbean.bowlingjournal",
+      "backgroundColor": "#F5F7FA"
+    },
+    "ios": {
+      "backgroundColor": "#F5F7FA"
     },
     "icon": "./assets/icons/app-icon-1024.png",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "assetBundlePatterns": ["**/*"],
     "web": {
       "output": "static",

@@ -1,6 +1,11 @@
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from '@react-navigation/native';
 import { useConvexAuth } from 'convex/react';
-import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
@@ -22,7 +27,7 @@ export default function RootLayout() {
 
 function RootStack() {
   const { isLoading } = useConvexAuth();
-  const { mode } = useAppTheme();
+  const { mode, colors } = useAppTheme();
 
   useEffect(() => {
     if (Platform.OS === 'web' || isLoading) {
@@ -59,13 +64,38 @@ function RootStack() {
     return null;
   }
 
+  const baseNavTheme = mode === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...baseNavTheme,
+    colors: {
+      ...baseNavTheme.colors,
+      primary: colors.accent,
+      background: colors.background,
+      card: colors.surfaceSubtle,
+      text: colors.textPrimary,
+      border: colors.borderStrong,
+    },
+  };
+
   return (
-    <>
+    <ThemeProvider value={navTheme}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(auth)"
+          options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        />
+        <Stack.Screen
+          name="(app)"
+          options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        />
       </Stack>
-    </>
+    </ThemeProvider>
   );
 }
