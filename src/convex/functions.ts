@@ -240,6 +240,14 @@ export const gamesListBySessionQuery = makeFunctionReference<
   GameListItem[]
 >('games:listBySession');
 
+export const gamesListByLeagueQuery = makeFunctionReference<
+  'query',
+  {
+    leagueId: Id<'leagues'>;
+  },
+  GameListItem[]
+>('games:listByLeague');
+
 export const gamesCreateMutation = makeFunctionReference<
   'mutation',
   {

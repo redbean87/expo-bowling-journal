@@ -96,7 +96,8 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_session', ['sessionId'])
     .index('by_league', ['leagueId'])
-    .index('by_user_session', ['userId', 'sessionId']),
+    .index('by_user_session', ['userId', 'sessionId'])
+    .index('by_user_league', ['userId', 'leagueId']),
   frames: defineTable({
     userId: v.id('users'),
     gameId: v.id('games'),

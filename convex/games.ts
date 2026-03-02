@@ -31,6 +31,32 @@ export const listBySession = query({
   },
 });
 
+export const listByLeague = query({
+  args: {
+    leagueId: v.id('leagues'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+
+    const games = await ctx.db
+      .query('games')
+      .withIndex('by_user_league', (q) =>
+        q.eq('userId', userId).eq('leagueId', args.leagueId)
+      )
+      .collect();
+
+    const sortedGames = games.sort((left, right) => {
+      if (left.date !== right.date) {
+        return right.date.localeCompare(left.date);
+      }
+
+      return right._creationTime - left._creationTime;
+    });
+
+    return sortedGames;
+  },
+});
+
 export const getById = query({
   args: {
     gameId: v.id('games'),

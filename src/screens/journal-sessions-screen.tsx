@@ -45,12 +45,21 @@ import {
   formatIsoDateForToday,
   formatSessionWeekLabel,
 } from './journal-fast-lane-utils';
+import {
+  buildSessionNightSummary,
+  normalizeGamesPerSession,
+} from './journal-games-night-summary';
 
 import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
-import { FloatingActionButton } from '@/components/ui';
-import { useLeagues, useReferenceData, useSessions } from '@/hooks/journal';
+import { Card, FloatingActionButton } from '@/components/ui';
+import {
+  useLeagueGames,
+  useLeagues,
+  useReferenceData,
+  useSessions,
+} from '@/hooks/journal';
 import {
   lineHeight,
   spacing,
@@ -116,6 +125,8 @@ export default function JournalSessionsScreen() {
     removeSession,
     isCreating: isCreatingSession,
   } = useSessions(leagueId);
+  const { games: leagueGames, isLoading: isLeagueGamesLoading } =
+    useLeagueGames(leagueId);
 
   const [sessionDate, setSessionDate] = useState(
     new Date().toISOString().slice(0, 10)
@@ -210,6 +221,15 @@ export default function JournalSessionsScreen() {
       }) ?? null
     );
   }, [leagueClientSyncId, leagueId, leagues]);
+
+  const seasonSummary = useMemo(
+    () =>
+      buildSessionNightSummary(
+        leagueGames,
+        normalizeGamesPerSession(selectedLeague?.gamesPerSession)
+      ),
+    [leagueGames, selectedLeague?.gamesPerSession]
+  );
 
   const leagueName = selectedLeague?.name ?? draftLeagueName;
   const defaultSessionHouseId = selectedLeague?.houseId
@@ -995,6 +1015,48 @@ export default function JournalSessionsScreen() {
             <Text style={styles.errorText}>{sessionActionError}</Text>
           ) : null}
 
+          {leagueId ? (
+            <Card muted style={styles.summaryCard}>
+              <View style={styles.summaryHeaderRow}>
+                <Text style={styles.summaryTitle}>Season stats</Text>
+                <Text style={[styles.meta, styles.summaryValueText]}>
+                  Sessions: {String(displaySessions.length)}
+                </Text>
+              </View>
+              {isLeagueGamesLoading ? (
+                <Text style={styles.meta}>Loading...</Text>
+              ) : seasonSummary.gamesPlayed > 0 ? (
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.meta}>
+                      Games: {String(seasonSummary.gamesPlayed)}
+                    </Text>
+                    <Text style={[styles.meta, styles.summaryValueText]}>
+                      Series: {seasonSummary.totalPins}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.meta}>
+                      Average: {seasonSummary.average.toFixed(2)}
+                    </Text>
+                    <Text style={[styles.meta, styles.summaryValueText]}>
+                      High game: {seasonSummary.highGame ?? '-'}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.meta}>
+                      Low game: {seasonSummary.lowGame ?? '-'}
+                    </Text>
+                  </View>
+                  <Text style={styles.meta}>
+                    Strikes {seasonSummary.strikes} | Spares{' '}
+                    {seasonSummary.spares} | Opens {seasonSummary.opens}
+                  </Text>
+                </>
+              ) : null}
+            </Card>
+          ) : null}
+
           {isSessionsLoading ? (
             <Text style={styles.meta}>Loading sessions...</Text>
           ) : null}
@@ -1173,5 +1235,31 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
       color: colors.textSecondary,
+    },
+    summaryTitle: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    summaryCard: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+      gap: spacing.xs,
+    },
+    summaryHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      alignItems: 'center',
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    summaryValueText: {
+      textAlign: 'right',
+      opacity: 0.9,
     },
   });
