@@ -57,7 +57,9 @@ async function readBlobFromUri(uri: string): Promise<Blob> {
   return response.blob();
 }
 
-async function readBlobFromCacheCopy(selectedFile: SelectedBackupFile): Promise<Blob> {
+async function readBlobFromCacheCopy(
+  selectedFile: SelectedBackupFile
+): Promise<Blob> {
   if (!selectedFile.uri) {
     throw new Error('Selected file is missing a readable URI.');
   }
