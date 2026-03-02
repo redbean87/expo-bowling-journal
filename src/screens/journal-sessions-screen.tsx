@@ -993,7 +993,7 @@ export default function JournalSessionsScreen() {
     router,
     startTonight,
   ]);
-
+  console.log('[JournalSessionsScreen] render');
   return (
     <ScreenLayout
       title="Sessions"
@@ -1246,6 +1246,8 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: spacing.sm,
       borderRadius: 10,
       gap: spacing.xs,
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.borderStrong,
     },
     summaryHeaderRow: {
       flexDirection: 'row',
