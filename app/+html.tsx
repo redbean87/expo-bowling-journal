@@ -22,11 +22,38 @@ export default function RootHtml({ children }: PropsWithChildren) {
           media="(prefers-color-scheme: dark)"
           name="theme-color"
         />
+        <style>{`
+          #app-boot-shell {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F5F7FB;
+            color: #1B6EF3;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: opacity 120ms ease-out;
+          }
+
+          @media (prefers-color-scheme: dark) {
+            #app-boot-shell {
+              background: #0F141D;
+            }
+          }
+        `}</style>
         <link href="/manifest.webmanifest" rel="manifest" />
         <link href="/icons/apple-touch-icon.png" rel="apple-touch-icon" />
         <ScrollViewStyleReset />
       </head>
-      <body>{children}</body>
+      <body>
+        <div aria-live="polite" id="app-boot-shell">
+          Loading Bowling Journal…
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

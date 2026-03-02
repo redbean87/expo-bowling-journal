@@ -102,6 +102,8 @@ When an item is complete, move it to `## Completed`.
 - [x] Enable native SQLite backup export via share sheet (Android-first, iOS-compatible)
 - [x] Harden native SQLite import URI/file-size handling for Android providers
 - [x] Add app-wide dark mode with system/manual appearance preference
+- [x] Keep native splash visible through auth bootstrap to eliminate startup index-route flicker
+- [x] Add web/PWA boot shell handoff to avoid first-paint startup flicker before auth hydration
 
 ## Decision Log
 
