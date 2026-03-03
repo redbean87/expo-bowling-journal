@@ -29,4 +29,13 @@ test('sqlite export uses single query with by_user frame scan and deterministic 
 
   // Frame rows are assigned sqliteIds via a running counter (not per-chunk offset)
   assert.equal(exportsSource.includes('let sqliteIdCounter = 0'), true);
+
+  // frames is serialized as a JSON string to avoid Convex's 8192-element array
+  // limit; the key in the return object must be framesJson, not frames
+  assert.equal(exportsSource.includes('framesJson: JSON.stringify('), true);
+  assert.equal(
+    exportsSource.includes('frames: (() => {'),
+    false,
+    'frames must not be returned as a bare array'
+  );
 });

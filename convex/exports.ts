@@ -538,44 +538,53 @@ export const getSqliteBackupSnapshot = query({
           date: game.date ?? null,
         })
       ),
-      frames: (() => {
-        let sqliteIdCounter = 0;
-        return exportContext.sortedGames.flatMap((game) => {
-          const framesForGame = framesByGameId.get(String(game._id)) ?? [];
-          const gameFk =
-            exportContext.gameSqliteIdById.get(String(game._id)) ?? null;
-          const weekFk =
-            exportContext.weekSqliteIdById.get(String(game.sessionId)) ?? null;
-          const leagueFk =
-            exportContext.leagueSqliteIdById.get(String(game.leagueId)) ?? null;
+      // Serialized as a JSON string to avoid Convex's 8192-element array limit.
+      // Heavy users with 1000+ games can produce 10,000+ legacy frame rows
+      // (up to 12 rows per game for strike-heavy 10th frames). The client
+      // deserializes framesJson back into the frames array before POSTing to
+      // the worker, so the worker receives the same snapshot shape as before.
+      framesJson: JSON.stringify(
+        (() => {
+          let sqliteIdCounter = 0;
+          return exportContext.sortedGames.flatMap((game) => {
+            const framesForGame = framesByGameId.get(String(game._id)) ?? [];
+            const gameFk =
+              exportContext.gameSqliteIdById.get(String(game._id)) ?? null;
+            const weekFk =
+              exportContext.weekSqliteIdById.get(String(game.sessionId)) ??
+              null;
+            const leagueFk =
+              exportContext.leagueSqliteIdById.get(String(game.leagueId)) ??
+              null;
 
-          return buildLegacyFrameRowsForGame({
-            frames: framesForGame.map((frame) => ({
-              frameNumber: frame.frameNumber,
-              roll1: frame.roll1,
-              roll2: frame.roll2 ?? null,
-              roll3: frame.roll3 ?? null,
-              ballId: frame.ballId ? String(frame.ballId) : null,
-              pins: frame.pins ?? null,
-              scores: frame.scores ?? null,
-              score: frame.score ?? null,
-              flags: frame.flags ?? null,
-              pocket: frame.pocket ?? null,
-              footBoard: frame.footBoard ?? null,
-              targetBoard: frame.targetBoard ?? null,
-            })),
-            gameFk,
-            weekFk,
-            leagueFk,
-            ballSqliteIdById: exportContext.ballSqliteIdById,
-          }).map(
-            (row): SqliteFrameRow => ({
-              sqliteId: ++sqliteIdCounter,
-              ...row,
-            })
-          );
-        });
-      })(),
+            return buildLegacyFrameRowsForGame({
+              frames: framesForGame.map((frame) => ({
+                frameNumber: frame.frameNumber,
+                roll1: frame.roll1,
+                roll2: frame.roll2 ?? null,
+                roll3: frame.roll3 ?? null,
+                ballId: frame.ballId ? String(frame.ballId) : null,
+                pins: frame.pins ?? null,
+                scores: frame.scores ?? null,
+                score: frame.score ?? null,
+                flags: frame.flags ?? null,
+                pocket: frame.pocket ?? null,
+                footBoard: frame.footBoard ?? null,
+                targetBoard: frame.targetBoard ?? null,
+              })),
+              gameFk,
+              weekFk,
+              leagueFk,
+              ballSqliteIdById: exportContext.ballSqliteIdById,
+            }).map(
+              (row): SqliteFrameRow => ({
+                sqliteId: ++sqliteIdCounter,
+                ...row,
+              })
+            );
+          });
+        })()
+      ),
       bjMeta: [
         { key: 'schemaVersion', value: '1' },
         { key: 'exportedAt', value: String(Date.now()) },

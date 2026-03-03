@@ -100,21 +100,9 @@ export type SqliteBackupSnapshot = {
     lane?: number | null;
     date?: number | string | null;
   }>;
-  frames: Array<{
-    sqliteId: number;
-    gameFk?: number | null;
-    weekFk?: number | null;
-    leagueFk?: number | null;
-    ballFk?: number | null;
-    frameNum?: number | null;
-    pins?: number | null;
-    scores?: number | null;
-    score?: number | null;
-    flags?: number | null;
-    pocket?: number | null;
-    footBoard?: number | null;
-    targetBoard?: number | null;
-  }>;
+  // Serialized as a JSON string to avoid Convex's 8192-element array limit.
+  // Deserialize with JSON.parse before passing to the worker.
+  framesJson: string;
   bjMeta: Array<{
     key: string;
     value: string;

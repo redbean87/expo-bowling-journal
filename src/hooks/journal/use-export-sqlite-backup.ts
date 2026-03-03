@@ -43,10 +43,18 @@ export function useExportSqliteBackup() {
       setIsExporting(true);
 
       try {
-        const snapshot = await convex.query(
+        const raw = await convex.query(
           convexJournalService.getSqliteBackupSnapshot,
           {}
         );
+        // framesJson is a serialized string to avoid Convex's 8192-element
+        // array limit. Reconstruct the full snapshot with frames as an array
+        // before sending to the worker, which expects the standard shape.
+        const { framesJson, ...snapshotWithoutFrames } = raw;
+        const snapshot = {
+          ...snapshotWithoutFrames,
+          frames: JSON.parse(framesJson),
+        };
         const defaultFileName = getDefaultExportFileName();
         const requestedFileName = sanitizeBackupFileName(
           defaultFileName,
