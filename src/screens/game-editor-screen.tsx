@@ -152,7 +152,7 @@ export default function GameEditorScreen() {
     buildSuggestions,
     createBall,
     createPattern,
-  } = useReferenceData();
+  } = useReferenceData({ includeRecent: isDetailsVisible });
   const hasSignedInBefore = useSignedInHistory(isAuthenticated);
 
   const orderedSessionGames = useMemo(

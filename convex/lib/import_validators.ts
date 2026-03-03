@@ -135,14 +135,16 @@ export const replaceAllCleanupTableValidator = v.union(
   v.literal('games'),
   v.literal('sessions'),
   v.literal('leagues'),
-  v.literal('balls'),
-  v.literal('importRawGames'),
-  v.literal('importRawFrames'),
-  v.literal('importRawWeeks'),
-  v.literal('importRawLeagues'),
-  v.literal('importRawBalls'),
-  v.literal('importRawPatterns'),
-  v.literal('importRawHouses')
+  v.literal('balls')
+  // NOTE: Raw mirror table literals are disabled — uncomment if raw mirror
+  // persistence is re-enabled and these are added back to REPLACE_ALL_CLEANUP_TABLES.
+  // v.literal('importRawGames'),
+  // v.literal('importRawFrames'),
+  // v.literal('importRawWeeks'),
+  // v.literal('importRawLeagues'),
+  // v.literal('importRawBalls'),
+  // v.literal('importRawPatterns'),
+  // v.literal('importRawHouses')
 );
 
 export const rawImportTableValidator = v.union(

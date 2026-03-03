@@ -100,19 +100,21 @@ export const REPLACE_ALL_CLEANUP_TABLES = [
   'sessions',
   'leagues',
   'balls',
-  'importRawGames',
-  'importRawFrames',
-  'importRawWeeks',
-  'importRawLeagues',
-  'importRawBalls',
-  'importRawPatterns',
-  'importRawHouses',
+  // NOTE: Raw mirror tables are excluded — persistence is disabled so there is
+  // nothing to clean up. Uncomment if raw mirror persistence is re-enabled.
+  // 'importRawGames',
+  // 'importRawFrames',
+  // 'importRawWeeks',
+  // 'importRawLeagues',
+  // 'importRawBalls',
+  // 'importRawPatterns',
+  // 'importRawHouses',
 ] as const;
 
 export type ReplaceAllCleanupTable =
   (typeof REPLACE_ALL_CLEANUP_TABLES)[number];
 
-export const DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE = 128;
+export const DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE = 512;
 export const DEFAULT_RAW_IMPORT_CHUNK_SIZE = 500;
 
 export type RawImportTable =

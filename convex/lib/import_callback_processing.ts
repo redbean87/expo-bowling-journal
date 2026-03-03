@@ -243,7 +243,7 @@ async function runReplaceAllCleanup(
   }
 }
 
-async function persistRawImportMirror(
+async function _persistRawImportMirror(
   runMutation: (mutationRef: unknown, args: unknown) => Promise<unknown>,
   batchId: Id<'importBatches'>,
   snapshot: CallbackSnapshot
@@ -388,7 +388,9 @@ async function processSnapshotPayload(
     const snapshot =
       parsedSnapshotJson ?? (payload.snapshot as CallbackSnapshot);
 
-    await persistRawImportMirror(runMutation, batch._id, snapshot);
+    // NOTE: Raw mirror persistence is disabled — raw tables are write-only dead
+    // weight (never read after import). Uncomment to re-enable if needed.
+    // await _persistRawImportMirror(runMutation, batch._id, snapshot);
     await persistCanonicalFrames(
       runMutation,
       batch._id,

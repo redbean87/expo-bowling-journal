@@ -2,12 +2,12 @@ import {
   createImportBatchForSnapshotMutationRef,
   deleteUserDocsChunkForImportMutationRef,
   importSqliteSnapshotAfterCleanupMutationRef,
-  persistRawImportChunkForBatchMutationRef,
+  // persistRawImportChunkForBatchMutationRef, // disabled with raw mirror persistence
 } from './import_function_refs';
-import { chunkRows } from './import_raw_mirror';
+// import { chunkRows } from './import_raw_mirror'; // disabled with raw mirror persistence
 import { clearUserImportDataInChunks } from './import_replace_all_cleanup';
 import {
-  DEFAULT_RAW_IMPORT_CHUNK_SIZE,
+  // DEFAULT_RAW_IMPORT_CHUNK_SIZE, // disabled with raw mirror persistence
   DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE,
   type ImportResult,
   type SqliteSnapshotInput,
@@ -44,25 +44,26 @@ export async function runImportSqliteSnapshotAction(
     sourceHash: args.sourceHash,
   })) as Id<'importBatches'>;
 
-  for (const [table, rows] of [
-    ['importRawHouses', args.houses],
-    ['importRawPatterns', args.patterns],
-    ['importRawBalls', args.balls],
-    ['importRawLeagues', args.leagues],
-    ['importRawWeeks', args.weeks],
-    ['importRawGames', args.games],
-    ['importRawFrames', args.frames],
-  ] as const) {
-    const chunks = chunkRows(rows, DEFAULT_RAW_IMPORT_CHUNK_SIZE);
-
-    for (const chunk of chunks) {
-      await runMutation(persistRawImportChunkForBatchMutationRef, {
-        batchId,
-        table,
-        rows: chunk,
-      });
-    }
-  }
+  // NOTE: Raw mirror persistence is disabled — raw tables are write-only dead
+  // weight (never read after import). Uncomment to re-enable if needed.
+  // for (const [table, rows] of [
+  //   ['importRawHouses', args.houses],
+  //   ['importRawPatterns', args.patterns],
+  //   ['importRawBalls', args.balls],
+  //   ['importRawLeagues', args.leagues],
+  //   ['importRawWeeks', args.weeks],
+  //   ['importRawGames', args.games],
+  //   ['importRawFrames', args.frames],
+  // ] as const) {
+  //   const chunks = chunkRows(rows, DEFAULT_RAW_IMPORT_CHUNK_SIZE);
+  //   for (const chunk of chunks) {
+  //     await runMutation(persistRawImportChunkForBatchMutationRef, {
+  //       batchId,
+  //       table,
+  //       rows: chunk,
+  //     });
+  //   }
+  // }
 
   return runMutation(importSqliteSnapshotAfterCleanupMutationRef, {
     userId,

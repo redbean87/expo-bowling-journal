@@ -45,41 +45,44 @@ async function takeUserDocsForCleanup(
         .query('balls')
         .withIndex('by_user', (q) => q.eq('userId', userId))
         .take(limit);
-    case 'importRawGames':
-      return ctx.db
-        .query('importRawGames')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawFrames':
-      return ctx.db
-        .query('importRawFrames')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawWeeks':
-      return ctx.db
-        .query('importRawWeeks')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawLeagues':
-      return ctx.db
-        .query('importRawLeagues')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawBalls':
-      return ctx.db
-        .query('importRawBalls')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawPatterns':
-      return ctx.db
-        .query('importRawPatterns')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
-    case 'importRawHouses':
-      return ctx.db
-        .query('importRawHouses')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .take(limit);
+    // NOTE: Raw mirror table cases are disabled — uncomment if raw mirror
+    // persistence is re-enabled and these tables are added back to
+    // REPLACE_ALL_CLEANUP_TABLES.
+    // case 'importRawGames':
+    //   return ctx.db
+    //     .query('importRawGames')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawFrames':
+    //   return ctx.db
+    //     .query('importRawFrames')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawWeeks':
+    //   return ctx.db
+    //     .query('importRawWeeks')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawLeagues':
+    //   return ctx.db
+    //     .query('importRawLeagues')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawBalls':
+    //   return ctx.db
+    //     .query('importRawBalls')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawPatterns':
+    //   return ctx.db
+    //     .query('importRawPatterns')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
+    // case 'importRawHouses':
+    //   return ctx.db
+    //     .query('importRawHouses')
+    //     .withIndex('by_user', (q) => q.eq('userId', userId))
+    //     .take(limit);
   }
 }
 
