@@ -32,13 +32,7 @@ export default function JournalLayout() {
       />
       <Stack.Screen
         name="[leagueId]/sessions/[sessionId]/games/[gameId]"
-        getId={({ params }) => {
-          const gameId = params?.gameId as string | undefined;
-          if (!gameId || gameId === 'new') {
-            return `new-${(params?.draftNonce as string | undefined) ?? 'x'}`;
-          }
-          return gameId;
-        }}
+        dangerouslySingular
         options={{
           title: 'Game',
         }}
