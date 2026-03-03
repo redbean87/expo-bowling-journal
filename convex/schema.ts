@@ -115,7 +115,8 @@ export default defineSchema({
     targetBoard: v.optional(v.union(v.number(), v.null())),
   })
     .index('by_game', ['gameId'])
-    .index('by_user_game', ['userId', 'gameId']),
+    .index('by_user_game', ['userId', 'gameId'])
+    .index('by_user', ['userId']),
   balls: defineTable({
     userId: v.id('users'),
     name: v.string(),

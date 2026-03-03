@@ -133,17 +133,6 @@ export type SqliteBackupSnapshot = {
   }>;
 };
 
-export type SqliteBackupSnapshotBase = Omit<SqliteBackupSnapshot, 'frames'> & {
-  totalFrames: number;
-};
-
-export type SqliteBackupFramesChunk = {
-  offset: number;
-  limit: number;
-  totalFrames: number;
-  frames: SqliteBackupSnapshot['frames'];
-};
-
 export const viewerQuery = makeFunctionReference<
   'query',
   Record<string, never>,
@@ -577,17 +566,8 @@ export const importsGetImportStatusQuery = makeFunctionReference<
   }
 >('imports:getImportStatus');
 
-export const exportsGetSqliteBackupSnapshotBaseQuery = makeFunctionReference<
+export const exportsGetSqliteBackupSnapshotQuery = makeFunctionReference<
   'query',
   Record<string, never>,
-  SqliteBackupSnapshotBase
->('exports:getSqliteBackupSnapshotBase');
-
-export const exportsGetSqliteBackupFramesChunkQuery = makeFunctionReference<
-  'query',
-  {
-    offset: number;
-    limit: number;
-  },
-  SqliteBackupFramesChunk
->('exports:getSqliteBackupFramesChunk');
+  SqliteBackupSnapshot
+>('exports:getSqliteBackupSnapshot');

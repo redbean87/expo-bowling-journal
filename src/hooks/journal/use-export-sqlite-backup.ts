@@ -8,8 +8,6 @@ import {
 } from './export-backup/export-filename';
 import { saveAndShareNativeBackupFile } from './export-backup/native-export-file';
 
-import type { SqliteBackupSnapshot } from '@/services/journal';
-
 import { convexJournalService } from '@/services/journal';
 
 function getDefaultExportFileName() {
@@ -45,33 +43,10 @@ export function useExportSqliteBackup() {
       setIsExporting(true);
 
       try {
-        const snapshotBase = await convex.query(
-          convexJournalService.getSqliteBackupSnapshotBase,
+        const snapshot = await convex.query(
+          convexJournalService.getSqliteBackupSnapshot,
           {}
         );
-        const frames: SqliteBackupSnapshot['frames'] = [];
-        const chunkSize = 1000;
-
-        for (
-          let offset = 0;
-          offset < snapshotBase.totalFrames;
-          offset += chunkSize
-        ) {
-          const chunk = await convex.query(
-            convexJournalService.getSqliteBackupFramesChunk,
-            {
-              offset,
-              limit: chunkSize,
-            }
-          );
-          frames.push(...chunk.frames);
-        }
-
-        const { totalFrames: _, ...snapshotWithoutFrames } = snapshotBase;
-        const snapshot: SqliteBackupSnapshot = {
-          ...snapshotWithoutFrames,
-          frames,
-        };
         const defaultFileName = getDefaultExportFileName();
         const requestedFileName = sanitizeBackupFileName(
           defaultFileName,

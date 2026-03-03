@@ -1,9 +1,6 @@
-import { v } from 'convex/values';
-
 import { query } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import {
-  countLegacyRowsForGameFrames,
   frameHasSpare,
   packPinsFromRolls,
   toLegacyPackedPins,
@@ -335,54 +332,52 @@ function buildExportContext({
   };
 }
 
-export const getSqliteBackupSnapshotBase = query({
+export const getSqliteBackupSnapshot = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
 
-    const [leagues, sessions, games, balls] = await Promise.all([
-      ctx.db
-        .query('leagues')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('sessions')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('games')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('balls')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-    ]);
-    const [houses, patterns] = await Promise.all([
-      ctx.db.query('houses').collect(),
-      ctx.db.query('patterns').collect(),
-    ]);
-    const totalFrames = (
-      await Promise.all(
-        games.map(async (game) => {
-          const gameFrames = await ctx.db
-            .query('frames')
-            .withIndex('by_user_game', (q) =>
-              q.eq('userId', userId).eq('gameId', game._id)
-            )
-            .collect();
+    const [[leagues, sessions, games, balls], [houses, patterns], allFrames] =
+      await Promise.all([
+        Promise.all([
+          ctx.db
+            .query('leagues')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .collect(),
+          ctx.db
+            .query('sessions')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .collect(),
+          ctx.db
+            .query('games')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .collect(),
+          ctx.db
+            .query('balls')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .collect(),
+        ]),
+        Promise.all([
+          ctx.db.query('houses').collect(),
+          ctx.db.query('patterns').collect(),
+        ]),
+        ctx.db
+          .query('frames')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect(),
+      ]);
 
-          return countLegacyRowsForGameFrames(
-            gameFrames.map((frame) => ({
-              frameNumber: frame.frameNumber,
-              roll1: frame.roll1,
-              roll2: frame.roll2 ?? null,
-              roll3: frame.roll3 ?? null,
-            }))
-          );
-        })
-      )
-    ).reduce((sum, count) => sum + count, 0);
+    // Group frames by gameId for O(1) lookup per game
+    const framesByGameId = new Map<string, typeof allFrames>();
+    for (const frame of allFrames) {
+      const key = String(frame.gameId);
+      const bucket = framesByGameId.get(key);
+      if (bucket) {
+        bucket.push(frame);
+      } else {
+        framesByGameId.set(key, [frame]);
+      }
+    }
 
     const houseIds = new Set<string>();
     const patternIds = new Set<string>();
@@ -543,79 +538,10 @@ export const getSqliteBackupSnapshotBase = query({
           date: game.date ?? null,
         })
       ),
-      totalFrames,
-      bjMeta: [
-        { key: 'schemaVersion', value: '1' },
-        { key: 'exportedAt', value: String(Date.now()) },
-        { key: 'format', value: 'bowling-journal-sqlite-export' },
-      ],
-      bjSessionExt: sortedSessions.map((session) => ({
-        weekFk: weekSqliteIdById.get(String(session._id)) ?? 0,
-        laneContextJson: session.laneContext
-          ? JSON.stringify(session.laneContext)
-          : null,
-        notesJson: session.notes ? JSON.stringify(session.notes) : null,
-      })),
-      bjGameExt: sortedGames.map((game) => ({
-        gameFk: gameSqliteIdById.get(String(game._id)) ?? 0,
-        laneContextJson: game.laneContext
-          ? JSON.stringify(game.laneContext)
-          : null,
-        ballSwitchesJson: game.ballSwitches
-          ? JSON.stringify(game.ballSwitches)
-          : null,
-        handicap: game.handicap ?? null,
-        notesJson: game.notes ? JSON.stringify(game.notes) : null,
-      })),
-    };
-  },
-});
-
-export const getSqliteBackupFramesChunk = query({
-  args: {
-    offset: v.number(),
-    limit: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    const offset = Math.max(0, Math.trunc(args.offset));
-    const limit = Math.max(1, Math.min(2000, Math.trunc(args.limit)));
-
-    const [leagues, sessions, games, balls] = await Promise.all([
-      ctx.db
-        .query('leagues')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('sessions')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('games')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      ctx.db
-        .query('balls')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-    ]);
-
-    const exportContext = buildExportContext({
-      games: games as Array<Record<string, unknown>>,
-      sessions: sessions as Array<Record<string, unknown>>,
-      leagues: leagues as Array<Record<string, unknown>>,
-      balls: balls as Array<Record<string, unknown>>,
-    });
-
-    const allFrames = (
-      await Promise.all(
-        exportContext.sortedGames.map(async (game) => {
-          const framesForGame = await ctx.db
-            .query('frames')
-            .withIndex('by_user_game', (q) =>
-              q.eq('userId', userId).eq('gameId', game._id as never)
-            )
-            .collect();
+      frames: (() => {
+        let sqliteIdCounter = 0;
+        return exportContext.sortedGames.flatMap((game) => {
+          const framesForGame = framesByGameId.get(String(game._id)) ?? [];
           const gameFk =
             exportContext.gameSqliteIdById.get(String(game._id)) ?? null;
           const weekFk =
@@ -642,26 +568,37 @@ export const getSqliteBackupFramesChunk = query({
             weekFk,
             leagueFk,
             ballSqliteIdById: exportContext.ballSqliteIdById,
-          });
-        })
-      )
-    ).flat();
-
-    const totalFrames = allFrames.length;
-    const slice = allFrames.slice(offset, offset + limit);
-
-    const frames = slice.map(
-      (frame, index): SqliteFrameRow => ({
-        sqliteId: offset + index + 1,
-        ...frame,
-      })
-    );
-
-    return {
-      offset,
-      limit,
-      totalFrames,
-      frames,
+          }).map(
+            (row): SqliteFrameRow => ({
+              sqliteId: ++sqliteIdCounter,
+              ...row,
+            })
+          );
+        });
+      })(),
+      bjMeta: [
+        { key: 'schemaVersion', value: '1' },
+        { key: 'exportedAt', value: String(Date.now()) },
+        { key: 'format', value: 'bowling-journal-sqlite-export' },
+      ],
+      bjSessionExt: sortedSessions.map((session) => ({
+        weekFk: weekSqliteIdById.get(String(session._id)) ?? 0,
+        laneContextJson: session.laneContext
+          ? JSON.stringify(session.laneContext)
+          : null,
+        notesJson: session.notes ? JSON.stringify(session.notes) : null,
+      })),
+      bjGameExt: sortedGames.map((game) => ({
+        gameFk: gameSqliteIdById.get(String(game._id)) ?? 0,
+        laneContextJson: game.laneContext
+          ? JSON.stringify(game.laneContext)
+          : null,
+        ballSwitchesJson: game.ballSwitches
+          ? JSON.stringify(game.ballSwitches)
+          : null,
+        handicap: game.handicap ?? null,
+        notesJson: game.notes ? JSON.stringify(game.notes) : null,
+      })),
     };
   },
 });
