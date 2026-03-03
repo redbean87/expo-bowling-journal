@@ -59,7 +59,14 @@ import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card, FloatingActionButton } from '@/components/ui';
-import { useGames, useLeagues, useSessions } from '@/hooks/journal';
+import {
+  useGames,
+  useLeagueGames,
+  useLeagues,
+  useSessions,
+} from '@/hooks/journal';
+import { normalizeGamesPerSession } from './journal-games-night-summary';
+import { computeAverageTargets } from '@/utils/average-targets';
 import {
   lineHeight,
   spacing,
@@ -129,6 +136,7 @@ export default function JournalGamesScreen() {
   const { games, removeGame, isLoading: isGamesLoading } = useGames(sessionId);
   const { leagues } = useLeagues();
   const { sessions } = useSessions(leagueId);
+  const { games: leagueGames } = useLeagueGames(leagueId);
   const [queuedSessionEntries, setQueuedSessionEntries] = useState<
     QueuedGameSaveEntry[]
   >([]);
@@ -546,6 +554,33 @@ export default function JournalGamesScreen() {
     [displayGames, selectedLeague?.gamesPerSession]
   );
 
+  const nightTargets = useMemo(() => {
+    const n = normalizeGamesPerSession(selectedLeague?.gamesPerSession);
+
+    if (n === null) {
+      return null;
+    }
+
+    const priorGames = leagueGames.filter(
+      (g) => sessionId === null || g.sessionId !== sessionId
+    );
+    const priorGamesPlayed = priorGames.length;
+
+    if (priorGamesPlayed === 0) {
+      return null;
+    }
+
+    const priorTotalPins = priorGames.reduce((sum, g) => sum + g.totalScore, 0);
+    const floorAvg = Math.floor(priorTotalPins / priorGamesPlayed);
+    const { holdTarget, gainTarget } = computeAverageTargets(
+      priorGamesPlayed,
+      priorTotalPins,
+      n
+    );
+
+    return { floorAvg, holdTarget, gainTarget };
+  }, [leagueGames, sessionId, selectedLeague?.gamesPerSession]);
+
   const openGameEditor = (gameId: string, draftNonce: string | null = null) => {
     const { leagueRouteId, sessionRouteId } = resolveJournalRouteIds({
       leagueId,
@@ -761,6 +796,18 @@ export default function JournalGamesScreen() {
                       Low game: {nightSummary.lowGame ?? '-'}
                     </Text>
                   </View>
+                  {nightTargets !== null ? (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.meta}>
+                        Maintain ({String(nightTargets.floorAvg)}):{' '}
+                        {String(nightTargets.holdTarget)}
+                      </Text>
+                      <Text style={[styles.meta, styles.summaryValueText]}>
+                        Increase ({String(nightTargets.floorAvg + 1)}):{' '}
+                        {String(nightTargets.gainTarget)}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={styles.meta}>
                     Strikes {nightSummary.strikes} | Spares{' '}
                     {nightSummary.spares} | Opens {nightSummary.opens}

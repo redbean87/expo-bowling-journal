@@ -121,9 +121,10 @@ export function useGameEditorAutosaveSync({
   const [autosaveRetryTick, setAutosaveRetryTick] = useState(0);
 
   const promoteDraftToQueue = useCallback(
-    async ({ updateUi }: { updateUi: boolean }) => {
+    async ({ updateUi, force }: { updateUi: boolean; force?: boolean }) => {
       const shouldQueueLocally =
-        hasSignedInBefore && (!isAuthenticated || isOfflineLikely());
+        force === true ||
+        (hasSignedInBefore && (!isAuthenticated || isOfflineLikely()));
 
       if (!didHydrate || !shouldQueueLocally) {
         return false;
@@ -350,7 +351,7 @@ export function useGameEditorAutosaveSync({
 
   useEffect(() => {
     return () => {
-      void promoteDraftToQueue({ updateUi: false });
+      void promoteDraftToQueue({ updateUi: false, force: true });
     };
   }, [promoteDraftToQueue]);
 

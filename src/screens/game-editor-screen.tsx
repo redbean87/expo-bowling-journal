@@ -69,6 +69,7 @@ import {
 import { usePreferences } from '@/providers/preferences-provider';
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
+import { computeAverageTargets } from '@/utils/average-targets';
 
 type CursorTarget = {
   frameIndex: number;
@@ -263,10 +264,11 @@ export default function GameEditorScreen() {
     if (priorGamesPlayed === 0) return null;
 
     const priorTotalPins = priorGames.reduce((sum, g) => sum + g.totalScore, 0);
-    const priorAvg = priorTotalPins / priorGamesPlayed;
-    const floorAvg = Math.floor(priorAvg);
-    const holdTarget = floorAvg * n;
-    const gainTarget = (floorAvg + 1) * (priorGamesPlayed + n) - priorTotalPins;
+    const { holdTarget, gainTarget } = computeAverageTargets(
+      priorGamesPlayed,
+      priorTotalPins,
+      n
+    );
 
     const perfectSeries = 300 * n;
     return { holdTarget, gainTarget, perfectSeries };

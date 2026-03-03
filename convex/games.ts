@@ -110,6 +110,20 @@ export const create = mutation({
         ? args.clientSyncId.trim() || null
         : null;
 
+    if (normalizedClientSyncId) {
+      const existing = await ctx.db
+        .query('games')
+        .withIndex('by_user_session', (q) =>
+          q.eq('userId', userId).eq('sessionId', args.sessionId)
+        )
+        .filter((q) => q.eq(q.field('clientSyncId'), normalizedClientSyncId))
+        .first();
+
+      if (existing) {
+        return existing._id;
+      }
+    }
+
     const gameId = await ctx.db.insert('games', {
       userId,
       sessionId: args.sessionId,

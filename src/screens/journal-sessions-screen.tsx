@@ -231,22 +231,6 @@ export default function JournalSessionsScreen() {
     [leagueGames, selectedLeague?.gamesPerSession]
   );
 
-  const seasonTargets = useMemo(() => {
-    if (seasonSummary.gamesPlayed === 0) return null;
-    const n = normalizeGamesPerSession(selectedLeague?.gamesPerSession) ?? 3;
-    const floorAvg = Math.floor(seasonSummary.average);
-    const holdTarget = floorAvg * n;
-    const gainTarget =
-      (floorAvg + 1) * (seasonSummary.gamesPlayed + n) -
-      seasonSummary.totalPins;
-    return { n, floorAvg, holdTarget, gainTarget };
-  }, [
-    seasonSummary.gamesPlayed,
-    seasonSummary.average,
-    seasonSummary.totalPins,
-    selectedLeague?.gamesPerSession,
-  ]);
-
   const leagueName = selectedLeague?.name ?? draftLeagueName;
   const defaultSessionHouseId = selectedLeague?.houseId
     ? String(selectedLeague.houseId)
@@ -1067,18 +1051,6 @@ export default function JournalSessionsScreen() {
                       Low game: {seasonSummary.lowGame ?? '-'}
                     </Text>
                   </View>
-                  {seasonTargets !== null ? (
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.meta}>
-                        Maintain ({String(seasonTargets.floorAvg)}):{' '}
-                        {String(seasonTargets.holdTarget)}
-                      </Text>
-                      <Text style={[styles.meta, styles.summaryValueText]}>
-                        Increase ({String(seasonTargets.floorAvg + 1)}):{' '}
-                        {String(seasonTargets.gainTarget)}
-                      </Text>
-                    </View>
-                  ) : null}
                   <Text style={styles.meta}>
                     Strikes {seasonSummary.strikes} | Spares{' '}
                     {seasonSummary.spares} | Opens {seasonSummary.opens}
