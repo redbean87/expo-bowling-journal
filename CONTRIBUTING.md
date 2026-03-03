@@ -33,19 +33,37 @@ Thanks for contributing to the Bowling Journal app.
 
 - Preview deploy:
   1. `eas env:pull --environment preview`
-  2. `npm run build:web`
-  3. `npm run deploy:web`
+  2. `npm run deploy:web` (runs `build:web` automatically before deploying)
 - Production deploy:
   1. `eas env:pull --environment production`
-  2. `npm run build:web`
-  3. `npm run deploy:web:prod`
+  2. `npm run deploy:web:prod` (runs `build:web` automatically before deploying)
 
-`npm run build:web` automatically rewrites `public/sw.js` with a unique build id so in-app PWA update prompts can detect each new deploy.
+`npm run build:web` automatically rewrites `public/sw.js` with a unique build id so in-app PWA update prompts can detect each new deploy. The deploy scripts chain this step automatically — never run `eas deploy` directly, as this would skip the build-id rewrite and serve stale PWA update fingerprints.
 
 Environment policy:
 
-- `preview` includes `EXPO_PUBLIC_CONVEX_URL` only
-- `production` includes `EXPO_PUBLIC_CONVEX_URL` and `EXPO_PUBLIC_IMPORT_WORKER_URL`
+- `preview` includes `EXPO_PUBLIC_CONVEX_URL` pointing at the preview Convex deployment
+- `production` includes `EXPO_PUBLIC_CONVEX_URL` pointing at the production Convex deployment (`marvelous-quail-215`) and `EXPO_PUBLIC_IMPORT_WORKER_URL`
+
+## Convex deployment
+
+Two Convex deployments are in use:
+
+- **Dev/preview**: `dev:different-lynx-597` — used for local development and preview web deploys
+- **Production**: `prod:marvelous-quail-215` — used for production web deploys only
+
+When deploying Convex schema/function changes to production:
+
+```
+CONVEX_DEPLOYMENT=prod:marvelous-quail-215 npx convex deploy
+```
+
+The worker automatically targets the correct Convex deployment based on its environment:
+
+- Default (dev): `wrangler deploy` → hits `different-lynx-597`
+- Production: `wrangler deploy --env production` → hits `marvelous-quail-215`
+
+The GitHub Actions worker deploy workflow uses `--env production` automatically on every push to `main`.
 
 ## Engineering conventions
 

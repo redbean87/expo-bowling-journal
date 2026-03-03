@@ -1,4 +1,5 @@
 const WINDOWS_RESERVED_FILE_CHARS = /[<>:"/\\|?*]/g;
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
 
 export function parseDownloadFileName(contentDispositionHeader: string | null) {

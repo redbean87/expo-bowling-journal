@@ -8,7 +8,6 @@ Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
 - [ ] Analytics views (trend lines, consistency, spare conversion)
-- [ ] Split preview/production Convex deployments for web hosting environments
 - [ ] Add CI automation for Expo web preview/production deploys
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
@@ -106,6 +105,11 @@ When an item is complete, move it to `## Completed`.
 - [x] Add web/PWA boot shell handoff to avoid first-paint startup flicker before auth hydration
 - [x] Add Maintain/Increase average targets row to season stats card with dynamic per-session gain math
 - [x] Add live series progress bar to game editor with dynamic zone proportions, color signals, and fixed-for-the-night targets
+- [x] Reduce Convex bandwidth: gate balls/patterns subscriptions behind details-visible toggle, disable raw import mirror persistence, raise cleanup chunk size, and replace paginated export with single by_user frame scan
+- [x] Split preview/production Convex deployments for web hosting environments (prod: marvelous-quail-215, dev: different-lynx-597)
+- [x] Add React Error Boundary to root layout to prevent blank-screen failures on uncaught render errors
+- [x] Add CI quality gate (typecheck, lint, format, test) on push/PR to main
+- [x] Add pre-deploy type check gate to worker deploy workflow; target production env stanza
 
 ## Decision Log
 
@@ -126,6 +130,7 @@ When an item is complete, move it to `## Completed`.
 - Code-health guardrails now enforce file-size thresholds and extraction policy; see `docs/code-health-guardrails.md`
 - Queue sync now flushes on reconnect, foreground, and queue-change events, with interval polling active only while pending entries exist
 - Added neutral SQLite backup export (`.db`) with compatibility core tables plus always-present `bj_*` extension tables for richer app restore
+- Production Convex deployment is `prod:marvelous-quail-215`; preview/dev remains `dev:different-lynx-597`; worker `[env.production]` stanza targets production Convex site URL
 
 ## Risks / Unknowns
 

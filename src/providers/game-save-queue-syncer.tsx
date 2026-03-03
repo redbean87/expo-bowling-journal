@@ -33,7 +33,7 @@ export function GameSaveQueueSyncer() {
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === 'active'
   );
-  const [isOnline, setIsOnline] = useState(!isNavigatorOffline());
+  const [isOnline, _setIsOnline] = useState(!isNavigatorOffline());
   const isOnlineRef = useRef(isOnline);
 
   const refreshQueuePresence = useCallback(async () => {

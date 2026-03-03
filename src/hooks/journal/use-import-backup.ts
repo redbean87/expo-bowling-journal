@@ -45,7 +45,9 @@ async function resolveNativeFileSize(
     if (info.exists && Number.isFinite(info.size) && info.size > 0) {
       return info.size;
     }
-  } catch {}
+  } catch {
+    // file system info unavailable; fall through to return 0
+  }
 
   return 0;
 }
