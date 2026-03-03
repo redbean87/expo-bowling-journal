@@ -1,4 +1,4 @@
-import type { Game } from '@/services/journal';
+import type { LeagueGameStat } from '@/services/journal';
 
 export type SessionNightSummary = {
   gamesPlayed: number;
@@ -30,26 +30,31 @@ export function normalizeGamesPerSession(
 }
 
 export function buildSessionNightSummary(
-  games: Game[],
+  games: LeagueGameStat[],
   gamesPerSession: number | null | undefined
 ): SessionNightSummary {
   const gamesPlayed = games.length;
   const targetGames = normalizeGamesPerSession(gamesPerSession);
-  const totalPins = games.reduce((total, game) => total + game.totalScore, 0);
-  const strikes = games.reduce((total, game) => total + game.strikes, 0);
-  const spares = games.reduce((total, game) => total + game.spares, 0);
-  const opens = games.reduce((total, game) => total + game.opens, 0);
+  const totalPins = games.reduce(
+    (total, game) => total + (game.totalScore ?? 0),
+    0
+  );
+  const strikes = games.reduce((total, game) => total + (game.strikes ?? 0), 0);
+  const spares = games.reduce((total, game) => total + (game.spares ?? 0), 0);
+  const opens = games.reduce((total, game) => total + (game.opens ?? 0), 0);
 
   let highGame: number | null = null;
   let lowGame: number | null = null;
 
   for (const game of games) {
-    if (highGame === null || game.totalScore > highGame) {
-      highGame = game.totalScore;
+    const score = game.totalScore ?? 0;
+
+    if (highGame === null || score > highGame) {
+      highGame = score;
     }
 
-    if (lowGame === null || game.totalScore < lowGame) {
-      lowGame = game.totalScore;
+    if (lowGame === null || score < lowGame) {
+      lowGame = score;
     }
   }
 
@@ -59,7 +64,7 @@ export function buildSessionNightSummary(
     const sessionId = game.sessionId;
     sessionTotals.set(
       sessionId,
-      (sessionTotals.get(sessionId) ?? 0) + game.totalScore
+      (sessionTotals.get(sessionId) ?? 0) + (game.totalScore ?? 0)
     );
   }
 

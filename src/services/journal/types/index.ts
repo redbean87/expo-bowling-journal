@@ -9,6 +9,7 @@ export type {
   GameListItem,
   House,
   League,
+  LeagueGameStat,
   LeagueId,
   Pattern,
   PatternId,

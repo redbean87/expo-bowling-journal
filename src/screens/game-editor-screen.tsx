@@ -263,7 +263,10 @@ export default function GameEditorScreen() {
     const priorGamesPlayed = priorGames.length;
     if (priorGamesPlayed === 0) return null;
 
-    const priorTotalPins = priorGames.reduce((sum, g) => sum + g.totalScore, 0);
+    const priorTotalPins = priorGames.reduce(
+      (sum, g) => sum + (g.totalScore ?? 0),
+      0
+    );
     const { holdTarget, gainTarget } = computeAverageTargets(
       priorGamesPlayed,
       priorTotalPins,

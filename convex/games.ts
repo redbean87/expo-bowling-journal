@@ -57,6 +57,35 @@ export const listByLeague = query({
   },
 });
 
+// Lean query returning only the fields needed for session/season stat
+// computations (average targets, night summaries, series progress bar).
+// Omits framePreview, ballSwitches, laneContext, notes, and other fields
+// that add ~500 bytes/game of dead weight to the live subscription payload.
+export const listStatsByLeague = query({
+  args: {
+    leagueId: v.id('leagues'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+
+    const games = await ctx.db
+      .query('games')
+      .withIndex('by_user_league', (q) =>
+        q.eq('userId', userId).eq('leagueId', args.leagueId)
+      )
+      .collect();
+
+    return games.map((game) => ({
+      _id: game._id,
+      sessionId: game.sessionId,
+      totalScore: game.totalScore,
+      strikes: game.strikes,
+      spares: game.spares,
+      opens: game.opens,
+    }));
+  },
+});
+
 export const getById = query({
   args: {
     gameId: v.id('games'),

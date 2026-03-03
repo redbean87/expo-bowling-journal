@@ -225,6 +225,21 @@ export const gamesListByLeagueQuery = makeFunctionReference<
   GameListItem[]
 >('games:listByLeague');
 
+export const gamesListStatsByLeagueQuery = makeFunctionReference<
+  'query',
+  {
+    leagueId: Id<'leagues'>;
+  },
+  Array<{
+    _id: Id<'games'>;
+    sessionId: Id<'sessions'>;
+    totalScore: number | undefined;
+    strikes: number | undefined;
+    spares: number | undefined;
+    opens: number | undefined;
+  }>
+>('games:listStatsByLeague');
+
 export const gamesCreateMutation = makeFunctionReference<
   'mutation',
   {

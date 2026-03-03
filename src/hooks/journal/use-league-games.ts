@@ -5,7 +5,7 @@ import { convexJournalService, type LeagueId } from '@/services/journal';
 export function useLeagueGames(leagueId: LeagueId | null) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const games = useQuery(
-    convexJournalService.listGamesByLeague,
+    convexJournalService.listGameStatsByLeague,
     isAuthenticated && leagueId ? { leagueId } : 'skip'
   );
 

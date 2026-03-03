@@ -18,6 +18,7 @@ export type {
   Game,
   GameListItem,
   GameId,
+  LeagueGameStat,
   ImportBallSwitchInput,
   ImportLaneContextInput,
   ImportStatus,

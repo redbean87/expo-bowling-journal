@@ -570,7 +570,10 @@ export default function JournalGamesScreen() {
       return null;
     }
 
-    const priorTotalPins = priorGames.reduce((sum, g) => sum + g.totalScore, 0);
+    const priorTotalPins = priorGames.reduce(
+      (sum, g) => sum + (g.totalScore ?? 0),
+      0
+    );
     const floorAvg = Math.floor(priorTotalPins / priorGamesPlayed);
     const { holdTarget, gainTarget } = computeAverageTargets(
       priorGamesPlayed,
