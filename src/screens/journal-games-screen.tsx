@@ -54,6 +54,7 @@ import {
   formatGameSequenceLabel,
   formatSessionWeekLabel,
 } from './journal-fast-lane-utils';
+import { normalizeGamesPerSession } from './journal-games-night-summary';
 
 import type { GameId, LeagueId, SessionId } from '@/services/journal';
 
@@ -65,8 +66,6 @@ import {
   useLeagues,
   useSessions,
 } from '@/hooks/journal';
-import { normalizeGamesPerSession } from './journal-games-night-summary';
-import { computeAverageTargets } from '@/utils/average-targets';
 import {
   lineHeight,
   spacing,
@@ -74,6 +73,7 @@ import {
   typeScale,
 } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
+import { computeAverageTargets } from '@/utils/average-targets';
 import { createDraftNonce } from '@/utils/draft-nonce';
 
 type QueuedSessionContext = {
