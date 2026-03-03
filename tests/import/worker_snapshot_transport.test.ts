@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
@@ -26,34 +27,44 @@ async function loadSqlWasmModule() {
   return new WebAssembly.Module(toArrayBuffer(wasmBytes));
 }
 
-test('Backup.pinpal parse path handles expected large frame count and callback transport uses snapshotJson', async () => {
-  const dbPath = resolve(process.cwd(), 'Backup.pinpal');
-  const dbBytes = await readFile(dbPath);
-  const wasmModule = await loadSqlWasmModule();
+const dbPath = resolve(process.cwd(), 'Backup.pinpal');
+const fixturePresent = existsSync(dbPath);
 
-  const parsedSnapshot = await parseBackupDatabaseToSnapshot(
-    toArrayBuffer(dbBytes),
-    {
-      sourceFileName: 'Backup.pinpal',
-      sourceHash: null,
-      wasmModule,
-    }
-  );
+test(
+  'Backup.pinpal parse path handles expected large frame count and callback transport uses snapshotJson',
+  {
+    skip: fixturePresent
+      ? false
+      : 'Backup.pinpal fixture not present at repo root',
+  },
+  async () => {
+    const dbBytes = await readFile(dbPath);
+    const wasmModule = await loadSqlWasmModule();
 
-  const frameCount = parsedSnapshot.snapshot.frames.length;
+    const parsedSnapshot = await parseBackupDatabaseToSnapshot(
+      toArrayBuffer(dbBytes),
+      {
+        sourceFileName: 'Backup.pinpal',
+        sourceHash: null,
+        wasmModule,
+      }
+    );
 
-  assert.equal(frameCount > 16_000, true);
+    const frameCount = parsedSnapshot.snapshot.frames.length;
 
-  const callbackPayload = buildImportingSnapshotJsonCallbackPayload(
-    'test_batch_12345678',
-    parsedSnapshot
-  );
+    assert.equal(frameCount > 16_000, true);
 
-  assert.equal(callbackPayload.stage, 'importing');
-  assert.equal(typeof callbackPayload.snapshotJson, 'string');
-  assert.equal('snapshot' in callbackPayload, false);
+    const callbackPayload = buildImportingSnapshotJsonCallbackPayload(
+      'test_batch_12345678',
+      parsedSnapshot
+    );
 
-  const decodedSnapshot = JSON.parse(callbackPayload.snapshotJson);
-  assert.equal(decodedSnapshot.frames.length, frameCount);
-  assert.equal(callbackPayload.snapshotJson.length > 100_000, true);
-});
+    assert.equal(callbackPayload.stage, 'importing');
+    assert.equal(typeof callbackPayload.snapshotJson, 'string');
+    assert.equal('snapshot' in callbackPayload, false);
+
+    const decodedSnapshot = JSON.parse(callbackPayload.snapshotJson);
+    assert.equal(decodedSnapshot.frames.length, frameCount);
+    assert.equal(callbackPayload.snapshotJson.length > 100_000, true);
+  }
+);
