@@ -24,3 +24,23 @@ dead_letter_queue = "sqlite-import-jobs-dlq"
 type = "CompiledWasm"
 globs = ["**/*.wasm"]
 fallthrough = true
+
+[env.production]
+
+[env.production.vars]
+CONVEX_URL = "https://marvelous-quail-215.convex.site"
+CONVEX_IMPORT_CALLBACK_PATH = "/api/import-callback"
+CORS_ALLOWED_ORIGINS = "https://expo-bowling-journal.expo.app"
+
+[[env.production.r2_buckets]]
+binding = "R2_IMPORTS"
+bucket_name = "bowling-imports"
+
+[[env.production.queues.producers]]
+binding = "IMPORT_QUEUE"
+queue = "sqlite-import-jobs"
+
+[[env.production.queues.consumers]]
+queue = "sqlite-import-jobs"
+dead_letter_queue = "sqlite-import-jobs-dlq"
+
