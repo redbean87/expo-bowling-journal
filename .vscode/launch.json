@@ -12,7 +12,7 @@
       "name": "Expo: start",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run start",
+      "command": "npm run start:tunnel",
       "cwd": "${workspaceFolder}"
     },
     {
