@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { AppProvider } from '@/providers/app-provider';
 import { useAppTheme } from '@/theme/use-app-theme';
 
@@ -19,9 +20,11 @@ if (Platform.OS !== 'web') {
 
 export default function RootLayout() {
   return (
-    <AppProvider>
-      <RootStack />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <RootStack />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 
