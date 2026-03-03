@@ -8,6 +8,7 @@ export type SessionNightSummary = {
   totalPins: number;
   average: number;
   highGame: number | null;
+  highSeries: number | null;
   lowGame: number | null;
   strikes: number;
   spares: number;
@@ -52,6 +53,23 @@ export function buildSessionNightSummary(
     }
   }
 
+  // Group games by sessionId and sum totalScore per session to find high series
+  const sessionTotals = new Map<string, number>();
+  for (const game of games) {
+    const sessionId = game.sessionId;
+    sessionTotals.set(
+      sessionId,
+      (sessionTotals.get(sessionId) ?? 0) + game.totalScore
+    );
+  }
+
+  let highSeries: number | null = null;
+  for (const total of sessionTotals.values()) {
+    if (highSeries === null || total > highSeries) {
+      highSeries = total;
+    }
+  }
+
   const isNightComplete = targetGames !== null && gamesPlayed >= targetGames;
   const remainingGames =
     targetGames === null ? null : Math.max(targetGames - gamesPlayed, 0);
@@ -64,6 +82,7 @@ export function buildSessionNightSummary(
     totalPins,
     average: gamesPlayed === 0 ? 0 : totalPins / gamesPlayed,
     highGame,
+    highSeries,
     lowGame,
     strikes,
     spares,

@@ -15,6 +15,7 @@ export type ThemeColors = {
   dangerBorder: string;
   warningMuted: string;
   warningBorder: string;
+  success: string;
   bannerBackground: string;
   bannerTextPrimary: string;
   bannerTextSecondary: string;
@@ -41,6 +42,7 @@ export const lightColors: ThemeColors = {
   dangerBorder: '#E8C5C2',
   warningMuted: '#FFF8E6',
   warningBorder: '#E2D2A7',
+  success: '#1A7F4B',
   bannerBackground: '#121621',
   bannerTextPrimary: '#FFFFFF',
   bannerTextSecondary: '#D8DEE9',
@@ -67,6 +69,7 @@ export const darkColors: ThemeColors = {
   dangerBorder: '#6A3E42',
   warningMuted: '#3A2F1A',
   warningBorder: '#7A6540',
+  success: '#4ADE80',
   bannerBackground: '#0A0E16',
   bannerTextPrimary: '#F4F7FF',
   bannerTextSecondary: '#BAC5DB',

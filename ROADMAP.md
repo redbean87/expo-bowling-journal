@@ -104,6 +104,8 @@ When an item is complete, move it to `## Completed`.
 - [x] Add app-wide dark mode with system/manual appearance preference
 - [x] Keep native splash visible through auth bootstrap to eliminate startup index-route flicker
 - [x] Add web/PWA boot shell handoff to avoid first-paint startup flicker before auth hydration
+- [x] Add Maintain/Increase average targets row to season stats card with dynamic per-session gain math
+- [x] Add live series progress bar to game editor with dynamic zone proportions, color signals, and fixed-for-the-night targets
 
 ## Decision Log
 

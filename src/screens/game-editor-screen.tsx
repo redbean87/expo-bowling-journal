@@ -21,6 +21,7 @@ import {
   getFrameStatus,
   getNextCursorAfterEntry,
   getPreferredRollField,
+  getProvisionalTotalScore,
   getRollValue,
   getStandingMaskForField,
   getVisibleRollFields,
@@ -38,6 +39,7 @@ import {
 import { removeLocalGameDraft } from './game-editor/game-local-draft-storage';
 import { buildGameSaveQueueId } from './game-editor/game-save-queue';
 import { loadGameSaveQueue } from './game-editor/game-save-queue-storage';
+import { SeriesProgressBar } from './game-editor/series-progress-bar';
 import { useGameEditorAutosaveSync } from './game-editor/use-game-editor-autosave-sync';
 import { useGameEditorHydration } from './game-editor/use-game-editor-hydration';
 import { useGameEditorRouteContext } from './game-editor/use-game-editor-route-context';
@@ -59,6 +61,7 @@ import type { GameId } from '@/services/journal';
 import {
   useGameEditor,
   useGames,
+  useLeagueGames,
   useLeagues,
   useReferenceData,
   useSessions,
@@ -110,6 +113,7 @@ export default function GameEditorScreen() {
   } = useGameEditor(gameId);
   const { games: sessionGames } = useGames(sessionId);
   const { leagues } = useLeagues();
+  const { games: leagueGames } = useLeagueGames(leagueId);
   const { sessions } = useSessions(leagueId);
   const { scoreboardLayout } = usePreferences();
 
@@ -247,6 +251,36 @@ export default function GameEditorScreen() {
 
     return gamesPerSession;
   }, [selectedLeague?.gamesPerSession]);
+
+  // Series progress bar: baseline is the season BEFORE tonight's session,
+  // so targets are fixed for the entire night regardless of games bowled.
+  const seriesProgress = useMemo(() => {
+    const n = targetGames ?? 3;
+    const priorGames = leagueGames.filter(
+      (g) => sessionId === null || g.sessionId !== sessionId
+    );
+    const priorGamesPlayed = priorGames.length;
+    if (priorGamesPlayed === 0) return null;
+
+    const priorTotalPins = priorGames.reduce((sum, g) => sum + g.totalScore, 0);
+    const priorAvg = priorTotalPins / priorGamesPlayed;
+    const floorAvg = Math.floor(priorAvg);
+    const holdTarget = floorAvg * n;
+    const gainTarget = (floorAvg + 1) * (priorGamesPlayed + n) - priorTotalPins;
+
+    const perfectSeries = 300 * n;
+    return { holdTarget, gainTarget, perfectSeries };
+  }, [leagueGames, sessionId, targetGames]);
+
+  const currentSeries = useMemo(() => {
+    // Sum completed session games excluding the current game (edit mode),
+    // then add the provisional score of the game being edited/created.
+    const completedPins = orderedSessionGames
+      .filter((g) => (!isCreateMode && gameId ? g._id !== gameId : true))
+      .reduce((sum, g) => sum + g.totalScore, 0);
+    const provisional = getProvisionalTotalScore(frameDrafts);
+    return completedPins + provisional;
+  }, [orderedSessionGames, isCreateMode, gameId, frameDrafts]);
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
     const weekMap = new Map<string, number>();
@@ -838,6 +872,15 @@ export default function GameEditorScreen() {
           layoutMode={scoreboardLayout}
           onSelectFrame={onSelectFrame}
         />
+
+        {seriesProgress !== null ? (
+          <SeriesProgressBar
+            currentSeries={currentSeries}
+            gainTarget={seriesProgress.gainTarget}
+            holdTarget={seriesProgress.holdTarget}
+            perfectSeries={seriesProgress.perfectSeries}
+          />
+        ) : null}
 
         <GameEditorDetailsSection
           ballOptions={ballOptions}

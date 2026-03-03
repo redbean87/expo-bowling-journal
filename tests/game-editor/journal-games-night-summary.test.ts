@@ -71,3 +71,73 @@ test('buildSessionNightSummary handles nights without a configured target', () =
   assert.equal(summary.remainingGames, null);
   assert.equal(summary.isNightComplete, false);
 });
+
+test('buildSessionNightSummary highSeries returns null when no games', () => {
+  const summary = buildSessionNightSummary([], null);
+  assert.equal(summary.highSeries, null);
+});
+
+test('buildSessionNightSummary highSeries returns total for a single session', () => {
+  const games = [
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 180,
+    }),
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 200,
+    }),
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 220,
+    }),
+  ];
+  const summary = buildSessionNightSummary(games, 3);
+  assert.equal(summary.highSeries, 600);
+});
+
+test('buildSessionNightSummary highSeries returns highest session total across multiple sessions', () => {
+  const games = [
+    // Session 1: 180 + 200 + 160 = 540
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 180,
+    }),
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 200,
+    }),
+    createGame({
+      sessionId: 'session-1' as Game['sessionId'],
+      totalScore: 160,
+    }),
+    // Session 2: 220 + 210 + 190 = 620
+    createGame({
+      sessionId: 'session-2' as Game['sessionId'],
+      totalScore: 220,
+    }),
+    createGame({
+      sessionId: 'session-2' as Game['sessionId'],
+      totalScore: 210,
+    }),
+    createGame({
+      sessionId: 'session-2' as Game['sessionId'],
+      totalScore: 190,
+    }),
+    // Session 3: 150 + 170 + 140 = 460
+    createGame({
+      sessionId: 'session-3' as Game['sessionId'],
+      totalScore: 150,
+    }),
+    createGame({
+      sessionId: 'session-3' as Game['sessionId'],
+      totalScore: 170,
+    }),
+    createGame({
+      sessionId: 'session-3' as Game['sessionId'],
+      totalScore: 140,
+    }),
+  ];
+  const summary = buildSessionNightSummary(games, 3);
+  assert.equal(summary.highSeries, 620);
+});
