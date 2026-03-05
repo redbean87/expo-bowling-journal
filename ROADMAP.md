@@ -113,6 +113,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Add CI quality gate (typecheck, lint, format, test) on push/PR to main
 - [x] Add pre-deploy type check gate to worker deploy workflow; target production env stanza
 - [x] Fix game number increment and series score doubling in create mode during autosave race window
+- [x] Fix game number and series double-count flash caused by Convex subscription pushing new game before draftGameId state commits; use clientSyncId exclusion as fallback in createModeGameNumber, currentGameNumber, and currentSeries
 
 ## Decision Log
 
