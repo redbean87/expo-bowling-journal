@@ -13,6 +13,7 @@ export type ThemeColors = {
   danger: string;
   dangerMuted: string;
   dangerBorder: string;
+  warning: string;
   warningMuted: string;
   warningBorder: string;
   success: string;
@@ -40,6 +41,7 @@ export const lightColors: ThemeColors = {
   danger: '#B42318',
   dangerMuted: '#FEF5F4',
   dangerBorder: '#E8C5C2',
+  warning: '#B54708',
   warningMuted: '#FFF8E6',
   warningBorder: '#E2D2A7',
   success: '#1A7F4B',
@@ -67,6 +69,7 @@ export const darkColors: ThemeColors = {
   danger: '#FF8E84',
   dangerMuted: '#372022',
   dangerBorder: '#6A3E42',
+  warning: '#FDB022',
   warningMuted: '#3A2F1A',
   warningBorder: '#7A6540',
   success: '#4ADE80',

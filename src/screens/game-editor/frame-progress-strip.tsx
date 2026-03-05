@@ -13,6 +13,7 @@ import {
   getFrameSplitFlags,
   getFrameSymbolParts,
   getSettledRunningTotals,
+  isOpenFrame,
   type RollField,
 } from './game-editor-frame-utils';
 
@@ -100,10 +101,11 @@ export function FrameProgressStrip({
     frameIndex: index,
     summaryParts: getFrameSymbolParts(index, frame),
     splitFlags: getFrameSplitFlags(index, frame),
+    isOpen: isOpenFrame(index, frame),
   }));
 
   const rowContent = frameStripData.map((frameData) => {
-    const { frameIndex, summaryParts, splitFlags } = frameData;
+    const { frameIndex, summaryParts, splitFlags, isOpen } = frameData;
     const slotCount = frameIndex === 9 ? 3 : 2;
     const isTenthFrame = frameIndex === 9;
     const isLastFrame = frameIndex === frameDrafts.length - 1;
@@ -177,10 +179,16 @@ export function FrameProgressStrip({
                       { fontSize: symbolFontSize },
                       part ? null : styles.symbolTextEmpty,
                       isActive ? styles.symbolTextActive : null,
-                      hasSplit ? styles.symbolTextSplit : null,
+                      hasSplit
+                        ? styles.symbolTextSplit
+                        : isOpen
+                          ? styles.symbolTextOpen
+                          : null,
                       hasSplit && isActive
                         ? styles.symbolTextSplitActive
-                        : null,
+                        : isOpen && isActive
+                          ? styles.symbolTextOpenActive
+                          : null,
                     ]}
                   >
                     {part}
@@ -332,6 +340,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     symbolTextSplitActive: {
       color: colors.danger,
+      opacity: 0.98,
+    },
+    symbolTextOpen: {
+      color: colors.warning,
+      opacity: 0.9,
+    },
+    symbolTextOpenActive: {
+      color: colors.warning,
       opacity: 0.98,
     },
     symbolPartMarker: {

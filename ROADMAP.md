@@ -7,7 +7,7 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] (enhancement) - highlight open frames similar to split frames
+- [ ] (enhancement) - highlight open frames in games screen game row card (GameRowCard + PreviewItem + journal-games-display)
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
@@ -20,6 +20,7 @@ When an item is complete, move it to `## Completed`.
 
 ## Completed
 
+- [x] Highlight open frames in amber in game editor scoreboard (FrameProgressStrip + warning color token + isOpenFrame utility)
 - [x] Fix game number jump and series score doubling during create-mode autosave race (use draftGameId ?? gameId as source of truth for currentGameNumber and currentSeries)
 - [x] Initialize repository
 - [x] Add reference docs from trading journal project

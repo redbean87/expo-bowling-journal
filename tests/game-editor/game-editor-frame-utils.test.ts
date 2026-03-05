@@ -13,6 +13,7 @@ import {
   getNextCursorAfterEntry,
   getStandingMaskForField,
   getVisibleRollFields,
+  isOpenFrame,
   isSplitLeaveMask,
   sanitizeFrameDraftsForEntry,
   toFrameDrafts,
@@ -517,4 +518,72 @@ test('frame 10 bonus rolls can be flagged as split leaves', () => {
     roll2: true,
     roll3: true,
   });
+});
+
+test('isOpenFrame returns false for a strike in frames 0-8', () => {
+  const frame: FrameDraft = {
+    roll1Mask: 0x3ff,
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(0, frame), false);
+});
+
+test('isOpenFrame returns false for a spare in frames 0-8', () => {
+  const frame: FrameDraft = {
+    roll1Mask: toMask(7),
+    roll2Mask: toMask(3),
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(3, frame), false);
+});
+
+test('isOpenFrame returns true for an open frame in frames 0-8', () => {
+  const frame: FrameDraft = {
+    roll1Mask: toMask(4),
+    roll2Mask: toMask(3),
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(5, frame), true);
+});
+
+test('isOpenFrame returns false for a partial frame (only roll1 entered)', () => {
+  const frame: FrameDraft = {
+    roll1Mask: toMask(6),
+    roll2Mask: null,
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(2, frame), false);
+});
+
+test('isOpenFrame returns true for gutter + gutter in frames 0-8', () => {
+  const frame: FrameDraft = { roll1Mask: 0, roll2Mask: 0, roll3Mask: null };
+  assert.equal(isOpenFrame(0, frame), true);
+});
+
+test('isOpenFrame returns false for 10th frame strike on ball 1', () => {
+  const frame: FrameDraft = {
+    roll1Mask: 0x3ff,
+    roll2Mask: 0x3ff,
+    roll3Mask: 0x3ff,
+  };
+  assert.equal(isOpenFrame(9, frame), false);
+});
+
+test('isOpenFrame returns false for 10th frame spare (9 + /)', () => {
+  const frame: FrameDraft = {
+    roll1Mask: toMask(9),
+    roll2Mask: toMask(1),
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(9, frame), false);
+});
+
+test('isOpenFrame returns true for 10th frame open (7 + 1)', () => {
+  const frame: FrameDraft = {
+    roll1Mask: toMask(7),
+    roll2Mask: toMask(1),
+    roll3Mask: null,
+  };
+  assert.equal(isOpenFrame(9, frame), true);
 });

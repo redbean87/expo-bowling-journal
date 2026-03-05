@@ -24,6 +24,7 @@ export {
 export {
   getFrameSplitFlags,
   isSplitLeaveMask,
+  isOpenFrame,
   type FrameSplitFlags,
 } from './frame-splits';
 export { getFrameSymbolParts, getFrameSymbolSummary } from './frame-symbols';

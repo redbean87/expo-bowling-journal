@@ -1,5 +1,6 @@
 import {
   FULL_PIN_MASK,
+  getRollValue,
   getStandingMaskForField,
   type FrameDraft,
   type RollField,
@@ -145,4 +146,35 @@ export function getFrameSplitFlags(
     roll2: isSplitForRoll(frameIndex, frame, 'roll2Mask'),
     roll3: isSplitForRoll(frameIndex, frame, 'roll3Mask'),
   };
+}
+
+// A frame is open when it is complete but neither a strike nor a spare was
+// achieved. For frames 0-8 that means both rolls are entered and the total
+// is less than 10. For the 10th frame only the first two rolls matter: if
+// roll1 is a strike a fill ball is awarded so it cannot be open; otherwise
+// it is open when roll1 + roll2 < 10 (no spare on ball 2).
+export function isOpenFrame(frameIndex: number, frame: FrameDraft): boolean {
+  const { roll1Mask, roll2Mask } = frame;
+
+  if (roll1Mask === null || roll2Mask === null) {
+    return false;
+  }
+
+  const roll1 = getRollValue(roll1Mask) as number;
+  const roll2 = getRollValue(roll2Mask) as number;
+
+  if (frameIndex < 9) {
+    if (roll1 === 10) {
+      return false;
+    }
+
+    return roll1 + roll2 < 10;
+  }
+
+  // 10th frame: a strike on ball 1 earns fill balls — not an open frame.
+  if (roll1 === 10) {
+    return false;
+  }
+
+  return roll1 + roll2 < 10;
 }
