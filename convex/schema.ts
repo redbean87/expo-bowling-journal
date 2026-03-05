@@ -87,7 +87,7 @@ export default defineSchema({
           v.object({
             text: v.string(),
             hasSplit: v.boolean(),
-            isOpen: v.boolean(),
+            isOpen: v.optional(v.boolean()),
           })
         ),
         v.null()
