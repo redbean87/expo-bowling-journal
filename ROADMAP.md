@@ -8,8 +8,8 @@ Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
 - [ ] (enhancement) - highlight open frames similar to split frames
-- [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Add CI automation for Expo web preview/production deploys
+- [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
 - [ ] Unify journal create/action affordances (FAB vs overflow menu) with a single platform-consistent interaction pattern
@@ -114,6 +114,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Add pre-deploy type check gate to worker deploy workflow; target production env stanza
 - [x] Fix game number increment and series score doubling in create mode during autosave race window
 - [x] Fix game number and series double-count flash caused by Convex subscription pushing new game before draftGameId state commits; use clientSyncId exclusion as fallback in createModeGameNumber, currentGameNumber, and currentSeries
+- [x] Replace standalone CI workflow with unified CI/deploy pipeline: check → check-worker → build (artifact) → deploy-preview → deploy-production; worker type check added as parallel gate; web artifact built once and shared across deploy jobs
 
 ## Decision Log
 
