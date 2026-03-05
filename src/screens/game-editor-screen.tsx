@@ -176,7 +176,16 @@ export default function GameEditorScreen() {
       .sort((left, right) => left.createdAt - right.createdAt);
   }, [queuedSessionGameEntries]);
   const createModeGameNumber = useMemo(() => {
-    const serverGameCount = orderedSessionGames.length;
+    // Exclude the in-flight game from the server count when it has already
+    // arrived in orderedSessionGames (via Convex real-time push) but
+    // draftGameId state has not yet committed. The game is identifiable by
+    // clientSyncId === activeDraftNonce, which is set at creation time.
+    const ownGameAlreadyInList =
+      isCreateMode && activeDraftNonce
+        ? orderedSessionGames.some((g) => g.clientSyncId === activeDraftNonce)
+        : false;
+    const serverGameCount =
+      orderedSessionGames.length - (ownGameAlreadyInList ? 1 : 0);
 
     if (!isCreateMode) {
       return serverGameCount + 1;
@@ -196,7 +205,7 @@ export default function GameEditorScreen() {
   }, [
     activeDraftNonce,
     isCreateMode,
-    orderedSessionGames.length,
+    orderedSessionGames,
     queuedNewGamesInSession,
   ]);
   const selectedLeague = useMemo(() => {
@@ -358,12 +367,27 @@ export default function GameEditorScreen() {
       }
     }
 
+    // Second lookup: Convex may push the new game into orderedSessionGames
+    // before setDraftGameId's state update commits. Recognize the in-flight
+    // game by clientSyncId (= activeDraftNonce used at creation) so the
+    // header never flashes the wrong number during this render window.
+    if (isCreateMode && activeDraftNonce) {
+      const idx = orderedSessionGames.findIndex(
+        (g) => g.clientSyncId === activeDraftNonce
+      );
+
+      if (idx !== -1) {
+        return idx + 1;
+      }
+    }
+
     if (isCreateMode) {
       return createModeGameNumber;
     }
 
     return null;
   }, [
+    activeDraftNonce,
     createModeGameNumber,
     draftGameId,
     gameId,
@@ -382,13 +406,27 @@ export default function GameEditorScreen() {
     // then add the provisional score from the active frame drafts.
     // Use draftGameId (set once autosave creates the server record) so the
     // newly-created game is excluded even while isCreateMode is still true.
+    // Fallback to clientSyncId exclusion for the race window where Convex
+    // pushes the new game before draftGameId state commits.
     const activeGameId = draftGameId ?? gameId;
     const completedPins = orderedSessionGames
-      .filter((g) => (activeGameId ? g._id !== activeGameId : true))
+      .filter((g) => {
+        if (activeGameId) return g._id !== activeGameId;
+        if (isCreateMode && activeDraftNonce)
+          return g.clientSyncId !== activeDraftNonce;
+        return true;
+      })
       .reduce((sum, g) => sum + g.totalScore, 0);
     const provisional = getProvisionalTotalScore(frameDrafts);
     return completedPins + provisional;
-  }, [draftGameId, frameDrafts, gameId, orderedSessionGames]);
+  }, [
+    activeDraftNonce,
+    draftGameId,
+    frameDrafts,
+    gameId,
+    isCreateMode,
+    orderedSessionGames,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
