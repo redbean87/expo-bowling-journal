@@ -1,4 +1,4 @@
-const BUILD_ID = '4d7990f-20260228001230';
+const BUILD_ID = '568feaf-20260304010247';
 const CACHE_PREFIX = 'bowling-journal';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${BUILD_ID}`;
 const RUNTIME_CACHE_NAME = `${CACHE_PREFIX}-runtime-${BUILD_ID}`;
