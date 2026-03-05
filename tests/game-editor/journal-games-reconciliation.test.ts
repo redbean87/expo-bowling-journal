@@ -21,7 +21,7 @@ function buildServerGame(
     strikes: 6,
     spares: 2,
     opens: 2,
-    framePreviewItems: [{ text: 'X', hasSplit: false }],
+    framePreviewItems: [{ text: 'X', hasSplit: false, isOpen: false }],
     ...overrides,
   };
 }
@@ -39,7 +39,7 @@ function buildQueuedGame(
     strikes: 6,
     spares: 2,
     opens: 2,
-    framePreviewItems: [{ text: 'X', hasSplit: false }],
+    framePreviewItems: [{ text: 'X', hasSplit: false, isOpen: false }],
     ...overrides,
   };
 }

@@ -1,6 +1,7 @@
 type PreviewItem = {
   text: string;
   hasSplit: boolean;
+  isOpen: boolean;
 };
 
 export type ServerGameForReconciliation = {

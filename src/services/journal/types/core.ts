@@ -11,6 +11,7 @@ export type Frame = Doc<'frames'>;
 export type FramePreviewItem = {
   text: string;
   hasSplit: boolean;
+  isOpen: boolean;
 };
 
 export type GameListItem = Game & {

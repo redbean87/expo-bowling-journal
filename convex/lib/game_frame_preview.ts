@@ -17,6 +17,7 @@ type FrameMasks = {
 export type FramePreviewItem = {
   text: string;
   hasSplit: boolean;
+  isOpen: boolean;
 };
 
 const FULL_PIN_MASK = 0x3ff;
@@ -244,6 +245,38 @@ function getFrameHasSplit(
   return false;
 }
 
+function getFrameIsOpen(
+  frameIndex: number,
+  frame: FrameForPreview | null
+): boolean {
+  if (!frame) {
+    return false;
+  }
+
+  if (frameIndex < 9) {
+    if (frame.roll1 === 10) {
+      return false;
+    }
+
+    if (frame.roll2 === null || frame.roll2 === undefined) {
+      return false;
+    }
+
+    return frame.roll1 + frame.roll2 < 10;
+  }
+
+  // 10th frame
+  if (frame.roll1 === 10) {
+    return false;
+  }
+
+  if (frame.roll2 === null || frame.roll2 === undefined) {
+    return false;
+  }
+
+  return frame.roll1 + frame.roll2 < 10;
+}
+
 function getRollSymbol(roll: number): string {
   if (roll === 0) {
     return '-';
@@ -328,6 +361,7 @@ export function buildGameFramePreview(
     preview.push({
       text: getStandardFramePreview(frame),
       hasSplit: getFrameHasSplit(frameIndex, frame),
+      isOpen: getFrameIsOpen(frameIndex, frame),
     });
   }
 
@@ -335,6 +369,7 @@ export function buildGameFramePreview(
   preview.push({
     text: getTenthFramePreview(tenthFrame),
     hasSplit: getFrameHasSplit(9, tenthFrame),
+    isOpen: getFrameIsOpen(9, tenthFrame),
   });
 
   return preview;

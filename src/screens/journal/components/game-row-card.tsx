@@ -14,6 +14,7 @@ import { useAppTheme } from '@/theme/use-app-theme';
 type PreviewItem = {
   text: string;
   hasSplit: boolean;
+  isOpen: boolean;
 };
 
 type DisplayGameItem = {
@@ -120,6 +121,9 @@ export function GameRowCard({
                   style={[
                     styles.previewChip,
                     item === null ? styles.previewChipPlaceholder : null,
+                    item?.isOpen && !item?.hasSplit
+                      ? styles.previewChipOpen
+                      : null,
                     item?.hasSplit ? styles.previewChipSplit : null,
                   ]}
                 >
@@ -127,6 +131,9 @@ export function GameRowCard({
                     style={[
                       styles.previewChipText,
                       item === null ? styles.previewChipPlaceholderText : null,
+                      item?.isOpen && !item?.hasSplit
+                        ? styles.previewChipTextOpen
+                        : null,
                       item?.hasSplit ? styles.previewChipTextSplit : null,
                     ]}
                   >
@@ -142,6 +149,9 @@ export function GameRowCard({
                   style={[
                     styles.previewChip,
                     item === null ? styles.previewChipPlaceholder : null,
+                    item?.isOpen && !item?.hasSplit
+                      ? styles.previewChipOpen
+                      : null,
                     item?.hasSplit ? styles.previewChipSplit : null,
                   ]}
                 >
@@ -149,6 +159,9 @@ export function GameRowCard({
                     style={[
                       styles.previewChipText,
                       item === null ? styles.previewChipPlaceholderText : null,
+                      item?.isOpen && !item?.hasSplit
+                        ? styles.previewChipTextOpen
+                        : null,
                       item?.hasSplit ? styles.previewChipTextSplit : null,
                     ]}
                   >
@@ -233,6 +246,10 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.dangerBorder,
       backgroundColor: colors.dangerMuted,
     },
+    previewChipOpen: {
+      borderColor: colors.warningBorder,
+      backgroundColor: colors.warningMuted,
+    },
     previewChipText: {
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
@@ -244,6 +261,10 @@ const createStyles = (colors: ThemeColors) =>
     },
     previewChipTextSplit: {
       color: colors.danger,
+      fontWeight: '700',
+    },
+    previewChipTextOpen: {
+      color: colors.warning,
       fontWeight: '700',
     },
     previewUnavailableText: {

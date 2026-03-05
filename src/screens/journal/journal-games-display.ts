@@ -2,6 +2,7 @@ import {
   getFrameSplitFlags,
   getFrameSymbolParts,
   getProvisionalTotalScore,
+  isOpenFrame,
   toFrameDrafts,
 } from '../game-editor/game-editor-frame-utils';
 import { type QueuedGameSaveEntry } from '../game-editor/game-save-queue';
@@ -14,6 +15,7 @@ import type { Game } from '@/services/journal';
 export type PreviewItem = {
   text: string;
   hasSplit: boolean;
+  isOpen: boolean;
 };
 
 type PreviewMarkSummary = {
@@ -73,6 +75,7 @@ export function normalizeFramePreviewItems(
         return {
           text: item,
           hasSplit: false,
+          isOpen: false,
         } satisfies PreviewItem;
       }
 
@@ -85,6 +88,7 @@ export function normalizeFramePreviewItems(
         return {
           text: item.text,
           hasSplit: 'hasSplit' in item ? Boolean(item.hasSplit) : false,
+          isOpen: 'isOpen' in item ? Boolean(item.isOpen) : false,
         } satisfies PreviewItem;
       }
 
@@ -143,6 +147,7 @@ export function buildQueueDerivedGame(
       return {
         text,
         hasSplit: splitFlags.roll1 || splitFlags.roll2 || splitFlags.roll3,
+        isOpen: isOpenFrame(frameIndex, frame),
       } satisfies PreviewItem;
     })
     .filter((item) => item.text.trim().length > 0);
