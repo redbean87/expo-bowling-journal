@@ -10,15 +10,15 @@ CORS_ALLOWED_ORIGINS = "http://localhost:8081,http://127.0.0.1:8081,https://expo
 
 [[r2_buckets]]
 binding = "R2_IMPORTS"
-bucket_name = "bowling-imports"
+bucket_name = "bowling-imports-dev"
 
 [[queues.producers]]
 binding = "IMPORT_QUEUE"
-queue = "sqlite-import-jobs"
+queue = "sqlite-import-jobs-dev"
 
 [[queues.consumers]]
-queue = "sqlite-import-jobs"
-dead_letter_queue = "sqlite-import-jobs-dlq"
+queue = "sqlite-import-jobs-dev"
+dead_letter_queue = "sqlite-import-jobs-dev-dlq"
 
 [[rules]]
 type = "CompiledWasm"

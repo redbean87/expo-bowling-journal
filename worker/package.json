@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "dev:remote": "wrangler dev --remote",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --env=\"\"",
+    "dev:remote": "wrangler dev --remote --env=\"\"",
+    "deploy": "wrangler deploy --env=\"\"",
+    "deploy:production": "wrangler deploy --env production",
     "check": "tsc --noEmit",
-    "logs": "wrangler tail"
+    "logs": "wrangler tail --env=\"\""
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260204.0",
