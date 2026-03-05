@@ -23,6 +23,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install worker dependencies
+        run: npm ci
+        working-directory: worker
+
       - name: Type check
         run: npm run typecheck
 
