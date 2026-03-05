@@ -62,7 +62,7 @@ jobs:
       - name: Type check
         run: npm run check
 
-  build:
+  build-preview:
     needs: [check, check-worker]
     runs-on: ubuntu-latest
 
@@ -81,16 +81,51 @@ jobs:
 
       - name: Build web
         run: npm run build:web
+        env:
+          EXPO_PUBLIC_CONVEX_URL: ${{ secrets.EXPO_PUBLIC_CONVEX_URL_DEV }}
+          EXPO_PUBLIC_CONVEX_SITE_URL: ${{ secrets.EXPO_PUBLIC_CONVEX_SITE_URL_DEV }}
+          EXPO_PUBLIC_IMPORT_WORKER_URL: ${{ secrets.EXPO_PUBLIC_IMPORT_WORKER_URL_DEV }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-dist
+          name: web-dist-preview
+          path: dist/
+          retention-days: 1
+
+  build-production:
+    needs: [check, check-worker]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build:web
+        env:
+          EXPO_PUBLIC_CONVEX_URL: ${{ secrets.EXPO_PUBLIC_CONVEX_URL_PROD }}
+          EXPO_PUBLIC_CONVEX_SITE_URL: ${{ secrets.EXPO_PUBLIC_CONVEX_SITE_URL_PROD }}
+          EXPO_PUBLIC_IMPORT_WORKER_URL: ${{ secrets.EXPO_PUBLIC_IMPORT_WORKER_URL_PROD }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-production
           path: dist/
           retention-days: 1
 
   deploy-preview:
-    needs: build
+    needs: build-preview
     runs-on: ubuntu-latest
 
     steps:
@@ -109,7 +144,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: web-dist
+          name: web-dist-preview
           path: dist/
 
       - name: Deploy preview
@@ -137,7 +172,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: web-dist
+          name: web-dist-production
           path: dist/
 
       - name: Deploy production
