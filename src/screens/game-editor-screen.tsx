@@ -199,25 +199,6 @@ export default function GameEditorScreen() {
     orderedSessionGames.length,
     queuedNewGamesInSession,
   ]);
-  const gameName = useMemo(() => {
-    if (isCreateMode) {
-      return formatGameSequenceLabel(createModeGameNumber);
-    }
-
-    if (!gameId) {
-      return 'Game';
-    }
-
-    const gameIndex = orderedSessionGames.findIndex(
-      (candidate) => candidate._id === gameId
-    );
-
-    if (gameIndex === -1) {
-      return 'Game';
-    }
-
-    return formatGameSequenceLabel(gameIndex + 1);
-  }, [createModeGameNumber, gameId, isCreateMode, orderedSessionGames]);
   const selectedLeague = useMemo(() => {
     if (leagueId) {
       return leagues.find((candidate) => candidate._id === leagueId) ?? null;
@@ -277,15 +258,6 @@ export default function GameEditorScreen() {
     return { holdTarget, gainTarget, perfectSeries };
   }, [leagueGames, sessionId, targetGames]);
 
-  const currentSeries = useMemo(() => {
-    // Sum completed session games excluding the current game (edit mode),
-    // then add the provisional score of the game being edited/created.
-    const completedPins = orderedSessionGames
-      .filter((g) => (!isCreateMode && gameId ? g._id !== gameId : true))
-      .reduce((sum, g) => sum + g.totalScore, 0);
-    const provisional = getProvisionalTotalScore(frameDrafts);
-    return completedPins + provisional;
-  }, [orderedSessionGames, isCreateMode, gameId, frameDrafts]);
   const derivedWeekNumberBySessionId = useMemo(() => {
     const oldestFirstSessions = [...sessions].reverse();
     const weekMap = new Map<string, number>();
@@ -372,25 +344,25 @@ export default function GameEditorScreen() {
     return orderedSessionGames[currentGameIndex + 1]?._id ?? null;
   }, [draftGameId, gameId, orderedSessionGames]);
   const currentGameNumber = useMemo(() => {
+    // Once draftGameId is set (autosave created the server-side game),
+    // resolve the real position regardless of isCreateMode still being true.
+    const currentGameId = draftGameId ?? gameId;
+
+    if (currentGameId) {
+      const idx = orderedSessionGames.findIndex(
+        (candidate) => candidate._id === currentGameId
+      );
+
+      if (idx !== -1) {
+        return idx + 1;
+      }
+    }
+
     if (isCreateMode) {
       return createModeGameNumber;
     }
 
-    const currentGameId = draftGameId ?? gameId;
-
-    if (!currentGameId) {
-      return null;
-    }
-
-    const currentGameIndex = orderedSessionGames.findIndex(
-      (candidate) => candidate._id === currentGameId
-    );
-
-    if (currentGameIndex === -1) {
-      return null;
-    }
-
-    return currentGameIndex + 1;
+    return null;
   }, [
     createModeGameNumber,
     draftGameId,
@@ -398,6 +370,25 @@ export default function GameEditorScreen() {
     isCreateMode,
     orderedSessionGames,
   ]);
+  const gameName = useMemo(() => {
+    if (currentGameNumber !== null) {
+      return formatGameSequenceLabel(currentGameNumber);
+    }
+
+    return 'Game';
+  }, [currentGameNumber]);
+  const currentSeries = useMemo(() => {
+    // Sum completed session games excluding the game being edited/created,
+    // then add the provisional score from the active frame drafts.
+    // Use draftGameId (set once autosave creates the server record) so the
+    // newly-created game is excluded even while isCreateMode is still true.
+    const activeGameId = draftGameId ?? gameId;
+    const completedPins = orderedSessionGames
+      .filter((g) => (activeGameId ? g._id !== activeGameId : true))
+      .reduce((sum, g) => sum + g.totalScore, 0);
+    const provisional = getProvisionalTotalScore(frameDrafts);
+    return completedPins + provisional;
+  }, [draftGameId, frameDrafts, gameId, orderedSessionGames]);
 
   useEffect(() => {
     let isMounted = true;

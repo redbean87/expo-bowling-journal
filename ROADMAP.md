@@ -7,6 +7,7 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
+- [ ] (enhancement) - highlight open frames similar to split frames
 - [ ] Analytics views (trend lines, consistency, spare conversion)
 - [ ] Add CI automation for Expo web preview/production deploys
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
@@ -19,6 +20,7 @@ When an item is complete, move it to `## Completed`.
 
 ## Completed
 
+- [x] Fix game number jump and series score doubling during create-mode autosave race (use draftGameId ?? gameId as source of truth for currentGameNumber and currentSeries)
 - [x] Initialize repository
 - [x] Add reference docs from trading journal project
 - [x] Establish architecture and planning baseline
@@ -110,6 +112,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Add React Error Boundary to root layout to prevent blank-screen failures on uncaught render errors
 - [x] Add CI quality gate (typecheck, lint, format, test) on push/PR to main
 - [x] Add pre-deploy type check gate to worker deploy workflow; target production env stanza
+- [x] Fix game number increment and series score doubling in create mode during autosave race window
 
 ## Decision Log
 
