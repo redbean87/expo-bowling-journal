@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as backfills from "../backfills.js";
 import type * as balls from "../balls.js";
 import type * as exports from "../exports.js";
 import type * as frames from "../frames.js";
@@ -61,6 +62,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  backfills: typeof backfills;
   balls: typeof balls;
   exports: typeof exports;
   frames: typeof frames;
