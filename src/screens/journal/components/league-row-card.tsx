@@ -1,11 +1,8 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
-
-import { ReferenceCombobox } from '@/components/reference-combobox';
-import { Button, Card, Input } from '@/components/ui';
+import { Card } from '@/components/ui';
 import {
   lineHeight,
   spacing,
@@ -26,54 +23,22 @@ type DisplayLeague = {
 
 type LeagueRowCardProps = {
   league: DisplayLeague;
-  isEditing: boolean;
   isDeleting: boolean;
-  isSavingLeagueEdit: boolean;
-  editingLeagueName: string;
-  editingLeagueGamesPerSession: string;
-  editingLeagueHouseId: string | null;
-  houseOptions: ReferenceOption<string>[];
-  recentHouseOptions: ReferenceOption<string>[];
-  buildSuggestions: (
-    allOptions: ReferenceOption<string>[],
-    recentOptions: ReferenceOption<string>[],
-    query: string
-  ) => ReferenceOption<string>[];
-  createHouse: (name: string) => Promise<ReferenceOption<string>>;
   onNavigate: () => void;
   onOpenActions: () => void;
-  onEditingLeagueNameChange: (value: string) => void;
-  onEditingLeagueGamesPerSessionChange: (value: string) => void;
-  onEditingLeagueHouseSelect: (option: ReferenceOption<string>) => void;
-  onSaveLeagueEdit: () => void;
-  onCancelEditingLeague: () => void;
 };
 
 export function LeagueRowCard({
   league,
-  isEditing,
   isDeleting,
-  isSavingLeagueEdit,
-  editingLeagueName,
-  editingLeagueGamesPerSession,
-  editingLeagueHouseId,
-  houseOptions,
-  recentHouseOptions,
-  buildSuggestions,
-  createHouse,
   onNavigate,
   onOpenActions,
-  onEditingLeagueNameChange,
-  onEditingLeagueGamesPerSessionChange,
-  onEditingLeagueHouseSelect,
-  onSaveLeagueEdit,
-  onCancelEditingLeague,
 }: LeagueRowCardProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <Card style={[styles.rowCard, isEditing ? styles.rowCardActive : null]}>
+    <Card style={styles.rowCard}>
       <View style={styles.rowHeader}>
         <Pressable
           onPress={onNavigate}
@@ -106,54 +71,6 @@ export function LeagueRowCard({
           />
         </Pressable>
       </View>
-
-      {isEditing ? (
-        <View style={styles.editSection}>
-          <Input
-            autoCapitalize="words"
-            autoCorrect={false}
-            onChangeText={onEditingLeagueNameChange}
-            placeholder="League name"
-            value={editingLeagueName}
-          />
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="number-pad"
-            onChangeText={onEditingLeagueGamesPerSessionChange}
-            placeholder="Games per session (optional)"
-            value={editingLeagueGamesPerSession}
-          />
-          <ReferenceCombobox
-            allOptions={houseOptions}
-            createLabel="Add house"
-            getSuggestions={buildSuggestions}
-            onQuickAdd={createHouse}
-            onSelect={onEditingLeagueHouseSelect}
-            placeholder="House (optional)"
-            recentOptions={recentHouseOptions}
-            valueId={editingLeagueHouseId}
-          />
-          <View style={styles.editActionsRow}>
-            <View style={styles.editActionButton}>
-              <Button
-                disabled={isSavingLeagueEdit}
-                label={isSavingLeagueEdit ? 'Saving...' : 'Save'}
-                onPress={onSaveLeagueEdit}
-                variant="secondary"
-              />
-            </View>
-            <View style={styles.editActionButton}>
-              <Button
-                disabled={isSavingLeagueEdit}
-                label="Cancel"
-                onPress={onCancelEditingLeague}
-                variant="ghost"
-              />
-            </View>
-          </View>
-        </View>
-      ) : null}
     </Card>
   );
 }
@@ -188,27 +105,11 @@ const createStyles = (colors: ThemeColors) =>
     menuButtonPressed: {
       backgroundColor: colors.surfaceMuted,
     },
-    editSection: {
-      gap: spacing.sm,
-      marginTop: spacing.xs,
-    },
-    editActionsRow: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-    },
-    editActionButton: {
-      flex: 1,
-    },
     rowCard: {
       paddingVertical: spacing.xs,
       paddingHorizontal: spacing.sm,
       borderRadius: 10,
       gap: spacing.xs,
-    },
-    rowCardActive: {
-      position: 'relative',
-      zIndex: 30,
-      elevation: 30,
     },
     meta: {
       fontSize: typeScale.bodySm,

@@ -11,7 +11,6 @@ When an item is complete, move it to `## Completed`.
 - [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
-- [ ] Unify journal create/action affordances (FAB vs overflow menu) with a single platform-consistent interaction pattern
 - [ ] Validate native iOS/Android flows (builds + smoke tests for journal/game-editor offline and queue paths)
 - [ ] Team/coach sharing model
 - [ ] Add lightweight CI/reporting for file-size drift (largest files + threshold alerts)
@@ -19,6 +18,7 @@ When an item is complete, move it to `## Completed`.
 
 ## Completed
 
+- [x] Unify journal create/action affordances by converting inline edit to slide-up modal (matches create modal pattern for leagues and sessions)
 - [x] Highlight open frames in amber in games screen game row card (GameRowCard + isOpen on PreviewItem + getFrameIsOpen on server + normalizeFramePreviewItems fallback)
 - [x] Highlight open frames in amber in game editor scoreboard (FrameProgressStrip + warning color token + isOpenFrame utility)
 - [x] Fix game number jump and series score doubling during create-mode autosave race (use draftGameId ?? gameId as source of truth for currentGameNumber and currentSeries)
@@ -138,6 +138,7 @@ When an item is complete, move it to `## Completed`.
 - Queue sync now flushes on reconnect, foreground, and queue-change events, with interval polling active only while pending entries exist
 - Added neutral SQLite backup export (`.db`) with compatibility core tables plus always-present `bj_*` extension tables for richer app restore
 - Production Convex deployment is `prod:marvelous-quail-215`; preview/dev remains `dev:different-lynx-597`; worker `[env.production]` stanza targets production Convex site URL
+- Edit flows now use slide-up modals matching create modals; native ActionSheet kept on iOS/Android for action menus, web falls back to modal
 
 ## Risks / Unknowns
 

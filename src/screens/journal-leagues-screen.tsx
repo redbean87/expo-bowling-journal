@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { CreateLeagueModal } from './journal/components/create-league-modal';
+import { EditLeagueModal } from './journal/components/edit-league-modal';
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
@@ -142,9 +143,7 @@ export default function JournalLeaguesScreen() {
   const [leagueActionError, setLeagueActionError] = useState<string | null>(
     null
   );
-  const [editingLeagueRowId, setEditingLeagueRowId] = useState<string | null>(
-    null
-  );
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingLeagueServerId, setEditingLeagueServerId] = useState<
     string | null
   >(null);
@@ -173,8 +172,7 @@ export default function JournalLeaguesScreen() {
     QueuedLeagueCreateEntry[]
   >([]);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
-  const shouldLoadReferenceData =
-    isCreateModalVisible || editingLeagueRowId !== null;
+  const shouldLoadReferenceData = isCreateModalVisible || isEditModalVisible;
   const { houseOptions, recentHouseOptions, buildSuggestions, createHouse } =
     useReferenceData({ enabled: shouldLoadReferenceData });
   const {
@@ -362,7 +360,7 @@ export default function JournalLeaguesScreen() {
     houseId: string | null
   ) => {
     setLeagueActionError(null);
-    setEditingLeagueRowId(rowId);
+    setIsEditModalVisible(true);
     setEditingLeagueServerId(leagueId);
     setEditingLeagueClientSyncId(leagueClientSyncId);
     setEditingLeagueName(name);
@@ -373,7 +371,7 @@ export default function JournalLeaguesScreen() {
   };
 
   const cancelEditingLeague = () => {
-    setEditingLeagueRowId(null);
+    setIsEditModalVisible(false);
     setEditingLeagueServerId(null);
     setEditingLeagueClientSyncId(null);
     setEditingLeagueName('');
@@ -382,7 +380,7 @@ export default function JournalLeaguesScreen() {
   };
 
   const onSaveLeagueEdit = async () => {
-    if (!editingLeagueRowId) {
+    if (!editingLeagueServerId && !editingLeagueClientSyncId) {
       return;
     }
 
@@ -488,7 +486,7 @@ export default function JournalLeaguesScreen() {
       await persistJournalCreateQueue(nextQueue);
       await refreshQueuedLeagueCreates();
 
-      if (editingLeagueRowId === target.rowId) {
+      if (isEditModalVisible) {
         cancelEditingLeague();
       }
     };
@@ -501,7 +499,7 @@ export default function JournalLeaguesScreen() {
 
       await removeLeague({ leagueId: target.leagueId as never });
 
-      if (editingLeagueRowId === target.rowId) {
+      if (isEditModalVisible) {
         cancelEditingLeague();
       }
     } catch (caught) {
@@ -698,24 +696,8 @@ export default function JournalLeaguesScreen() {
           {displayLeagues.map((league) => (
             <LeagueRowCard
               key={league.id}
-              buildSuggestions={buildSuggestions}
-              createHouse={createHouse}
-              editingLeagueGamesPerSession={editingLeagueGamesPerSession}
-              editingLeagueHouseId={editingLeagueHouseId}
-              editingLeagueName={editingLeagueName}
-              houseOptions={houseOptions}
               isDeleting={deletingLeagueRowId === league.id}
-              isEditing={editingLeagueRowId === league.id}
-              isSavingLeagueEdit={isSavingLeagueEdit}
               league={league}
-              onCancelEditingLeague={cancelEditingLeague}
-              onEditingLeagueGamesPerSessionChange={
-                setEditingLeagueGamesPerSession
-              }
-              onEditingLeagueHouseSelect={(option) =>
-                setEditingLeagueHouseId(option.id)
-              }
-              onEditingLeagueNameChange={setEditingLeagueName}
               onNavigate={() => navigateToLeagueSessions(league)}
               onOpenActions={() =>
                 openLeagueActions({
@@ -727,10 +709,6 @@ export default function JournalLeaguesScreen() {
                   houseId: league.houseId,
                 })
               }
-              onSaveLeagueEdit={() => {
-                void onSaveLeagueEdit();
-              }}
-              recentHouseOptions={recentHouseOptions}
             />
           ))}
         </ScrollView>
@@ -760,6 +738,27 @@ export default function JournalLeaguesScreen() {
           onLeagueNameChange={setLeagueName}
           recentHouseOptions={recentHouseOptions}
           visible={isCreateModalVisible}
+        />
+
+        <EditLeagueModal
+          buildSuggestions={buildSuggestions}
+          createHouse={createHouse}
+          houseOptions={houseOptions}
+          isSavingLeagueEdit={isSavingLeagueEdit}
+          leagueError={leagueActionError}
+          leagueGamesPerSession={editingLeagueGamesPerSession}
+          leagueHouseId={editingLeagueHouseId}
+          leagueName={editingLeagueName}
+          modalTranslateY={modalTranslateY}
+          onClose={cancelEditingLeague}
+          onGamesPerSessionChange={setEditingLeagueGamesPerSession}
+          onLeagueHouseSelect={(option) => setEditingLeagueHouseId(option.id)}
+          onLeagueNameChange={setEditingLeagueName}
+          onSave={() => {
+            void onSaveLeagueEdit();
+          }}
+          recentHouseOptions={recentHouseOptions}
+          visible={isEditModalVisible}
         />
 
         <LeagueActionsModal

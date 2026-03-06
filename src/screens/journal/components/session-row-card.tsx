@@ -2,10 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
-
-import { ReferenceCombobox } from '@/components/reference-combobox';
-import { Button, Card, Input } from '@/components/ui';
+import { Card } from '@/components/ui';
 import {
   lineHeight,
   spacing,
@@ -15,77 +12,25 @@ import {
 import { useAppTheme } from '@/theme/use-app-theme';
 
 type SessionRowCardProps = {
-  isEditing: boolean;
   isDeleting: boolean;
-  isSavingSessionEdit: boolean;
   sessionWeekLabel: string;
   sessionDateLabel: string;
-  editingSessionDate: string;
-  editingSessionWeekNumber: string;
-  editingSessionHouseId: string | null;
-  editingSessionPatternId: string | null;
-  editingSessionBallId: string | null;
-  houseOptions: ReferenceOption<string>[];
-  recentHouseOptions: ReferenceOption<string>[];
-  patternOptions: ReferenceOption<string>[];
-  recentPatternOptions: ReferenceOption<string>[];
-  ballOptions: ReferenceOption<string>[];
-  recentBallOptions: ReferenceOption<string>[];
-  buildSuggestions: (
-    allOptions: ReferenceOption<string>[],
-    recentOptions: ReferenceOption<string>[],
-    query: string
-  ) => ReferenceOption<string>[];
-  createHouse: (name: string) => Promise<ReferenceOption<string>>;
-  createPattern: (name: string) => Promise<ReferenceOption<string>>;
-  createBall: (name: string) => Promise<ReferenceOption<string>>;
   onNavigate: () => void;
   onOpenActions: () => void;
-  onEditingSessionDateChange: (value: string) => void;
-  onEditingSessionWeekNumberChange: (value: string) => void;
-  onEditingSessionHouseSelect: (option: ReferenceOption<string>) => void;
-  onEditingSessionPatternSelect: (option: ReferenceOption<string>) => void;
-  onEditingSessionBallSelect: (option: ReferenceOption<string>) => void;
-  onSaveSessionEdit: () => void;
-  onCancelEditingSession: () => void;
 };
 
 export function SessionRowCard({
-  isEditing,
   isDeleting,
-  isSavingSessionEdit,
   sessionWeekLabel,
   sessionDateLabel,
-  editingSessionDate,
-  editingSessionWeekNumber,
-  editingSessionHouseId,
-  editingSessionPatternId,
-  editingSessionBallId,
-  houseOptions,
-  recentHouseOptions,
-  patternOptions,
-  recentPatternOptions,
-  ballOptions,
-  recentBallOptions,
-  buildSuggestions,
-  createHouse,
-  createPattern,
-  createBall,
   onNavigate,
   onOpenActions,
-  onEditingSessionDateChange,
-  onEditingSessionWeekNumberChange,
-  onEditingSessionHouseSelect,
-  onEditingSessionPatternSelect,
-  onEditingSessionBallSelect,
-  onSaveSessionEdit,
-  onCancelEditingSession,
 }: SessionRowCardProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <Card style={[styles.rowCard, isEditing ? styles.rowCardActive : null]}>
+    <Card style={styles.rowCard}>
       <View style={styles.rowHeader}>
         <Pressable
           style={({ pressed }) => [
@@ -114,74 +59,6 @@ export function SessionRowCard({
           />
         </Pressable>
       </View>
-
-      {isEditing ? (
-        <View style={styles.editSection}>
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={onEditingSessionDateChange}
-            placeholder="YYYY-MM-DD"
-            value={editingSessionDate}
-          />
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="number-pad"
-            onChangeText={onEditingSessionWeekNumberChange}
-            placeholder="Week number (optional)"
-            value={editingSessionWeekNumber}
-          />
-          <ReferenceCombobox
-            allOptions={houseOptions}
-            createLabel="Add house"
-            getSuggestions={buildSuggestions}
-            onQuickAdd={createHouse}
-            onSelect={onEditingSessionHouseSelect}
-            placeholder="House (optional)"
-            recentOptions={recentHouseOptions}
-            valueId={editingSessionHouseId}
-          />
-          <ReferenceCombobox
-            allOptions={patternOptions}
-            createLabel="Add pattern"
-            getSuggestions={buildSuggestions}
-            onQuickAdd={createPattern}
-            onSelect={onEditingSessionPatternSelect}
-            placeholder="Pattern (optional)"
-            recentOptions={recentPatternOptions}
-            valueId={editingSessionPatternId}
-          />
-          <ReferenceCombobox
-            allOptions={ballOptions}
-            createLabel="Add ball"
-            getSuggestions={buildSuggestions}
-            onQuickAdd={createBall}
-            onSelect={onEditingSessionBallSelect}
-            placeholder="Ball (optional)"
-            recentOptions={recentBallOptions}
-            valueId={editingSessionBallId}
-          />
-          <View style={styles.editActionsRow}>
-            <View style={styles.editActionButton}>
-              <Button
-                disabled={isSavingSessionEdit}
-                label={isSavingSessionEdit ? 'Saving...' : 'Save'}
-                onPress={onSaveSessionEdit}
-                variant="secondary"
-              />
-            </View>
-            <View style={styles.editActionButton}>
-              <Button
-                disabled={isSavingSessionEdit}
-                label="Cancel"
-                onPress={onCancelEditingSession}
-                variant="ghost"
-              />
-            </View>
-          </View>
-        </View>
-      ) : null}
     </Card>
   );
 }
@@ -215,17 +92,6 @@ const createStyles = (colors: ThemeColors) =>
     menuButtonPressed: {
       backgroundColor: colors.surfaceMuted,
     },
-    editSection: {
-      gap: spacing.sm,
-      marginTop: spacing.xs,
-    },
-    editActionsRow: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-    },
-    editActionButton: {
-      flex: 1,
-    },
     meta: {
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
@@ -236,10 +102,5 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: spacing.sm,
       borderRadius: 10,
       gap: spacing.xs,
-    },
-    rowCardActive: {
-      position: 'relative',
-      zIndex: 30,
-      elevation: 30,
     },
   });

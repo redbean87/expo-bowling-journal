@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { CreateSessionModal } from './journal/components/create-session-modal';
+import { EditSessionModal } from './journal/components/edit-session-modal';
 import { SessionActionsModal } from './journal/components/session-actions-modal';
 import { SessionRowCard } from './journal/components/session-row-card';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
@@ -140,9 +141,7 @@ export default function JournalSessionsScreen() {
   const [sessionActionError, setSessionActionError] = useState<string | null>(
     null
   );
-  const [editingSessionRowId, setEditingSessionRowId] = useState<string | null>(
-    null
-  );
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingSessionServerId, setEditingSessionServerId] = useState<
     string | null
   >(null);
@@ -185,8 +184,7 @@ export default function JournalSessionsScreen() {
   });
   const hasHandledStartTonightRef = useRef(false);
   const modalTranslateY = getCreateModalTranslateY(windowWidth);
-  const shouldLoadReferenceData =
-    isCreateModalVisible || editingSessionRowId !== null;
+  const shouldLoadReferenceData = isCreateModalVisible || isEditModalVisible;
   const {
     ballOptions,
     patternOptions,
@@ -615,7 +613,7 @@ export default function JournalSessionsScreen() {
     ballId: string | null
   ) => {
     setSessionActionError(null);
-    setEditingSessionRowId(rowId);
+    setIsEditModalVisible(true);
     setEditingSessionServerId(sessionId);
     setEditingSessionClientSyncId(sessionClientSyncId);
     setEditingSessionDate(date);
@@ -626,7 +624,7 @@ export default function JournalSessionsScreen() {
   };
 
   const cancelEditingSession = () => {
-    setEditingSessionRowId(null);
+    setIsEditModalVisible(false);
     setEditingSessionServerId(null);
     setEditingSessionClientSyncId(null);
     setEditingSessionDate('');
@@ -637,7 +635,7 @@ export default function JournalSessionsScreen() {
   };
 
   const onSaveSessionEdit = async () => {
-    if (!editingSessionRowId) {
+    if (!editingSessionServerId && !editingSessionClientSyncId) {
       return;
     }
 
@@ -745,7 +743,7 @@ export default function JournalSessionsScreen() {
       await persistJournalCreateQueue(nextQueue);
       await refreshQueuedSessionCreates();
 
-      if (editingSessionRowId === target.rowId) {
+      if (isEditModalVisible) {
         cancelEditingSession();
       }
     };
@@ -758,7 +756,7 @@ export default function JournalSessionsScreen() {
 
       await removeSession({ sessionId: target.sessionId as SessionId });
 
-      if (editingSessionRowId === target.rowId) {
+      if (isEditModalVisible) {
         cancelEditingSession();
       }
     } catch (caught) {
@@ -1077,32 +1075,7 @@ export default function JournalSessionsScreen() {
           {displaySessions.map((session) => (
             <SessionRowCard
               key={session.id}
-              ballOptions={ballOptions}
-              buildSuggestions={buildSuggestions}
-              createBall={createBall}
-              createHouse={createHouse}
-              createPattern={createPattern}
-              editingSessionBallId={editingSessionBallId}
-              editingSessionDate={editingSessionDate}
-              editingSessionHouseId={editingSessionHouseId}
-              editingSessionPatternId={editingSessionPatternId}
-              editingSessionWeekNumber={editingSessionWeekNumber}
-              houseOptions={houseOptions}
               isDeleting={deletingSessionRowId === session.id}
-              isEditing={editingSessionRowId === session.id}
-              isSavingSessionEdit={isSavingSessionEdit}
-              onCancelEditingSession={cancelEditingSession}
-              onEditingSessionBallSelect={(option) =>
-                setEditingSessionBallId(option.id)
-              }
-              onEditingSessionDateChange={setEditingSessionDate}
-              onEditingSessionHouseSelect={(option) =>
-                setEditingSessionHouseId(option.id)
-              }
-              onEditingSessionPatternSelect={(option) =>
-                setEditingSessionPatternId(option.id)
-              }
-              onEditingSessionWeekNumberChange={setEditingSessionWeekNumber}
               onNavigate={() =>
                 router.push({
                   pathname:
@@ -1147,13 +1120,6 @@ export default function JournalSessionsScreen() {
                   )} - ${formatIsoDateLabel(session.date)}`,
                 })
               }
-              onSaveSessionEdit={() => {
-                void onSaveSessionEdit();
-              }}
-              patternOptions={patternOptions}
-              recentBallOptions={recentBallOptions}
-              recentHouseOptions={recentHouseOptions}
-              recentPatternOptions={recentPatternOptions}
               sessionDateLabel={formatIsoDateLabel(session.date)}
               sessionWeekLabel={formatSessionWeekLabel(
                 session.weekNumber ??
@@ -1210,6 +1176,39 @@ export default function JournalSessionsScreen() {
           sessionPatternId={sessionPatternId}
           sessionWeekNumber={sessionWeekNumber}
           visible={isCreateModalVisible}
+        />
+
+        <EditSessionModal
+          ballOptions={ballOptions}
+          buildSuggestions={buildSuggestions}
+          createBall={createBall}
+          createHouse={createHouse}
+          createPattern={createPattern}
+          houseOptions={houseOptions}
+          isSavingSessionEdit={isSavingSessionEdit}
+          modalTranslateY={modalTranslateY}
+          onClose={cancelEditingSession}
+          onSave={() => {
+            void onSaveSessionEdit();
+          }}
+          onSessionBallSelect={(option) => setEditingSessionBallId(option.id)}
+          onSessionDateChange={setEditingSessionDate}
+          onSessionHouseSelect={(option) => setEditingSessionHouseId(option.id)}
+          onSessionPatternSelect={(option) =>
+            setEditingSessionPatternId(option.id)
+          }
+          onSessionWeekNumberChange={setEditingSessionWeekNumber}
+          patternOptions={patternOptions}
+          recentBallOptions={recentBallOptions}
+          recentHouseOptions={recentHouseOptions}
+          recentPatternOptions={recentPatternOptions}
+          sessionBallId={editingSessionBallId}
+          sessionDate={editingSessionDate}
+          sessionError={sessionActionError}
+          sessionHouseId={editingSessionHouseId}
+          sessionPatternId={editingSessionPatternId}
+          sessionWeekNumber={editingSessionWeekNumber}
+          visible={isEditModalVisible}
         />
       </View>
     </ScreenLayout>
