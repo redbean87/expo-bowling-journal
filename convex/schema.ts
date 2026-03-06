@@ -41,7 +41,8 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_league', ['leagueId'])
-    .index('by_user_league', ['userId', 'leagueId']),
+    .index('by_user_league', ['userId', 'leagueId'])
+    .index('by_user_league_date', ['userId', 'leagueId', 'date']),
   games: defineTable({
     userId: v.id('users'),
     sessionId: v.id('sessions'),

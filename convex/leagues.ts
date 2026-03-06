@@ -5,8 +5,10 @@ import { requireUserId } from './lib/auth';
 import { touchReferenceUsage } from './lib/reference_usage';
 
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    cutoffDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
     const leagues = await ctx.db
@@ -14,16 +16,36 @@ export const list = query({
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
 
-    return leagues.sort((left, right) => {
-      if (left.createdAt !== right.createdAt) {
-        return right.createdAt - left.createdAt;
-      }
+    const leaguesWithSession = await Promise.all(
+      leagues.map(async (league) => {
+        const recentSession = await ctx.db
+          .query('sessions')
+          .withIndex('by_user_league', (q) =>
+            q.eq('userId', userId).eq('leagueId', league._id)
+          )
+          .order('desc')
+          .first();
 
-      if (left._creationTime !== right._creationTime) {
-        return right._creationTime - left._creationTime;
-      }
+        return {
+          ...league,
+          mostRecentSessionDate: recentSession?.date ?? null,
+        };
+      })
+    );
 
-      return left.name.localeCompare(right.name);
+    const filtered = leaguesWithSession.filter((league) => {
+      if (!league.mostRecentSessionDate) return true;
+      if (!args.cutoffDate) return true;
+      return league.mostRecentSessionDate >= args.cutoffDate;
+    });
+
+    return filtered.sort((a, b) => {
+      if (!a.mostRecentSessionDate && !b.mostRecentSessionDate) {
+        return b.createdAt - a.createdAt;
+      }
+      if (!a.mostRecentSessionDate) return 1;
+      if (!b.mostRecentSessionDate) return -1;
+      return b.mostRecentSessionDate.localeCompare(a.mostRecentSessionDate);
     });
   },
 });

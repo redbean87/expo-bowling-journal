@@ -129,8 +129,8 @@ export const viewerQuery = makeFunctionReference<
 
 export const leaguesListQuery = makeFunctionReference<
   'query',
-  Record<string, never>,
-  LeagueDoc[]
+  { cutoffDate?: string | null },
+  (LeagueDoc & { mostRecentSessionDate: string | null })[]
 >('leagues:list');
 
 export const leaguesCreateMutation = makeFunctionReference<
