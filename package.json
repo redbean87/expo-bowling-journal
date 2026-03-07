@@ -29,7 +29,8 @@
     "format:check": "prettier . --check",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "node scripts/run-node-tests.mjs tests",
-    "test:import": "node scripts/run-node-tests.mjs tests/import"
+    "test:import": "node scripts/run-node-tests.mjs tests/import",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
@@ -68,8 +69,19 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-native": "^5.0.0",
     "eslint-plugin-unused-imports": "^4.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2",
     "prettier": "^3.8.1",
     "tsx": "^4.20.5",
     "typescript": "~5.9.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,json}": [
+      "prettier --write"
+    ]
   }
 }
