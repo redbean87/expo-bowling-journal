@@ -128,9 +128,7 @@ export default function JournalSessionsScreen() {
   const { games: leagueGames, isLoading: isLeagueGamesLoading } =
     useLeagueGames(leagueId);
 
-  const [sessionDate, setSessionDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [sessionDate, setSessionDate] = useState(formatIsoDateForToday());
   const [sessionWeekNumber, setSessionWeekNumber] = useState('');
   const [sessionHouseId, setSessionHouseId] = useState<string | null>(null);
   const [sessionPatternId, setSessionPatternId] = useState<string | null>(null);

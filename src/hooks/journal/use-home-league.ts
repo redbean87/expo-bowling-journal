@@ -9,7 +9,10 @@ const HOME_LEAGUE_STORAGE_KEY = '@bowling-journal:home-league-id';
 function getThreeMonthsAgo(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 3);
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 type DisplayLeague = {

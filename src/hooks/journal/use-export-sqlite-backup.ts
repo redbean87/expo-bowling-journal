@@ -11,7 +11,11 @@ import { saveAndShareNativeBackupFile } from './export-backup/native-export-file
 import { convexJournalService } from '@/services/journal';
 
 function getDefaultExportFileName() {
-  const dateLabel = new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dateLabel = `${year}-${month}-${day}`;
   return `bowling-journal-${dateLabel}.db`;
 }
 
