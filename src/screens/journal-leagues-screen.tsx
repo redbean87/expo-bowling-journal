@@ -10,9 +10,8 @@ import {
   View,
 } from 'react-native';
 
-import { CreateLeagueModal } from './journal/components/create-league-modal';
-import { EditLeagueModal } from './journal/components/edit-league-modal';
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
+import { LeagueFormModal } from './journal/components/league-form-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
@@ -721,40 +720,42 @@ export default function JournalLeaguesScreen() {
           }}
         />
 
-        <CreateLeagueModal
+        <LeagueFormModal
           buildSuggestions={buildSuggestions}
           createHouse={createHouse}
           houseOptions={houseOptions}
-          isCreatingLeagueRequest={isCreatingLeagueRequest}
+          isSubmitting={isCreatingLeagueRequest}
           leagueError={leagueError}
           leagueGamesPerSession={leagueGamesPerSession}
           leagueHouseId={leagueHouseId}
           leagueName={leagueName}
           modalTranslateY={modalTranslateY}
+          mode="create"
           onClose={() => setIsCreateModalVisible(false)}
-          onCreate={onCreateLeague}
           onGamesPerSessionChange={setLeagueGamesPerSession}
           onLeagueHouseSelect={(option) => setLeagueHouseId(option.id)}
           onLeagueNameChange={setLeagueName}
+          onSubmit={onCreateLeague}
           recentHouseOptions={recentHouseOptions}
           visible={isCreateModalVisible}
         />
 
-        <EditLeagueModal
+        <LeagueFormModal
           buildSuggestions={buildSuggestions}
           createHouse={createHouse}
           houseOptions={houseOptions}
-          isSavingLeagueEdit={isSavingLeagueEdit}
+          isSubmitting={isSavingLeagueEdit}
           leagueError={leagueActionError}
           leagueGamesPerSession={editingLeagueGamesPerSession}
           leagueHouseId={editingLeagueHouseId}
           leagueName={editingLeagueName}
           modalTranslateY={modalTranslateY}
+          mode="edit"
           onClose={cancelEditingLeague}
           onGamesPerSessionChange={setEditingLeagueGamesPerSession}
           onLeagueHouseSelect={(option) => setEditingLeagueHouseId(option.id)}
           onLeagueNameChange={setEditingLeagueName}
-          onSave={() => {
+          onSubmit={() => {
             void onSaveLeagueEdit();
           }}
           recentHouseOptions={recentHouseOptions}

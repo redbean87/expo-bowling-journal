@@ -11,9 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { CreateSessionModal } from './journal/components/create-session-modal';
-import { EditSessionModal } from './journal/components/edit-session-modal';
 import { SessionActionsModal } from './journal/components/session-actions-modal';
+import { SessionFormModal } from './journal/components/session-form-modal';
 import { SessionRowCard } from './journal/components/session-row-card';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import {
@@ -1148,23 +1147,24 @@ export default function JournalSessionsScreen() {
           visible={isSessionActionsVisible}
         />
 
-        <CreateSessionModal
+        <SessionFormModal
           ballOptions={ballOptions}
           buildSuggestions={buildSuggestions}
-          canCreateSessionTarget={canCreateSessionTarget}
+          canSubmit={canCreateSessionTarget}
           createBall={createBall}
           createHouse={createHouse}
           createPattern={createPattern}
           houseOptions={houseOptions}
-          isCreatingSessionRequest={isCreatingSessionRequest}
+          isSubmitting={isCreatingSessionRequest}
           modalTranslateY={modalTranslateY}
+          mode="create"
           onClose={() => setIsCreateModalVisible(false)}
-          onCreate={onCreateSession}
           onSessionBallSelect={(option) => setSessionBallId(option.id)}
           onSessionDateChange={setSessionDate}
           onSessionHouseSelect={(option) => setSessionHouseId(option.id)}
           onSessionPatternSelect={(option) => setSessionPatternId(option.id)}
           onSessionWeekNumberChange={setSessionWeekNumber}
+          onSubmit={onCreateSession}
           patternOptions={patternOptions}
           recentBallOptions={recentBallOptions}
           recentHouseOptions={recentHouseOptions}
@@ -1178,19 +1178,17 @@ export default function JournalSessionsScreen() {
           visible={isCreateModalVisible}
         />
 
-        <EditSessionModal
+        <SessionFormModal
           ballOptions={ballOptions}
           buildSuggestions={buildSuggestions}
           createBall={createBall}
           createHouse={createHouse}
           createPattern={createPattern}
           houseOptions={houseOptions}
-          isSavingSessionEdit={isSavingSessionEdit}
+          isSubmitting={isSavingSessionEdit}
           modalTranslateY={modalTranslateY}
+          mode="edit"
           onClose={cancelEditingSession}
-          onSave={() => {
-            void onSaveSessionEdit();
-          }}
           onSessionBallSelect={(option) => setEditingSessionBallId(option.id)}
           onSessionDateChange={setEditingSessionDate}
           onSessionHouseSelect={(option) => setEditingSessionHouseId(option.id)}
@@ -1198,6 +1196,9 @@ export default function JournalSessionsScreen() {
             setEditingSessionPatternId(option.id)
           }
           onSessionWeekNumberChange={setEditingSessionWeekNumber}
+          onSubmit={() => {
+            void onSaveSessionEdit();
+          }}
           patternOptions={patternOptions}
           recentBallOptions={recentBallOptions}
           recentHouseOptions={recentHouseOptions}

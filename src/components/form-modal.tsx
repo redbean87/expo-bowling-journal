@@ -1,54 +1,41 @@
 import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
+import type { ReactNode } from 'react';
 
-import { ReferenceCombobox } from '@/components/reference-combobox';
-import { Button, Input } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
-type EditLeagueModalProps = {
+type FormModalProps = {
   visible: boolean;
   modalTranslateY: number;
-  leagueName: string;
-  leagueGamesPerSession: string;
-  leagueHouseId: string | null;
-  leagueError: string | null;
-  isSavingLeagueEdit: boolean;
-  houseOptions: ReferenceOption<string>[];
-  recentHouseOptions: ReferenceOption<string>[];
-  buildSuggestions: (
-    allOptions: ReferenceOption<string>[],
-    recentOptions: ReferenceOption<string>[],
-    query: string
-  ) => ReferenceOption<string>[];
-  createHouse: (name: string) => Promise<ReferenceOption<string>>;
+  title: string;
+  closeAccessibilityLabel: string;
   onClose: () => void;
-  onSave: () => void;
-  onLeagueNameChange: (value: string) => void;
-  onGamesPerSessionChange: (value: string) => void;
-  onLeagueHouseSelect: (option: ReferenceOption<string>) => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  submittingLabel: string;
+  isSubmitting: boolean;
+  canSubmit?: boolean;
+  error: string | null;
+  children: ReactNode;
 };
 
-export function EditLeagueModal({
+export function FormModal({
   visible,
   modalTranslateY,
-  leagueName,
-  leagueGamesPerSession,
-  leagueHouseId,
-  leagueError,
-  isSavingLeagueEdit,
-  houseOptions,
-  recentHouseOptions,
-  buildSuggestions,
-  createHouse,
+  title,
+  closeAccessibilityLabel,
   onClose,
-  onSave,
-  onLeagueNameChange,
-  onGamesPerSessionChange,
-  onLeagueHouseSelect,
-}: EditLeagueModalProps) {
+  onSubmit,
+  submitLabel,
+  submittingLabel,
+  isSubmitting,
+  canSubmit = true,
+  error,
+  children,
+}: FormModalProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -68,9 +55,9 @@ export function EditLeagueModal({
           ]}
         >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit league</Text>
+            <Text style={styles.modalTitle}>{title}</Text>
             <Pressable
-              accessibilityLabel="Close edit league dialog"
+              accessibilityLabel={closeAccessibilityLabel}
               accessibilityRole="button"
               onPress={onClose}
               style={({ pressed }) => [
@@ -81,46 +68,20 @@ export function EditLeagueModal({
               <Text style={styles.modalCloseLabel}>X</Text>
             </Pressable>
           </View>
-          <Input
-            autoCapitalize="words"
-            autoCorrect={false}
-            onChangeText={onLeagueNameChange}
-            placeholder="League name"
-            value={leagueName}
-          />
-          <Input
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="number-pad"
-            onChangeText={onGamesPerSessionChange}
-            placeholder="Games per session (optional)"
-            value={leagueGamesPerSession}
-          />
-          <ReferenceCombobox
-            allOptions={houseOptions}
-            createLabel="Add house"
-            getSuggestions={buildSuggestions}
-            onQuickAdd={createHouse}
-            onSelect={onLeagueHouseSelect}
-            placeholder="House (optional)"
-            recentOptions={recentHouseOptions}
-            valueId={leagueHouseId}
-          />
-          {leagueError ? (
-            <Text style={styles.errorText}>{leagueError}</Text>
-          ) : null}
+          {children}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
           <View style={styles.modalActions}>
             <View style={styles.modalActionButton}>
               <Button
-                disabled={isSavingLeagueEdit}
-                label={isSavingLeagueEdit ? 'Saving...' : 'Save'}
-                onPress={onSave}
+                disabled={isSubmitting || !canSubmit}
+                label={isSubmitting ? submittingLabel : submitLabel}
+                onPress={onSubmit}
                 variant="secondary"
               />
             </View>
             <View style={styles.modalActionButton}>
               <Button
-                disabled={isSavingLeagueEdit}
+                disabled={isSubmitting}
                 label="Cancel"
                 onPress={onClose}
                 variant="ghost"
