@@ -86,6 +86,57 @@ export const listStatsByLeague = query({
   },
 });
 
+// Returns per-session aggregated stats for a league, ordered chronologically.
+// Used by the Analytics tab for trend charts and personal records.
+export const listSessionAggregates = query({
+  args: {
+    leagueId: v.id('leagues'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+
+    const sessions = await ctx.db
+      .query('sessions')
+      .withIndex('by_user_league', (q) =>
+        q.eq('userId', userId).eq('leagueId', args.leagueId)
+      )
+      .collect();
+
+    const sorted = sessions.sort((a, b) => a.date.localeCompare(b.date));
+
+    return Promise.all(
+      sorted.map(async (session) => {
+        const games = await ctx.db
+          .query('games')
+          .withIndex('by_user_session', (q) =>
+            q.eq('userId', userId).eq('sessionId', session._id)
+          )
+          .collect();
+
+        const scores = games
+          .map((g) => g.totalScore)
+          .filter((s) => typeof s === 'number' && s > 0) as number[];
+
+        const totalStrikes = games.reduce((s, g) => s + (g.strikes ?? 0), 0);
+        const totalSpares = games.reduce((s, g) => s + (g.spares ?? 0), 0);
+        const totalOpens = games.reduce((s, g) => s + (g.opens ?? 0), 0);
+
+        return {
+          sessionId: session._id,
+          date: session.date,
+          weekNumber: session.weekNumber ?? null,
+          gameCount: scores.length,
+          totalPins: scores.reduce((a, b) => a + b, 0),
+          highGame: scores.length > 0 ? Math.max(...scores) : null,
+          totalStrikes,
+          totalSpares,
+          totalOpens,
+        };
+      })
+    );
+  },
+});
+
 export const getById = query({
   args: {
     gameId: v.id('games'),

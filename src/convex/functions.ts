@@ -240,6 +240,24 @@ export const gamesListStatsByLeagueQuery = makeFunctionReference<
   }>
 >('games:listStatsByLeague');
 
+export const gamesListSessionAggregatesQuery = makeFunctionReference<
+  'query',
+  {
+    leagueId: Id<'leagues'>;
+  },
+  Array<{
+    sessionId: Id<'sessions'>;
+    date: string;
+    weekNumber: number | null;
+    gameCount: number;
+    totalPins: number;
+    highGame: number | null;
+    totalStrikes: number;
+    totalSpares: number;
+    totalOpens: number;
+  }>
+>('games:listSessionAggregates');
+
 export const gamesCreateMutation = makeFunctionReference<
   'mutation',
   {
