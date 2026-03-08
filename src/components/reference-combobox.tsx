@@ -1,5 +1,6 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ReferenceComboboxDropdown } from './reference-combobox/reference-combobox-dropdown';
 import { useReferenceCombobox } from './reference-combobox/use-reference-combobox';
@@ -7,7 +8,7 @@ import { useReferenceCombobox } from './reference-combobox/use-reference-combobo
 import type { ReferenceOption } from '@/hooks/journal/use-reference-data';
 
 import { Input } from '@/components/ui';
-import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
+import { spacing, type ThemeColors } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
 type ReferenceComboboxProps = {
@@ -100,7 +101,11 @@ export function ReferenceCombobox({
             pressed ? styles.optionPressed : null,
           ]}
         >
-          <Text style={styles.chevron}>{isOpen ? '^' : 'v'}</Text>
+          <MaterialIcons
+            name={isOpen ? 'expand-less' : 'expand-more'}
+            size={18}
+            color={colors.textSecondary}
+          />
         </Pressable>
       </View>
 
@@ -145,10 +150,6 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 999,
-    },
-    chevron: {
-      fontSize: typeScale.bodySm,
-      color: colors.textSecondary,
     },
     optionPressed: {
       backgroundColor: colors.accentMuted,

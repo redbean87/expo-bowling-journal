@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -121,7 +122,11 @@ export function HomeTonightCard({
             {league.houseName ?? 'No house set'}
           </Text>
         </View>
-        <Text style={styles.chevron}>˅</Text>
+        <MaterialIcons
+          name="expand-more"
+          size={20}
+          color={colors.textSecondary}
+        />
       </Pressable>
 
       <Text style={styles.sessionLabel}>{sessionLabel}</Text>
@@ -294,10 +299,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     leagueHouse: {
       fontSize: typeScale.bodySm,
-      color: colors.textSecondary,
-    },
-    chevron: {
-      fontSize: typeScale.body,
       color: colors.textSecondary,
     },
     sessionLabel: {
