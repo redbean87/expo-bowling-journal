@@ -1,9 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as shape from 'd3-shape';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// @ts-expect-error - react-native-svg-charts doesn't have TypeScript definitions
+import { Circle, G, Line as SvgLine } from 'react-native-svg';
 import { AreaChart, LineChart, XAxis, YAxis } from 'react-native-svg-charts';
 
 import type { LeagueId } from '@/services/journal';
@@ -45,6 +46,64 @@ function sessionLabel(s: SessionAggregate, index: number): string {
 // Session area/line chart
 // ---------------------------------------------------------------------------
 
+const TOOLTIP_W = 76;
+
+// Converts a data index to its pixel X coordinate within the chart container,
+// mirroring the linear scale react-native-svg-charts uses internally.
+function indexToPixelX(
+  index: number,
+  count: number,
+  containerWidth: number
+): number {
+  if (count <= 1) return CONTENT_INSET.left;
+  const usable = containerWidth - CONTENT_INSET.left - CONTENT_INSET.right;
+  return CONTENT_INSET.left + (index / (count - 1)) * usable;
+}
+
+// SVG decorator: only the scrub line + hollow dot — no text bubble.
+// react-native-svg-charts clones this element and injects x, y, data, height.
+function ChartScrubber({
+  x,
+  y,
+  data,
+  selectedIndex,
+  color,
+  colors,
+}: {
+  x?: (i: number) => number;
+  y?: (v: number) => number;
+  data?: number[];
+  selectedIndex: number | null;
+  color: string;
+  colors: ThemeColors;
+}) {
+  if (selectedIndex === null || !x || !y || !data) return null;
+  const cx = x(selectedIndex);
+  const cy = y(data[selectedIndex]);
+  return (
+    <G>
+      <SvgLine
+        x1={cx}
+        x2={cx}
+        y1={0}
+        y2={CHART_HEIGHT}
+        stroke={colors.textSecondary}
+        strokeWidth={1}
+        strokeDasharray="4 3"
+        opacity={0.5}
+      />
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={5}
+        stroke={color}
+        strokeWidth={2}
+        fill={colors.surface}
+      />
+    </G>
+  );
+}
+
 function SessionLineChart({
   sessions,
   values,
@@ -56,6 +115,63 @@ function SessionLineChart({
   color: string;
   colors: ThemeColors;
 }) {
+  // { index, left } — computed entirely in event handlers to avoid ref access during render
+  const [selection, setSelection] = useState<{
+    index: number;
+    left: number;
+  } | null>(null);
+  const chartWidth = useRef(0);
+  const valuesRef = useRef(values);
+
+  // Sync ref outside render (satisfies react-hooks/refs)
+  useEffect(() => {
+    valuesRef.current = values;
+  });
+
+  // Computes both the snapped index and the clamped tooltip left position.
+  // Called only from event handlers — never during render.
+  const calcSelection = useCallback(
+    (locationX: number) => {
+      if (!Number.isFinite(locationX)) return null;
+      const cw = chartWidth.current;
+      const vLen = valuesRef.current.length;
+      const usable = cw - CONTENT_INSET.left - CONTENT_INSET.right;
+      const raw = ((locationX - CONTENT_INSET.left) / usable) * (vLen - 1);
+      const index = Math.max(0, Math.min(vLen - 1, Math.round(raw)));
+      const pixelX = indexToPixelX(index, vLen, cw);
+      const left = Math.max(
+        4,
+        Math.min(cw - TOOLTIP_W - 4, pixelX - TOOLTIP_W / 2)
+      );
+      return { index, left };
+    },
+    [] // reads from refs — no reactive deps needed
+  );
+
+  const panResponder = useMemo(() => {
+    // PanResponder.create stores the callbacks — it does not call them during
+    // creation, so the ref accesses inside calcSelection are safe here.
+    // eslint-disable-next-line react-hooks/refs
+    return PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderGrant: (e) =>
+        setSelection(calcSelection(e.nativeEvent.locationX)),
+      onPanResponderMove: (e) =>
+        setSelection(calcSelection(e.nativeEvent.locationX)),
+      onPanResponderRelease: () => setSelection(null),
+      onPanResponderTerminate: () => setSelection(null),
+    });
+  }, [calcSelection]);
+
+  // Web-only mouse handlers (onMouseMove / onMouseLeave are not in RN's ViewProps)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const webHandlers: any = {
+    onMouseMove: (e: { nativeEvent: { offsetX: number } }) =>
+      setSelection(calcSelection(e.nativeEvent.offsetX)),
+    onMouseLeave: () => setSelection(null),
+  };
+
   if (values.every((v) => v === 0)) return null;
 
   return (
@@ -70,7 +186,12 @@ function SessionLineChart({
       />
       <View style={{ flex: 1, marginLeft: spacing.xs }}>
         {/* Layered chart: fill-only area + stroke-only line to avoid edge drops */}
-        <View style={{ height: CHART_HEIGHT }}>
+        <View
+          style={{ height: CHART_HEIGHT }}
+          onLayout={(e) => {
+            chartWidth.current = e.nativeEvent.layout.width;
+          }}
+        >
           <AreaChart
             data={values}
             contentInset={CONTENT_INSET}
@@ -96,7 +217,61 @@ function SessionLineChart({
             }}
             curve={shape.curveMonotoneX}
             svg={{ stroke: color, strokeWidth: 2 }}
+          >
+            <ChartScrubber
+              selectedIndex={selection?.index ?? null}
+              color={color}
+              colors={colors}
+            />
+          </LineChart>
+          {/* Transparent overlay — captures touch (panHandlers) and mouse hover (web) */}
+          <View
+            {...panResponder.panHandlers}
+            {...webHandlers}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
           />
+          {/* Native tooltip card — no ref access during render */}
+          {selection !== null ? (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: selection.left,
+                top: CHART_HEIGHT / 2 - 22,
+                width: TOOLTIP_W,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: radius.sm,
+                paddingHorizontal: spacing.xs,
+                paddingVertical: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typeScale.bodySm,
+                  color: colors.textSecondary,
+                }}
+              >
+                {sessionLabel(sessions[selection.index], selection.index)}
+              </Text>
+              <Text
+                style={{
+                  fontSize: typeScale.body,
+                  fontWeight: '700',
+                  color: colors.textPrimary,
+                }}
+              >
+                {Math.round(values[selection.index])}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <XAxis
           data={values}

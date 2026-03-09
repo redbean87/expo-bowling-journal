@@ -1,5 +1,7 @@
+declare module 'd3-shape';
+
 declare module 'react-native-svg-charts' {
-  import { Component } from 'react';
+  import React, { Component } from 'react';
 
   type ContentInset = {
     top?: number;
@@ -19,6 +21,7 @@ declare module 'react-native-svg-charts' {
     svg?: Record<string, unknown>;
     numberOfTicks?: number;
     formatLabel?: (value: number, index: number) => string;
+    children?: React.ReactNode;
   };
 
   export class AreaChart extends Component<ChartProps> {}
