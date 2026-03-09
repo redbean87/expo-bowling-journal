@@ -131,6 +131,7 @@ export const listSessionAggregates = query({
           totalStrikes,
           totalSpares,
           totalOpens,
+          gameScores: scores,
         };
       })
     );

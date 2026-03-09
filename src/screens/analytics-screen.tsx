@@ -21,6 +21,8 @@ import { useLeagueAnalytics, useLeagues } from '@/hooks/journal';
 import { radius, spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 import {
+  computeCumulativeAverage,
+  computeGamePositionAvgs,
   computePersonalRecords,
   type SessionAggregate,
 } from '@/utils/analytics-stats';
@@ -109,11 +111,13 @@ function SessionLineChart({
   values,
   color,
   colors,
+  trendValues,
 }: {
   sessions: SessionAggregate[];
   values: number[];
   color: string;
   colors: ThemeColors;
+  trendValues?: (number | null)[];
 }) {
   // { index, left } — computed entirely in event handlers to avoid ref access during render
   const [selection, setSelection] = useState<{
@@ -224,6 +228,26 @@ function SessionLineChart({
               colors={colors}
             />
           </LineChart>
+          {trendValues ? (
+            <LineChart
+              data={trendValues.map((v) => v ?? 0)}
+              contentInset={CONTENT_INSET}
+              style={{
+                height: CHART_HEIGHT,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+              }}
+              curve={shape.curveMonotoneX}
+              svg={{
+                stroke: color,
+                strokeWidth: 1.5,
+                strokeOpacity: 0.45,
+                strokeDasharray: '5 4',
+              }}
+            />
+          ) : null}
           {/* Transparent overlay — captures touch (panHandlers) and mouse hover (web) */}
           <View
             {...panResponder.panHandlers}
@@ -270,6 +294,17 @@ function SessionLineChart({
               >
                 {Math.round(values[selection.index])}
               </Text>
+              {trendValues?.[selection.index] != null ? (
+                <Text
+                  style={{
+                    fontSize: typeScale.bodySm,
+                    color: colors.textSecondary,
+                    marginTop: 1,
+                  }}
+                >
+                  To date {(trendValues[selection.index] as number).toFixed(1)}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -490,6 +525,78 @@ function LegendDot({
 }
 
 // ---------------------------------------------------------------------------
+// Game position averages card
+// ---------------------------------------------------------------------------
+
+const GAME_BAR_HEIGHT = 60;
+
+function GamePositionCard({
+  positions,
+  colors,
+}: {
+  positions: { position: number; avg: number; count: number }[];
+  colors: ThemeColors;
+}) {
+  const avgs = positions.map((p) => p.avg);
+  const minAvg = Math.min(...avgs);
+  const maxAvg = Math.max(...avgs);
+  const range = maxAvg - minAvg || 1;
+  const bestIdx = avgs.indexOf(maxAvg);
+
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+      {positions.map((p, i) => {
+        const barH = Math.max(
+          8,
+          ((p.avg - minAvg) / range) * (GAME_BAR_HEIGHT - 8) + 8
+        );
+        const isBest = i === bestIdx;
+        return (
+          <View
+            key={p.position}
+            style={{ alignItems: 'center', gap: spacing.xs }}
+          >
+            <Text
+              style={{
+                fontSize: typeScale.bodySm,
+                fontWeight: '700',
+                color: isBest ? colors.accent : colors.textPrimary,
+              }}
+            >
+              {p.avg.toFixed(1)}
+            </Text>
+            <View
+              style={{
+                height: GAME_BAR_HEIGHT,
+                justifyContent: 'flex-end',
+                width: 36,
+              }}
+            >
+              <View
+                style={{
+                  height: barH,
+                  backgroundColor: colors.accent,
+                  opacity: isBest ? 1 : 0.35,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: typeScale.bodySm,
+                color: colors.textSecondary,
+              }}
+            >
+              Game {p.position + 1}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
 
@@ -521,6 +628,11 @@ export default function AnalyticsScreen() {
   const sessionsWithGames = useMemo(
     () => sessionAggregates.filter((s) => s.gameCount > 0),
     [sessionAggregates]
+  );
+
+  const gamePositionAvgs = useMemo(
+    () => computeGamePositionAvgs(sessionsWithGames),
+    [sessionsWithGames]
   );
 
   const isLoading = isLeaguesLoading || isAnalyticsLoading;
@@ -621,6 +733,17 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
+            {/* Game position averages */}
+            {gamePositionAvgs.length >= 2 ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Game Averages</Text>
+                <GamePositionCard
+                  positions={gamePositionAvgs}
+                  colors={colors}
+                />
+              </View>
+            ) : null}
+
             {/* Average over time */}
             {sessionsWithGames.length > 1 ? (
               <View style={styles.card}>
@@ -629,6 +752,11 @@ export default function AnalyticsScreen() {
                   sessions={sessionsWithGames}
                   values={sessionsWithGames.map((s) =>
                     s.gameCount > 0 ? s.totalPins / s.gameCount : 0
+                  )}
+                  trendValues={computeCumulativeAverage(
+                    sessionsWithGames.map((s) =>
+                      s.gameCount > 0 ? s.totalPins / s.gameCount : null
+                    )
                   )}
                   color={colors.accent}
                   colors={colors}
@@ -643,6 +771,9 @@ export default function AnalyticsScreen() {
                 <SessionLineChart
                   sessions={sessionsWithGames}
                   values={sessionsWithGames.map((s) => s.highGame ?? 0)}
+                  trendValues={computeCumulativeAverage(
+                    sessionsWithGames.map((s) => s.highGame)
+                  )}
                   color={colors.success}
                   colors={colors}
                 />

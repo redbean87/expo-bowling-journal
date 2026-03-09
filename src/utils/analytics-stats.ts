@@ -8,6 +8,7 @@ export type SessionAggregate = {
   totalStrikes: number;
   totalSpares: number;
   totalOpens: number;
+  gameScores: number[];
 };
 
 export type PersonalRecords = {
@@ -25,6 +26,35 @@ export type PersonalRecords = {
   avgTrend: number | null;
 };
 
+export function computeCumulativeAverage(
+  values: (number | null)[]
+): (number | null)[] {
+  return values.map((_, i) => {
+    const slice = values.slice(0, i + 1).filter((v): v is number => v !== null);
+    return slice.length > 0
+      ? slice.reduce((a, b) => a + b, 0) / slice.length
+      : null;
+  });
+}
+
+export function computeGamePositionAvgs(
+  sessions: SessionAggregate[]
+): { position: number; avg: number; count: number }[] {
+  const totals: { sum: number; count: number }[] = [];
+
+  for (const s of sessions) {
+    for (let i = 0; i < s.gameScores.length; i++) {
+      if (!totals[i]) totals[i] = { sum: 0, count: 0 };
+      totals[i].sum += s.gameScores[i];
+      totals[i].count += 1;
+    }
+  }
+
+  return totals
+    .map((t, i) => ({ position: i, avg: t.sum / t.count, count: t.count }))
+    .filter((_, i) => totals[i]?.count > 0);
+}
+
 export function computePersonalRecords(
   sessions: SessionAggregate[]
 ): PersonalRecords {
@@ -37,8 +67,8 @@ export function computePersonalRecords(
     highGameCandidates.length > 0 ? Math.max(...highGameCandidates) : null;
 
   const seriesCandidates = sessionsWithGames
-    .map((s) => s.totalPins)
-    .filter((p) => p > 0);
+    .filter((s) => s.gameScores.length >= 3)
+    .map((s) => s.gameScores[0] + s.gameScores[1] + s.gameScores[2]);
   const highSeries =
     seriesCandidates.length > 0 ? Math.max(...seriesCandidates) : null;
 
