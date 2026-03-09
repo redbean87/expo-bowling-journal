@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import * as shape from 'd3-shape';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// @ts-expect-error - react-native-svg-charts doesn't have TypeScript definitions
+import { AreaChart, LineChart, XAxis, YAxis } from 'react-native-svg-charts';
 
 import type { LeagueId } from '@/services/journal';
 
@@ -25,7 +28,11 @@ import {
 // Chart constants
 // ---------------------------------------------------------------------------
 
-const CHART_HEIGHT = 100;
+const CHART_HEIGHT = 120;
+const Y_AXIS_WIDTH = 32;
+const CONTENT_INSET = { top: 12, bottom: 12, left: 8, right: 8 } as const;
+
+// Stacked bar chart dimensions (frame distribution)
 const BAR_WIDTH = 30;
 const BAR_GAP = 6;
 
@@ -35,91 +42,78 @@ function sessionLabel(s: SessionAggregate, index: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Average bar chart
+// Session area/line chart
 // ---------------------------------------------------------------------------
 
-function AvgBarChart({
+function SessionLineChart({
   sessions,
+  values,
+  color,
   colors,
 }: {
   sessions: SessionAggregate[];
+  values: number[];
+  color: string;
   colors: ThemeColors;
 }) {
-  const avgs = sessions.map((s) =>
-    s.gameCount > 0 ? s.totalPins / s.gameCount : 0
-  );
-  const validAvgs = avgs.filter((a) => a > 0);
-  if (validAvgs.length === 0) return null;
-
-  const minA = Math.min(...validAvgs);
-  const maxA = Math.max(...validAvgs);
-  const range = Math.max(maxA - minA, 20);
-  const pad = range * 0.15;
-  const yMin = Math.max(0, minA - pad);
-  const yMax = Math.min(300, maxA + pad);
-  const yRange = yMax - yMin || 1;
+  if (values.every((v) => v === 0)) return null;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={{ paddingHorizontal: spacing.xs }}>
-        <View
-          style={{
-            height: CHART_HEIGHT,
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            gap: BAR_GAP,
-          }}
-        >
-          {sessions.map((s, i) => {
-            const avg = avgs[i];
-            const barH =
-              avg > 0 ? Math.max(4, ((avg - yMin) / yRange) * CHART_HEIGHT) : 4;
-            return (
-              <View key={s.sessionId} style={{ alignItems: 'center' }}>
-                <Text
-                  style={{
-                    fontSize: 9,
-                    color: colors.textSecondary,
-                    marginBottom: 2,
-                  }}
-                >
-                  {avg > 0 ? Math.round(avg) : ''}
-                </Text>
-                <View
-                  style={{
-                    width: BAR_WIDTH,
-                    height: barH,
-                    borderRadius: 4,
-                    backgroundColor: avg > 0 ? colors.accent : colors.border,
-                  }}
-                />
-              </View>
-            );
-          })}
+    <View style={{ flexDirection: 'row' }}>
+      <YAxis
+        data={values}
+        numberOfTicks={4}
+        contentInset={{ top: CONTENT_INSET.top, bottom: CONTENT_INSET.bottom }}
+        style={{ width: Y_AXIS_WIDTH }}
+        formatLabel={(v: number) => String(Math.round(v))}
+        svg={{ fontSize: 9, fill: colors.textSecondary }}
+      />
+      <View style={{ flex: 1, marginLeft: spacing.xs }}>
+        {/* Layered chart: fill-only area + stroke-only line to avoid edge drops */}
+        <View style={{ height: CHART_HEIGHT }}>
+          <AreaChart
+            data={values}
+            contentInset={CONTENT_INSET}
+            style={{
+              height: CHART_HEIGHT,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+            curve={shape.curveMonotoneX}
+            svg={{ fill: color, fillOpacity: 0.15, stroke: 'none' }}
+          />
+          <LineChart
+            data={values}
+            contentInset={CONTENT_INSET}
+            style={{
+              height: CHART_HEIGHT,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+            curve={shape.curveMonotoneX}
+            svg={{ stroke: color, strokeWidth: 2 }}
+          />
         </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: BAR_GAP,
-            marginTop: spacing.xs,
+        <XAxis
+          data={values}
+          contentInset={{
+            left: CONTENT_INSET.left,
+            right: CONTENT_INSET.right,
           }}
-        >
-          {sessions.map((s, i) => (
-            <Text
-              key={s.sessionId}
-              style={{
-                width: BAR_WIDTH,
-                fontSize: 10,
-                color: colors.textSecondary,
-                textAlign: 'center',
-              }}
-            >
-              {sessionLabel(s, i)}
-            </Text>
-          ))}
-        </View>
+          numberOfTicks={Math.min(sessions.length, 6)}
+          style={{ marginTop: spacing.xs }}
+          formatLabel={(value: number) => {
+            const idx = Math.round(value);
+            return sessions[idx] ? sessionLabel(sessions[idx], idx) : '';
+          }}
+          svg={{ fontSize: 10, fill: colors.textSecondary }}
+        />
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -231,12 +225,23 @@ function FrameStackedChart({
 function RecordCell({
   label,
   value,
+  trend,
   colors,
 }: {
   label: string;
   value: string | number;
+  trend?: number | null;
   colors: ThemeColors;
 }) {
+  const trendIcon =
+    trend == null
+      ? null
+      : trend > 0
+        ? ({ name: 'trending-up', color: colors.success } as const)
+        : trend < 0
+          ? ({ name: 'trending-down', color: colors.danger } as const)
+          : null;
+
   return (
     <View
       style={{
@@ -246,15 +251,24 @@ function RecordCell({
         paddingVertical: spacing.sm,
       }}
     >
-      <Text
-        style={{
-          fontSize: typeScale.title,
-          fontWeight: '700',
-          color: colors.textPrimary,
-        }}
-      >
-        {String(value)}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Text
+          style={{
+            fontSize: typeScale.title,
+            fontWeight: '700',
+            color: colors.textPrimary,
+          }}
+        >
+          {String(value)}
+        </Text>
+        {trendIcon ? (
+          <MaterialIcons
+            name={trendIcon.name}
+            size={16}
+            color={trendIcon.color}
+          />
+        ) : null}
+      </View>
       <Text
         style={{
           fontSize: typeScale.bodySm,
@@ -403,6 +417,7 @@ export default function AnalyticsScreen() {
                       ? records.seasonAvg.toFixed(1)
                       : '-'
                   }
+                  trend={records.avgTrend}
                   colors={colors}
                 />
                 <RecordCell
@@ -435,7 +450,27 @@ export default function AnalyticsScreen() {
             {sessionsWithGames.length > 1 ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Average per Session</Text>
-                <AvgBarChart sessions={sessionsWithGames} colors={colors} />
+                <SessionLineChart
+                  sessions={sessionsWithGames}
+                  values={sessionsWithGames.map((s) =>
+                    s.gameCount > 0 ? s.totalPins / s.gameCount : 0
+                  )}
+                  color={colors.accent}
+                  colors={colors}
+                />
+              </View>
+            ) : null}
+
+            {/* High game per session */}
+            {sessionsWithGames.length > 1 ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>High Game per Session</Text>
+                <SessionLineChart
+                  sessions={sessionsWithGames}
+                  values={sessionsWithGames.map((s) => s.highGame ?? 0)}
+                  color={colors.success}
+                  colors={colors}
+                />
               </View>
             ) : null}
 

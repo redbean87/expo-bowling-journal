@@ -20,6 +20,9 @@ export type PersonalRecords = {
   totalOpens: number;
   strikeRate: number | null;
   spareRate: number | null;
+  // Positive = improving. Compares avg of last 3 sessions vs first 3.
+  // null when fewer than 4 sessions with games.
+  avgTrend: number | null;
 };
 
 export function computePersonalRecords(
@@ -48,6 +51,16 @@ export function computePersonalRecords(
   const totalOpens = sessions.reduce((sum, s) => sum + s.totalOpens, 0);
   const totalFrames = totalStrikes + totalSpares + totalOpens;
 
+  let avgTrend: number | null = null;
+  if (sessionsWithGames.length >= 4) {
+    const sessionAvgs = sessionsWithGames.map((s) => s.totalPins / s.gameCount);
+    const first3 = sessionAvgs.slice(0, 3);
+    const last3 = sessionAvgs.slice(-3);
+    const first3Avg = first3.reduce((a, b) => a + b, 0) / 3;
+    const last3Avg = last3.reduce((a, b) => a + b, 0) / 3;
+    avgTrend = last3Avg - first3Avg;
+  }
+
   return {
     highGame,
     highSeries,
@@ -58,5 +71,6 @@ export function computePersonalRecords(
     totalOpens,
     strikeRate: totalFrames > 0 ? totalStrikes / totalFrames : null,
     spareRate: totalFrames > 0 ? totalSpares / totalFrames : null,
+    avgTrend,
   };
 }
