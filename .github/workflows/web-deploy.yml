@@ -129,8 +129,31 @@ jobs:
           path: dist/
           retention-days: 1
 
+  deploy-convex:
+    needs: [check, check-worker]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy Convex functions
+        run: npx convex deploy
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
   deploy-preview:
-    needs: build-preview
+    needs: [build-preview, deploy-convex]
     runs-on: ubuntu-latest
 
     steps:
