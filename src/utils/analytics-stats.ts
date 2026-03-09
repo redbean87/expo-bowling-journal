@@ -8,6 +8,7 @@ export type SessionAggregate = {
   totalStrikes: number;
   totalSpares: number;
   totalOpens: number;
+  cleanGames: number;
   gameScores: number[];
 };
 
@@ -21,6 +22,7 @@ export type PersonalRecords = {
   totalOpens: number;
   strikeRate: number | null;
   spareRate: number | null;
+  cleanGames: number;
   // Positive = improving. Compares avg of last 3 sessions vs first 3.
   // null when fewer than 4 sessions with games.
   avgTrend: number | null;
@@ -101,6 +103,7 @@ export function computePersonalRecords(
     totalOpens,
     strikeRate: totalFrames > 0 ? totalStrikes / totalFrames : null,
     spareRate: totalFrames > 0 ? totalSpares / totalFrames : null,
+    cleanGames: sessions.reduce((sum, s) => sum + s.cleanGames, 0),
     avgTrend,
   };
 }

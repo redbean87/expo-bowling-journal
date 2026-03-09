@@ -730,6 +730,13 @@ export default function AnalyticsScreen() {
                   }
                   colors={colors}
                 />
+                <RecordCell
+                  label="Clean Games"
+                  value={records.cleanGames}
+                  colors={colors}
+                />
+                <View style={{ flex: 1, minWidth: '30%' }} />
+                <View style={{ flex: 1, minWidth: '30%' }} />
               </View>
             </View>
 

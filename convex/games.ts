@@ -120,6 +120,12 @@ export const listSessionAggregates = query({
         const totalStrikes = games.reduce((s, g) => s + (g.strikes ?? 0), 0);
         const totalSpares = games.reduce((s, g) => s + (g.spares ?? 0), 0);
         const totalOpens = games.reduce((s, g) => s + (g.opens ?? 0), 0);
+        const cleanGames = games.filter(
+          (g) =>
+            (g.opens ?? 0) === 0 &&
+            typeof g.totalScore === 'number' &&
+            g.totalScore > 0
+        ).length;
 
         return {
           sessionId: session._id,
@@ -131,6 +137,7 @@ export const listSessionAggregates = query({
           totalStrikes,
           totalSpares,
           totalOpens,
+          cleanGames,
           gameScores: scores,
         };
       })
