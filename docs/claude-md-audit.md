@@ -32,7 +32,7 @@ Guard Convex queries with `'skip'` when auth not ready.
 
 Move 37 `style={{}}` objects into the existing `createStyles` function.
 
-- [ ] `src/screens/analytics-screen.tsx` — 37 inline style violations
+- [x] `src/screens/analytics-screen.tsx` — 37 inline style violations
 
 ---
 

@@ -106,6 +106,44 @@ function ChartScrubber({
   );
 }
 
+const createSessionLineChartStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    row: { flexDirection: 'row' },
+    yAxis: { width: Y_AXIS_WIDTH },
+    body: { flex: 1, marginLeft: spacing.xs },
+    container: { height: CHART_HEIGHT },
+    absolute: {
+      height: CHART_HEIGHT,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+    },
+    overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    tooltipCard: {
+      position: 'absolute',
+      top: CHART_HEIGHT / 2 - 22,
+      width: TOOLTIP_W,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+    },
+    tooltipSession: { fontSize: typeScale.bodySm, color: colors.textSecondary },
+    tooltipValue: {
+      fontSize: typeScale.body,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    tooltipTrend: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+  });
+
 function SessionLineChart({
   sessions,
   values,
@@ -176,22 +214,24 @@ function SessionLineChart({
     onMouseLeave: () => setSelection(null),
   };
 
+  const s = useMemo(() => createSessionLineChartStyles(colors), [colors]);
+
   if (values.every((v) => v === 0)) return null;
 
   return (
-    <View style={{ flexDirection: 'row' }}>
+    <View style={s.row}>
       <YAxis
         data={values}
         numberOfTicks={4}
         contentInset={{ top: CONTENT_INSET.top, bottom: CONTENT_INSET.bottom }}
-        style={{ width: Y_AXIS_WIDTH }}
+        style={s.yAxis}
         formatLabel={(v: number) => String(Math.round(v))}
         svg={{ fontSize: 9, fill: colors.textSecondary }}
       />
-      <View style={{ flex: 1, marginLeft: spacing.xs }}>
+      <View style={s.body}>
         {/* Layered chart: fill-only area + stroke-only line to avoid edge drops */}
         <View
-          style={{ height: CHART_HEIGHT }}
+          style={s.container}
           onLayout={(e) => {
             chartWidth.current = e.nativeEvent.layout.width;
           }}
@@ -199,26 +239,14 @@ function SessionLineChart({
           <AreaChart
             data={values}
             contentInset={CONTENT_INSET}
-            style={{
-              height: CHART_HEIGHT,
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-            }}
+            style={s.absolute}
             curve={shape.curveMonotoneX}
             svg={{ fill: color, fillOpacity: 0.15, stroke: 'none' }}
           />
           <LineChart
             data={values}
             contentInset={CONTENT_INSET}
-            style={{
-              height: CHART_HEIGHT,
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-            }}
+            style={s.absolute}
             curve={shape.curveMonotoneX}
             svg={{ stroke: color, strokeWidth: 2 }}
           >
@@ -232,13 +260,7 @@ function SessionLineChart({
             <LineChart
               data={trendValues.map((v) => v ?? 0)}
               contentInset={CONTENT_INSET}
-              style={{
-                height: CHART_HEIGHT,
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-              }}
+              style={s.absolute}
               curve={shape.curveMonotoneX}
               svg={{
                 stroke: color,
@@ -252,56 +274,22 @@ function SessionLineChart({
           <View
             {...panResponder.panHandlers}
             {...webHandlers}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
+            style={s.overlay}
           />
           {/* Native tooltip card — no ref access during render */}
           {selection !== null ? (
             <View
               pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: selection.left,
-                top: CHART_HEIGHT / 2 - 22,
-                width: TOOLTIP_W,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: radius.sm,
-                paddingHorizontal: spacing.xs,
-                paddingVertical: 4,
-              }}
+              style={[s.tooltipCard, { left: selection.left }]}
             >
-              <Text
-                style={{
-                  fontSize: typeScale.bodySm,
-                  color: colors.textSecondary,
-                }}
-              >
+              <Text style={s.tooltipSession}>
                 {sessionLabel(sessions[selection.index], selection.index)}
               </Text>
-              <Text
-                style={{
-                  fontSize: typeScale.body,
-                  fontWeight: '700',
-                  color: colors.textPrimary,
-                }}
-              >
+              <Text style={s.tooltipValue}>
                 {Math.round(values[selection.index])}
               </Text>
               {trendValues?.[selection.index] != null ? (
-                <Text
-                  style={{
-                    fontSize: typeScale.bodySm,
-                    color: colors.textSecondary,
-                    marginTop: 1,
-                  }}
-                >
+                <Text style={s.tooltipTrend}>
                   To date {(trendValues[selection.index] as number).toFixed(1)}
                 </Text>
               ) : null}
@@ -331,6 +319,44 @@ function SessionLineChart({
 // Frame distribution stacked bar chart
 // ---------------------------------------------------------------------------
 
+const createFrameChartStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    padding: { paddingHorizontal: spacing.xs },
+    bars: {
+      height: CHART_HEIGHT,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: BAR_GAP,
+    },
+    emptyBar: {
+      width: BAR_WIDTH,
+      height: CHART_HEIGHT,
+      borderRadius: radius.sm,
+      backgroundColor: colors.border,
+    },
+    bar: {
+      width: BAR_WIDTH,
+      height: CHART_HEIGHT,
+      borderRadius: radius.sm,
+      overflow: 'hidden',
+      flexDirection: 'column-reverse',
+    },
+    segmentStrike: { backgroundColor: colors.accent },
+    segmentSpare: { backgroundColor: colors.success },
+    segmentOpen: { backgroundColor: colors.warning },
+    labelRow: {
+      flexDirection: 'row',
+      gap: BAR_GAP,
+      marginTop: spacing.xs,
+    },
+    labelText: {
+      width: BAR_WIDTH,
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+  });
+
 function FrameStackedChart({
   sessions,
   colors,
@@ -338,88 +364,45 @@ function FrameStackedChart({
   sessions: SessionAggregate[];
   colors: ThemeColors;
 }) {
+  const s = useMemo(() => createFrameChartStyles(colors), [colors]);
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={{ paddingHorizontal: spacing.xs }}>
-        <View
-          style={{
-            height: CHART_HEIGHT,
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            gap: BAR_GAP,
-          }}
-        >
-          {sessions.map((s) => {
-            const total = s.totalStrikes + s.totalSpares + s.totalOpens;
+      <View style={s.padding}>
+        <View style={s.bars}>
+          {sessions.map((session) => {
+            const total =
+              session.totalStrikes + session.totalSpares + session.totalOpens;
             if (total === 0) {
-              return (
-                <View
-                  key={s.sessionId}
-                  style={{
-                    width: BAR_WIDTH,
-                    height: CHART_HEIGHT,
-                    borderRadius: 4,
-                    backgroundColor: colors.border,
-                  }}
-                />
-              );
+              return <View key={session.sessionId} style={s.emptyBar} />;
             }
             const strikeH = Math.max(
               2,
-              (s.totalStrikes / total) * CHART_HEIGHT
+              (session.totalStrikes / total) * CHART_HEIGHT
             );
-            const spareH = Math.max(2, (s.totalSpares / total) * CHART_HEIGHT);
-            const openH = Math.max(2, (s.totalOpens / total) * CHART_HEIGHT);
+            const spareH = Math.max(
+              2,
+              (session.totalSpares / total) * CHART_HEIGHT
+            );
+            const openH = Math.max(
+              2,
+              (session.totalOpens / total) * CHART_HEIGHT
+            );
             return (
               // flexDirection: 'column-reverse' stacks from bottom:
               // first child = bottom segment (strikes)
-              <View
-                key={s.sessionId}
-                style={{
-                  width: BAR_WIDTH,
-                  height: CHART_HEIGHT,
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  flexDirection: 'column-reverse',
-                }}
-              >
-                <View
-                  style={{ height: strikeH, backgroundColor: colors.accent }}
-                />
-                <View
-                  style={{
-                    height: spareH,
-                    backgroundColor: colors.success,
-                  }}
-                />
-                <View
-                  style={{
-                    height: openH,
-                    backgroundColor: colors.warning,
-                  }}
-                />
+              <View key={session.sessionId} style={s.bar}>
+                <View style={[s.segmentStrike, { height: strikeH }]} />
+                <View style={[s.segmentSpare, { height: spareH }]} />
+                <View style={[s.segmentOpen, { height: openH }]} />
               </View>
             );
           })}
         </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: BAR_GAP,
-            marginTop: spacing.xs,
-          }}
-        >
-          {sessions.map((s, i) => (
-            <Text
-              key={s.sessionId}
-              style={{
-                width: BAR_WIDTH,
-                fontSize: 10,
-                color: colors.textSecondary,
-                textAlign: 'center',
-              }}
-            >
-              {sessionLabel(s, i)}
+        <View style={s.labelRow}>
+          {sessions.map((session, i) => (
+            <Text key={session.sessionId} style={s.labelText}>
+              {sessionLabel(session, i)}
             </Text>
           ))}
         </View>
@@ -432,6 +415,27 @@ function FrameStackedChart({
 // Small helper components
 // ---------------------------------------------------------------------------
 
+const createRecordCellStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    cell: {
+      flex: 1,
+      minWidth: '30%',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    valueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    value: {
+      fontSize: typeScale.title,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    label: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+  });
+
 function RecordCell({
   label,
   value,
@@ -443,6 +447,8 @@ function RecordCell({
   trend?: number | null;
   colors: ThemeColors;
 }) {
+  const s = useMemo(() => createRecordCellStyles(colors), [colors]);
+
   const trendIcon =
     trend == null
       ? null
@@ -453,24 +459,9 @@ function RecordCell({
           : null;
 
   return (
-    <View
-      style={{
-        flex: 1,
-        minWidth: '30%',
-        alignItems: 'center',
-        paddingVertical: spacing.sm,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <Text
-          style={{
-            fontSize: typeScale.title,
-            fontWeight: '700',
-            color: colors.textPrimary,
-          }}
-        >
-          {String(value)}
-        </Text>
+    <View style={s.cell}>
+      <View style={s.valueRow}>
+        <Text style={s.value}>{String(value)}</Text>
         {trendIcon ? (
           <MaterialIcons
             name={trendIcon.name}
@@ -479,18 +470,17 @@ function RecordCell({
           />
         ) : null}
       </View>
-      <Text
-        style={{
-          fontSize: typeScale.bodySm,
-          color: colors.textSecondary,
-          marginTop: 2,
-        }}
-      >
-        {label}
-      </Text>
+      <Text style={s.label}>{label}</Text>
     </View>
   );
 }
+
+const createLegendDotStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    dot: { width: 10, height: 10, borderRadius: 5 },
+    label: { fontSize: typeScale.bodySm, color: colors.textSecondary },
+  });
 
 function LegendDot({
   color,
@@ -501,25 +491,12 @@ function LegendDot({
   label: string;
   colors: ThemeColors;
 }) {
+  const s = useMemo(() => createLegendDotStyles(colors), [colors]);
+
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-      }}
-    >
-      <View
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: color,
-        }}
-      />
-      <Text style={{ fontSize: typeScale.bodySm, color: colors.textSecondary }}>
-        {label}
-      </Text>
+    <View style={s.row}>
+      <View style={[s.dot, { backgroundColor: color }]} />
+      <Text style={s.label}>{label}</Text>
     </View>
   );
 }
@@ -530,6 +507,22 @@ function LegendDot({
 
 const GAME_BAR_HEIGHT = 60;
 
+const createGamePositionStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    row: { flexDirection: 'row', justifyContent: 'space-around' },
+    col: { alignItems: 'center', gap: spacing.xs },
+    avgText: { fontSize: typeScale.bodySm, fontWeight: '700' },
+    avgTextBest: { color: colors.accent },
+    avgTextDefault: { color: colors.textPrimary },
+    barContainer: {
+      height: GAME_BAR_HEIGHT,
+      justifyContent: 'flex-end',
+      width: 36,
+    },
+    bar: { backgroundColor: colors.accent, borderRadius: radius.sm },
+    posLabel: { fontSize: typeScale.bodySm, color: colors.textSecondary },
+  });
+
 function GamePositionCard({
   positions,
   colors,
@@ -537,6 +530,8 @@ function GamePositionCard({
   positions: { position: number; avg: number; count: number }[];
   colors: ThemeColors;
 }) {
+  const s = useMemo(() => createGamePositionStyles(colors), [colors]);
+
   const avgs = positions.map((p) => p.avg);
   const minAvg = Math.min(...avgs);
   const maxAvg = Math.max(...avgs);
@@ -544,7 +539,7 @@ function GamePositionCard({
   const bestIdx = avgs.indexOf(maxAvg);
 
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+    <View style={s.row}>
       {positions.map((p, i) => {
         const barH = Math.max(
           8,
@@ -552,43 +547,18 @@ function GamePositionCard({
         );
         const isBest = i === bestIdx;
         return (
-          <View
-            key={p.position}
-            style={{ alignItems: 'center', gap: spacing.xs }}
-          >
+          <View key={p.position} style={s.col}>
             <Text
-              style={{
-                fontSize: typeScale.bodySm,
-                fontWeight: '700',
-                color: isBest ? colors.accent : colors.textPrimary,
-              }}
+              style={[s.avgText, isBest ? s.avgTextBest : s.avgTextDefault]}
             >
               {p.avg.toFixed(1)}
             </Text>
-            <View
-              style={{
-                height: GAME_BAR_HEIGHT,
-                justifyContent: 'flex-end',
-                width: 36,
-              }}
-            >
+            <View style={s.barContainer}>
               <View
-                style={{
-                  height: barH,
-                  backgroundColor: colors.accent,
-                  opacity: isBest ? 1 : 0.35,
-                  borderRadius: 4,
-                }}
+                style={[s.bar, { height: barH, opacity: isBest ? 1 : 0.35 }]}
               />
             </View>
-            <Text
-              style={{
-                fontSize: typeScale.bodySm,
-                color: colors.textSecondary,
-              }}
-            >
-              Game {p.position + 1}
-            </Text>
+            <Text style={s.posLabel}>Game {p.position + 1}</Text>
           </View>
         );
       })}
@@ -735,8 +705,8 @@ export default function AnalyticsScreen() {
                   value={records.cleanGames}
                   colors={colors}
                 />
-                <View style={{ flex: 1, minWidth: '30%' }} />
-                <View style={{ flex: 1, minWidth: '30%' }} />
+                <View style={styles.recordSpacer} />
+                <View style={styles.recordSpacer} />
               </View>
             </View>
 
@@ -944,6 +914,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
     },
+    recordSpacer: { flex: 1, minWidth: '30%' },
     legend: {
       flexDirection: 'row',
       gap: spacing.md,
