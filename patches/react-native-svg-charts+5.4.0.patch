@@ -1,0 +1,18 @@
+diff --git a/node_modules/react-native-svg-charts/lib/module/animated-path.js b/node_modules/react-native-svg-charts/lib/module/animated-path.js
+index 0be167a..f876526 100644
+--- a/node_modules/react-native-svg-charts/lib/module/animated-path.js
++++ b/node_modules/react-native-svg-charts/lib/module/animated-path.js
+@@ -97,10 +97,11 @@ class AnimatedPath extends Component {
+   }
+ 
+   render() {
++    const { animate, animationDuration, renderPlaceholder, ...pathProps } = this.props;
+     return /*#__PURE__*/React.createElement(Path, _extends({
+       ref: _ref => this.component = _ref
+-    }, this.props, {
+-      d: this.props.animate ? this.state.d : this.props.d
++    }, pathProps, {
++      d: animate ? this.state.d : this.props.d
+     }));
+   }
+ 

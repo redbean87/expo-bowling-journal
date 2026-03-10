@@ -4,6 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start --lan",
     "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",
@@ -75,6 +76,7 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
+    "patch-package": "^8.0.1",
     "prettier": "^3.8.1",
     "tsx": "^4.20.5",
     "typescript": "~5.9.2"
