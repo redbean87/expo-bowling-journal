@@ -40,11 +40,11 @@ Move 37 `style={{}}` objects into the existing `createStyles` function.
 
 Replace multi-line JSX ternaries with early returns or extracted components.
 
-- [ ] `src/screens/journal-sessions-screen.tsx` — season stats card (~44-line inline ternary block, ~line 1013)
-- [ ] `src/screens/analytics-screen.tsx` — chained 3-level loading/empty/content ternary (~line 672)
-- [ ] `src/screens/journal-games-screen.tsx` — multiple empty-state ternaries (~lines 826, 833)
-- [ ] `src/screens/journal-leagues-screen.tsx` — empty-state ternary (~line 689)
-- [ ] `src/screens/analytics-screen.tsx` — scattered single-condition ternaries (~lines 744, 755, 775, 860)
+- [x] `src/screens/journal-sessions-screen.tsx` — season stats card extracted to `<SeasonStatsCard />`
+- [x] `src/screens/analytics-screen.tsx` — chained ternary replaced with `<AnalyticsContent />` using early returns
+- [x] `src/screens/journal-games-screen.tsx` — empty-state ternaries converted to `&&`
+- [x] `src/screens/journal-leagues-screen.tsx` — empty-state ternaries converted to `&&`
+- [x] `src/screens/analytics-screen.tsx` — card guard ternaries converted to `&&`
 
 ---
 

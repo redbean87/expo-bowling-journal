@@ -93,6 +93,62 @@ type DisplaySession = {
   isDraft: boolean;
 };
 
+function SeasonStatsCard({
+  isLoading,
+  seasonSummary,
+  sessionCount,
+  styles,
+}: {
+  isLoading: boolean;
+  seasonSummary: ReturnType<typeof buildSessionNightSummary>;
+  sessionCount: number;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <Card muted style={styles.summaryCard}>
+      <View style={styles.summaryHeaderRow}>
+        <Text style={styles.summaryTitle}>Season stats</Text>
+        <Text style={[styles.meta, styles.summaryValueText]}>
+          Sessions: {String(sessionCount)}
+        </Text>
+      </View>
+      {isLoading && <Text style={styles.meta}>Loading...</Text>}
+      {!isLoading && seasonSummary.gamesPlayed > 0 && (
+        <>
+          <View style={styles.summaryRow}>
+            <Text style={styles.meta}>
+              Games: {String(seasonSummary.gamesPlayed)}
+            </Text>
+            <Text style={[styles.meta, styles.summaryValueText]}>
+              Series: {seasonSummary.totalPins}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.meta}>
+              Average: {seasonSummary.average.toFixed(2)}
+            </Text>
+            <Text style={[styles.meta, styles.summaryValueText]}>
+              High series: {seasonSummary.highSeries ?? '-'}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.meta}>
+              High game: {seasonSummary.highGame ?? '-'}
+            </Text>
+            <Text style={[styles.meta, styles.summaryValueText]}>
+              Low game: {seasonSummary.lowGame ?? '-'}
+            </Text>
+          </View>
+          <Text style={styles.meta}>
+            Strikes {seasonSummary.strikes} | Spares {seasonSummary.spares} |
+            Opens {seasonSummary.opens}
+          </Text>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function JournalSessionsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -1010,50 +1066,14 @@ export default function JournalSessionsScreen() {
             <Text style={styles.errorText}>{sessionActionError}</Text>
           ) : null}
 
-          {leagueId ? (
-            <Card muted style={styles.summaryCard}>
-              <View style={styles.summaryHeaderRow}>
-                <Text style={styles.summaryTitle}>Season stats</Text>
-                <Text style={[styles.meta, styles.summaryValueText]}>
-                  Sessions: {String(displaySessions.length)}
-                </Text>
-              </View>
-              {isLeagueGamesLoading ? (
-                <Text style={styles.meta}>Loading...</Text>
-              ) : seasonSummary.gamesPlayed > 0 ? (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.meta}>
-                      Games: {String(seasonSummary.gamesPlayed)}
-                    </Text>
-                    <Text style={[styles.meta, styles.summaryValueText]}>
-                      Series: {seasonSummary.totalPins}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.meta}>
-                      Average: {seasonSummary.average.toFixed(2)}
-                    </Text>
-                    <Text style={[styles.meta, styles.summaryValueText]}>
-                      High series: {seasonSummary.highSeries ?? '-'}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.meta}>
-                      High game: {seasonSummary.highGame ?? '-'}
-                    </Text>
-                    <Text style={[styles.meta, styles.summaryValueText]}>
-                      Low game: {seasonSummary.lowGame ?? '-'}
-                    </Text>
-                  </View>
-                  <Text style={styles.meta}>
-                    Strikes {seasonSummary.strikes} | Spares{' '}
-                    {seasonSummary.spares} | Opens {seasonSummary.opens}
-                  </Text>
-                </>
-              ) : null}
-            </Card>
-          ) : null}
+          {leagueId && (
+            <SeasonStatsCard
+              isLoading={isLeagueGamesLoading}
+              seasonSummary={seasonSummary}
+              sessionCount={displaySessions.length}
+              styles={styles}
+            />
+          )}
 
           {isSessionsLoading ? (
             <Text style={styles.meta}>Loading sessions...</Text>

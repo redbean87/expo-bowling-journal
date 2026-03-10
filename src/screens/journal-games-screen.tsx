@@ -820,19 +820,17 @@ export default function JournalGamesScreen() {
             </Card>
           ) : null}
 
-          {isGamesLoading ? (
-            <Text style={styles.meta}>Loading games...</Text>
-          ) : null}
-          {!isGamesLoading && !sessionId && displayGames.length === 0 ? (
+          {isGamesLoading && <Text style={styles.meta}>Loading games...</Text>}
+          {!isGamesLoading && !sessionId && displayGames.length === 0 && (
             <Text style={styles.meta}>
               {sessionClientSyncId
                 ? 'No games in this session yet. Tap + to add one.'
                 : 'Session not found.'}
             </Text>
-          ) : null}
-          {!isGamesLoading && sessionId && displayGames.length === 0 ? (
+          )}
+          {!isGamesLoading && sessionId && displayGames.length === 0 && (
             <Text style={styles.meta}>No games in this session yet.</Text>
-          ) : null}
+          )}
 
           {displayGames.map((game, index) => {
             const gameLabel = formatGameSequenceLabel(index + 1);

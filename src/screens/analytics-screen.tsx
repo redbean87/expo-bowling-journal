@@ -567,6 +567,166 @@ function GamePositionCard({
 }
 
 // ---------------------------------------------------------------------------
+// Analytics content (handles loading / empty / data states)
+// ---------------------------------------------------------------------------
+
+function AnalyticsContent({
+  isLoading,
+  leagues,
+  sessionsWithGames,
+  records,
+  gamePositionAvgs,
+  colors,
+  styles,
+}: {
+  isLoading: boolean;
+  leagues: { _id: string }[];
+  sessionsWithGames: SessionAggregate[];
+  records: ReturnType<typeof computePersonalRecords>;
+  gamePositionAvgs: ReturnType<typeof computeGamePositionAvgs>;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (leagues.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>No leagues found.</Text>
+      </View>
+    );
+  }
+
+  if (sessionsWithGames.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyText}>No games recorded yet.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      {/* Personal Records */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Personal Records</Text>
+        <View style={styles.recordsGrid}>
+          <RecordCell
+            label="High Game"
+            value={records.highGame ?? '-'}
+            colors={colors}
+          />
+          <RecordCell
+            label="High Series"
+            value={records.highSeries ?? '-'}
+            colors={colors}
+          />
+          <RecordCell
+            label="Season Avg"
+            value={
+              records.seasonAvg !== null ? records.seasonAvg.toFixed(1) : '-'
+            }
+            trend={records.avgTrend}
+            colors={colors}
+          />
+          <RecordCell
+            label="Games"
+            value={records.totalGames}
+            colors={colors}
+          />
+          <RecordCell
+            label="Strike Rate"
+            value={
+              records.strikeRate !== null
+                ? `${(records.strikeRate * 100).toFixed(0)}%`
+                : '-'
+            }
+            colors={colors}
+          />
+          <RecordCell
+            label="Spare Rate"
+            value={
+              records.spareRate !== null
+                ? `${(records.spareRate * 100).toFixed(0)}%`
+                : '-'
+            }
+            colors={colors}
+          />
+          <RecordCell
+            label="Clean Games"
+            value={records.cleanGames}
+            colors={colors}
+          />
+          <View style={styles.recordSpacer} />
+          <View style={styles.recordSpacer} />
+        </View>
+      </View>
+
+      {/* Game position averages */}
+      {gamePositionAvgs.length >= 2 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Game Averages</Text>
+          <GamePositionCard positions={gamePositionAvgs} colors={colors} />
+        </View>
+      )}
+
+      {/* Average over time */}
+      {sessionsWithGames.length > 1 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Average per Session</Text>
+          <SessionLineChart
+            sessions={sessionsWithGames}
+            values={sessionsWithGames.map((s) =>
+              s.gameCount > 0 ? s.totalPins / s.gameCount : 0
+            )}
+            trendValues={computeCumulativeAverage(
+              sessionsWithGames.map((s) =>
+                s.gameCount > 0 ? s.totalPins / s.gameCount : null
+              )
+            )}
+            color={colors.accent}
+            colors={colors}
+          />
+        </View>
+      )}
+
+      {/* High game per session */}
+      {sessionsWithGames.length > 1 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>High Game per Session</Text>
+          <SessionLineChart
+            sessions={sessionsWithGames}
+            values={sessionsWithGames.map((s) => s.highGame ?? 0)}
+            trendValues={computeCumulativeAverage(
+              sessionsWithGames.map((s) => s.highGame)
+            )}
+            color={colors.success}
+            colors={colors}
+          />
+        </View>
+      )}
+
+      {/* Frame distribution */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Frame Results per Session</Text>
+        <View style={styles.legend}>
+          <LegendDot color={colors.accent} label="Strike" colors={colors} />
+          <LegendDot color={colors.success} label="Spare" colors={colors} />
+          <LegendDot color={colors.warning} label="Open" colors={colors} />
+        </View>
+        <FrameStackedChart sessions={sessionsWithGames} colors={colors} />
+      </View>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
 
@@ -639,148 +799,15 @@ export default function AnalyticsScreen() {
           </View>
         </Pressable>
 
-        {isLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : leagues.length === 0 ? (
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>No leagues found.</Text>
-          </View>
-        ) : sessionsWithGames.length === 0 ? (
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>No games recorded yet.</Text>
-          </View>
-        ) : (
-          <>
-            {/* Personal Records */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Personal Records</Text>
-              <View style={styles.recordsGrid}>
-                <RecordCell
-                  label="High Game"
-                  value={records.highGame ?? '-'}
-                  colors={colors}
-                />
-                <RecordCell
-                  label="High Series"
-                  value={records.highSeries ?? '-'}
-                  colors={colors}
-                />
-                <RecordCell
-                  label="Season Avg"
-                  value={
-                    records.seasonAvg !== null
-                      ? records.seasonAvg.toFixed(1)
-                      : '-'
-                  }
-                  trend={records.avgTrend}
-                  colors={colors}
-                />
-                <RecordCell
-                  label="Games"
-                  value={records.totalGames}
-                  colors={colors}
-                />
-                <RecordCell
-                  label="Strike Rate"
-                  value={
-                    records.strikeRate !== null
-                      ? `${(records.strikeRate * 100).toFixed(0)}%`
-                      : '-'
-                  }
-                  colors={colors}
-                />
-                <RecordCell
-                  label="Spare Rate"
-                  value={
-                    records.spareRate !== null
-                      ? `${(records.spareRate * 100).toFixed(0)}%`
-                      : '-'
-                  }
-                  colors={colors}
-                />
-                <RecordCell
-                  label="Clean Games"
-                  value={records.cleanGames}
-                  colors={colors}
-                />
-                <View style={styles.recordSpacer} />
-                <View style={styles.recordSpacer} />
-              </View>
-            </View>
-
-            {/* Game position averages */}
-            {gamePositionAvgs.length >= 2 ? (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Game Averages</Text>
-                <GamePositionCard
-                  positions={gamePositionAvgs}
-                  colors={colors}
-                />
-              </View>
-            ) : null}
-
-            {/* Average over time */}
-            {sessionsWithGames.length > 1 ? (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Average per Session</Text>
-                <SessionLineChart
-                  sessions={sessionsWithGames}
-                  values={sessionsWithGames.map((s) =>
-                    s.gameCount > 0 ? s.totalPins / s.gameCount : 0
-                  )}
-                  trendValues={computeCumulativeAverage(
-                    sessionsWithGames.map((s) =>
-                      s.gameCount > 0 ? s.totalPins / s.gameCount : null
-                    )
-                  )}
-                  color={colors.accent}
-                  colors={colors}
-                />
-              </View>
-            ) : null}
-
-            {/* High game per session */}
-            {sessionsWithGames.length > 1 ? (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>High Game per Session</Text>
-                <SessionLineChart
-                  sessions={sessionsWithGames}
-                  values={sessionsWithGames.map((s) => s.highGame ?? 0)}
-                  trendValues={computeCumulativeAverage(
-                    sessionsWithGames.map((s) => s.highGame)
-                  )}
-                  color={colors.success}
-                  colors={colors}
-                />
-              </View>
-            ) : null}
-
-            {/* Frame distribution */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Frame Results per Session</Text>
-              <View style={styles.legend}>
-                <LegendDot
-                  color={colors.accent}
-                  label="Strike"
-                  colors={colors}
-                />
-                <LegendDot
-                  color={colors.success}
-                  label="Spare"
-                  colors={colors}
-                />
-                <LegendDot
-                  color={colors.warning}
-                  label="Open"
-                  colors={colors}
-                />
-              </View>
-              <FrameStackedChart sessions={sessionsWithGames} colors={colors} />
-            </View>
-          </>
-        )}
+        <AnalyticsContent
+          isLoading={isLoading}
+          leagues={leagues}
+          sessionsWithGames={sessionsWithGames}
+          records={records}
+          gamePositionAvgs={gamePositionAvgs}
+          colors={colors}
+          styles={styles}
+        />
       </ScrollView>
 
       {/* League picker modal */}

@@ -683,14 +683,14 @@ export default function JournalLeaguesScreen() {
             <Text style={styles.errorText}>{leagueActionError}</Text>
           ) : null}
 
-          {isLeaguesLoading ? (
+          {isLeaguesLoading && (
             <Text style={styles.meta}>Loading leagues...</Text>
-          ) : null}
-          {!isLeaguesLoading && leagues.length === 0 ? (
+          )}
+          {!isLeaguesLoading && leagues.length === 0 && (
             <Text style={styles.meta}>
               No leagues yet. Tap + to create your first league.
             </Text>
-          ) : null}
+          )}
 
           {displayLeagues.map((league) => (
             <LeagueRowCard
