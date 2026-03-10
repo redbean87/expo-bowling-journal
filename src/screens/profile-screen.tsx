@@ -38,7 +38,7 @@ export default function ProfileScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
-  const viewer = useQuery(viewerQuery);
+  const viewer = useQuery(viewerQuery, isAuthenticated ? {} : 'skip');
   const {
     pickBackupFile,
     startBackupImport,

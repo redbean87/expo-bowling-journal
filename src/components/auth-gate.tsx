@@ -3,6 +3,7 @@ import {
   Authenticated,
   AuthLoading,
   Unauthenticated,
+  useConvexAuth,
   useQuery,
 } from 'convex/react';
 import { useMemo, useState } from 'react';
@@ -20,7 +21,8 @@ import {
 import { useAppTheme } from '@/theme/use-app-theme';
 
 export function AuthGate() {
-  const viewer = useQuery(viewerQuery);
+  const { isAuthenticated } = useConvexAuth();
+  const viewer = useQuery(viewerQuery, isAuthenticated ? {} : 'skip');
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 

@@ -23,8 +23,8 @@ Tracking progress against the guidelines in `CLAUDE.md`.
 
 Guard Convex queries with `'skip'` when auth not ready.
 
-- [ ] `src/screens/profile-screen.tsx:41` — `useQuery(viewerQuery)` missing skip guard
-- [ ] `src/components/auth-gate.tsx:23` — `useQuery(viewerQuery)` missing skip guard
+- [x] `src/screens/profile-screen.tsx:41` — `useQuery(viewerQuery)` missing skip guard
+- [x] `src/components/auth-gate.tsx:23` — `useQuery(viewerQuery)` missing skip guard
 
 ---
 
@@ -52,17 +52,17 @@ Replace multi-line JSX ternaries with early returns or extracted components.
 
 Guideline: screen files should be under 150 lines. Extract logic into hooks and sub-components.
 
-| File | Lines | Status |
-|------|-------|--------|
-| `src/screens/journal-sessions-screen.tsx` | 1268 | [ ] |
-| `src/screens/analytics-screen.tsx` | 991 | [ ] |
-| `src/screens/game-editor-screen.tsx` | 985 | [ ] |
-| `src/screens/journal-games-screen.tsx` | 937 | [ ] |
-| `src/screens/journal-leagues-screen.tsx` | 814 | [ ] |
-| `src/screens/profile-screen.tsx` | 327 | [ ] |
-| `src/screens/game-editor/frame-progress-strip.tsx` | 364 | [ ] |
-| `src/screens/game-editor/series-progress-bar.tsx` | 298 | [ ] |
-| `src/screens/journal/components/game-row-card.tsx` | 281 | [ ] |
+| File                                               | Lines | Status |
+| -------------------------------------------------- | ----- | ------ |
+| `src/screens/journal-sessions-screen.tsx`          | 1268  | [ ]    |
+| `src/screens/analytics-screen.tsx`                 | 991   | [ ]    |
+| `src/screens/game-editor-screen.tsx`               | 985   | [ ]    |
+| `src/screens/journal-games-screen.tsx`             | 937   | [ ]    |
+| `src/screens/journal-leagues-screen.tsx`           | 814   | [ ]    |
+| `src/screens/profile-screen.tsx`                   | 327   | [ ]    |
+| `src/screens/game-editor/frame-progress-strip.tsx` | 364   | [ ]    |
+| `src/screens/game-editor/series-progress-bar.tsx`  | 298   | [ ]    |
+| `src/screens/journal/components/game-row-card.tsx` | 281   | [ ]    |
 
 ---
 
@@ -71,12 +71,14 @@ Guideline: screen files should be under 150 lines. Extract logic into hooks and 
 Use tokens from `src/theme/tokens.ts` instead of raw pixel values (~104 instances across 20+ files).
 
 Common patterns to replace:
+
 - `borderRadius: 10` → `radius.md` (10)
 - `borderRadius: 12` → `radius.lg` (12)
 - `fontSize: 9/10/11` — below type scale, use nearest token or add token
 - `gap: 2/4`, `marginTop: 1/2` — below `spacing.xs` (4), likely intentional micro-spacing
 
 Files with most violations:
+
 - [ ] `src/screens/journal-sessions-screen.tsx`
 - [ ] `src/screens/analytics-screen.tsx`
 - [ ] `src/screens/game-editor/frame-progress-strip.tsx`
