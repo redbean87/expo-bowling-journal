@@ -255,6 +255,7 @@ export const gamesListSessionAggregatesQuery = makeFunctionReference<
     totalStrikes: number;
     totalSpares: number;
     totalOpens: number;
+    cleanGames: number;
     gameScores: number[];
   }>
 >('games:listSessionAggregates');
