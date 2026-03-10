@@ -23,7 +23,8 @@ export type PersonalRecords = {
   strikeRate: number | null;
   spareRate: number | null;
   cleanGames: number;
-  // Positive = improving. Compares avg of last 3 sessions vs first 3.
+  // Positive = bowling above season average recently.
+  // Compares weighted avg of last 3 sessions to season avg.
   // null when fewer than 4 sessions with games.
   avgTrend: number | null;
 };
@@ -85,12 +86,11 @@ export function computePersonalRecords(
 
   let avgTrend: number | null = null;
   if (sessionsWithGames.length >= 4) {
-    const sessionAvgs = sessionsWithGames.map((s) => s.totalPins / s.gameCount);
-    const first3 = sessionAvgs.slice(0, 3);
-    const last3 = sessionAvgs.slice(-3);
-    const first3Avg = first3.reduce((a, b) => a + b, 0) / 3;
-    const last3Avg = last3.reduce((a, b) => a + b, 0) / 3;
-    avgTrend = last3Avg - first3Avg;
+    const last3 = sessionsWithGames.slice(-3);
+    const recentPins = last3.reduce((s, sess) => s + sess.totalPins, 0);
+    const recentGames = last3.reduce((s, sess) => s + sess.gameCount, 0);
+    const recentAvg = recentPins / recentGames;
+    avgTrend = recentAvg - (seasonAvg ?? 0);
   }
 
   return {
