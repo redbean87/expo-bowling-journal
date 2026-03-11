@@ -112,6 +112,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     db.run('PRAGMA journal_mode = OFF;');
     db.run('PRAGMA synchronous = OFF;');
     db.run('BEGIN TRANSACTION;');
+    db.run('PRAGMA user_version = 8;');
 
     db.run('CREATE TABLE android_metadata (locale TEXT);');
     db.run("INSERT INTO android_metadata (locale) VALUES ('en_US');");
