@@ -113,6 +113,9 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     db.run('PRAGMA synchronous = OFF;');
     db.run('BEGIN TRANSACTION;');
 
+    db.run('CREATE TABLE android_metadata (locale TEXT);');
+    db.run("INSERT INTO android_metadata (locale) VALUES ('en_US');");
+
     db.run(
       'CREATE TABLE house (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, location TEXT);'
     );
@@ -126,7 +129,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
       'CREATE TABLE league (_id INTEGER PRIMARY KEY, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, name TEXT, games INTEGER, notes TEXT, sortOrder INTEGER, flags INTEGER);'
     );
     db.run(
-      'CREATE TABLE week (_id INTEGER PRIMARY KEY, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, date TEXT, notes TEXT, lane INTEGER);'
+      'CREATE TABLE week (_id INTEGER PRIMARY KEY, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, date REAL, notes TEXT, lane INTEGER);'
     );
     db.run(
       'CREATE TABLE game (_id INTEGER PRIMARY KEY, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, score INTEGER, frame INTEGER, flags INTEGER, singlePinSpareScore INTEGER, notes TEXT, lane INTEGER, date TEXT);'
@@ -193,7 +196,9 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
         row.ballFk,
         row.patternFk,
         row.houseFk,
-        row.date,
+        typeof row.date === 'string'
+          ? Date.parse(row.date + 'T00:00:00.000Z')
+          : (row.date ?? null),
         row.notes,
         row.lane,
       ]
