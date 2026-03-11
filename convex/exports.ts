@@ -332,6 +332,22 @@ function buildExportContext({
   };
 }
 
+function computeGameFrame(
+  frames: Array<{
+    frameNumber: number;
+    roll1: number;
+    roll3?: number | null;
+  }>
+): number {
+  if (frames.length === 0) return 0;
+  const maxFrame = Math.max(...frames.map((f) => f.frameNumber));
+  if (maxFrame < 10) return maxFrame;
+  const tenth = frames.find((f) => f.frameNumber === 10);
+  if (!tenth) return maxFrame;
+  if (tenth.roll3 != null) return tenth.roll1 === 10 ? 12 : 11;
+  return 10;
+}
+
 export const getSqliteBackupSnapshot = query({
   args: {},
   handler: async (ctx) => {
@@ -551,7 +567,7 @@ export const getSqliteBackupSnapshot = query({
             : null,
           houseFk: null,
           score: game.totalScore ?? null,
-          frame: 10,
+          frame: computeGameFrame(framesByGameId.get(String(game._id)) ?? []),
           flags: 1,
           singlePinSpareScore: null,
           notes: game.notes ?? null,
