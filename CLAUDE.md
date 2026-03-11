@@ -114,7 +114,9 @@ src/screens/
 
 ```tsx
 // ❌ Avoid
-{data.length === 0 ? <EmptyView /> : <ListView data={data} />}
+{
+  data.length === 0 ? <EmptyView /> : <ListView data={data} />;
+}
 
 // ✅ Prefer — extract to a component or use early return
 if (!data.length) return <EmptyView />;
