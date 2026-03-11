@@ -450,7 +450,11 @@ export const getSqliteBackupSnapshot = query({
     const includedBalls = [...balls].sort((left, right) =>
       left.name.localeCompare(right.name)
     );
-    const sortedLeagues = [...leagues].sort((left, right) => {
+    const openBowlingLeagueIds = new Set(
+      leagues.filter((l) => l.isOpenBowling).map((l) => String(l._id))
+    );
+    const nonOpenBowlingLeagues = leagues.filter((l) => !l.isOpenBowling);
+    const sortedLeagues = [...nonOpenBowlingLeagues].sort((left, right) => {
       if (left.createdAt !== right.createdAt) {
         return left.createdAt - right.createdAt;
       }
@@ -467,7 +471,7 @@ export const getSqliteBackupSnapshot = query({
     const exportContext = buildExportContext({
       games: games as Array<Record<string, unknown>>,
       sessions: sessions as Array<Record<string, unknown>>,
-      leagues: leagues as Array<Record<string, unknown>>,
+      leagues: nonOpenBowlingLeagues as Array<Record<string, unknown>>,
       balls: balls as Array<Record<string, unknown>>,
     });
     const gameById = new Map(
@@ -539,7 +543,9 @@ export const getSqliteBackupSnapshot = query({
       weeks: sortedSessions.map(
         (session): SqliteWeekRow => ({
           sqliteId: weekSqliteIdById.get(String(session._id)) ?? 0,
-          leagueFk: leagueSqliteIdById.get(String(session.leagueId)) ?? null,
+          leagueFk: openBowlingLeagueIds.has(String(session.leagueId))
+            ? -1
+            : (leagueSqliteIdById.get(String(session.leagueId)) ?? null),
           ballFk: session.ballId
             ? (ballSqliteIdById.get(String(session.ballId)) ?? null)
             : null,
@@ -558,7 +564,9 @@ export const getSqliteBackupSnapshot = query({
         (game): SqliteGameRow => ({
           sqliteId: gameSqliteIdById.get(String(game._id)) ?? 0,
           weekFk: weekSqliteIdById.get(String(game.sessionId)) ?? null,
-          leagueFk: leagueSqliteIdById.get(String(game.leagueId)) ?? null,
+          leagueFk: openBowlingLeagueIds.has(String(game.leagueId))
+            ? -1
+            : (leagueSqliteIdById.get(String(game.leagueId)) ?? null),
           ballFk: game.ballId
             ? (ballSqliteIdById.get(String(game.ballId)) ?? null)
             : null,

@@ -437,6 +437,25 @@ export async function runSqliteSnapshotImportCore(
     leagueIdMap.set(row.sqliteId, leagueId);
   }
 
+  // Handle open bowling sessions (leagueFk = -1 in source).
+  // Find or create a virtual "Open Bowling" league for this user.
+  if (args.weeks.some((w) => w.leagueFk === -1)) {
+    const existing = await ctx.db
+      .query('leagues')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .filter((q) => q.eq(q.field('isOpenBowling'), true))
+      .first();
+    const openBowlingId =
+      existing?._id ??
+      (await ctx.db.insert('leagues', {
+        userId,
+        name: 'Open Bowling',
+        isOpenBowling: true,
+        createdAt: importedAt,
+      }));
+    leagueIdMap.set(-1, openBowlingId);
+  }
+
   const sessionIdMap = new Map<number, Id<'sessions'>>();
   const sessionDateMap = new Map<number, string>();
   const sessionLeagueMap = new Map<number, Id<'leagues'>>();
