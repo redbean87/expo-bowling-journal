@@ -114,25 +114,25 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     db.run('BEGIN TRANSACTION;');
 
     db.run(
-      'CREATE TABLE house (id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, location TEXT);'
+      'CREATE TABLE house (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, location TEXT);'
     );
     db.run(
-      'CREATE TABLE pattern (id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, length INTEGER);'
+      'CREATE TABLE pattern (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, length INTEGER);'
     );
     db.run(
-      'CREATE TABLE ball (id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, brand TEXT, coverstock TEXT);'
+      'CREATE TABLE ball (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, brand TEXT, coverstock TEXT);'
     );
     db.run(
-      'CREATE TABLE league (id INTEGER PRIMARY KEY, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, name TEXT, games INTEGER, notes TEXT, sortOrder INTEGER, flags INTEGER);'
+      'CREATE TABLE league (_id INTEGER PRIMARY KEY, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, name TEXT, games INTEGER, notes TEXT, sortOrder INTEGER, flags INTEGER);'
     );
     db.run(
-      'CREATE TABLE week (id INTEGER PRIMARY KEY, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, date TEXT, notes TEXT, lane INTEGER);'
+      'CREATE TABLE week (_id INTEGER PRIMARY KEY, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, date TEXT, notes TEXT, lane INTEGER);'
     );
     db.run(
-      'CREATE TABLE game (id INTEGER PRIMARY KEY, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, score INTEGER, frame INTEGER, flags INTEGER, singlePinSpareScore INTEGER, notes TEXT, lane INTEGER, date TEXT);'
+      'CREATE TABLE game (_id INTEGER PRIMARY KEY, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, score INTEGER, frame INTEGER, flags INTEGER, singlePinSpareScore INTEGER, notes TEXT, lane INTEGER, date TEXT);'
     );
     db.run(
-      'CREATE TABLE frame (id INTEGER PRIMARY KEY, gameFk INTEGER, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, frameNum INTEGER, pins INTEGER, scores INTEGER, score INTEGER, flags INTEGER, pocket INTEGER, footBoard INTEGER, targetBoard INTEGER);'
+      'CREATE TABLE frame (_id INTEGER PRIMARY KEY, gameFk INTEGER, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, frameNum INTEGER, pins INTEGER, scores INTEGER, score INTEGER, flags INTEGER, pocket INTEGER, footBoard INTEGER, targetBoard INTEGER);'
     );
     db.run('CREATE TABLE bj_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
     db.run(
