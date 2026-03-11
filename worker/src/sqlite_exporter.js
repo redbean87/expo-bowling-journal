@@ -144,19 +144,19 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
 
     runRows(
       db,
-      'INSERT INTO house (id, name, sortOrder, flags, location) VALUES (?, ?, ?, ?, ?);',
+      'INSERT INTO house (_id, name, sortOrder, flags, location) VALUES (?, ?, ?, ?, ?);',
       snapshot.houses,
       (row) => [row.sqliteId, row.name, row.sortOrder, row.flags, row.location]
     );
     runRows(
       db,
-      'INSERT INTO pattern (id, name, sortOrder, flags, length) VALUES (?, ?, ?, ?, ?);',
+      'INSERT INTO pattern (_id, name, sortOrder, flags, length) VALUES (?, ?, ?, ?, ?);',
       snapshot.patterns,
       (row) => [row.sqliteId, row.name, row.sortOrder, row.flags, row.length]
     );
     runRows(
       db,
-      'INSERT INTO ball (id, name, sortOrder, flags, brand, coverstock) VALUES (?, ?, ?, ?, ?, ?);',
+      'INSERT INTO ball (_id, name, sortOrder, flags, brand, coverstock) VALUES (?, ?, ?, ?, ?, ?);',
       snapshot.balls,
       (row) => [
         row.sqliteId,
@@ -169,7 +169,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     );
     runRows(
       db,
-      'INSERT INTO league (id, ballFk, patternFk, houseFk, name, games, notes, sortOrder, flags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+      'INSERT INTO league (_id, ballFk, patternFk, houseFk, name, games, notes, sortOrder, flags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
       snapshot.leagues,
       (row) => [
         row.sqliteId,
@@ -185,7 +185,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     );
     runRows(
       db,
-      'INSERT INTO week (id, leagueFk, ballFk, patternFk, houseFk, date, notes, lane) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+      'INSERT INTO week (_id, leagueFk, ballFk, patternFk, houseFk, date, notes, lane) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
       snapshot.weeks,
       (row) => [
         row.sqliteId,
@@ -200,7 +200,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     );
     runRows(
       db,
-      'INSERT INTO game (id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+      'INSERT INTO game (_id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
       snapshot.games,
       (row) => [
         row.sqliteId,
@@ -220,7 +220,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     );
     runRows(
       db,
-      'INSERT INTO frame (id, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags, pocket, footBoard, targetBoard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+      'INSERT INTO frame (_id, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags, pocket, footBoard, targetBoard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
       snapshot.frames,
       (row) => [
         row.sqliteId,
