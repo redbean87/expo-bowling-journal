@@ -117,13 +117,13 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     db.run("INSERT INTO android_metadata (locale) VALUES ('en_US');");
 
     db.run(
-      'CREATE TABLE house (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, location TEXT);'
+      'CREATE TABLE house (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER);'
     );
     db.run(
-      'CREATE TABLE pattern (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, length INTEGER);'
+      'CREATE TABLE pattern (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER);'
     );
     db.run(
-      'CREATE TABLE ball (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER, brand TEXT, coverstock TEXT);'
+      'CREATE TABLE ball (_id INTEGER PRIMARY KEY, name TEXT, sortOrder INTEGER, flags INTEGER);'
     );
     db.run(
       'CREATE TABLE league (_id INTEGER PRIMARY KEY, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, name TEXT, games INTEGER, notes TEXT, sortOrder INTEGER, flags INTEGER);'
@@ -132,35 +132,28 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
       'CREATE TABLE week (_id INTEGER PRIMARY KEY, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, date REAL, notes TEXT, lane INTEGER);'
     );
     db.run(
-      'CREATE TABLE game (_id INTEGER PRIMARY KEY, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, score INTEGER, frame INTEGER, flags INTEGER, singlePinSpareScore INTEGER, notes TEXT, lane INTEGER, date TEXT);'
+      'CREATE TABLE game (_id INTEGER PRIMARY KEY, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, patternFk INTEGER, houseFk INTEGER, score INTEGER, frame INTEGER, flags INTEGER, singlePinSpareScore INTEGER, notes TEXT, lane INTEGER);'
     );
     db.run(
       'CREATE TABLE frame (_id INTEGER PRIMARY KEY, gameFk INTEGER, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, frameNum INTEGER, pins INTEGER, scores INTEGER, score INTEGER, flags INTEGER, pocket INTEGER, footBoard INTEGER, targetBoard INTEGER);'
     );
     runRows(
       db,
-      'INSERT INTO house (_id, name, sortOrder, flags, location) VALUES (?, ?, ?, ?, ?);',
+      'INSERT INTO house (_id, name, sortOrder, flags) VALUES (?, ?, ?, ?);',
       snapshot.houses,
-      (row) => [row.sqliteId, row.name, row.sortOrder, row.flags, row.location]
+      (row) => [row.sqliteId, row.name, row.sortOrder, row.flags]
     );
     runRows(
       db,
-      'INSERT INTO pattern (_id, name, sortOrder, flags, length) VALUES (?, ?, ?, ?, ?);',
+      'INSERT INTO pattern (_id, name, sortOrder, flags) VALUES (?, ?, ?, ?);',
       snapshot.patterns,
-      (row) => [row.sqliteId, row.name, row.sortOrder, row.flags, row.length]
+      (row) => [row.sqliteId, row.name, row.sortOrder, row.flags]
     );
     runRows(
       db,
-      'INSERT INTO ball (_id, name, sortOrder, flags, brand, coverstock) VALUES (?, ?, ?, ?, ?, ?);',
+      'INSERT INTO ball (_id, name, sortOrder, flags) VALUES (?, ?, ?, ?);',
       snapshot.balls,
-      (row) => [
-        row.sqliteId,
-        row.name,
-        row.sortOrder,
-        row.flags,
-        row.brand,
-        row.coverstock,
-      ]
+      (row) => [row.sqliteId, row.name, row.sortOrder, row.flags]
     );
     runRows(
       db,
@@ -197,7 +190,7 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     );
     runRows(
       db,
-      'INSERT INTO game (_id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+      'INSERT INTO game (_id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
       snapshot.games,
       (row) => [
         row.sqliteId,
@@ -212,7 +205,6 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
         row.singlePinSpareScore,
         row.notes,
         row.lane,
-        row.date,
       ]
     );
     runRows(
