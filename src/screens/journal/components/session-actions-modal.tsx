@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
-type SessionActionTarget = {
+export type SessionActionTarget = {
   rowId: string;
   sessionId: string | null;
   sessionClientSyncId: string | null;

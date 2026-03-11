@@ -54,7 +54,7 @@ Guideline: screen files should be under 150 lines. Extract logic into hooks and 
 
 | File                                               | Lines | Status |
 | -------------------------------------------------- | ----- | ------ |
-| `src/screens/journal-sessions-screen.tsx`          | 1268  | [ ]    |
+| `src/screens/journal-sessions-screen.tsx`          | 301   | [x]    |
 | `src/screens/analytics-screen.tsx`                 | 991   | [ ]    |
 | `src/screens/game-editor-screen.tsx`               | 985   | [ ]    |
 | `src/screens/journal-games-screen.tsx`             | 937   | [ ]    |
@@ -79,7 +79,7 @@ Common patterns to replace:
 
 Files with most violations:
 
-- [ ] `src/screens/journal-sessions-screen.tsx`
+- [x] `src/screens/journal-sessions-screen.tsx`
 - [ ] `src/screens/analytics-screen.tsx`
 - [ ] `src/screens/game-editor/frame-progress-strip.tsx`
 - [ ] `src/screens/journal/components/` (multiple files)
