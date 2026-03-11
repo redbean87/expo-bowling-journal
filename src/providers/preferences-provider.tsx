@@ -10,9 +10,11 @@ import {
 
 import {
   loadColorModePreference,
+  loadQuickEntryMode,
   loadScoreboardLayoutMode,
   loadThemeFlavorPreference,
   persistColorModePreference,
+  persistQuickEntryMode,
   persistScoreboardLayoutMode,
   persistThemeFlavorPreference,
   type ColorModePreference,
@@ -27,6 +29,8 @@ type PreferencesContextValue = {
   setColorModePreference: (mode: ColorModePreference) => void;
   themeFlavorPreference: ThemeFlavorPreference;
   setThemeFlavorPreference: (flavor: ThemeFlavorPreference) => void;
+  quickEntryMode: boolean;
+  setQuickEntryMode: (enabled: boolean) => void;
   isHydrated: boolean;
 };
 
@@ -39,6 +43,7 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     useState<ColorModePreference>('system');
   const [themeFlavorPreference, setThemeFlavorPreferenceState] =
     useState<ThemeFlavorPreference>('default');
+  const [quickEntryMode, setQuickEntryModeState] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -62,6 +67,12 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
 
         if (isMounted) {
           setThemeFlavorPreferenceState(themeFlavor);
+        }
+
+        const quickEntry = await loadQuickEntryMode();
+
+        if (isMounted) {
+          setQuickEntryModeState(quickEntry);
         }
       } finally {
         if (isMounted) {
@@ -98,6 +109,12 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
     []
   );
 
+  const setQuickEntryMode = useCallback((enabled: boolean) => {
+    setQuickEntryModeState(enabled);
+
+    void persistQuickEntryMode(enabled);
+  }, []);
+
   const value = useMemo(
     () => ({
       scoreboardLayout,
@@ -106,13 +123,17 @@ export function PreferencesProvider({ children }: PropsWithChildren) {
       setColorModePreference,
       themeFlavorPreference,
       setThemeFlavorPreference,
+      quickEntryMode,
+      setQuickEntryMode,
       isHydrated,
     }),
     [
       colorModePreference,
       isHydrated,
+      quickEntryMode,
       scoreboardLayout,
       setColorModePreference,
+      setQuickEntryMode,
       setScoreboardLayout,
       setThemeFlavorPreference,
       themeFlavorPreference,

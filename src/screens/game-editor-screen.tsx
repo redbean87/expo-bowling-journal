@@ -116,7 +116,7 @@ export default function GameEditorScreen() {
   const { leagues } = useLeagues();
   const { games: leagueGames } = useLeagueGames(leagueId);
   const { sessions } = useSessions(leagueId);
-  const { scoreboardLayout } = usePreferences();
+  const { scoreboardLayout, quickEntryMode } = usePreferences();
 
   const [date, setDate] = useState('');
   const [frameDrafts, setFrameDrafts] = useState<FrameDraft[]>(EMPTY_FRAMES);
@@ -916,21 +916,23 @@ export default function GameEditorScreen() {
           />
         ) : null}
 
-        <GameEditorDetailsSection
-          ballOptions={ballOptions}
-          buildSuggestions={buildSuggestions}
-          createBall={createBall}
-          createPattern={createPattern}
-          isDetailsVisible={isDetailsVisible}
-          onSelectBall={(option) => setSelectedBallId(option.id)}
-          onSelectPattern={(option) => setSelectedPatternId(option.id)}
-          onToggleDetails={onToggleDetails}
-          patternOptions={patternOptions}
-          recentBallOptions={recentBallOptions}
-          recentPatternOptions={recentPatternOptions}
-          selectedBallId={selectedBallId}
-          selectedPatternId={selectedPatternId}
-        />
+        {!quickEntryMode && (
+          <GameEditorDetailsSection
+            ballOptions={ballOptions}
+            buildSuggestions={buildSuggestions}
+            createBall={createBall}
+            createPattern={createPattern}
+            isDetailsVisible={isDetailsVisible}
+            onSelectBall={(option) => setSelectedBallId(option.id)}
+            onSelectPattern={(option) => setSelectedPatternId(option.id)}
+            onToggleDetails={onToggleDetails}
+            patternOptions={patternOptions}
+            recentBallOptions={recentBallOptions}
+            recentPatternOptions={recentPatternOptions}
+            selectedBallId={selectedBallId}
+            selectedPatternId={selectedPatternId}
+          />
+        )}
 
         <ActiveFrameCard
           activeRollMask={activeRollMask}

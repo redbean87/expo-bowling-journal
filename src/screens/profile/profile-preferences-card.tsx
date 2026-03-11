@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui';
 import {
@@ -22,6 +22,8 @@ type ProfilePreferencesCardProps = {
   setColorModePreference: (mode: ColorModePreference) => void;
   themeFlavorPreference: ThemeFlavorPreference;
   setThemeFlavorPreference: (flavor: ThemeFlavorPreference) => void;
+  quickEntryMode: boolean;
+  setQuickEntryMode: (enabled: boolean) => void;
   isHydrated: boolean;
 };
 
@@ -82,6 +84,8 @@ export function ProfilePreferencesCard({
   setColorModePreference,
   themeFlavorPreference,
   setThemeFlavorPreference,
+  quickEntryMode,
+  setQuickEntryMode,
   isHydrated,
 }: ProfilePreferencesCardProps) {
   const { colors } = useAppTheme();
@@ -90,6 +94,23 @@ export function ProfilePreferencesCard({
   return (
     <Card muted style={styles.sectionCard}>
       <Text style={styles.sectionTitle}>Preferences</Text>
+
+      <Text style={styles.meta}>Entry mode</Text>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleText}>
+          <Text style={styles.layoutOptionLabel}>Quick entry</Text>
+          <Text style={styles.layoutOptionDescription}>
+            Skip optional fields — create sessions instantly and hide
+            ball/pattern in the game editor.
+          </Text>
+        </View>
+        <Switch
+          value={quickEntryMode}
+          onValueChange={setQuickEntryMode}
+          trackColor={{ false: colors.border, true: colors.accent }}
+          thumbColor={colors.surface}
+        />
+      </View>
 
       <Text style={styles.meta}>Theme</Text>
       <View style={styles.layoutOptionsRow}>
@@ -220,6 +241,15 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
       color: colors.textSecondary,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    toggleText: {
+      flex: 1,
+      gap: spacing.xs,
     },
     layoutOptionsRow: {
       gap: spacing.sm,

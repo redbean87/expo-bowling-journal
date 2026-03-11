@@ -39,6 +39,8 @@ export default function ProfileScreen() {
     setColorModePreference,
     themeFlavorPreference,
     setThemeFlavorPreference,
+    quickEntryMode,
+    setQuickEntryMode,
     isHydrated,
   } = usePreferences();
 
@@ -64,8 +66,10 @@ export default function ProfileScreen() {
         <ProfilePreferencesCard
           colorModePreference={colorModePreference}
           isHydrated={isHydrated}
+          quickEntryMode={quickEntryMode}
           scoreboardLayout={scoreboardLayout}
           setColorModePreference={setColorModePreference}
+          setQuickEntryMode={setQuickEntryMode}
           setScoreboardLayout={setScoreboardLayout}
           setThemeFlavorPreference={setThemeFlavorPreference}
           themeFlavorPreference={themeFlavorPreference}

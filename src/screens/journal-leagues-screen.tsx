@@ -41,6 +41,7 @@ import {
   useQueueSyncStatus,
   useReferenceData,
 } from '@/hooks/journal';
+import { usePreferences } from '@/providers/preferences-provider';
 import {
   lineHeight,
   spacing,
@@ -125,6 +126,7 @@ type DisplayLeague = {
 export default function JournalLeaguesScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { quickEntryMode } = usePreferences();
   const { width: windowWidth } = useWindowDimensions();
   const router = useRouter();
   const {
@@ -715,6 +717,7 @@ export default function JournalLeaguesScreen() {
         <FloatingActionButton
           accessibilityLabel="Create league"
           onPress={() => {
+            setLeagueGamesPerSession(quickEntryMode ? '3' : '');
             setLeagueError(null);
             setIsCreateModalVisible(true);
           }}
@@ -737,6 +740,7 @@ export default function JournalLeaguesScreen() {
           onLeagueNameChange={setLeagueName}
           onSubmit={onCreateLeague}
           recentHouseOptions={recentHouseOptions}
+          simplified={quickEntryMode}
           visible={isCreateModalVisible}
         />
 

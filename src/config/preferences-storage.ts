@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 const SCOREBOARD_LAYOUT_KEY = 'prefs_scoreboard_layout';
 const COLOR_MODE_PREFERENCE_KEY = 'prefs_color_mode_preference';
 const THEME_FLAVOR_PREFERENCE_KEY = 'prefs_theme_flavor_preference';
+const QUICK_ENTRY_KEY = 'prefs_quick_entry';
 
 export type ScoreboardLayoutMode = 'current' | 'compact';
 export type ColorModePreference = 'system' | 'light' | 'dark';
@@ -97,4 +98,13 @@ export async function persistThemeFlavorPreference(
   flavor: ThemeFlavorPreference
 ) {
   await setStorageItem(THEME_FLAVOR_PREFERENCE_KEY, flavor);
+}
+
+export async function loadQuickEntryMode(): Promise<boolean> {
+  const value = await getStorageItem(QUICK_ENTRY_KEY);
+  return value === 'true';
+}
+
+export async function persistQuickEntryMode(enabled: boolean): Promise<void> {
+  await setStorageItem(QUICK_ENTRY_KEY, String(enabled));
 }

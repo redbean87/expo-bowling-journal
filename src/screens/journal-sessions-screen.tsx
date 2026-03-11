@@ -1,12 +1,16 @@
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { SessionList } from './journal/components/session-list';
 import { SessionModalsPanel } from './journal/components/session-modals-panel';
-import { getFirstParam } from './journal/journal-route-params';
+import {
+  getFirstParam,
+  buildJournalGamesRouteParams,
+} from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
+import { formatIsoDateForToday } from './journal-fast-lane-utils';
 import {
   buildSessionNightSummary,
   normalizeGamesPerSession,
@@ -26,6 +30,7 @@ import {
   useSessionRouteSync,
   useStartTonight,
 } from '@/hooks/journal';
+import { usePreferences } from '@/providers/preferences-provider';
 
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
@@ -205,6 +210,40 @@ export default function JournalSessionsScreen() {
     onError: setSessionError,
   });
 
+  const { quickEntryMode } = usePreferences();
+
+  const handleQuickCreateSession = useCallback(async () => {
+    if (!leagueId) {
+      openCreateModal();
+      return;
+    }
+
+    const today = formatIsoDateForToday();
+
+    try {
+      const sessionId = await createSession({ leagueId, date: today });
+      router.push({
+        pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+        params: buildJournalGamesRouteParams({
+          leagueId: rawLeagueId ?? leagueId,
+          sessionId,
+          leagueClientSyncId,
+          sessionDate: today,
+        }) as never,
+      } as never);
+    } catch {
+      setSessionError('Unable to create session.');
+    }
+  }, [
+    leagueId,
+    rawLeagueId,
+    leagueClientSyncId,
+    createSession,
+    openCreateModal,
+    router,
+    setSessionError,
+  ]);
+
   return (
     <ScreenLayout
       title="Sessions"
@@ -234,7 +273,11 @@ export default function JournalSessionsScreen() {
         <FloatingActionButton
           accessibilityLabel="Create session"
           disabled={!canCreateSessionTarget}
-          onPress={openCreateModal}
+          onPress={
+            quickEntryMode
+              ? () => void handleQuickCreateSession()
+              : openCreateModal
+          }
         />
 
         <SessionModalsPanel

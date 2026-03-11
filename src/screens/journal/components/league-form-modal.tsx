@@ -23,6 +23,7 @@ type LeagueFormModalProps = {
   createHouse: (name: string) => Promise<ReferenceOption<string>>;
   onClose: () => void;
   onSubmit: () => void;
+  simplified?: boolean;
   onLeagueNameChange: (value: string) => void;
   onGamesPerSessionChange: (value: string) => void;
   onLeagueHouseSelect: (option: ReferenceOption<string>) => void;
@@ -41,6 +42,7 @@ export function LeagueFormModal({
   recentHouseOptions,
   buildSuggestions,
   createHouse,
+  simplified,
   onClose,
   onSubmit,
   onLeagueNameChange,
@@ -79,16 +81,18 @@ export function LeagueFormModal({
         placeholder="Games per session (optional)"
         value={leagueGamesPerSession}
       />
-      <ReferenceCombobox
-        allOptions={houseOptions}
-        createLabel="Add house"
-        getSuggestions={buildSuggestions}
-        onQuickAdd={createHouse}
-        onSelect={onLeagueHouseSelect}
-        placeholder="House (optional)"
-        recentOptions={recentHouseOptions}
-        valueId={leagueHouseId}
-      />
+      {!simplified && (
+        <ReferenceCombobox
+          allOptions={houseOptions}
+          createLabel="Add house"
+          getSuggestions={buildSuggestions}
+          onQuickAdd={createHouse}
+          onSelect={onLeagueHouseSelect}
+          placeholder="House (optional)"
+          recentOptions={recentHouseOptions}
+          valueId={leagueHouseId}
+        />
+      )}
     </FormModal>
   );
 }
