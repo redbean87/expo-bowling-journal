@@ -432,6 +432,7 @@ export async function runSqliteSnapshotImportCore(
       startDate: null,
       endDate: null,
       createdAt: leagueCreatedAtBySqliteId.get(row.sqliteId) ?? importedAt,
+      legacyFlags: row.flags ?? null,
     });
     leagueIdMap.set(row.sqliteId, leagueId);
   }

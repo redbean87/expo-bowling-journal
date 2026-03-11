@@ -14,6 +14,7 @@ export default defineSchema({
     startDate: v.optional(v.union(v.string(), v.null())),
     endDate: v.optional(v.union(v.string(), v.null())),
     createdAt: v.number(),
+    legacyFlags: v.optional(v.union(v.number(), v.null())),
   })
     .index('by_user', ['userId'])
     .index('by_user_house', ['userId', 'houseId']),

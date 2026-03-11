@@ -337,35 +337,56 @@ export const getSqliteBackupSnapshot = query({
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
 
-    const [[leagues, sessions, games, balls], [houses, patterns], allFrames] =
-      await Promise.all([
-        Promise.all([
-          ctx.db
-            .query('leagues')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-          ctx.db
-            .query('sessions')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-          ctx.db
-            .query('games')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-          ctx.db
-            .query('balls')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-        ]),
-        Promise.all([
-          ctx.db.query('houses').collect(),
-          ctx.db.query('patterns').collect(),
-        ]),
+    const [
+      [leagues, sessions, games, balls],
+      [houses, patterns],
+      allFrames,
+      rawLeagues,
+    ] = await Promise.all([
+      Promise.all([
         ctx.db
-          .query('frames')
+          .query('leagues')
           .withIndex('by_user', (q) => q.eq('userId', userId))
           .collect(),
-      ]);
+        ctx.db
+          .query('sessions')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect(),
+        ctx.db
+          .query('games')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect(),
+        ctx.db
+          .query('balls')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect(),
+      ]),
+      Promise.all([
+        ctx.db.query('houses').collect(),
+        ctx.db.query('patterns').collect(),
+      ]),
+      ctx.db
+        .query('frames')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect(),
+      ctx.db
+        .query('importRawLeagues')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect(),
+    ]);
+
+    // Fallback map for leagues imported before legacyFlags was added to schema.
+    // importRawLeagues.raw.flags has the original SQLite flags value.
+    const legacyFlagsByName = new Map<string, number>();
+    for (const raw of rawLeagues) {
+      if (
+        raw.raw.name &&
+        raw.raw.flags != null &&
+        !legacyFlagsByName.has(raw.raw.name)
+      ) {
+        legacyFlagsByName.set(raw.raw.name, raw.raw.flags);
+      }
+    }
 
     // Group frames by gameId for O(1) lookup per game
     const framesByGameId = new Map<string, typeof allFrames>();
@@ -496,7 +517,7 @@ export const getSqliteBackupSnapshot = query({
           games: league.gamesPerSession ?? null,
           notes: null,
           sortOrder: null,
-          flags: null,
+          flags: league.legacyFlags ?? legacyFlagsByName.get(league.name) ?? 0,
         })
       ),
       weeks: sortedSessions.map(
@@ -530,8 +551,8 @@ export const getSqliteBackupSnapshot = query({
             : null,
           houseFk: null,
           score: game.totalScore ?? null,
-          frame: null,
-          flags: null,
+          frame: 10,
+          flags: 1,
           singlePinSpareScore: null,
           notes: game.notes ?? null,
           lane: laneFromLaneContext(game.laneContext ?? null),
