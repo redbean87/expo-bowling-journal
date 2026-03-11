@@ -137,14 +137,6 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
     db.run(
       'CREATE TABLE frame (_id INTEGER PRIMARY KEY, gameFk INTEGER, weekFk INTEGER, leagueFk INTEGER, ballFk INTEGER, frameNum INTEGER, pins INTEGER, scores INTEGER, score INTEGER, flags INTEGER, pocket INTEGER, footBoard INTEGER, targetBoard INTEGER);'
     );
-    db.run('CREATE TABLE bj_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
-    db.run(
-      'CREATE TABLE bj_session_ext (weekFk INTEGER PRIMARY KEY, laneContextJson TEXT, notesJson TEXT);'
-    );
-    db.run(
-      'CREATE TABLE bj_game_ext (gameFk INTEGER PRIMARY KEY, laneContextJson TEXT, ballSwitchesJson TEXT, handicap INTEGER, notesJson TEXT);'
-    );
-
     runRows(
       db,
       'INSERT INTO house (_id, name, sortOrder, flags, location) VALUES (?, ?, ?, ?, ?);',
@@ -243,31 +235,6 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
         row.targetBoard,
       ]
     );
-    runRows(
-      db,
-      'INSERT INTO bj_meta (key, value) VALUES (?, ?);',
-      snapshot.bjMeta,
-      (row) => [row.key, row.value]
-    );
-    runRows(
-      db,
-      'INSERT INTO bj_session_ext (weekFk, laneContextJson, notesJson) VALUES (?, ?, ?);',
-      snapshot.bjSessionExt,
-      (row) => [row.weekFk, row.laneContextJson, row.notesJson]
-    );
-    runRows(
-      db,
-      'INSERT INTO bj_game_ext (gameFk, laneContextJson, ballSwitchesJson, handicap, notesJson) VALUES (?, ?, ?, ?, ?);',
-      snapshot.bjGameExt,
-      (row) => [
-        row.gameFk,
-        row.laneContextJson,
-        row.ballSwitchesJson,
-        row.handicap,
-        row.notesJson,
-      ]
-    );
-
     db.run('COMMIT;');
 
     return db.export();
