@@ -106,6 +106,11 @@ type ExportContext = {
 };
 
 const STRIKE_FLAG = 193;
+const NON_STRIKE_FRAME_FLAG = 195;
+
+function computeFrameScores(roll1: number, roll2: number | null): number {
+  return (Math.min(10, roll1 + (roll2 ?? 0)) << 4) | roll1;
+}
 
 function laneFromLaneContext(
   laneContext: {
@@ -174,9 +179,11 @@ function buildLegacyFrameRowsForGame({
       pins:
         toLegacyPackedPins(effectiveSource?.pins) ??
         packPinsFromRolls(roll1, roll2 === null ? 0 : roll2),
-      scores: effectiveSource?.scores ?? 0,
+      scores: effectiveSource?.scores ?? computeFrameScores(roll1, roll2),
       score: effectiveSource?.score ?? 0,
-      flags: effectiveSource?.flags ?? (roll1 === 10 ? STRIKE_FLAG : 1),
+      flags:
+        effectiveSource?.flags ??
+        (roll1 === 10 ? STRIKE_FLAG : NON_STRIKE_FRAME_FLAG),
       pocket: effectiveSource?.pocket ?? null,
       footBoard: effectiveSource?.footBoard ?? null,
       targetBoard: effectiveSource?.targetBoard ?? null,
