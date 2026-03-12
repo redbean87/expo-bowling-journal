@@ -249,6 +249,26 @@ function buildLegacyFrameRowsForGame({
     });
   }
 
+  // PinPal always expects exactly 12 frame rows per game (frameNum 0–11).
+  // Unplayed/unused slots must be filled with a placeholder row (flags=0,
+  // pins=1048575) so PinPal can render the scoresheet without crashing.
+  while (rows.length < 12) {
+    rows.push({
+      gameFk,
+      weekFk,
+      leagueFk,
+      ballFk: null,
+      frameNum: rows.length,
+      pins: 1048575,
+      scores: 0,
+      score: 0,
+      flags: 0,
+      pocket: null,
+      footBoard: null,
+      targetBoard: null,
+    });
+  }
+
   return rows;
 }
 
