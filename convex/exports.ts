@@ -159,12 +159,14 @@ function buildLegacyFrameRowsForGame({
     roll2,
     source,
     forceGenerated,
+    pinsOverride,
   }: {
     frameNumber: number;
     roll1: number;
     roll2: number | null;
     source: ExportableStoredFrame | null;
     forceGenerated?: boolean;
+    pinsOverride?: number | null;
   }) => {
     const effectiveSource = forceGenerated ? null : source;
 
@@ -177,6 +179,7 @@ function buildLegacyFrameRowsForGame({
         : null,
       frameNum: frameNumber - 1,
       pins:
+        pinsOverride ??
         toLegacyPackedPins(effectiveSource?.pins) ??
         packPinsFromRolls(roll1, roll2 === null ? 0 : roll2),
       scores: effectiveSource?.scores ?? computeFrameScores(roll1, roll2),
@@ -230,12 +233,33 @@ function buildLegacyFrameRowsForGame({
     }
 
     if (tenthFrame.roll3 !== undefined && tenthFrame.roll3 !== null) {
+      const bonus1IsStrike = tenthFrame.roll2 === 10;
+      let bonus2PinsOverride: number | undefined;
+      if (
+        !bonus1IsStrike &&
+        tenthFrame.roll2 !== undefined &&
+        tenthFrame.roll2 !== null
+      ) {
+        const standingAfterBonus1 = Math.max(0, 10 - tenthFrame.roll2);
+        const standingAfterBonus2 = Math.max(
+          0,
+          standingAfterBonus1 - tenthFrame.roll3
+        );
+        const mask =
+          standingAfterBonus2 <= 0
+            ? 0
+            : standingAfterBonus2 >= 10
+              ? 0x3ff
+              : (1 << standingAfterBonus2) - 1;
+        bonus2PinsOverride = mask | (mask << 10);
+      }
       pushFrameRow({
         frameNumber: 12,
         roll1: tenthFrame.roll3,
         roll2: 0,
         source: null,
         forceGenerated: true,
+        pinsOverride: bonus2PinsOverride,
       });
     }
 
