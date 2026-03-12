@@ -170,12 +170,12 @@ function buildLegacyFrameRowsForGame({
       ballFk: effectiveSource?.ballId
         ? (ballSqliteIdById.get(String(effectiveSource.ballId)) ?? null)
         : null,
-      frameNum: frameNumber,
+      frameNum: frameNumber - 1,
       pins:
         toLegacyPackedPins(effectiveSource?.pins) ??
         packPinsFromRolls(roll1, roll2 === null ? 0 : roll2),
-      scores: effectiveSource?.scores ?? null,
-      score: effectiveSource?.score ?? null,
+      scores: effectiveSource?.scores ?? 0,
+      score: effectiveSource?.score ?? 0,
       flags: effectiveSource?.flags ?? (roll1 === 10 ? STRIKE_FLAG : 1),
       pocket: effectiveSource?.pocket ?? null,
       footBoard: effectiveSource?.footBoard ?? null,
@@ -214,7 +214,7 @@ function buildLegacyFrameRowsForGame({
   if (tenthFrame.roll1 === 10) {
     if (tenthFrame.roll2 !== undefined && tenthFrame.roll2 !== null) {
       pushFrameRow({
-        frameNumber: 10,
+        frameNumber: 11,
         roll1: tenthFrame.roll2,
         roll2: 0,
         source: null,
@@ -224,7 +224,7 @@ function buildLegacyFrameRowsForGame({
 
     if (tenthFrame.roll3 !== undefined && tenthFrame.roll3 !== null) {
       pushFrameRow({
-        frameNumber: 10,
+        frameNumber: 12,
         roll1: tenthFrame.roll3,
         roll2: 0,
         source: null,
@@ -241,7 +241,7 @@ function buildLegacyFrameRowsForGame({
     tenthFrame.roll3 !== null
   ) {
     pushFrameRow({
-      frameNumber: 10,
+      frameNumber: 11,
       roll1: tenthFrame.roll3,
       roll2: 0,
       source: null,
