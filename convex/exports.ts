@@ -270,11 +270,7 @@ function buildLegacyFrameRowsForGame({
         });
       }
     }
-
-    return rows;
-  }
-
-  if (
+  } else if (
     frameHasSpare(tenthFrame) &&
     tenthFrame.roll3 !== undefined &&
     tenthFrame.roll3 !== null
