@@ -159,14 +159,12 @@ function buildLegacyFrameRowsForGame({
     roll2,
     source,
     forceGenerated,
-    pinsOverride,
   }: {
     frameNumber: number;
     roll1: number;
     roll2: number | null;
     source: ExportableStoredFrame | null;
     forceGenerated?: boolean;
-    pinsOverride?: number | null;
   }) => {
     const effectiveSource = forceGenerated ? null : source;
 
@@ -179,7 +177,6 @@ function buildLegacyFrameRowsForGame({
         : null,
       frameNum: frameNumber - 1,
       pins:
-        pinsOverride ??
         toLegacyPackedPins(effectiveSource?.pins) ??
         packPinsFromRolls(roll1, roll2 === null ? 0 : roll2),
       scores: effectiveSource?.scores ?? computeFrameScores(roll1, roll2),
@@ -222,45 +219,56 @@ function buildLegacyFrameRowsForGame({
   });
 
   if (tenthFrame.roll1 === 10) {
-    if (tenthFrame.roll2 !== undefined && tenthFrame.roll2 !== null) {
-      pushFrameRow({
-        frameNumber: 11,
-        roll1: tenthFrame.roll2,
-        roll2: 0,
-        source: null,
-        forceGenerated: true,
-      });
-    }
+    const bonus1 = tenthFrame.roll2;
+    const bonus2 = tenthFrame.roll3;
 
-    if (tenthFrame.roll3 !== undefined && tenthFrame.roll3 !== null) {
-      const bonus1IsStrike = tenthFrame.roll2 === 10;
-      let bonus2PinsOverride: number | undefined;
-      if (
-        !bonus1IsStrike &&
-        tenthFrame.roll2 !== undefined &&
-        tenthFrame.roll2 !== null
-      ) {
-        const standingAfterBonus1 = Math.max(0, 10 - tenthFrame.roll2);
-        const standingAfterBonus2 = Math.max(
-          0,
-          standingAfterBonus1 - tenthFrame.roll3
-        );
-        const mask =
-          standingAfterBonus2 <= 0
-            ? 0
-            : standingAfterBonus2 >= 10
-              ? 0x3ff
-              : (1 << standingAfterBonus2) - 1;
-        bonus2PinsOverride = mask | (mask << 10);
+    if (bonus1 !== undefined && bonus1 !== null) {
+      if (bonus1 === 10) {
+        // Strike bonus ball 1: each ball in its own row (fresh rack resets per-row)
+        pushFrameRow({
+          frameNumber: 11,
+          roll1: bonus1,
+          roll2: 0,
+          source: null,
+          forceGenerated: true,
+        });
+        if (bonus2 !== undefined && bonus2 !== null) {
+          pushFrameRow({
+            frameNumber: 12,
+            roll1: bonus2,
+            roll2: 0,
+            source: null,
+            forceGenerated: true,
+          });
+        }
+      } else {
+        // Non-strike bonus ball 1: encode both balls in one row.
+        // low10 = standing after bonus1, high10 = standing after bonus2.
+        // frameNum 11 is left as a placeholder (filled by the while-loop below).
+        const standingAfterBonus1 = Math.max(0, 10 - bonus1);
+        const standingAfterBonus2 =
+          bonus2 !== undefined && bonus2 !== null
+            ? Math.max(0, standingAfterBonus1 - bonus2)
+            : standingAfterBonus1;
+        const computeMask = (n: number) =>
+          n <= 0 ? 0 : n >= 10 ? 0x3ff : (1 << n) - 1;
+        rows.push({
+          gameFk,
+          weekFk,
+          leagueFk,
+          ballFk: null,
+          frameNum: 10,
+          pins:
+            computeMask(standingAfterBonus1) |
+            (computeMask(standingAfterBonus2) << 10),
+          scores: computeFrameScores(bonus1, bonus2 ?? null),
+          score: 0,
+          flags: NON_STRIKE_FRAME_FLAG,
+          pocket: null,
+          footBoard: null,
+          targetBoard: null,
+        });
       }
-      pushFrameRow({
-        frameNumber: 12,
-        roll1: tenthFrame.roll3,
-        roll2: 0,
-        source: null,
-        forceGenerated: true,
-        pinsOverride: bonus2PinsOverride,
-      });
     }
 
     return rows;
