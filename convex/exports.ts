@@ -332,20 +332,14 @@ function buildExportContext({
   };
 }
 
-function computeGameFrame(
-  frames: Array<{
-    frameNumber: number;
-    roll1: number;
-    roll3?: number | null;
-  }>
-): number {
+function computeGameFrame(frames: Array<{ frameNumber: number }>): number {
   if (frames.length === 0) return 0;
   const maxFrame = Math.max(...frames.map((f) => f.frameNumber));
-  if (maxFrame < 10) return maxFrame;
-  const tenth = frames.find((f) => f.frameNumber === 10);
-  if (!tenth) return maxFrame;
-  if (tenth.roll3 != null) return tenth.roll1 === 10 ? 12 : 11;
-  return 10;
+  // For a completed game (frame 10 reached), always return 10.
+  // Values 11/12 are live-play state signals — PinPal interprets them as
+  // "awaiting bonus rolls" and renders the game as in-progress (dashes).
+  // All bonus rolls are already stored in the frame table at export time.
+  return Math.min(maxFrame, 10);
 }
 
 export const getSqliteBackupSnapshot = query({
