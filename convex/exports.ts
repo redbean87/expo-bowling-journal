@@ -1,6 +1,7 @@
 import { query } from './_generated/server';
 import { requireUserId } from './lib/auth';
 import {
+  computeGameFrame,
   frameHasSpare,
   packPinsFromRolls,
   toLegacyPackedPins,
@@ -207,81 +208,79 @@ function buildLegacyFrameRowsForGame({
 
   const tenthFrame = byFrameNumber.get(10);
 
-  if (!tenthFrame) {
-    return rows;
-  }
+  if (tenthFrame) {
+    pushFrameRow({
+      frameNumber: 10,
+      roll1: tenthFrame.roll1,
+      roll2: tenthFrame.roll2 ?? null,
+      source: tenthFrame,
+    });
 
-  pushFrameRow({
-    frameNumber: 10,
-    roll1: tenthFrame.roll1,
-    roll2: tenthFrame.roll2 ?? null,
-    source: tenthFrame,
-  });
+    if (tenthFrame.roll1 === 10) {
+      const bonus1 = tenthFrame.roll2;
+      const bonus2 = tenthFrame.roll3;
 
-  if (tenthFrame.roll1 === 10) {
-    const bonus1 = tenthFrame.roll2;
-    const bonus2 = tenthFrame.roll3;
-
-    if (bonus1 !== undefined && bonus1 !== null) {
-      if (bonus1 === 10) {
-        // Strike bonus ball 1: each ball in its own row (fresh rack resets per-row)
-        pushFrameRow({
-          frameNumber: 11,
-          roll1: bonus1,
-          roll2: 0,
-          source: null,
-          forceGenerated: true,
-        });
-        if (bonus2 !== undefined && bonus2 !== null) {
+      if (bonus1 !== undefined && bonus1 !== null) {
+        if (bonus1 === 10) {
+          // Strike bonus ball 1: each ball in its own row (fresh rack resets per-row)
           pushFrameRow({
-            frameNumber: 12,
-            roll1: bonus2,
+            frameNumber: 11,
+            roll1: bonus1,
             roll2: 0,
             source: null,
             forceGenerated: true,
           });
+          if (bonus2 !== undefined && bonus2 !== null) {
+            pushFrameRow({
+              frameNumber: 12,
+              roll1: bonus2,
+              roll2: 0,
+              source: null,
+              forceGenerated: true,
+            });
+          }
+        } else {
+          // Non-strike bonus ball 1: encode both balls in one row.
+          // low10 = standing after bonus1, high10 = standing after bonus2.
+          // frameNum 11 is left as a placeholder (filled by the while-loop below).
+          const standingAfterBonus1 = Math.max(0, 10 - bonus1);
+          const standingAfterBonus2 =
+            bonus2 !== undefined && bonus2 !== null
+              ? Math.max(0, standingAfterBonus1 - bonus2)
+              : standingAfterBonus1;
+          const computeMask = (n: number) =>
+            n <= 0 ? 0 : n >= 10 ? 0x3ff : (1 << n) - 1;
+          rows.push({
+            gameFk,
+            weekFk,
+            leagueFk,
+            ballFk: null,
+            frameNum: 10,
+            pins:
+              computeMask(standingAfterBonus1) |
+              (computeMask(standingAfterBonus2) << 10),
+            scores: computeFrameScores(bonus1, bonus2 ?? null),
+            score: 0,
+            flags: NON_STRIKE_FRAME_FLAG,
+            pocket: null,
+            footBoard: null,
+            targetBoard: null,
+          });
         }
-      } else {
-        // Non-strike bonus ball 1: encode both balls in one row.
-        // low10 = standing after bonus1, high10 = standing after bonus2.
-        // frameNum 11 is left as a placeholder (filled by the while-loop below).
-        const standingAfterBonus1 = Math.max(0, 10 - bonus1);
-        const standingAfterBonus2 =
-          bonus2 !== undefined && bonus2 !== null
-            ? Math.max(0, standingAfterBonus1 - bonus2)
-            : standingAfterBonus1;
-        const computeMask = (n: number) =>
-          n <= 0 ? 0 : n >= 10 ? 0x3ff : (1 << n) - 1;
-        rows.push({
-          gameFk,
-          weekFk,
-          leagueFk,
-          ballFk: null,
-          frameNum: 10,
-          pins:
-            computeMask(standingAfterBonus1) |
-            (computeMask(standingAfterBonus2) << 10),
-          scores: computeFrameScores(bonus1, bonus2 ?? null),
-          score: 0,
-          flags: NON_STRIKE_FRAME_FLAG,
-          pocket: null,
-          footBoard: null,
-          targetBoard: null,
-        });
       }
+    } else if (
+      frameHasSpare(tenthFrame) &&
+      tenthFrame.roll3 !== undefined &&
+      tenthFrame.roll3 !== null
+    ) {
+      pushFrameRow({
+        frameNumber: 11,
+        roll1: tenthFrame.roll3,
+        roll2: 0,
+        source: null,
+        forceGenerated: true,
+      });
     }
-  } else if (
-    frameHasSpare(tenthFrame) &&
-    tenthFrame.roll3 !== undefined &&
-    tenthFrame.roll3 !== null
-  ) {
-    pushFrameRow({
-      frameNumber: 11,
-      roll1: tenthFrame.roll3,
-      roll2: 0,
-      source: null,
-      forceGenerated: true,
-    });
   }
 
   // PinPal always expects exactly 12 frame rows per game (frameNum 0–11).
@@ -385,16 +384,6 @@ function buildExportContext({
     leagueSqliteIdById,
     ballSqliteIdById,
   };
-}
-
-function computeGameFrame(frames: Array<{ frameNumber: number }>): number {
-  if (frames.length === 0) return 0;
-  const maxFrame = Math.max(...frames.map((f) => f.frameNumber));
-  // For a completed game (frame 10 reached), always return 10.
-  // Values 11/12 are live-play state signals — PinPal interprets them as
-  // "awaiting bonus rolls" and renders the game as in-progress (dashes).
-  // All bonus rolls are already stored in the frame table at export time.
-  return Math.min(maxFrame, 10);
 }
 
 export const getSqliteBackupSnapshot = query({
@@ -609,8 +598,11 @@ export const getSqliteBackupSnapshot = query({
           lane: laneFromLaneContext(session.laneContext ?? null),
         })
       ),
-      games: sortedGames.map(
-        (game): SqliteGameRow => ({
+      games: sortedGames.map((game): SqliteGameRow => {
+        const gameFrame = computeGameFrame(
+          framesByGameId.get(String(game._id)) ?? []
+        );
+        return {
           sqliteId: gameSqliteIdById.get(String(game._id)) ?? 0,
           weekFk: weekSqliteIdById.get(String(game.sessionId)) ?? null,
           leagueFk: openBowlingLeagueIds.has(String(game.leagueId))
@@ -624,14 +616,14 @@ export const getSqliteBackupSnapshot = query({
             : null,
           houseFk: null,
           score: game.totalScore ?? null,
-          frame: computeGameFrame(framesByGameId.get(String(game._id)) ?? []),
-          flags: 1,
-          singlePinSpareScore: null,
+          frame: gameFrame,
+          flags: gameFrame < 10 ? 2 : 1,
+          singlePinSpareScore: 0,
           notes: game.notes ?? null,
           lane: laneFromLaneContext(game.laneContext ?? null),
           date: game.date ?? null,
-        })
-      ),
+        };
+      }),
       // Serialized as a JSON string to avoid Convex's 8192-element array limit.
       // Heavy users with 1000+ games can produce 10,000+ legacy frame rows
       // (up to 12 rows per game for strike-heavy 10th frames). The client

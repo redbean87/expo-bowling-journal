@@ -61,6 +61,38 @@ export function frameHasSpare(frame: ExportableFrameDoc) {
   );
 }
 
+export type GameFrameInput = {
+  frameNumber: number;
+  roll1: number;
+  roll2?: number | null;
+  roll3?: number | null;
+};
+
+export function computeGameFrame(frames: GameFrameInput[]): number {
+  if (frames.length === 0) return 0;
+  const maxFrameNumber = Math.max(...frames.map((f) => f.frameNumber));
+  if (maxFrameNumber < 10) return maxFrameNumber;
+
+  const tenthFrame = frames.find((f) => f.frameNumber === 10);
+  if (!tenthFrame) return 10;
+
+  if (tenthFrame.roll1 === 10) {
+    if (tenthFrame.roll3 !== undefined && tenthFrame.roll3 !== null) return 12;
+    if (tenthFrame.roll2 !== undefined && tenthFrame.roll2 !== null) return 11;
+    return 10;
+  }
+
+  if (
+    frameHasSpare(tenthFrame) &&
+    tenthFrame.roll3 !== undefined &&
+    tenthFrame.roll3 !== null
+  ) {
+    return 11;
+  }
+
+  return 10;
+}
+
 export function countLegacyRowsForGameFrames(frames: ExportableFrameDoc[]) {
   const byFrameNumber = new Map<number, ExportableFrameDoc>();
 
