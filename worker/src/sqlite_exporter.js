@@ -105,6 +105,12 @@ function assertSnapshotShape(snapshot) {
 export async function buildSqliteBackupBytes(snapshot, options = {}) {
   assertSnapshotShape(snapshot);
 
+  const timezoneOffsetMinutes =
+    typeof options.timezoneOffsetMinutes === 'number' &&
+    Number.isFinite(options.timezoneOffsetMinutes)
+      ? Math.trunc(options.timezoneOffsetMinutes)
+      : 0;
+
   const SQL = await getSqlJs(options.wasmModule);
   const db = new SQL.Database();
 
@@ -183,7 +189,8 @@ export async function buildSqliteBackupBytes(snapshot, options = {}) {
         row.patternFk,
         row.houseFk,
         typeof row.date === 'string'
-          ? Date.parse(row.date + 'T00:00:00.000Z')
+          ? Date.parse(row.date + 'T00:00:00.000Z') +
+            timezoneOffsetMinutes * 60_000
           : (row.date ?? null),
         row.notes,
         row.lane,

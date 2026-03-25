@@ -538,9 +538,14 @@ export default {
         return badRequest(request, env, 'Missing snapshot payload');
       }
 
+      const exportTimezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
+        body.timezoneOffsetMinutes
+      );
+
       try {
         const sqliteBytes = await buildSqliteBackupBytes(body.snapshot, {
           wasmModule: sqlWasmModule,
+          timezoneOffsetMinutes: exportTimezoneOffsetMinutes,
         });
         const defaultName = `bowling-journal-${new Date()
           .toISOString()

@@ -75,6 +75,7 @@ export function useExportSqliteBackup() {
             body: JSON.stringify({
               fileName: requestedFileName,
               snapshot,
+              timezoneOffsetMinutes: new Date().getTimezoneOffset(),
             }),
           }
         );

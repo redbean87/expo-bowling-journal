@@ -117,6 +117,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Fix game number and series double-count flash caused by Convex subscription pushing new game before draftGameId state commits; use clientSyncId exclusion as fallback in createModeGameNumber, currentGameNumber, and currentSeries
 - [x] Replace standalone CI workflow with unified CI/deploy pipeline: check → check-worker → build (artifact) → deploy-preview → deploy-production; worker type check added as parallel gate; web artifact built once and shared across deploy jobs
 - [x] Add CI automation for Expo web preview/production deploys: dual build jobs (preview/production) with per-environment Convex and worker secrets, preview gated before production, EXPO_TOKEN via GitHub robot user
+- [x] Fix SQLite export date timezone mismatch: encode week dates as local midnight (timezoneOffsetMinutes offset) so PinPal displays the correct date on device
 
 ## Decision Log
 

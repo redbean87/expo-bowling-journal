@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { normalizeImportDateStrict } from '../../convex/lib/import_dates';
 import {
   buildImportedGameFramePreview,
   computeImportedGameStats,
@@ -282,5 +283,67 @@ test('sqlite export/parse roundtrip keeps game order, score-critical frame rows,
   assert.equal(
     game11Preview.some((item) => item.hasSplit),
     true
+  );
+});
+
+test('sqlite export encodes week dates as local midnight using timezoneOffsetMinutes', async () => {
+  const wasmModule = await loadSqlWasmModule();
+  const dateString = '2026-02-25';
+  const timezoneOffsetMinutes = 300; // UTC-5 (US Eastern/Central)
+  const expectedStoredDate =
+    Date.parse(dateString + 'T00:00:00.000Z') + timezoneOffsetMinutes * 60_000;
+
+  const snapshot = {
+    sourceFileName: 'tz-test.db',
+    sourceHash: null,
+    houses: [],
+    patterns: [],
+    balls: [],
+    leagues: [
+      {
+        sqliteId: 1,
+        ballFk: null,
+        patternFk: null,
+        houseFk: null,
+        name: 'TZ League',
+        games: 1,
+        notes: null,
+        sortOrder: null,
+        flags: null,
+      },
+    ],
+    weeks: [
+      {
+        sqliteId: 1,
+        leagueFk: 1,
+        ballFk: null,
+        patternFk: null,
+        houseFk: null,
+        date: dateString,
+        notes: null,
+        lane: null,
+      },
+    ],
+    games: [],
+    frames: [],
+    bjMeta: [],
+    bjSessionExt: [],
+    bjGameExt: [],
+  };
+
+  const sqliteBytes = await buildSqliteBackupBytes(snapshot, {
+    wasmModule,
+    timezoneOffsetMinutes,
+  });
+  const parsed = await parseBackupDatabaseToSnapshot(
+    toArrayBuffer(sqliteBytes),
+    { wasmModule }
+  );
+
+  const storedDate = parsed.snapshot.weeks[0]?.date;
+  assert.equal(storedDate, expectedStoredDate);
+  assert.equal(
+    normalizeImportDateStrict(storedDate, timezoneOffsetMinutes),
+    dateString
   );
 });
