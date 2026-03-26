@@ -58,6 +58,7 @@ export function usePinDeckGesture({
   const swipeModeRef = useRef<SwipeMode | null>(null);
   const visitedPinsRef = useRef(new Set<number>());
   const isSwipeActiveRef = useRef(false);
+  const swipeAppliedActionRef = useRef(false);
   const swipeStartPointRef = useRef<Point | null>(null);
   const lastPointRef = useRef<Point | null>(null);
 
@@ -144,6 +145,7 @@ export function usePinDeckGesture({
       onSetPinStanding(pinNumber);
     }
 
+    swipeAppliedActionRef.current = true;
     visitedPinsRef.current.add(pinNumber);
   };
 
@@ -216,5 +218,6 @@ export function usePinDeckGesture({
     onResponderMove,
     resetSwipeState,
     isSwipeActiveRef,
+    swipeAppliedActionRef,
   };
 }

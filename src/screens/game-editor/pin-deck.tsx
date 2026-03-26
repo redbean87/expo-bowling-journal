@@ -51,6 +51,7 @@ export function PinDeck({
     onResponderMove,
     resetSwipeState,
     isSwipeActiveRef,
+    swipeAppliedActionRef,
   } = usePinDeckGesture({
     selectedMask,
     standingMask,
@@ -91,6 +92,11 @@ export function PinDeck({
                 }
                 disabled={!isStanding}
                 onPress={() => {
+                  if (swipeAppliedActionRef.current) {
+                    swipeAppliedActionRef.current = false;
+                    return;
+                  }
+
                   if (isSwipeActiveRef.current) {
                     return;
                   }
