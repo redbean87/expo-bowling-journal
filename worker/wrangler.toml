@@ -30,7 +30,7 @@ fallthrough = true
 [env.production.vars]
 CONVEX_URL = "https://marvelous-quail-215.convex.site"
 CONVEX_IMPORT_CALLBACK_PATH = "/api/import-callback"
-CORS_ALLOWED_ORIGINS = "https://expo-bowling-journal.expo.app"
+CORS_ALLOWED_ORIGINS = "https://expo-bowling-journal.expo.app,https://expo-bowling-journal--dev.expo.app"
 
 [[env.production.r2_buckets]]
 binding = "R2_IMPORTS"
