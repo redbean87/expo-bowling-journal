@@ -166,6 +166,7 @@ export function usePinDeckGesture({
     swipeModeRef.current = null;
     visitedPinsRef.current.clear();
     isSwipeActiveRef.current = false;
+    swipeAppliedActionRef.current = false;
     swipeStartPointRef.current = null;
     lastPointRef.current = null;
   };
