@@ -347,3 +347,96 @@ test('sqlite export encodes week dates as local midnight using timezoneOffsetMin
     dateString
   );
 });
+
+test('sqlite export preserves DST-aware numeric dates across CDT and CST seasons', async () => {
+  // Simulate the client-side pre-conversion: new Date(date + 'T00:00:00').getTime()
+  // returns the local midnight timestamp using historical DST rules for that date.
+  // In a US Central environment:
+  //   '2025-09-10' (CDT, UTC-5) → 05:00 UTC
+  //   '2026-01-15' (CST, UTC-6) → 06:00 UTC
+  // The test uses explicit timestamps so it passes in any server timezone.
+  const wasmModule = await loadSqlWasmModule();
+
+  // These represent the pre-converted numeric timestamps the client would send:
+  // CDT session: 2025-09-10 00:00 CDT = 2025-09-10T05:00:00Z
+  const cdtDateString = '2025-09-10';
+  const cdtTimestampMs = Date.parse('2025-09-10T05:00:00.000Z'); // CDT midnight
+  // CST session: 2026-01-15 00:00 CST = 2026-01-15T06:00:00Z
+  const cstDateString = '2026-01-15';
+  const cstTimestampMs = Date.parse('2026-01-15T06:00:00.000Z'); // CST midnight
+  const centralOffset = 300; // CDT offset used during export (current offset)
+
+  const snapshot = {
+    sourceFileName: 'dst-test.db',
+    sourceHash: null,
+    houses: [],
+    patterns: [],
+    balls: [],
+    leagues: [
+      {
+        sqliteId: 1,
+        ballFk: null,
+        patternFk: null,
+        houseFk: null,
+        name: 'DST League',
+        games: 2,
+        notes: null,
+        sortOrder: null,
+        flags: null,
+      },
+    ],
+    weeks: [
+      {
+        sqliteId: 1,
+        leagueFk: 1,
+        ballFk: null,
+        patternFk: null,
+        houseFk: null,
+        date: cdtTimestampMs,
+        notes: null,
+        lane: null,
+      },
+      {
+        sqliteId: 2,
+        leagueFk: 1,
+        ballFk: null,
+        patternFk: null,
+        houseFk: null,
+        date: cstTimestampMs,
+        notes: null,
+        lane: null,
+      },
+    ],
+    games: [],
+    frames: [],
+    bjMeta: [],
+    bjSessionExt: [],
+    bjGameExt: [],
+  };
+
+  // Numeric dates pass through the exporter unchanged (no offset applied)
+  const sqliteBytes = await buildSqliteBackupBytes(snapshot, {
+    wasmModule,
+    timezoneOffsetMinutes: centralOffset,
+  });
+  const parsed = await parseBackupDatabaseToSnapshot(
+    toArrayBuffer(sqliteBytes),
+    {
+      wasmModule,
+    }
+  );
+
+  const storedCdt = parsed.snapshot.weeks[0]?.date;
+  const storedCst = parsed.snapshot.weeks[1]?.date;
+
+  // CDT session: stored as 05:00 UTC, recovered with CDT offset (300)
+  assert.equal(storedCdt, cdtTimestampMs);
+  assert.equal(
+    normalizeImportDateStrict(storedCdt, centralOffset),
+    cdtDateString
+  );
+
+  // CST session: stored as 06:00 UTC, recovered with CST offset (360)
+  assert.equal(storedCst, cstTimestampMs);
+  assert.equal(normalizeImportDateStrict(storedCst, 360), cstDateString);
+});

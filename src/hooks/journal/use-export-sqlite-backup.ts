@@ -55,8 +55,26 @@ export function useExportSqliteBackup() {
         // array limit. Reconstruct the full snapshot with frames as an array
         // before sending to the worker, which expects the standard shape.
         const { framesJson, ...snapshotWithoutFrames } = raw;
+        // Pre-convert week dates from YYYY-MM-DD strings to local midnight
+        // timestamps before sending to the worker. Using `new Date(date +
+        // 'T00:00:00').getTime()` applies the device's historical DST rules for
+        // that specific date, so CST-season dates get 06:00 UTC and CDT-season
+        // dates get 05:00 UTC — matching what PinPal originally stored.
+        const weeksWithTimestamps = (
+          snapshotWithoutFrames.weeks as Array<{
+            date?: string | null;
+            [key: string]: unknown;
+          }>
+        ).map((week) => ({
+          ...week,
+          date:
+            typeof week.date === 'string'
+              ? new Date(week.date + 'T00:00:00').getTime()
+              : week.date,
+        }));
         const snapshot = {
           ...snapshotWithoutFrames,
+          weeks: weeksWithTimestamps,
           frames: JSON.parse(framesJson),
         };
         const defaultFileName = getDefaultExportFileName();
