@@ -91,6 +91,9 @@ export function PinDeck({
                   registerPinLayout(rowIndex, pinNumber, event)
                 }
                 disabled={!isStanding}
+                onPressIn={() => {
+                  swipeAppliedActionRef.current = false;
+                }}
                 onPress={() => {
                   if (swipeAppliedActionRef.current) {
                     swipeAppliedActionRef.current = false;
