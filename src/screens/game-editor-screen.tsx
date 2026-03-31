@@ -634,7 +634,6 @@ export default function GameEditorScreen() {
     hasQueuedAutosaveRef,
     saveSequenceRef,
     lastSavedSignatureRef,
-    lastAppliedServerSignatureRef,
   });
 
   const onSelectFrame = (frameIndex: number) => {

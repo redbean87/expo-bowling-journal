@@ -15,7 +15,6 @@ import {
 } from './game-editor-frame-utils';
 import {
   buildPersistedSignature,
-  buildSyncSignature,
   isOfflineLikely,
 } from './game-editor-screen-utils';
 import {
@@ -82,7 +81,6 @@ type UseGameEditorAutosaveSyncInput = {
   hasQueuedAutosaveRef: MutableRefObject<boolean>;
   saveSequenceRef: MutableRefObject<number>;
   lastSavedSignatureRef: MutableRefObject<string | null>;
-  lastAppliedServerSignatureRef: MutableRefObject<string | null>;
 };
 
 export function useGameEditorAutosaveSync({
@@ -116,7 +114,6 @@ export function useGameEditorAutosaveSync({
   hasQueuedAutosaveRef,
   saveSequenceRef,
   lastSavedSignatureRef,
-  lastAppliedServerSignatureRef,
 }: UseGameEditorAutosaveSyncInput) {
   const [autosaveRetryTick, setAutosaveRetryTick] = useState(0);
 
@@ -550,13 +547,6 @@ export function useGameEditorAutosaveSync({
           setAutosaveState('saved');
           setAutosaveError(null);
           void clearLocalDraft();
-          lastAppliedServerSignatureRef.current = buildSyncSignature(
-            nextGameId,
-            trimmedDate,
-            sanitizedDrafts,
-            selectedPatternId,
-            selectedBallId
-          );
         }
       } catch (caught) {
         const actionableMessage = getActionableSaveErrorMessage(caught);
@@ -604,7 +594,6 @@ export function useGameEditorAutosaveSync({
     isCreateMode,
     isDraftSessionContext,
     isQueuedFlushInFlightRef,
-    lastAppliedServerSignatureRef,
     lastSavedSignatureRef,
     rawSessionId,
     replaceFramesForGame,
