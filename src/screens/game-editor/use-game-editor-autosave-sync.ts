@@ -372,10 +372,6 @@ export function useGameEditorAutosaveSync({
       const { drafts: sanitizedDrafts, changed } =
         sanitizeFrameDraftsForEntry(frameDrafts);
 
-      if (changed) {
-        setFrameDrafts(sanitizedDrafts);
-      }
-
       const autosavePlan = buildAutosaveGuardResult({
         isAuthenticated,
         hasSignedInBefore,
@@ -386,12 +382,20 @@ export function useGameEditorAutosaveSync({
       });
 
       if (autosavePlan.status === 'blocked') {
+        if (changed) {
+          setFrameDrafts(sanitizedDrafts);
+        }
+
         setAutosaveState('error');
         setAutosaveError(autosavePlan.message);
         return;
       }
 
       if (autosavePlan.status === 'idle') {
+        if (changed) {
+          setFrameDrafts(sanitizedDrafts);
+        }
+
         setAutosaveState('idle');
         return;
       }
@@ -414,12 +418,24 @@ export function useGameEditorAutosaveSync({
         });
 
       if (saveSignature === lastSavedSignatureRef.current) {
+        if (changed) {
+          setFrameDrafts(sanitizedDrafts);
+        }
+
         setAutosaveState('saved');
         return;
       }
 
       isAutosaveInFlightRef.current = true;
+
+      // Batch setAutosaveState and setFrameDrafts together so the server-sync
+      // effect always sees autosaveState === 'saving' when frameDrafts changes
+      // due to sanitization — preventing it from overwriting local state.
       setAutosaveState('saving');
+
+      if (changed) {
+        setFrameDrafts(sanitizedDrafts);
+      }
       setAutosaveError(null);
       const saveSequence = saveSequenceRef.current + 1;
       saveSequenceRef.current = saveSequence;
