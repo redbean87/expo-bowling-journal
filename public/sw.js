@@ -167,7 +167,12 @@ globalThis.addEventListener('install', (event) => {
 });
 
 globalThis.addEventListener('activate', (event) => {
-  event.waitUntil(cleanupOldCaches().then(() => globalThis.clients.claim()));
+  event.waitUntil(
+    Promise.all([
+      cleanupOldCaches().catch(() => undefined),
+      globalThis.clients.claim(),
+    ])
+  );
 });
 
 globalThis.addEventListener('fetch', (event) => {
