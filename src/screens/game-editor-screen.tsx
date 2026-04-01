@@ -143,6 +143,7 @@ export default function GameEditorScreen() {
   const hasQueuedAutosaveRef = useRef(false);
   const lastSavedSignatureRef = useRef<string | null>(null);
   const lastAppliedServerSignatureRef = useRef<string | null>(null);
+  const hasLocalEditRef = useRef(false);
   const saveSequenceRef = useRef(0);
   const {
     ballOptions,
@@ -334,6 +335,7 @@ export default function GameEditorScreen() {
     setSelectedBallId,
     lastAppliedServerSignatureRef,
     lastSavedSignatureRef,
+    hasLocalEditRef,
   });
   const nextExistingGameId = useMemo(() => {
     const currentGameId = draftGameId ?? gameId;
@@ -645,6 +647,7 @@ export default function GameEditorScreen() {
     updater: (frame: FrameDraft) => FrameDraft,
     nextField?: RollField
   ) => {
+    hasLocalEditRef.current = true;
     setAutosaveError(null);
 
     setFrameDrafts((currentDrafts) => {

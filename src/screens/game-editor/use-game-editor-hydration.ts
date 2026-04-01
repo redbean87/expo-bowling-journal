@@ -61,6 +61,7 @@ type UseGameEditorHydrationInput = {
   setSelectedBallId: Dispatch<SetStateAction<string | null>>;
   lastAppliedServerSignatureRef: MutableRefObject<string | null>;
   lastSavedSignatureRef: MutableRefObject<string | null>;
+  hasLocalEditRef: MutableRefObject<boolean>;
 };
 
 type UseGameEditorHydrationResult = {
@@ -96,6 +97,7 @@ export function useGameEditorHydration({
   setSelectedBallId,
   lastAppliedServerSignatureRef,
   lastSavedSignatureRef,
+  hasLocalEditRef,
 }: UseGameEditorHydrationInput): UseGameEditorHydrationResult {
   const [didHydrate, setDidHydrate] = useState(false);
   const [draftGameId, setDraftGameId] = useState<GameId | null>(gameId);
@@ -424,6 +426,7 @@ export function useGameEditorHydration({
     }
 
     const isLocalClean =
+      !hasLocalEditRef.current &&
       localSignature === lastAppliedServerSignatureRef.current &&
       autosaveState !== 'saving';
 
@@ -440,6 +443,7 @@ export function useGameEditorHydration({
         game.patternId ? String(game.patternId) : null,
         game.ballId ? String(game.ballId) : null
       );
+      hasLocalEditRef.current = false;
     }
   }, [
     autosaveState,
@@ -449,6 +453,7 @@ export function useGameEditorHydration({
     frames,
     game,
     gameId,
+    hasLocalEditRef,
     isCreateMode,
     lastAppliedServerSignatureRef,
     lastSavedSignatureRef,
