@@ -3,10 +3,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { SeasonStatsCard } from './season-stats-card';
 import { SessionRowCard } from './session-row-card';
-import {
-  formatIsoDateLabel,
-  formatSessionWeekLabel,
-} from '../../journal-fast-lane-utils';
+import { formatIsoDateLabel } from '../../journal-fast-lane-utils';
 import { buildSessionNightSummary } from '../../journal-games-night-summary';
 import { buildJournalGamesRouteParams } from '../journal-route-params';
 
@@ -22,10 +19,12 @@ import {
   typeScale,
 } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
+import { sessionLabel, type LeagueType } from '@/utils/league-type-utils';
 
 type SessionListProps = {
   leagueId: LeagueId | null;
   leagueClientSyncId: string | null;
+  leagueType: LeagueType;
   isSessionsLoading: boolean;
   isLeagueGamesLoading: boolean;
   displaySessions: DisplaySession[];
@@ -40,6 +39,7 @@ type SessionListProps = {
 export function SessionList({
   leagueId,
   leagueClientSyncId,
+  leagueType,
   isSessionsLoading,
   isLeagueGamesLoading,
   displaySessions,
@@ -92,6 +92,10 @@ export function SessionList({
               ) ?? null)
             : null);
 
+        const formattedDate = formatIsoDateLabel(session.date);
+        const weekLabel = sessionLabel(weekNumber, leagueType, formattedDate);
+        const isOpen = leagueType === 'open';
+
         return (
           <SessionRowCard
             key={session.id}
@@ -123,11 +127,11 @@ export function SessionList({
                 houseId: session.houseId,
                 patternId: session.patternId,
                 ballId: session.ballId,
-                title: `${formatSessionWeekLabel(weekNumber ?? 1)} - ${formatIsoDateLabel(session.date)}`,
+                title: isOpen ? weekLabel : `${weekLabel} - ${formattedDate}`,
               })
             }
-            sessionDateLabel={formatIsoDateLabel(session.date)}
-            sessionWeekLabel={formatSessionWeekLabel(weekNumber ?? 1)}
+            sessionDateLabel={isOpen ? '' : formattedDate}
+            sessionWeekLabel={weekLabel}
           />
         );
       })}

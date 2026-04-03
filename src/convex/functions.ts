@@ -143,6 +143,7 @@ export const leaguesCreateMutation = makeFunctionReference<
     houseName?: string | null;
     startDate?: string | null;
     endDate?: string | null;
+    type?: 'league' | 'tournament' | 'open';
   },
   Id<'leagues'>
 >('leagues:create');
@@ -154,6 +155,7 @@ export const leaguesUpdateMutation = makeFunctionReference<
     name: string;
     gamesPerSession?: number | null;
     houseId?: Id<'houses'> | null;
+    type?: 'league' | 'tournament';
   },
   Id<'leagues'>
 >('leagues:update');

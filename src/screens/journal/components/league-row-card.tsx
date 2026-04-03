@@ -2,9 +2,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { LeagueType } from '@/utils/league-type-utils';
+
 import { Card } from '@/components/ui';
 import {
   lineHeight,
+  radius,
   spacing,
   type ThemeColors,
   typeScale,
@@ -19,6 +22,7 @@ type DisplayLeague = {
   houseId: string | null;
   gamesPerSession: number | null;
   isDraft: boolean;
+  leagueType: LeagueType;
 };
 
 type LeagueRowCardProps = {
@@ -47,7 +51,19 @@ export function LeagueRowCard({
             pressed ? styles.leagueContentPressed : null,
           ]}
         >
-          <Text style={styles.rowTitle}>{league.name}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.rowTitle}>{league.name}</Text>
+            {league.leagueType === 'tournament' && (
+              <View style={styles.typeChip}>
+                <MaterialIcons
+                  name="emoji-events"
+                  size={11}
+                  color={colors.accent}
+                />
+                <Text style={styles.typeChipLabel}>Tournament</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.meta}>{league.houseName ?? 'No house set'}</Text>
           <Text style={styles.meta}>
             Target games: {league.gamesPerSession ?? 'Not set'}
@@ -81,6 +97,26 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.body,
       fontWeight: '600',
       color: colors.textPrimary,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      flexWrap: 'wrap',
+    },
+    typeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+      borderRadius: radius.sm,
+      backgroundColor: colors.accentMuted,
+    },
+    typeChipLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.accent,
     },
     leagueContent: {
       gap: spacing.xs,

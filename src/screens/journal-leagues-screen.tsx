@@ -13,7 +13,9 @@ import {
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { LeagueFormModal } from './journal/components/league-form-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
+import { LeagueSectionHeader } from './journal/components/league-section-header';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
+import { OpenBowlingCard } from './journal/components/open-bowling-card';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
 import {
   createQueuedLeagueDeleteEntry,
@@ -50,6 +52,7 @@ import {
 } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { createClientSyncId } from '@/utils/client-sync-id';
+import { resolveLeagueType, type LeagueType } from '@/utils/league-type-utils';
 
 function formatRelativeTime(timestamp: number | null, now: number) {
   if (!timestamp) {
@@ -110,6 +113,7 @@ type LeagueActionTarget = {
   name: string;
   gamesPerSession: number | null;
   houseId: string | null;
+  leagueType: LeagueType;
 };
 
 type DisplayLeague = {
@@ -121,6 +125,8 @@ type DisplayLeague = {
   houseId: string | null;
   gamesPerSession: number | null;
   isDraft: boolean;
+  leagueType: LeagueType;
+  mostRecentSessionDate: string | null;
 };
 
 export default function JournalLeaguesScreen() {
@@ -133,10 +139,14 @@ export default function JournalLeaguesScreen() {
     leagues,
     isLoading: isLeaguesLoading,
     createLeague,
+    createOpenBowlingLeague,
     updateLeague,
     removeLeague,
   } = useLeagues();
   const [leagueName, setLeagueName] = useState('');
+  const [leagueType, setLeagueType] = useState<'league' | 'tournament'>(
+    'league'
+  );
   const [leagueGamesPerSession, setLeagueGamesPerSession] = useState('');
   const [leagueHouseId, setLeagueHouseId] = useState<string | null>(null);
   const [leagueError, setLeagueError] = useState<string | null>(null);
@@ -157,6 +167,9 @@ export default function JournalLeaguesScreen() {
   const [editingLeagueHouseId, setEditingLeagueHouseId] = useState<
     string | null
   >(null);
+  const [editingLeagueType, setEditingLeagueType] = useState<
+    'league' | 'tournament'
+  >('league');
   const [isSavingLeagueEdit, setIsSavingLeagueEdit] = useState(false);
   const [deletingLeagueRowId, setDeletingLeagueRowId] = useState<string | null>(
     null
@@ -207,6 +220,13 @@ export default function JournalLeaguesScreen() {
     } as never);
   };
 
+  const navigateToLeagueSessionsById = (leagueId: string) => {
+    router.push({
+      pathname: '/journal/[leagueId]/sessions' as never,
+      params: { leagueId } as never,
+    } as never);
+  };
+
   const startLeagueNight = (leagueId: string) => {
     router.push({
       pathname: '/journal/[leagueId]/sessions' as never,
@@ -217,7 +237,8 @@ export default function JournalLeaguesScreen() {
     } as never);
   };
 
-  const confirmDeleteLeague = async (name: string) => {
+  const confirmDeleteLeague = async (name: string, type: LeagueType) => {
+    const entityName = type === 'tournament' ? 'tournament' : 'league';
     const message = `Delete ${name}, all sessions, and all games?`;
 
     if (Platform.OS === 'web') {
@@ -225,7 +246,7 @@ export default function JournalLeaguesScreen() {
     }
 
     return await new Promise<boolean>((resolve) => {
-      Alert.alert('Delete league?', message, [
+      Alert.alert(`Delete ${entityName}?`, message, [
         {
           text: 'Cancel',
           style: 'cancel',
@@ -274,6 +295,7 @@ export default function JournalLeaguesScreen() {
           name,
           gamesPerSession,
           houseId: leagueHouseId as never,
+          leagueType,
         },
         clientSyncId,
         now
@@ -290,11 +312,7 @@ export default function JournalLeaguesScreen() {
             entry.entityType === 'league-create'
         )
       );
-      setLeagueName('');
-      setLeagueGamesPerSession('');
-      setLeagueHouseId(null);
-      setLeagueError(null);
-      setPendingCreateClientSyncId(null);
+      resetCreateForm();
       setIsCreateModalVisible(false);
       navigateToLeagueSessions({
         id: `draft-${clientSyncId}`,
@@ -307,6 +325,8 @@ export default function JournalLeaguesScreen() {
         houseId: leagueHouseId,
         gamesPerSession: gamesPerSession ?? null,
         isDraft: true,
+        leagueType,
+        mostRecentSessionDate: null,
       });
     };
 
@@ -324,14 +344,12 @@ export default function JournalLeaguesScreen() {
           clientSyncId,
           gamesPerSession,
           houseId: leagueHouseId as never,
+          leagueType,
         }),
         4500
       );
-      setLeagueName('');
-      setLeagueGamesPerSession('');
-      setLeagueHouseId(null);
+      resetCreateForm();
       setPendingCreateClientSyncId(null);
-      setLeagueError(null);
       setIsCreateModalVisible(false);
       router.push({
         pathname: '/journal/[leagueId]/sessions' as never,
@@ -352,13 +370,41 @@ export default function JournalLeaguesScreen() {
     }
   };
 
+  const resetCreateForm = () => {
+    setLeagueName('');
+    setLeagueGamesPerSession('');
+    setLeagueHouseId(null);
+    setLeagueError(null);
+    setLeagueType('league');
+    setPendingCreateClientSyncId(null);
+  };
+
+  const onOpenBowlingPress = async () => {
+    const existing = displayLeagues.find((l) => l.leagueType === 'open');
+
+    if (existing) {
+      navigateToLeagueSessions(existing);
+      return;
+    }
+
+    setIsCreatingLeagueRequest(true);
+
+    try {
+      const leagueId = await createOpenBowlingLeague();
+      navigateToLeagueSessionsById(String(leagueId));
+    } finally {
+      setIsCreatingLeagueRequest(false);
+    }
+  };
+
   const startEditingLeague = (
     rowId: string,
     leagueId: string | null,
     leagueClientSyncId: string | null,
     name: string,
     gamesPerSession: number | null,
-    houseId: string | null
+    houseId: string | null,
+    lType: 'league' | 'tournament'
   ) => {
     setLeagueActionError(null);
     setIsEditModalVisible(true);
@@ -369,6 +415,7 @@ export default function JournalLeaguesScreen() {
       gamesPerSession === null ? '' : String(gamesPerSession)
     );
     setEditingLeagueHouseId(houseId);
+    setEditingLeagueType(lType);
   };
 
   const cancelEditingLeague = () => {
@@ -378,6 +425,7 @@ export default function JournalLeaguesScreen() {
     setEditingLeagueName('');
     setEditingLeagueGamesPerSession('');
     setEditingLeagueHouseId(null);
+    setEditingLeagueType('league');
   };
 
   const onSaveLeagueEdit = async () => {
@@ -444,6 +492,7 @@ export default function JournalLeaguesScreen() {
         name,
         gamesPerSession,
         houseId: editingLeagueHouseId as never,
+        leagueType: editingLeagueType,
       });
       cancelEditingLeague();
     } catch (caught) {
@@ -462,7 +511,10 @@ export default function JournalLeaguesScreen() {
 
   const onDeleteLeague = async (target: LeagueActionTarget) => {
     setLeagueActionError(null);
-    const isConfirmed = await confirmDeleteLeague(target.name);
+    const isConfirmed = await confirmDeleteLeague(
+      target.name,
+      target.leagueType
+    );
 
     if (!isConfirmed) {
       return;
@@ -551,7 +603,8 @@ export default function JournalLeaguesScreen() {
         target.leagueClientSyncId,
         target.name,
         target.gamesPerSession,
-        target.houseId
+        target.houseId,
+        target.leagueType === 'open' ? 'league' : target.leagueType
       );
       return;
     }
@@ -560,6 +613,13 @@ export default function JournalLeaguesScreen() {
   };
 
   const openLeagueActions = (target: LeagueActionTarget) => {
+    const editLabel =
+      target.leagueType === 'tournament' ? 'Edit tournament' : 'Edit league';
+    const deleteLabel =
+      target.leagueType === 'tournament'
+        ? 'Delete tournament'
+        : 'Delete league';
+
     const handled = openJournalNativeActionSheet({
       title: target.name,
       actions: [
@@ -568,11 +628,11 @@ export default function JournalLeaguesScreen() {
           onPress: () => runLeagueAction('quick-start', target),
         },
         {
-          label: 'Edit league',
+          label: editLabel,
           onPress: () => runLeagueAction('edit', target),
         },
         {
-          label: 'Delete league',
+          label: deleteLabel,
           destructive: true,
           onPress: () => runLeagueAction('delete', target),
         },
@@ -634,6 +694,10 @@ export default function JournalLeaguesScreen() {
         houseId: league.houseId ? String(league.houseId) : null,
         gamesPerSession: league.gamesPerSession ?? null,
         isDraft: false,
+        leagueType: resolveLeagueType(league),
+        mostRecentSessionDate:
+          (league as { mostRecentSessionDate?: string | null })
+            .mostRecentSessionDate ?? null,
       };
     });
 
@@ -650,10 +714,31 @@ export default function JournalLeaguesScreen() {
         houseId: entry.payload.houseId ? String(entry.payload.houseId) : null,
         gamesPerSession: entry.payload.gamesPerSession ?? null,
         isDraft: true,
+        leagueType: (entry.payload.leagueType ?? 'league') as LeagueType,
+        mostRecentSessionDate: null,
       }));
 
     return [...queuedDrafts, ...serverLeagues];
   }, [houseOptions, leagues, queuedLeagueCreates]);
+
+  const openBowlingLeague = useMemo(
+    () => displayLeagues.find((l) => l.leagueType === 'open') ?? null,
+    [displayLeagues]
+  );
+  const regularLeagues = useMemo(
+    () => displayLeagues.filter((l) => l.leagueType === 'league'),
+    [displayLeagues]
+  );
+  const tournaments = useMemo(
+    () => displayLeagues.filter((l) => l.leagueType === 'tournament'),
+    [displayLeagues]
+  );
+
+  const hasNoContent =
+    !isLeaguesLoading &&
+    regularLeagues.length === 0 &&
+    tournaments.length === 0 &&
+    !openBowlingLeague;
 
   return (
     <ScreenLayout
@@ -688,30 +773,71 @@ export default function JournalLeaguesScreen() {
           {isLeaguesLoading && (
             <Text style={styles.meta}>Loading leagues...</Text>
           )}
-          {!isLeaguesLoading && leagues.length === 0 && (
+
+          {hasNoContent && (
             <Text style={styles.meta}>
-              No leagues yet. Tap + to create your first league.
+              Tap + to add a league or tournament.
             </Text>
           )}
 
-          {displayLeagues.map((league) => (
-            <LeagueRowCard
-              key={league.id}
-              isDeleting={deletingLeagueRowId === league.id}
-              league={league}
-              onNavigate={() => navigateToLeagueSessions(league)}
-              onOpenActions={() =>
-                openLeagueActions({
-                  rowId: league.id,
-                  leagueId: league.leagueId,
-                  leagueClientSyncId: league.clientSyncId,
-                  name: league.name,
-                  gamesPerSession: league.gamesPerSession ?? null,
-                  houseId: league.houseId,
-                })
-              }
-            />
-          ))}
+          <OpenBowlingCard
+            mostRecentSessionDate={
+              openBowlingLeague?.mostRecentSessionDate ?? null
+            }
+            onPress={() => {
+              void onOpenBowlingPress();
+            }}
+          />
+
+          {regularLeagues.length > 0 && (
+            <>
+              <LeagueSectionHeader title="Leagues" />
+              {regularLeagues.map((league) => (
+                <LeagueRowCard
+                  key={league.id}
+                  isDeleting={deletingLeagueRowId === league.id}
+                  league={league}
+                  onNavigate={() => navigateToLeagueSessions(league)}
+                  onOpenActions={() =>
+                    openLeagueActions({
+                      rowId: league.id,
+                      leagueId: league.leagueId,
+                      leagueClientSyncId: league.clientSyncId,
+                      name: league.name,
+                      gamesPerSession: league.gamesPerSession ?? null,
+                      houseId: league.houseId,
+                      leagueType: league.leagueType,
+                    })
+                  }
+                />
+              ))}
+            </>
+          )}
+
+          {tournaments.length > 0 && (
+            <>
+              <LeagueSectionHeader title="Tournaments" />
+              {tournaments.map((league) => (
+                <LeagueRowCard
+                  key={league.id}
+                  isDeleting={deletingLeagueRowId === league.id}
+                  league={league}
+                  onNavigate={() => navigateToLeagueSessions(league)}
+                  onOpenActions={() =>
+                    openLeagueActions({
+                      rowId: league.id,
+                      leagueId: league.leagueId,
+                      leagueClientSyncId: league.clientSyncId,
+                      name: league.name,
+                      gamesPerSession: league.gamesPerSession ?? null,
+                      houseId: league.houseId,
+                      leagueType: league.leagueType,
+                    })
+                  }
+                />
+              ))}
+            </>
+          )}
         </ScrollView>
 
         <FloatingActionButton
@@ -719,6 +845,7 @@ export default function JournalLeaguesScreen() {
           onPress={() => {
             setLeagueGamesPerSession(quickEntryMode ? '3' : '');
             setLeagueError(null);
+            setLeagueType('league');
             setIsCreateModalVisible(true);
           }}
         />
@@ -732,12 +859,17 @@ export default function JournalLeaguesScreen() {
           leagueGamesPerSession={leagueGamesPerSession}
           leagueHouseId={leagueHouseId}
           leagueName={leagueName}
+          leagueType={leagueType}
           modalTranslateY={modalTranslateY}
           mode="create"
-          onClose={() => setIsCreateModalVisible(false)}
+          onClose={() => {
+            setIsCreateModalVisible(false);
+            resetCreateForm();
+          }}
           onGamesPerSessionChange={setLeagueGamesPerSession}
           onLeagueHouseSelect={(option) => setLeagueHouseId(option.id)}
           onLeagueNameChange={setLeagueName}
+          onLeagueTypeChange={setLeagueType}
           onSubmit={onCreateLeague}
           recentHouseOptions={recentHouseOptions}
           simplified={quickEntryMode}
@@ -753,12 +885,14 @@ export default function JournalLeaguesScreen() {
           leagueGamesPerSession={editingLeagueGamesPerSession}
           leagueHouseId={editingLeagueHouseId}
           leagueName={editingLeagueName}
+          leagueType={editingLeagueType}
           modalTranslateY={modalTranslateY}
           mode="edit"
           onClose={cancelEditingLeague}
           onGamesPerSessionChange={setEditingLeagueGamesPerSession}
           onLeagueHouseSelect={(option) => setEditingLeagueHouseId(option.id)}
           onLeagueNameChange={setEditingLeagueName}
+          onLeagueTypeChange={setEditingLeagueType}
           onSubmit={() => {
             void onSaveLeagueEdit();
           }}

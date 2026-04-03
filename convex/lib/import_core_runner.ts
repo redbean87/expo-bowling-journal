@@ -451,6 +451,7 @@ export async function runSqliteSnapshotImportCore(
         userId,
         name: 'Open Bowling',
         isOpenBowling: true,
+        type: 'open' as const,
         createdAt: importedAt,
       }));
     leagueIdMap.set(-1, openBowlingId);

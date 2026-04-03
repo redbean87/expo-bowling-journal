@@ -31,6 +31,7 @@ import {
   useStartTonight,
 } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
+import { resolveLeagueType } from '@/utils/league-type-utils';
 
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
@@ -109,6 +110,10 @@ export default function JournalSessionsScreen() {
   );
 
   const leagueName = selectedLeague?.name ?? draftLeagueName;
+  const leagueType = useMemo(
+    () => resolveLeagueType(selectedLeague ?? {}),
+    [selectedLeague]
+  );
   const defaultSessionHouseId = selectedLeague?.houseId
     ? String(selectedLeague.houseId)
     : null;
@@ -259,6 +264,7 @@ export default function JournalSessionsScreen() {
         <SessionList
           leagueId={leagueId}
           leagueClientSyncId={leagueClientSyncId}
+          leagueType={leagueType}
           isSessionsLoading={isSessionsLoading}
           isLeagueGamesLoading={isLeagueGamesLoading}
           displaySessions={displaySessions}

@@ -26,6 +26,7 @@ import {
   computePersonalRecords,
   type SessionAggregate,
 } from '@/utils/analytics-stats';
+import { leagueTypeLabel, resolveLeagueType } from '@/utils/league-type-utils';
 
 // ---------------------------------------------------------------------------
 // Chart constants
@@ -739,10 +740,13 @@ export default function AnalyticsScreen() {
   const [manualLeagueId, setManualLeagueId] = useState<LeagueId | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
 
-  // Default to first (most recently active) league when none is manually selected.
-  const selectedLeagueId =
-    manualLeagueId ??
-    (leagues.length > 0 ? (leagues[0]._id as LeagueId) : null);
+  // Default to first regular league, falling back to first available.
+  const defaultLeagueId = useMemo(() => {
+    const firstRegular = leagues.find((l) => resolveLeagueType(l) === 'league');
+    return ((firstRegular ?? leagues[0])?._id as LeagueId | undefined) ?? null;
+  }, [leagues]);
+
+  const selectedLeagueId = manualLeagueId ?? defaultLeagueId;
 
   const selectedLeague =
     leagues.find((l) => l._id === selectedLeagueId) ?? null;
@@ -831,38 +835,49 @@ export default function AnalyticsScreen() {
           >
             <Text style={styles.modalTitle}>Select League</Text>
             <ScrollView>
-              {leagues.map((league) => (
-                <Pressable
-                  key={league._id}
-                  style={({ pressed }) => [
-                    styles.leagueOption,
-                    league._id === selectedLeagueId &&
-                      styles.leagueOptionSelected,
-                    pressed && styles.leagueOptionPressed,
-                  ]}
-                  onPress={() => {
-                    setManualLeagueId(league._id as LeagueId);
-                    setIsPickerVisible(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.leagueOptionText,
-                      league._id === selectedLeagueId &&
-                        styles.leagueOptionTextSelected,
+              {leagues.map((league) => {
+                const lType = resolveLeagueType(league);
+                const isSelected = league._id === selectedLeagueId;
+
+                return (
+                  <Pressable
+                    key={league._id}
+                    style={({ pressed }) => [
+                      styles.leagueOption,
+                      isSelected && styles.leagueOptionSelected,
+                      pressed && styles.leagueOptionPressed,
                     ]}
+                    onPress={() => {
+                      setManualLeagueId(league._id as LeagueId);
+                      setIsPickerVisible(false);
+                    }}
                   >
-                    {league.name}
-                  </Text>
-                  {league._id === selectedLeagueId ? (
-                    <MaterialIcons
-                      name="check"
-                      size={18}
-                      color={colors.accent}
-                    />
-                  ) : null}
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.leagueOptionText,
+                        isSelected && styles.leagueOptionTextSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {league.name}
+                    </Text>
+                    <View style={styles.leagueOptionRight}>
+                      {lType !== 'league' && (
+                        <Text style={styles.leagueTypeBadge}>
+                          {leagueTypeLabel(lType)}
+                        </Text>
+                      )}
+                      {isSelected ? (
+                        <MaterialIcons
+                          name="check"
+                          size={18}
+                          color={colors.accent}
+                        />
+                      ) : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           </View>
         </Pressable>
@@ -985,5 +1000,16 @@ const createStyles = (colors: ThemeColors) =>
     leagueOptionTextSelected: {
       color: colors.accent,
       fontWeight: '600',
+    },
+    leagueOptionRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      flexShrink: 0,
+    },
+    leagueTypeBadge: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '500',
+      color: colors.textSecondary,
     },
   });

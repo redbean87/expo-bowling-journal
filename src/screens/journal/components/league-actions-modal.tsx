@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { LeagueType } from '@/utils/league-type-utils';
+
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
@@ -11,6 +13,7 @@ type LeagueActionTarget = {
   name: string;
   gamesPerSession: number | null;
   houseId: string | null;
+  leagueType: LeagueType;
 };
 
 type LeagueActionsModalProps = {
@@ -88,7 +91,11 @@ export function LeagueActionsModal({
                 pressed ? styles.actionItemPressed : null,
               ]}
             >
-              <Text style={styles.actionItemLabel}>Edit league</Text>
+              <Text style={styles.actionItemLabel}>
+                {target?.leagueType === 'tournament'
+                  ? 'Edit tournament'
+                  : 'Edit league'}
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -105,7 +112,11 @@ export function LeagueActionsModal({
                 pressed ? styles.actionItemPressed : null,
               ]}
             >
-              <Text style={styles.actionItemDeleteLabel}>Delete league</Text>
+              <Text style={styles.actionItemDeleteLabel}>
+                {target?.leagueType === 'tournament'
+                  ? 'Delete tournament'
+                  : 'Delete league'}
+              </Text>
             </Pressable>
             <Pressable
               onPress={onClose}

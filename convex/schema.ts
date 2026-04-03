@@ -16,6 +16,9 @@ export default defineSchema({
     createdAt: v.number(),
     legacyFlags: v.optional(v.union(v.number(), v.null())),
     isOpenBowling: v.optional(v.boolean()),
+    type: v.optional(
+      v.union(v.literal('league'), v.literal('tournament'), v.literal('open'))
+    ),
   })
     .index('by_user', ['userId'])
     .index('by_user_house', ['userId', 'houseId']),

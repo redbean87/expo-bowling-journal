@@ -489,9 +489,13 @@ export const getSqliteBackupSnapshot = query({
       left.name.localeCompare(right.name)
     );
     const openBowlingLeagueIds = new Set(
-      leagues.filter((l) => l.isOpenBowling).map((l) => String(l._id))
+      leagues
+        .filter((l) => l.isOpenBowling || l.type === 'open')
+        .map((l) => String(l._id))
     );
-    const nonOpenBowlingLeagues = leagues.filter((l) => !l.isOpenBowling);
+    const nonOpenBowlingLeagues = leagues.filter(
+      (l) => !l.isOpenBowling && l.type !== 'open'
+    );
     const sortedLeagues = [...nonOpenBowlingLeagues].sort((left, right) => {
       if (left.createdAt !== right.createdAt) {
         return left.createdAt - right.createdAt;

@@ -31,9 +31,12 @@ export function useLeagues() {
           input.houseId ? String(input.houseId) : null
         );
 
+        const { leagueType, ...rest } = input;
+
         return await createLeagueMutation({
-          ...input,
+          ...rest,
           houseId: (resolvedHouseId as never) ?? null,
+          ...(leagueType !== undefined ? { type: leagueType } : {}),
         });
       } finally {
         setIsCreating(false);
@@ -42,6 +45,19 @@ export function useLeagues() {
     [createLeagueMutation]
   );
 
+  const createOpenBowlingLeague = useCallback(async () => {
+    setIsCreating(true);
+
+    try {
+      return await createLeagueMutation({
+        name: 'Open Bowling',
+        type: 'open',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  }, [createLeagueMutation]);
+
   const updateLeague = useCallback(
     async (input: UpdateLeagueInput) => {
       const resolvedHouseId = await resolveReferenceIdForMutation(
@@ -49,9 +65,12 @@ export function useLeagues() {
         input.houseId ? String(input.houseId) : null
       );
 
+      const { leagueType, ...rest } = input;
+
       return await updateLeagueMutation({
-        ...input,
+        ...rest,
         houseId: (resolvedHouseId as never) ?? null,
+        ...(leagueType !== undefined ? { type: leagueType } : {}),
       });
     },
     [updateLeagueMutation]
@@ -69,6 +88,7 @@ export function useLeagues() {
     isLoading: isAuthLoading || (isAuthenticated && leagues === undefined),
     isAuthenticated,
     createLeague,
+    createOpenBowlingLeague,
     updateLeague,
     removeLeague,
     isCreating,

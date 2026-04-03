@@ -59,6 +59,9 @@ export const create = mutation({
     houseName: v.optional(v.union(v.string(), v.null())),
     startDate: v.optional(v.union(v.string(), v.null())),
     endDate: v.optional(v.union(v.string(), v.null())),
+    type: v.optional(
+      v.union(v.literal('league'), v.literal('tournament'), v.literal('open'))
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -101,6 +104,7 @@ export const create = mutation({
       startDate: args.startDate ?? null,
       endDate: args.endDate ?? null,
       createdAt: Date.now(),
+      type: args.type ?? 'league',
     });
 
     if (args.houseId) {
@@ -121,6 +125,7 @@ export const update = mutation({
     name: v.string(),
     gamesPerSession: v.optional(v.union(v.number(), v.null())),
     houseId: v.optional(v.union(v.id('houses'), v.null())),
+    type: v.optional(v.union(v.literal('league'), v.literal('tournament'))),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -159,6 +164,7 @@ export const update = mutation({
       gamesPerSession: args.gamesPerSession ?? null,
       houseId: args.houseId ?? null,
       houseName,
+      ...(args.type !== undefined ? { type: args.type } : {}),
     });
 
     if (args.houseId) {

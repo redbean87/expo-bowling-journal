@@ -160,6 +160,7 @@ export function createQueuedLeagueCreateEntry(
       name: input.name,
       gamesPerSession: input.gamesPerSession,
       houseId: input.houseId,
+      leagueType: input.leagueType,
     },
     attemptCount: 0,
     lastAttemptAt: null,

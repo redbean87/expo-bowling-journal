@@ -16,6 +16,7 @@ export type CreateLeagueInput = {
   houseName?: string | null;
   startDate?: string | null;
   endDate?: string | null;
+  leagueType?: 'league' | 'tournament';
 };
 
 export type UpdateLeagueInput = {
@@ -23,6 +24,7 @@ export type UpdateLeagueInput = {
   name: string;
   gamesPerSession?: number | null;
   houseId?: Id<'houses'> | null;
+  leagueType?: 'league' | 'tournament';
 };
 
 export type RemoveLeagueInput = {
