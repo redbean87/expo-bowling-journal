@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,6 @@ import {
 import { LeagueActionsModal } from './journal/components/league-actions-modal';
 import { LeagueFormModal } from './journal/components/league-form-modal';
 import { LeagueRowCard } from './journal/components/league-row-card';
-import { LeagueSectionHeader } from './journal/components/league-section-header';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
 import { OpenBowlingCard } from './journal/components/open-bowling-card';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
@@ -182,6 +182,9 @@ export default function JournalLeaguesScreen() {
   >(null);
   const [isCreatingLeagueRequest, setIsCreatingLeagueRequest] = useState(false);
   const [isSyncStatusVisible, setIsSyncStatusVisible] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'league' | 'tournament'>(
+    'all'
+  );
   const [queuedLeagueCreates, setQueuedLeagueCreates] = useState<
     QueuedLeagueCreateEntry[]
   >([]);
@@ -725,20 +728,36 @@ export default function JournalLeaguesScreen() {
     () => displayLeagues.find((l) => l.leagueType === 'open') ?? null,
     [displayLeagues]
   );
-  const regularLeagues = useMemo(
-    () => displayLeagues.filter((l) => l.leagueType === 'league'),
-    [displayLeagues]
-  );
-  const tournaments = useMemo(
-    () => displayLeagues.filter((l) => l.leagueType === 'tournament'),
+
+  const sortedLeagues = useMemo(
+    () =>
+      displayLeagues
+        .filter((l) => l.leagueType !== 'open')
+        .sort((a, b) => {
+          if (a.isDraft && !b.isDraft) return -1;
+          if (!a.isDraft && b.isDraft) return 1;
+          if (a.mostRecentSessionDate && b.mostRecentSessionDate) {
+            return b.mostRecentSessionDate.localeCompare(
+              a.mostRecentSessionDate
+            );
+          }
+          if (a.mostRecentSessionDate) return -1;
+          if (b.mostRecentSessionDate) return 1;
+          return 0;
+        }),
     [displayLeagues]
   );
 
+  const filteredLeagues = useMemo(
+    () =>
+      filterType === 'all'
+        ? sortedLeagues
+        : sortedLeagues.filter((l) => l.leagueType === filterType),
+    [filterType, sortedLeagues]
+  );
+
   const hasNoContent =
-    !isLeaguesLoading &&
-    regularLeagues.length === 0 &&
-    tournaments.length === 0 &&
-    !openBowlingLeague;
+    !isLeaguesLoading && sortedLeagues.length === 0 && !openBowlingLeague;
 
   return (
     <ScreenLayout
@@ -789,55 +808,53 @@ export default function JournalLeaguesScreen() {
             }}
           />
 
-          {regularLeagues.length > 0 && (
-            <>
-              <LeagueSectionHeader title="Leagues" />
-              {regularLeagues.map((league) => (
-                <LeagueRowCard
-                  key={league.id}
-                  isDeleting={deletingLeagueRowId === league.id}
-                  league={league}
-                  onNavigate={() => navigateToLeagueSessions(league)}
-                  onOpenActions={() =>
-                    openLeagueActions({
-                      rowId: league.id,
-                      leagueId: league.leagueId,
-                      leagueClientSyncId: league.clientSyncId,
-                      name: league.name,
-                      gamesPerSession: league.gamesPerSession ?? null,
-                      houseId: league.houseId,
-                      leagueType: league.leagueType,
-                    })
-                  }
-                />
+          {sortedLeagues.length > 0 && (
+            <View style={styles.filterChips}>
+              {(['all', 'league', 'tournament'] as const).map((type) => (
+                <Pressable
+                  key={type}
+                  onPress={() => setFilterType(type)}
+                  style={[
+                    styles.filterChip,
+                    filterType === type && styles.filterChipActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipLabel,
+                      filterType === type && styles.filterChipLabelActive,
+                    ]}
+                  >
+                    {type === 'all'
+                      ? 'All'
+                      : type === 'league'
+                        ? 'Leagues'
+                        : 'Tournaments'}
+                  </Text>
+                </Pressable>
               ))}
-            </>
+            </View>
           )}
 
-          {tournaments.length > 0 && (
-            <>
-              <LeagueSectionHeader title="Tournaments" />
-              {tournaments.map((league) => (
-                <LeagueRowCard
-                  key={league.id}
-                  isDeleting={deletingLeagueRowId === league.id}
-                  league={league}
-                  onNavigate={() => navigateToLeagueSessions(league)}
-                  onOpenActions={() =>
-                    openLeagueActions({
-                      rowId: league.id,
-                      leagueId: league.leagueId,
-                      leagueClientSyncId: league.clientSyncId,
-                      name: league.name,
-                      gamesPerSession: league.gamesPerSession ?? null,
-                      houseId: league.houseId,
-                      leagueType: league.leagueType,
-                    })
-                  }
-                />
-              ))}
-            </>
-          )}
+          {filteredLeagues.map((league) => (
+            <LeagueRowCard
+              key={league.id}
+              isDeleting={deletingLeagueRowId === league.id}
+              league={league}
+              onNavigate={() => navigateToLeagueSessions(league)}
+              onOpenActions={() =>
+                openLeagueActions({
+                  rowId: league.id,
+                  leagueId: league.leagueId,
+                  leagueClientSyncId: league.clientSyncId,
+                  name: league.name,
+                  gamesPerSession: league.gamesPerSession ?? null,
+                  houseId: league.houseId,
+                  leagueType: league.leagueType,
+                })
+              }
+            />
+          ))}
         </ScrollView>
 
         <FloatingActionButton
@@ -948,5 +965,31 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
       color: colors.textSecondary,
+    },
+    filterChips: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+    },
+    filterChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    filterChipActive: {
+      backgroundColor: colors.accentMuted,
+      borderColor: colors.accent,
+    },
+    filterChipLabel: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    filterChipLabelActive: {
+      color: colors.accent,
+      fontWeight: '600',
     },
   });
