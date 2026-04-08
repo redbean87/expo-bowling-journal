@@ -262,6 +262,30 @@ export const gamesListSessionAggregatesQuery = makeFunctionReference<
   }>
 >('games:listSessionAggregates');
 
+export const gamesListSpareConversionByPinMaskQuery = makeFunctionReference<
+  'query',
+  {
+    leagueId: Id<'leagues'>;
+  },
+  {
+    byPinCount: Array<{
+      pinCount: number;
+      attempts: number;
+      converted: number;
+      conversionRate: number;
+    }>;
+    byPinMask: Array<{
+      pinMask: number;
+      pinCount: number;
+      attempts: number;
+      converted: number;
+      conversionRate: number;
+    }>;
+    totalSpareAttempts: number;
+    totalSparesConverted: number;
+  }
+>('games:listSpareConversionByPinMask');
+
 export const gamesCreateMutation = makeFunctionReference<
   'mutation',
   {

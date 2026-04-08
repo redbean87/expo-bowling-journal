@@ -7,7 +7,8 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Analytics views (trend lines, consistency, spare conversion)
+- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
+- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
 - [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
 - [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
@@ -18,6 +19,8 @@ When an item is complete, move it to `## Completed`.
 
 ## Completed
 
+- [x] Add new analytics metrics: consistency tracking (CV, std dev, variance), spare conversion by pin mask (grouped by pin count and specific configurations), rolling 3-game series averages – includes `games:listSpareConversionByPinMask` Convex query, `useSpareConversionAnalytics` hook, ConsistencyStatsCard, SpareConversionChart, RollingSeriesChart components, all integrated into analytics flow
+- [x] Extract analytics-screen.tsx components into `src/screens/analytics/components/` (SessionLineChart, FrameStackedChart, GamePositionCard, RecordCell, LegendDot, LeaguePickerModal, AnalyticsContent) – reduced screen from 1016 to 156 lines, all components under 200 lines
 - [x] Unify journal create/action affordances by converting inline edit to slide-up modal (matches create modal pattern for leagues and sessions)
 - [x] Highlight open frames in amber in games screen game row card (GameRowCard + isOpen on PreviewItem + getFrameIsOpen on server + normalizeFramePreviewItems fallback)
 - [x] Highlight open frames in amber in game editor scoreboard (FrameProgressStrip + warning color token + isOpenFrame utility)
@@ -140,6 +143,8 @@ When an item is complete, move it to `## Completed`.
 - Added neutral SQLite backup export (`.db`) with compatibility core tables plus always-present `bj_*` extension tables for richer app restore
 - Production Convex deployment is `prod:marvelous-quail-215`; preview/dev remains `dev:different-lynx-597`; worker `[env.production]` stanza targets production Convex site URL
 - Edit flows now use slide-up modals matching create modals; native ActionSheet kept on iOS/Android for action menus, web falls back to modal
+- Analytics screen components extracted to `src/screens/analytics/components/` directory: SessionLineChart (271 lines), AnalyticsContent (207 lines), LeaguePickerModal (170 lines), FrameStackedChart (105 lines), GamePositionCard (65 lines), RecordCell (65 lines), LegendDot (30 lines); main screen reduced from 1016 to 156 lines
+- Analytics metrics v2: consistency analysis (coefficient of variation per session, std deviation, variance), spare conversion tracking by pin mask with visual pin deck representations, rolling 3-game series averages with trend detection; backend uses `listSpareConversionByPinMask` query analyzing frame-level roll data, grouped by pin count and specific pin configurations, showing only pin leaves with 3+ attempts to reduce noise
 
 ## Risks / Unknowns
 

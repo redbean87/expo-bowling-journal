@@ -467,3 +467,131 @@ export const remove = mutation({
     return args.gameId;
   },
 });
+
+// Returns spare conversion rates grouped by pin mask (pins left standing after first roll).
+// Only includes frames where roll1 < 10 (non-strike attempts).
+// Groups by pin count (1-pin, 2-pin, 3+ pin leaves) and specific pin configurations.
+export const listSpareConversionByPinMask = query({
+  args: {
+    leagueId: v.id('leagues'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+
+    const games = await ctx.db
+      .query('games')
+      .withIndex('by_user_league', (q) =>
+        q.eq('userId', userId).eq('leagueId', args.leagueId)
+      )
+      .collect();
+
+    const gameIds = games.map((g) => g._id);
+
+    const allFrames: {
+      roll1: number;
+      roll2: number | null;
+      pins: number | null;
+    }[] = [];
+
+    for (const gameId of gameIds) {
+      const frames = await ctx.db
+        .query('frames')
+        .withIndex('by_user_game', (q) =>
+          q.eq('userId', userId).eq('gameId', gameId)
+        )
+        .collect();
+
+      for (const frame of frames) {
+        if (frame.frameNumber <= 9) {
+          allFrames.push({
+            roll1: frame.roll1,
+            roll2: frame.roll2 ?? null,
+            pins: frame.pins ?? null,
+          });
+        }
+      }
+    }
+
+    const spareAttempts = allFrames.filter((f) => f.roll1 < 10);
+
+    const byPinCount: Map<number, { attempts: number; converted: number }> =
+      new Map();
+
+    const byPinMask: Map<
+      number,
+      { attempts: number; converted: number; pinCount: number }
+    > = new Map();
+
+    for (const frame of spareAttempts) {
+      const pinsMask = frame.pins ?? 0;
+      const pinCount = countPins(pinsMask);
+      // Spare conversion: either (a) sum is >= 10 (picked up all standing pins),
+      // or (b) roll2 is 0 but we cleared all pins (rare edge case for multi-pin leaves)
+      const converted =
+        frame.roll2 !== null &&
+        (frame.roll1 + frame.roll2 >= 10 ||
+          // Handle case where roll2 is 0 but we somehow cleared (shouldn't happen normally)
+          (frame.roll2 === 0 && pinsMask === 0));
+
+      const countStats = byPinCount.get(pinCount) ?? {
+        attempts: 0,
+        converted: 0,
+      };
+      countStats.attempts += 1;
+      if (converted) countStats.converted += 1;
+      byPinCount.set(pinCount, countStats);
+
+      const maskStats = byPinMask.get(pinsMask) ?? {
+        attempts: 0,
+        converted: 0,
+        pinCount,
+      };
+      maskStats.attempts += 1;
+      if (converted) maskStats.converted += 1;
+      byPinMask.set(pinsMask, maskStats);
+    }
+
+    const pinCountResults = Array.from(byPinCount.entries())
+      .filter(([count]) => count >= 1 && count <= 9)
+      .map(([pinCount, stats]) => ({
+        pinCount,
+        attempts: stats.attempts,
+        converted: stats.converted,
+        conversionRate:
+          stats.attempts > 0 ? stats.converted / stats.attempts : 0,
+      }))
+      .sort((a, b) => b.pinCount - a.pinCount);
+
+    const pinMaskResults = Array.from(byPinMask.entries())
+      .filter(([, stats]) => stats.attempts >= 3)
+      .map(([mask, stats]) => ({
+        pinMask: mask,
+        pinCount: stats.pinCount,
+        attempts: stats.attempts,
+        converted: stats.converted,
+        conversionRate:
+          stats.attempts > 0 ? stats.converted / stats.attempts : 0,
+      }))
+      .sort((a, b) => b.attempts - a.attempts)
+      .slice(0, 20);
+
+    return {
+      byPinCount: pinCountResults,
+      byPinMask: pinMaskResults,
+      totalSpareAttempts: spareAttempts.length,
+      totalSparesConverted: spareAttempts.filter(
+        (f) => f.roll2 !== null && f.roll1 + f.roll2 >= 10
+      ).length,
+    };
+  },
+});
+
+function countPins(mask: number): number {
+  let count = 0;
+  let m = mask;
+  while (m > 0) {
+    count += m & 1;
+    m >>= 1;
+  }
+  return count;
+}

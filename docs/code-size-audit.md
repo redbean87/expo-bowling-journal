@@ -12,6 +12,7 @@ Thresholds:
 
 ## Hard-Stop Files (> 400)
 
+- `src/screens/analytics-screen.tsx` (156) – extracted components to `src/screens/analytics/components/`
 - `src/screens/journal-sessions-screen.tsx` (963)
 - `src/screens/journal-games-screen.tsx` (845)
 - `worker/src/sqlite_parser.js` (738)
@@ -42,8 +43,13 @@ Thresholds:
 - `src/screens/game-editor/game-save-queue.ts` (258)
 - `convex/sessions.ts` (253)
 - `src/screens/game-editor/game-save-queue-sync-core.ts` (253)
+- `src/screens/analytics/components/analytics-content.tsx` (281) – extracted from screen, new metric sections added
+- `src/screens/analytics/components/spare-conversion-chart.tsx` (339) – includes pin deck visualization and bar charts
 
 ## Near-Threshold Files (201-250)
+
+- `src/screens/analytics/components/consistency-stats.tsx` (238) – ConsistencyStatsCard + SessionConsistencyList
+- `src/screens/analytics/components/rolling-series-chart.tsx` (219) – rolling series chart with trend indicators
 
 - `src/screens/journal/components/game-row-card.tsx` (250)
 - `src/screens/journal-games-reconciliation.ts` (248)

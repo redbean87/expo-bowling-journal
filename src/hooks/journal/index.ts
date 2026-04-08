@@ -4,7 +4,11 @@ export { useExportSqliteBackup } from './use-export-sqlite-backup';
 export { useHomeLeague } from './use-home-league';
 export { useImportBackup } from './use-import-backup';
 export { useLeagues } from './use-leagues';
-export { useLeagueAnalytics } from './use-league-analytics';
+export {
+  useLeagueAnalytics,
+  useSpareConversionAnalytics,
+  type SpareConversionData,
+} from './use-league-analytics';
 export { useLeagueGames } from './use-league-games';
 export { useQueueSyncStatus } from './use-queue-sync-status';
 export { useReferenceData } from './use-reference-data';
