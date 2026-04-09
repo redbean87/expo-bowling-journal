@@ -13,35 +13,6 @@ const createRollingSeriesStyles = (colors: ThemeColors) =>
     container: {
       gap: spacing.md,
     },
-    summaryCard: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      padding: spacing.md,
-    },
-    summaryTitle: {
-      fontSize: typeScale.bodySm,
-      color: colors.textSecondary,
-      fontWeight: '600',
-      marginBottom: spacing.xs,
-    },
-    summaryRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-    },
-    summaryItem: {
-      alignItems: 'center',
-    },
-    summaryValue: {
-      fontSize: typeScale.title,
-      fontWeight: '700',
-      color: colors.textPrimary,
-    },
-    summaryLabel: {
-      fontSize: typeScale.bodySm,
-      color: colors.textSecondary,
-    },
     chartContainer: {
       gap: spacing.xs,
     },
@@ -108,10 +79,6 @@ export function RollingSeriesChart({
   // Take last 5 and reverse so newest is first (top)
   const recentSeries = rollingSeries.slice(-MAX_VISIBLE_POINTS).reverse();
 
-  const avg =
-    rollingSeries.reduce((sum, r) => sum + r.seriesAverage, 0) /
-    rollingSeries.length;
-
   const minAvg = Math.min(...recentSeries.map((r) => r.seriesAverage));
   const maxAvg = Math.max(...recentSeries.map((r) => r.seriesAverage));
   const range = maxAvg - minAvg || 1;
@@ -128,34 +95,11 @@ export function RollingSeriesChart({
 
   return (
     <View style={s.container}>
-      <View style={s.summaryCard}>
-        <Text style={s.summaryTitle}>Series Performance Trend</Text>
-        <View style={s.summaryRow}>
-          <View style={s.summaryItem}>
-            <Text style={s.summaryValue}>{avg.toFixed(1)}</Text>
-            <Text style={s.summaryLabel}>Avg Series</Text>
-          </View>
-          <View style={s.summaryItem}>
-            <Text style={s.summaryValue}>
-              {rollingSeries[rollingSeries.length - 1].seriesAverage.toFixed(0)}
-            </Text>
-            <Text style={s.summaryLabel}>Latest</Text>
-          </View>
-          <View style={s.summaryItem}>
-            <Text style={s.summaryValue}>{rollingSeries.length}</Text>
-            <Text style={s.summaryLabel}>Series Count</Text>
-          </View>
-        </View>
-      </View>
-
       <View style={s.chartContainer}>
         {recentSeries.map((point) => {
           const barWidth = ((point.seriesAverage - minAvg) / range) * 80 + 20;
           const barColor = getBarColor(point.seriesAverage);
-          const label =
-            point.weekNumber !== null
-              ? `W${point.weekNumber}`
-              : `#${point.gameIndex + 1}`;
+          const label = `#${point.gameIndex + 1}`;
 
           return (
             <View key={point.gameIndex} style={s.seriesRow}>

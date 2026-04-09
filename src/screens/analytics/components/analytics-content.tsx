@@ -129,7 +129,7 @@ export function AnalyticsContent({
             colors={colors}
           />
           <RecordCell
-            label="High Series"
+            label="High 3-Game Series"
             value={records.highSeries ?? '-'}
             colors={colors}
           />
@@ -178,7 +178,7 @@ export function AnalyticsContent({
       {rollingSeries.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            Rolling {rollingWindowSize}-Game Average
+            Rolling Average (Last {rollingWindowSize} Games)
           </Text>
           <RollingSeriesChart
             rollingSeries={rollingSeries}
