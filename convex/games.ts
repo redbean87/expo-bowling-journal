@@ -468,6 +468,32 @@ export const remove = mutation({
   },
 });
 
+// Constants for pin mask unpacking (matching frames.ts format)
+const FULL_PIN_MASK = 0x3ff;
+const MANUAL_PIN_PACK_MARKER = 1 << 30;
+
+/**
+ * Extract the pins left standing after roll 1 from the packed pins value.
+ * When manual pins are recorded, the value is packed with roll1Mask in lower 10 bits.
+ * Standing pins = all pins (FULL_PIN_MASK) minus pins knocked down on roll 1.
+ */
+function getStandingPinsAfterRoll1(pins: number | null): number {
+  if (pins === null) {
+    return 0;
+  }
+
+  // Check if this is a manually packed pins value
+  if ((pins & MANUAL_PIN_PACK_MARKER) !== 0) {
+    const packedRollMasks = pins & ~MANUAL_PIN_PACK_MARKER;
+    const roll1Mask = packedRollMasks & FULL_PIN_MASK;
+    // Standing pins are all pins NOT knocked down on roll 1
+    return FULL_PIN_MASK & ~roll1Mask;
+  }
+
+  // For non-manual frames, pins represents the mask directly (legacy behavior)
+  return pins;
+}
+
 // Returns spare conversion rates grouped by pin mask (pins left standing after first roll).
 // Only includes frames where roll1 < 10 (non-strike attempts).
 // Groups by pin count (1-pin, 2-pin, 3+ pin leaves) and specific pin configurations.
@@ -523,7 +549,8 @@ export const listSpareConversionByPinMask = query({
     > = new Map();
 
     for (const frame of spareAttempts) {
-      const pinsMask = frame.pins ?? 0;
+      // Get actual pins left standing after roll 1 (handles packed pin data)
+      const pinsMask = getStandingPinsAfterRoll1(frame.pins);
       const pinCount = countPins(pinsMask);
       // Spare conversion: either (a) sum is >= 10 (picked up all standing pins),
       // or (b) roll2 is 0 but we cleared all pins (rare edge case for multi-pin leaves)

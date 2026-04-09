@@ -5,7 +5,7 @@ import type { SpareConversionData } from '@/hooks/journal/use-league-analytics';
 
 import { radius, spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 
-const CHART_HEIGHT = 120;
+const CHART_HEIGHT = 150;
 const BAR_WIDTH = 28;
 const BAR_GAP = 4;
 
@@ -50,8 +50,10 @@ const createSpareConversionStyles = (colors: ThemeColors) =>
     barsContainer: {
       flexDirection: 'row',
       alignItems: 'flex-end',
+      justifyContent: 'center',
       gap: BAR_GAP,
       height: CHART_HEIGHT,
+      paddingTop: 20,
     },
     barWrapper: {
       alignItems: 'center',
@@ -270,7 +272,11 @@ export function SpareConversionChart({
       {data.byPinCount.filter((p) => p.conversionRate > 0).length > 0 && (
         <>
           <Text style={s.sectionTitle}>By Pin Count</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+          >
             <View style={s.barsContainer}>
               {data.byPinCount
                 .filter((pinData) => pinData.conversionRate > 0)
@@ -279,7 +285,8 @@ export function SpareConversionChart({
                     maxRate > 0
                       ? Math.max(
                           20,
-                          (pinData.conversionRate / maxRate) * CHART_HEIGHT
+                          (pinData.conversionRate / maxRate) *
+                            (CHART_HEIGHT - 35)
                         )
                       : 20;
                   const barColor = getConversionColor(
