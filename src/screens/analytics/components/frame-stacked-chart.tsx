@@ -5,9 +5,8 @@ import type { SessionAggregate } from '@/utils/analytics-stats';
 
 import { radius, spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 
-function sessionLabel(s: SessionAggregate, index: number): string {
-  if (s.weekNumber !== null) return `W${s.weekNumber}`;
-  return `#${index + 1}`;
+function sessionLabel(_s: SessionAggregate, index: number): string {
+  return `S${index + 1}`;
 }
 
 const CHART_HEIGHT = 120;

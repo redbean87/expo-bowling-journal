@@ -144,7 +144,7 @@ export function ProfileDataImportSection({
                   Leagues: {importStatus.counts.leagues}
                 </Text>
                 <Text style={styles.meta}>
-                  Weeks: {importStatus.counts.weeks}
+                  Import sessions: {importStatus.counts.weeks}
                 </Text>
                 <Text style={styles.meta}>
                   Sessions: {importStatus.counts.sessions}

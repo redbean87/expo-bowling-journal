@@ -9,7 +9,7 @@ import { buildJournalGamesRouteParams } from '../journal-route-params';
 
 import type { SessionActionTarget } from './session-actions-modal';
 import type { DisplaySession } from '@/hooks/journal/use-session-queue';
-import type { LeagueId, SessionId } from '@/services/journal';
+import type { LeagueId } from '@/services/journal';
 import type { Router } from 'expo-router';
 
 import {
@@ -24,12 +24,12 @@ import { sessionLabel, type LeagueType } from '@/utils/league-type-utils';
 type SessionListProps = {
   leagueId: LeagueId | null;
   leagueClientSyncId: string | null;
-  leagueType: LeagueType;
+  _leagueType: LeagueType;
   isSessionsLoading: boolean;
   isLeagueGamesLoading: boolean;
   displaySessions: DisplaySession[];
   deletingSessionRowId: string | null;
-  derivedWeekNumberBySessionId: Map<string, number>;
+  _derivedWeekNumberBySessionId: Map<string, number>;
   sessionActionError: string | null;
   seasonSummary: ReturnType<typeof buildSessionNightSummary>;
   openSessionActions: (target: SessionActionTarget) => void;
@@ -39,12 +39,12 @@ type SessionListProps = {
 export function SessionList({
   leagueId,
   leagueClientSyncId,
-  leagueType,
+  _leagueType,
   isSessionsLoading,
   isLeagueGamesLoading,
   displaySessions,
   deletingSessionRowId,
-  derivedWeekNumberBySessionId,
+  _derivedWeekNumberBySessionId,
   sessionActionError,
   seasonSummary,
   openSessionActions,
@@ -84,17 +84,8 @@ export function SessionList({
       ) : null}
 
       {displaySessions.map((session) => {
-        const weekNumber =
-          session.weekNumber ??
-          (session.sessionId
-            ? (derivedWeekNumberBySessionId.get(
-                session.sessionId as SessionId
-              ) ?? null)
-            : null);
-
         const formattedDate = formatIsoDateLabel(session.date);
-        const weekLabel = sessionLabel(weekNumber, leagueType, formattedDate);
-        const isOpen = leagueType === 'open';
+        const sessionTitle = sessionLabel(formattedDate);
 
         return (
           <SessionRowCard
@@ -113,7 +104,7 @@ export function SessionList({
                   leagueClientSyncId,
                   sessionClientSyncId: session.clientSyncId,
                   sessionDate: session.date,
-                  sessionWeekNumber: weekNumber,
+                  sessionWeekNumber: null,
                 }) as never,
               } as never)
             }
@@ -123,15 +114,15 @@ export function SessionList({
                 sessionId: session.sessionId,
                 sessionClientSyncId: session.clientSyncId,
                 date: session.date,
-                weekNumber: session.weekNumber ?? null,
+                weekNumber: null,
                 houseId: session.houseId,
                 patternId: session.patternId,
                 ballId: session.ballId,
-                title: isOpen ? weekLabel : `${weekLabel} - ${formattedDate}`,
+                title: sessionTitle,
               })
             }
-            sessionDateLabel={isOpen ? '' : formattedDate}
-            sessionWeekLabel={weekLabel}
+            sessionDateLabel=""
+            sessionWeekLabel={sessionTitle}
           />
         );
       })}

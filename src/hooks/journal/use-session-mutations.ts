@@ -102,7 +102,6 @@ export function useSessionMutations({
     string | null
   >(null);
   const [editingSessionDate, setEditingSessionDate] = useState('');
-  const [editingSessionWeekNumber, setEditingSessionWeekNumber] = useState('');
   const [editingSessionHouseId, setEditingSessionHouseId] = useState<
     string | null
   >(null);
@@ -150,7 +149,6 @@ export function useSessionMutations({
     setEditingSessionServerId(null);
     setEditingSessionClientSyncId(null);
     setEditingSessionDate('');
-    setEditingSessionWeekNumber('');
     setEditingSessionHouseId(null);
     setEditingSessionPatternId(null);
     setEditingSessionBallId(null);
@@ -161,7 +159,7 @@ export function useSessionMutations({
     sessionId: string | null,
     sessionClientSyncId: string | null,
     date: string,
-    weekNumber: number | null,
+    _weekNumber: number | null,
     houseId: string | null,
     patternId: string | null,
     ballId: string | null
@@ -171,7 +169,6 @@ export function useSessionMutations({
     setEditingSessionServerId(sessionId);
     setEditingSessionClientSyncId(sessionClientSyncId);
     setEditingSessionDate(date);
-    setEditingSessionWeekNumber(weekNumber === null ? '' : String(weekNumber));
     setEditingSessionHouseId(houseId);
     setEditingSessionPatternId(patternId);
     setEditingSessionBallId(ballId);
@@ -329,20 +326,6 @@ export function useSessionMutations({
       return;
     }
 
-    let weekNumber: number | null | undefined = undefined;
-    const weekInput = editingSessionWeekNumber.trim();
-
-    if (weekInput.length > 0) {
-      const parsed = Number(weekInput);
-
-      if (!Number.isInteger(parsed) || parsed <= 0) {
-        setSessionActionError('Week number must be a positive whole number.');
-        return;
-      }
-
-      weekNumber = parsed;
-    }
-
     setIsSavingSessionEdit(true);
 
     const queueSessionUpdate = async () => {
@@ -352,7 +335,7 @@ export function useSessionMutations({
           sessionId: editingSessionServerId as never,
           sessionClientSyncId: editingSessionClientSyncId,
           date,
-          weekNumber,
+          weekNumber: null,
           houseId: editingSessionHouseId as never,
           patternId: editingSessionPatternId as never,
           ballId: editingSessionBallId as never,
@@ -378,7 +361,7 @@ export function useSessionMutations({
       await updateSession({
         sessionId: editingSessionServerId as SessionId,
         date,
-        weekNumber,
+        weekNumber: null,
         houseId: editingSessionHouseId as never,
         patternId: editingSessionPatternId as never,
         ballId: editingSessionBallId as never,
@@ -583,8 +566,6 @@ export function useSessionMutations({
     editingSessionClientSyncId,
     editingSessionDate,
     setEditingSessionDate,
-    editingSessionWeekNumber,
-    setEditingSessionWeekNumber,
     editingSessionHouseId,
     setEditingSessionHouseId,
     editingSessionPatternId,

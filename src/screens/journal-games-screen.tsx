@@ -52,7 +52,6 @@ import {
 import {
   formatIsoDateLabel,
   formatGameSequenceLabel,
-  formatSessionWeekLabel,
 } from './journal-fast-lane-utils';
 import { normalizeGamesPerSession } from './journal-games-night-summary';
 
@@ -496,13 +495,6 @@ export default function JournalGamesScreen() {
   }, [sessionId, sessions]);
 
   useEffect(() => {
-    const sessionWeek = selectedSession
-      ? (selectedSession.weekNumber ??
-        derivedWeekNumberBySessionId.get(selectedSession._id) ??
-        null)
-      : Number.isFinite(fallbackSessionWeekNumber)
-        ? fallbackSessionWeekNumber
-        : queuedSessionContext.weekNumber;
     const sessionDate = selectedSession
       ? formatIsoDateLabel(selectedSession.date)
       : fallbackSessionDate
@@ -510,10 +502,7 @@ export default function JournalGamesScreen() {
         : queuedSessionContext.date
           ? formatIsoDateLabel(queuedSessionContext.date)
           : null;
-    const sessionLabel =
-      sessionWeek !== null && sessionDate
-        ? `${formatSessionWeekLabel(sessionWeek)} · ${sessionDate}`
-        : sessionDate;
+    const sessionLabel = sessionDate;
 
     if (sessionLabel) {
       navigation.setOptions({

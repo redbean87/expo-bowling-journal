@@ -52,7 +52,6 @@ import {
 import {
   formatGameSequenceLabel,
   formatIsoDateLabel,
-  formatSessionWeekLabel,
   toOldestFirstGames,
 } from './journal-fast-lane-utils';
 
@@ -268,17 +267,6 @@ export default function GameEditorScreen() {
     return { holdTarget, gainTarget, perfectSeries };
   }, [leagueGames, sessionId, targetGames]);
 
-  const derivedWeekNumberBySessionId = useMemo(() => {
-    const oldestFirstSessions = [...sessions].reverse();
-    const weekMap = new Map<string, number>();
-
-    oldestFirstSessions.forEach((session, index) => {
-      const fallbackWeek = index + 1;
-      weekMap.set(session._id, session.weekNumber ?? fallbackWeek);
-    });
-
-    return weekMap;
-  }, [sessions]);
   const selectedSession = useMemo(() => {
     if (!sessionId) {
       return null;
@@ -291,20 +279,8 @@ export default function GameEditorScreen() {
       return null;
     }
 
-    const weekNumber =
-      selectedSession.weekNumber ??
-      derivedWeekNumberBySessionId.get(selectedSession._id) ??
-      null;
-    const weekLabel =
-      weekNumber === null ? null : formatSessionWeekLabel(weekNumber);
-    const dateLabel = formatIsoDateLabel(selectedSession.date);
-
-    if (weekLabel) {
-      return `${weekLabel} · ${dateLabel}`;
-    }
-
-    return dateLabel;
-  }, [derivedWeekNumberBySessionId, selectedSession]);
+    return formatIsoDateLabel(selectedSession.date);
+  }, [selectedSession]);
   const localDraftId = useMemo(() => {
     const activeSessionId =
       rawSessionId ?? (sessionId ? String(sessionId) : null);

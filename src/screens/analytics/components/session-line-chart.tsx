@@ -13,9 +13,8 @@ const Y_AXIS_WIDTH = 32;
 const CONTENT_INSET = { top: 12, bottom: 12, left: 8, right: 8 } as const;
 const TOOLTIP_W = 76;
 
-function sessionLabel(s: SessionAggregate, index: number): string {
-  if (s.weekNumber !== null) return `W${s.weekNumber}`;
-  return `#${index + 1}`;
+function sessionLabel(_s: SessionAggregate, index: number): string {
+  return `S${index + 1}`;
 }
 
 function indexToPixelX(

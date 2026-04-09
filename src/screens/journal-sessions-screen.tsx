@@ -124,8 +124,6 @@ export default function JournalSessionsScreen() {
   const {
     sessionDate,
     setSessionDate,
-    sessionWeekNumber,
-    setSessionWeekNumber,
     sessionHouseId,
     setSessionHouseId,
     sessionPatternId,
@@ -141,8 +139,6 @@ export default function JournalSessionsScreen() {
     isEditModalVisible,
     editingSessionDate,
     setEditingSessionDate,
-    editingSessionWeekNumber,
-    setEditingSessionWeekNumber,
     editingSessionHouseId,
     setEditingSessionHouseId,
     editingSessionPatternId,
@@ -306,7 +302,6 @@ export default function JournalSessionsScreen() {
           isCreateModalVisible={isCreateModalVisible}
           isCreatingSessionRequest={isCreatingSessionRequest}
           sessionDate={sessionDate}
-          sessionWeekNumber={sessionWeekNumber}
           sessionHouseId={sessionHouseId}
           sessionPatternId={sessionPatternId}
           sessionBallId={sessionBallId}
@@ -314,14 +309,12 @@ export default function JournalSessionsScreen() {
           onCloseCreate={() => setIsCreateModalVisible(false)}
           onSubmitCreate={onCreateSession}
           onSessionDateChange={setSessionDate}
-          onSessionWeekNumberChange={setSessionWeekNumber}
           onSessionHouseSelect={(option) => setSessionHouseId(option.id)}
           onSessionPatternSelect={(option) => setSessionPatternId(option.id)}
           onSessionBallSelect={(option) => setSessionBallId(option.id)}
           isEditModalVisible={isEditModalVisible}
           isSavingSessionEdit={isSavingSessionEdit}
           editingSessionDate={editingSessionDate}
-          editingSessionWeekNumber={editingSessionWeekNumber}
           editingSessionHouseId={editingSessionHouseId}
           editingSessionPatternId={editingSessionPatternId}
           editingSessionBallId={editingSessionBallId}
@@ -331,7 +324,6 @@ export default function JournalSessionsScreen() {
             void onSaveSessionEdit();
           }}
           onEditSessionDateChange={setEditingSessionDate}
-          onEditSessionWeekNumberChange={setEditingSessionWeekNumber}
           onEditSessionHouseSelect={(option) =>
             setEditingSessionHouseId(option.id)
           }

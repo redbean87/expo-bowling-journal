@@ -9,7 +9,6 @@ type SessionFormModalProps = {
   visible: boolean;
   modalTranslateY: number;
   sessionDate: string;
-  sessionWeekNumber: string;
   sessionHouseId: string | null;
   sessionPatternId: string | null;
   sessionBallId: string | null;
@@ -33,7 +32,6 @@ type SessionFormModalProps = {
   onClose: () => void;
   onSubmit: () => void;
   onSessionDateChange: (value: string) => void;
-  onSessionWeekNumberChange: (value: string) => void;
   onSessionHouseSelect: (option: ReferenceOption<string>) => void;
   onSessionPatternSelect: (option: ReferenceOption<string>) => void;
   onSessionBallSelect: (option: ReferenceOption<string>) => void;
@@ -44,7 +42,6 @@ export function SessionFormModal({
   visible,
   modalTranslateY,
   sessionDate,
-  sessionWeekNumber,
   sessionHouseId,
   sessionPatternId,
   sessionBallId,
@@ -64,7 +61,6 @@ export function SessionFormModal({
   onClose,
   onSubmit,
   onSessionDateChange,
-  onSessionWeekNumberChange,
   onSessionHouseSelect,
   onSessionPatternSelect,
   onSessionBallSelect,
@@ -93,14 +89,6 @@ export function SessionFormModal({
         onChangeText={onSessionDateChange}
         placeholder="YYYY-MM-DD"
         value={sessionDate}
-      />
-      <Input
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="number-pad"
-        onChangeText={onSessionWeekNumberChange}
-        placeholder="Week number (optional)"
-        value={sessionWeekNumber}
       />
       <ReferenceCombobox
         allOptions={houseOptions}

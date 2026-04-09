@@ -22,17 +22,6 @@ export function leagueTypeLabel(type: LeagueType): string {
   }
 }
 
-export function sessionLabel(
-  weekNumber: number | null,
-  type: LeagueType,
-  formattedDate?: string
-): string {
-  switch (type) {
-    case 'league':
-      return weekNumber != null ? `Week ${weekNumber}` : 'Session';
-    case 'tournament':
-      return weekNumber != null ? `Round ${weekNumber}` : 'Round';
-    case 'open':
-      return formattedDate ?? 'Session';
-  }
+export function sessionLabel(formattedDate?: string): string {
+  return formattedDate ?? 'Session';
 }

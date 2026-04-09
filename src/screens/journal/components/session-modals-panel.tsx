@@ -36,7 +36,6 @@ type SessionModalsPanelProps = {
   isCreateModalVisible: boolean;
   isCreatingSessionRequest: boolean;
   sessionDate: string;
-  sessionWeekNumber: string;
   sessionHouseId: string | null;
   sessionPatternId: string | null;
   sessionBallId: string | null;
@@ -44,7 +43,6 @@ type SessionModalsPanelProps = {
   onCloseCreate: () => void;
   onSubmitCreate: () => void;
   onSessionDateChange: (value: string) => void;
-  onSessionWeekNumberChange: (value: string) => void;
   onSessionHouseSelect: (option: ReferenceOption<string>) => void;
   onSessionPatternSelect: (option: ReferenceOption<string>) => void;
   onSessionBallSelect: (option: ReferenceOption<string>) => void;
@@ -53,7 +51,6 @@ type SessionModalsPanelProps = {
   isEditModalVisible: boolean;
   isSavingSessionEdit: boolean;
   editingSessionDate: string;
-  editingSessionWeekNumber: string;
   editingSessionHouseId: string | null;
   editingSessionPatternId: string | null;
   editingSessionBallId: string | null;
@@ -61,7 +58,6 @@ type SessionModalsPanelProps = {
   onCloseEdit: () => void;
   onSubmitEdit: () => void;
   onEditSessionDateChange: (value: string) => void;
-  onEditSessionWeekNumberChange: (value: string) => void;
   onEditSessionHouseSelect: (option: ReferenceOption<string>) => void;
   onEditSessionPatternSelect: (option: ReferenceOption<string>) => void;
   onEditSessionBallSelect: (option: ReferenceOption<string>) => void;
@@ -87,7 +83,6 @@ export function SessionModalsPanel({
   isCreateModalVisible,
   isCreatingSessionRequest,
   sessionDate,
-  sessionWeekNumber,
   sessionHouseId,
   sessionPatternId,
   sessionBallId,
@@ -95,14 +90,12 @@ export function SessionModalsPanel({
   onCloseCreate,
   onSubmitCreate,
   onSessionDateChange,
-  onSessionWeekNumberChange,
   onSessionHouseSelect,
   onSessionPatternSelect,
   onSessionBallSelect,
   isEditModalVisible,
   isSavingSessionEdit,
   editingSessionDate,
-  editingSessionWeekNumber,
   editingSessionHouseId,
   editingSessionPatternId,
   editingSessionBallId,
@@ -110,7 +103,6 @@ export function SessionModalsPanel({
   onCloseEdit,
   onSubmitEdit,
   onEditSessionDateChange,
-  onEditSessionWeekNumberChange,
   onEditSessionHouseSelect,
   onEditSessionPatternSelect,
   onEditSessionBallSelect,
@@ -141,7 +133,6 @@ export function SessionModalsPanel({
         onSessionDateChange={onSessionDateChange}
         onSessionHouseSelect={onSessionHouseSelect}
         onSessionPatternSelect={onSessionPatternSelect}
-        onSessionWeekNumberChange={onSessionWeekNumberChange}
         onSubmit={onSubmitCreate}
         patternOptions={patternOptions}
         recentBallOptions={recentBallOptions}
@@ -152,7 +143,6 @@ export function SessionModalsPanel({
         sessionError={sessionError}
         sessionHouseId={sessionHouseId}
         sessionPatternId={sessionPatternId}
-        sessionWeekNumber={sessionWeekNumber}
         visible={isCreateModalVisible}
       />
 
@@ -171,7 +161,6 @@ export function SessionModalsPanel({
         onSessionDateChange={onEditSessionDateChange}
         onSessionHouseSelect={onEditSessionHouseSelect}
         onSessionPatternSelect={onEditSessionPatternSelect}
-        onSessionWeekNumberChange={onEditSessionWeekNumberChange}
         onSubmit={onSubmitEdit}
         patternOptions={patternOptions}
         recentBallOptions={recentBallOptions}
@@ -182,7 +171,6 @@ export function SessionModalsPanel({
         sessionError={sessionActionError}
         sessionHouseId={editingSessionHouseId}
         sessionPatternId={editingSessionPatternId}
-        sessionWeekNumber={editingSessionWeekNumber}
         visible={isEditModalVisible}
       />
     </>
