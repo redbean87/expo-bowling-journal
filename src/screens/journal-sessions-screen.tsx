@@ -260,12 +260,12 @@ export default function JournalSessionsScreen() {
         <SessionList
           leagueId={leagueId}
           leagueClientSyncId={leagueClientSyncId}
-          leagueType={leagueType}
+          _leagueType={leagueType}
           isSessionsLoading={isSessionsLoading}
           isLeagueGamesLoading={isLeagueGamesLoading}
           displaySessions={displaySessions}
           deletingSessionRowId={deletingSessionRowId}
-          derivedWeekNumberBySessionId={derivedWeekNumberBySessionId}
+          _derivedWeekNumberBySessionId={derivedWeekNumberBySessionId}
           sessionActionError={sessionActionError}
           seasonSummary={seasonSummary}
           openSessionActions={openSessionActions}

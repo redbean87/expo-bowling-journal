@@ -232,7 +232,26 @@ export function AnalyticsContent({
         </View>
       )}
 
-      {/* Consistency Analysis — characterizes the patterns above */}
+      {/* Spare Conversion — technical deep dive */}
+      {!isSpareConversionLoading && spareConversion && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Spare Conversion by Pin Leave</Text>
+          <SpareConversionChart data={spareConversion} colors={colors} />
+        </View>
+      )}
+
+      {/* Frame Results per Session — raw breakdown */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Frame Results per Session</Text>
+        <View style={styles.legend}>
+          <LegendDot color={colors.accent} label="Strike" colors={colors} />
+          <LegendDot color={colors.success} label="Spare" colors={colors} />
+          <LegendDot color={colors.warning} label="Open" colors={colors} />
+        </View>
+        <FrameStackedChart sessions={sessionsWithGames} colors={colors} />
+      </View>
+
+      {/* Consistency Analysis — technical stats for advanced users */}
       {allGameScores.length >= 2 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Consistency Analysis</Text>
@@ -256,25 +275,6 @@ export function AnalyticsContent({
           )}
         </View>
       )}
-
-      {/* Spare Conversion — technical deep dive */}
-      {!isSpareConversionLoading && spareConversion && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Spare Conversion by Pin Leave</Text>
-          <SpareConversionChart data={spareConversion} colors={colors} />
-        </View>
-      )}
-
-      {/* Frame Results per Session — raw breakdown */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Frame Results per Session</Text>
-        <View style={styles.legend}>
-          <LegendDot color={colors.accent} label="Strike" colors={colors} />
-          <LegendDot color={colors.success} label="Spare" colors={colors} />
-          <LegendDot color={colors.warning} label="Open" colors={colors} />
-        </View>
-        <FrameStackedChart sessions={sessionsWithGames} colors={colors} />
-      </View>
     </>
   );
 }
