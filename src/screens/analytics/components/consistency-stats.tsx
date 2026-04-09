@@ -209,10 +209,12 @@ export function SessionConsistencyList({
   return (
     <View style={s.container}>
       {sessions.slice(-5).map((session) => {
-        const label =
-          session.weekNumber !== null
-            ? `Week ${session.weekNumber}`
-            : `Session`;
+        const date = new Date(session.date);
+        const label = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
 
         return (
           <View key={session.sessionId} style={s.sessionRow}>

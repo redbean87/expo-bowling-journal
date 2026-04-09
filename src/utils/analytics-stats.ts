@@ -158,6 +158,7 @@ export function computeConsistencyMetrics(
 
 export type SessionConsistency = {
   sessionId: string;
+  date: string;
   weekNumber: number | null;
   gameCount: number;
 } & ConsistencyMetrics;
@@ -171,6 +172,7 @@ export function computeSessionConsistency(
       const metrics = computeConsistencyMetrics(s.gameScores);
       return {
         sessionId: s.sessionId,
+        date: s.date,
         weekNumber: s.weekNumber,
         gameCount: s.gameCount,
         ...metrics,
