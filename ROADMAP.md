@@ -19,6 +19,7 @@ When an item is complete, move it to `## Completed`.
 
 ## Completed
 
+- [x] Redesign home screen with insight-driven layout: "At a glance" card (full-word labels: Average/Strike/Spare, MaterialIcons trending icons matching analytics), Focus Tonight smart insights (spare weakness, fatigue, momentum, title with base color, icon with accent), Quick Actions grid (vertical stacked with icon-left labels); extracted components: `home-snapshot-card`, `home-focus-card`, `home-quick-actions`, `home-analytics-hook`; compact Play Tonight card (removed game count), consistent sentence-case headers, breathing room between stat columns; orchestration-only `home-screen.tsx` (179 lines)
 - [x] Add new analytics metrics: consistency tracking (CV, std dev, variance), spare conversion by pin mask (grouped by pin count and specific configurations), rolling 3-game series averages – includes `games:listSpareConversionByPinMask` Convex query, `useSpareConversionAnalytics` hook, ConsistencyStatsCard, SpareConversionChart, RollingSeriesChart components, all integrated into analytics flow
 - [x] Extract analytics-screen.tsx components into `src/screens/analytics/components/` (SessionLineChart, FrameStackedChart, GamePositionCard, RecordCell, LegendDot, LeaguePickerModal, AnalyticsContent) – reduced screen from 1016 to 156 lines, all components under 200 lines
 - [x] Unify journal create/action affordances by converting inline edit to slide-up modal (matches create modal pattern for leagues and sessions)
@@ -76,7 +77,7 @@ When an item is complete, move it to `## Completed`.
 - [x] Design and implement custom app header/footer navigation shell
 - [x] Polish navigation shell visual design (header affordance, tab active state contrast, and chrome/content separation)
 - [x] Redesign Home screen for flow-first league-night operations
-- [x] Redesign Profile screen for action-first backup/import and account clarity
+- [x] Redesign Profile screen for action-first backup/import and account clarityj
 - [x] Add viewer email fallback from auth identity/users table for account display
 - [x] Add and run legacy games.houseId cleanup migration; restore strict games schema
 - [x] Document offline support contract v1 and align contributor/agent docs
