@@ -42,12 +42,20 @@ export function HomeTonightCard({
     () => findSessionIdForDate(sessions, today),
     [sessions, today]
   );
+
+  // Only use today's session as active
   const activeSession = useMemo(() => {
     if (todaySessionId) {
       return sessions.find((session) => session._id === todaySessionId) ?? null;
     }
-    return sessions[0] ?? null;
+    return null;
   }, [sessions, todaySessionId]);
+
+  // Keep most recent session for secondary action
+  const mostRecentSession = useMemo(() => {
+    return sessions[0] ?? null;
+  }, [sessions]);
+
   const activeSessionId = (activeSession?._id as SessionId | undefined) ?? null;
   const { games } = useGames(activeSessionId);
 
@@ -63,10 +71,9 @@ export function HomeTonightCard({
   }, [activeSession, isComplete]);
 
   const sessionLabel = useMemo(() => {
-    if (!activeSession) return 'No session yet';
-    const prefix = todaySessionId ? 'Tonight' : 'Most recent';
-    return `${prefix} · ${formatIsoDateLabel(activeSession.date)}`;
-  }, [activeSession, todaySessionId]);
+    if (!activeSession) return '';
+    return `Tonight · ${formatIsoDateLabel(activeSession.date)}`;
+  }, [activeSession]);
 
   const handlePrimaryAction = () => {
     if (!activeLeagueId) return;
@@ -86,6 +93,20 @@ export function HomeTonightCard({
       } as never);
     }
   };
+
+  const handleViewRecent = () => {
+    if (!activeLeagueId || !mostRecentSession) return;
+    const recentSessionId = mostRecentSession._id as SessionId;
+    router.push({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+      params: buildJournalGamesRouteParams({
+        leagueId: activeLeagueId,
+        sessionId: recentSessionId,
+      }) as never,
+    } as never);
+  };
+
+  const showRecentLink = !activeSession && mostRecentSession;
 
   return (
     <Card style={styles.card}>
@@ -111,7 +132,9 @@ export function HomeTonightCard({
         />
       </Pressable>
 
-      <Text style={styles.sessionLabel}>{sessionLabel}</Text>
+      {sessionLabel ? (
+        <Text style={styles.sessionLabel}>{sessionLabel}</Text>
+      ) : null}
 
       <Button
         disabled={!activeLeagueId || isLoading}
@@ -119,6 +142,15 @@ export function HomeTonightCard({
         onPress={handlePrimaryAction}
         variant="secondary"
       />
+
+      {showRecentLink ? (
+        <Button
+          disabled={isLoading}
+          label={`View ${formatIsoDateLabel(mostRecentSession.date)}`}
+          onPress={handleViewRecent}
+          variant="ghost"
+        />
+      ) : null}
     </Card>
   );
 }
