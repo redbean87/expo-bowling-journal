@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LeaguePickerSheet } from './home/league-picker-sheet';
 
-import type { LeagueId } from '@/services/journal';
+import type { LeagueId, SessionId } from '@/services/journal';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Button, Card } from '@/components/ui';
@@ -17,6 +17,11 @@ import {
   useHomeAnalytics,
 } from '@/screens/home';
 import { HomeTonightCard } from '@/screens/home/home-tonight-card';
+import { buildJournalGamesRouteParams } from '@/screens/journal/journal-route-params';
+import {
+  formatIsoDateForToday,
+  formatIsoDateLabel,
+} from '@/screens/journal-fast-lane-utils';
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { computePersonalRecords } from '@/utils/analytics-stats';
@@ -80,6 +85,12 @@ export default function HomeScreen() {
 
   const isLoading = isHomeLeagueLoading || isAnalyticsLoading;
 
+  // Check for today's session and most recent session
+  const today = formatIsoDateForToday();
+  const todaySession = sessionAggregates.find((s) => s.date === today);
+  const mostRecentSession = sessionAggregates[0] ?? null;
+  const showRecentButton = !todaySession && mostRecentSession && activeLeague;
+
   // Empty state: no leagues or no recent leagues
   if (!activeLeague && !isLoading) {
     return (
@@ -120,11 +131,19 @@ export default function HomeScreen() {
   }
 
   // Determine context for quick actions
-  const todaySession = sessionAggregates.find((s) => {
-    const today = new Date().toISOString().split('T')[0];
-    return s.date === today;
-  });
   const quickActionsContext = todaySession ? 'league-day' : 'off-night';
+
+  const handleViewRecent = () => {
+    if (!activeLeague?._id || !mostRecentSession) return;
+    const recentSessionId = mostRecentSession.sessionId as SessionId;
+    router.push({
+      pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
+      params: buildJournalGamesRouteParams({
+        leagueId: activeLeague._id as LeagueId,
+        sessionId: recentSessionId,
+      }) as never,
+    } as never);
+  };
 
   return (
     <ScreenLayout
@@ -147,6 +166,14 @@ export default function HomeScreen() {
               isLoading={isLoading}
               onLeaguePickerPress={() => setIsPickerVisible(true)}
             />
+            {showRecentButton && (
+              <Button
+                disabled={isLoading}
+                label={`View ${formatIsoDateLabel(mostRecentSession.date)}`}
+                onPress={handleViewRecent}
+                variant="outline"
+              />
+            )}
             <HomeSnapshotCard
               analytics={analytics}
               isLoading={isAnalyticsLoading}

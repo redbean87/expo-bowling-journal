@@ -51,11 +51,6 @@ export function HomeTonightCard({
     return null;
   }, [sessions, todaySessionId]);
 
-  // Keep most recent session for secondary action
-  const mostRecentSession = useMemo(() => {
-    return sessions[0] ?? null;
-  }, [sessions]);
-
   const activeSessionId = (activeSession?._id as SessionId | undefined) ?? null;
   const { games } = useGames(activeSessionId);
 
@@ -94,20 +89,6 @@ export function HomeTonightCard({
     }
   };
 
-  const handleViewRecent = () => {
-    if (!activeLeagueId || !mostRecentSession) return;
-    const recentSessionId = mostRecentSession._id as SessionId;
-    router.push({
-      pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-      params: buildJournalGamesRouteParams({
-        leagueId: activeLeagueId,
-        sessionId: recentSessionId,
-      }) as never,
-    } as never);
-  };
-
-  const showRecentLink = !activeSession && mostRecentSession;
-
   return (
     <Card style={styles.card}>
       <Text style={styles.cardTitle}>Play tonight</Text>
@@ -142,15 +123,6 @@ export function HomeTonightCard({
         onPress={handlePrimaryAction}
         variant="secondary"
       />
-
-      {showRecentLink ? (
-        <Button
-          disabled={isLoading}
-          label={`View ${formatIsoDateLabel(mostRecentSession.date)}`}
-          onPress={handleViewRecent}
-          variant="ghost"
-        />
-      ) : null}
     </Card>
   );
 }

@@ -8,7 +8,7 @@ type ButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'md' | 'lg';
 };
 
@@ -32,6 +32,7 @@ export function Button({
         variant === 'primary' ? styles.primary : null,
         variant === 'secondary' ? styles.secondary : null,
         variant === 'ghost' ? styles.ghost : null,
+        variant === 'outline' ? styles.outline : null,
         pressed ? styles.pressed : null,
         disabled ? styles.disabled : null,
       ]}
@@ -72,6 +73,10 @@ const createStyles = (colors: ThemeColors) =>
     ghost: {
       backgroundColor: 'transparent',
       borderColor: 'transparent',
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderColor: colors.accent,
     },
     pressed: {
       opacity: 0.85,
