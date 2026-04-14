@@ -22,7 +22,7 @@ const createRollingSeriesStyles = (colors: ThemeColors) =>
       gap: spacing.sm,
     },
     rowLabel: {
-      width: 40,
+      width: 65,
       fontSize: typeScale.bodySm,
       color: colors.textSecondary,
       textAlign: 'right',
@@ -99,7 +99,9 @@ export function RollingSeriesChart({
         {recentSeries.map((point) => {
           const barWidth = ((point.seriesAverage - minAvg) / range) * 80 + 20;
           const barColor = getBarColor(point.seriesAverage);
-          const label = `#${point.gameIndex + 1}`;
+          const startGame = point.gameIndex + 1;
+          const endGame = point.gameIndex + point.gamesIncluded.length;
+          const label = `${startGame} → ${endGame}`;
 
           return (
             <View key={point.gameIndex} style={s.seriesRow}>
