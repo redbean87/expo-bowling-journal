@@ -7,19 +7,22 @@ This roadmap keeps work scoped to small, precise commits.
 Todo is strictly ordered; execute the top unchecked item first.
 When an item is complete, move it to `## Completed`.
 
-- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
-- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
-- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
+- [ ] Add first-run onboarding flow: league→session→game hierarchy walkthrough with sample game entry demo
+- [ ] Add Help/FAQ section in Profile with game entry guide and offline behavior explanation
+- [ ] Add About card in Profile with app version, attribution, and support links
+- [ ] Add Terms of Service and Privacy Policy links to Profile screen
+- [ ] Add in-app feedback/support mechanism (email or form)
 - [ ] Re-enable stricter React Native lint rules after core flows stabilize
-- [ ] Header polish v2 for long-name truncation and compact mobile density in journal flow
 - [ ] Validate native iOS/Android flows (builds + smoke tests for journal/game-editor offline and queue paths)
-- [ ] Team/coach sharing model
+- [ ] Add CI automation for native Android/iOS builds (EAS build pipeline for preview + production profiles)
 - [ ] Add lightweight CI/reporting for file-size drift (largest files + threshold alerts)
 - [ ] Reduce hard-stop and review-threshold files from `docs/code-size-audit.md` in small extraction batches
+- [ ] Team/coach sharing model
 
 ## Completed
 
 - [x] Redesign home screen with insight-driven layout: "At a glance" card (full-word labels: Average/Strike/Spare, MaterialIcons trending icons matching analytics), Focus Tonight smart insights (spare weakness, fatigue, momentum, title with base color, icon with accent), Quick Actions grid (vertical stacked with icon-left labels); extracted components: `home-snapshot-card`, `home-focus-card`, `home-quick-actions`, `home-analytics-hook`; compact Play Tonight card (removed game count), consistent sentence-case headers, breathing room between stat columns; orchestration-only `home-screen.tsx` (179 lines)
+- [x] Header polish v2 with Material UI breakpoints: auto-enable compact mode when screen width < 600px (sm breakpoint) for journal flows (Leagues, Sessions, Games screens); add `src/theme/breakpoints.ts` with standard Material UI values (xs/sm/md/lg/xl) and `useBreakpoint()` hook
 - [x] Improve Play Tonight card UX: remove fallback to most recent session when no session today; show "Start tonight" primary action with ghost button "View [date]" for recent history; only show today's session context with "Tonight · [date]" label when session exists
 - [x] Add new analytics metrics: consistency tracking (CV, std dev, variance), spare conversion by pin mask (grouped by pin count and specific configurations), rolling 3-game series averages – includes `games:listSpareConversionByPinMask` Convex query, `useSpareConversionAnalytics` hook, ConsistencyStatsCard, SpareConversionChart, RollingSeriesChart components, all integrated into analytics flow
 - [x] Extract analytics-screen.tsx components into `src/screens/analytics/components/` (SessionLineChart, FrameStackedChart, GamePositionCard, RecordCell, LegendDot, LeaguePickerModal, AnalyticsContent) – reduced screen from 1016 to 156 lines, all components under 200 lines

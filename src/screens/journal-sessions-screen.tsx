@@ -32,10 +32,12 @@ import {
   useStartTonight,
 } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
+import { useBreakpoint } from '@/theme/breakpoints';
 import { resolveLeagueType } from '@/utils/league-type-utils';
 
 export default function JournalSessionsScreen() {
   const { width: windowWidth } = useWindowDimensions();
+  const { isCompact } = useBreakpoint();
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const router = useRouter();
@@ -255,7 +257,7 @@ export default function JournalSessionsScreen() {
       }
       fillCard
       hideHeader
-      compact
+      compact={isCompact}
       chromeless
     >
       <View style={screenBodyStyle}>

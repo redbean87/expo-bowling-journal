@@ -65,6 +65,7 @@ import {
   useLeagues,
   useSessions,
 } from '@/hooks/journal';
+import { useBreakpoint } from '@/theme/breakpoints';
 import {
   lineHeight,
   spacing,
@@ -90,6 +91,7 @@ type GameActionTarget = {
 export default function JournalGamesScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { isCompact } = useBreakpoint();
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const router = useRouter();
@@ -747,7 +749,7 @@ export default function JournalGamesScreen() {
       subtitle="Review games for this session, then add or edit frame data."
       fillCard
       hideHeader
-      compact
+      compact={isCompact}
       chromeless
     >
       <View style={styles.screenBody}>

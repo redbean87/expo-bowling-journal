@@ -44,6 +44,7 @@ import {
   useReferenceData,
 } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
+import { useBreakpoint } from '@/theme/breakpoints';
 import {
   lineHeight,
   spacing,
@@ -134,6 +135,7 @@ export default function JournalLeaguesScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { quickEntryMode } = usePreferences();
   const { width: windowWidth } = useWindowDimensions();
+  const { isCompact } = useBreakpoint();
   const router = useRouter();
   const {
     leagues,
@@ -765,7 +767,7 @@ export default function JournalLeaguesScreen() {
       subtitle="Start with a league, then drill into sessions and games."
       fillCard
       hideHeader
-      compact
+      compact={isCompact}
       chromeless
     >
       <View style={styles.screenBody}>
