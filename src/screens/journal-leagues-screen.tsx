@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -33,6 +33,7 @@ import {
   isNavigatorOffline,
   withTimeout,
 } from './journal/journal-offline-create';
+import { getFirstParam } from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
@@ -137,6 +138,10 @@ export default function JournalLeaguesScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const { isCompact } = useBreakpoint();
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    startOpenBowling?: string | string[];
+  }>();
+  const startOpenBowling = getFirstParam(params.startOpenBowling) === '1';
   const {
     leagues,
     isLoading: isLeaguesLoading,
@@ -401,6 +406,18 @@ export default function JournalLeaguesScreen() {
       setIsCreatingLeagueRequest(false);
     }
   };
+
+  // Handle direct open bowling navigation from Home quick action
+  useEffect(() => {
+    if (!startOpenBowling) return;
+
+    // Clear the param to prevent re-triggering
+    router.replace('/journal' as never);
+
+    // Use existing handler (handles both existing league and creation)
+    void onOpenBowlingPress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startOpenBowling]);
 
   const startEditingLeague = (
     rowId: string,

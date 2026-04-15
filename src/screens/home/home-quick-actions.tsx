@@ -29,7 +29,7 @@ export function HomeQuickActions({ context, disabled }: HomeQuickActionsProps) {
         label: 'Log Practice',
         icon: 'sports',
         onPress: () => {
-          router.push('/open-bowling' as never);
+          router.push('/journal?startOpenBowling=1' as never);
         },
       },
       {
