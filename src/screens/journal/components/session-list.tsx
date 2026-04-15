@@ -10,6 +10,7 @@ import { buildJournalGamesRouteParams } from '../journal-route-params';
 import type { SessionActionTarget } from './session-actions-modal';
 import type { DisplaySession } from '@/hooks/journal/use-session-queue';
 import type { LeagueId } from '@/services/journal';
+import type { SessionAggregate } from '@/utils/analytics-stats';
 import type { Router } from 'expo-router';
 
 import {
@@ -34,6 +35,7 @@ type SessionListProps = {
   seasonSummary: ReturnType<typeof buildSessionNightSummary>;
   openSessionActions: (target: SessionActionTarget) => void;
   router: Router;
+  sessionAggregates: SessionAggregate[];
 };
 
 export function SessionList({
@@ -49,9 +51,18 @@ export function SessionList({
   seasonSummary,
   openSessionActions,
   router,
+  sessionAggregates,
 }: SessionListProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const aggregatesBySessionId = useMemo(() => {
+    const map = new Map<string, SessionAggregate>();
+    for (const aggregate of sessionAggregates) {
+      map.set(aggregate.sessionId, aggregate);
+    }
+    return map;
+  }, [sessionAggregates]);
 
   return (
     <ScrollView
@@ -86,6 +97,9 @@ export function SessionList({
       {displaySessions.map((session) => {
         const formattedDate = formatIsoDateLabel(session.date);
         const sessionTitle = sessionLabel(formattedDate);
+        const aggregate = session.sessionId
+          ? aggregatesBySessionId.get(session.sessionId)
+          : undefined;
 
         return (
           <SessionRowCard
@@ -121,8 +135,16 @@ export function SessionList({
                 title: sessionTitle,
               })
             }
-            sessionDateLabel=""
+            _sessionDateLabel=""
             sessionWeekLabel={sessionTitle}
+            gameCount={aggregate?.gameCount}
+            seriesTotal={aggregate?.totalPins}
+            average={
+              aggregate && aggregate.gameCount > 0
+                ? Math.round(aggregate.totalPins / aggregate.gameCount)
+                : undefined
+            }
+            highGame={aggregate?.highGame ?? undefined}
           />
         );
       })}

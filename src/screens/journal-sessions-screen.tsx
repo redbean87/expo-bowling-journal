@@ -21,6 +21,7 @@ import type { LeagueId } from '@/services/journal';
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { FloatingActionButton } from '@/components/ui';
 import {
+  useLeagueAnalytics,
   useLeagueGames,
   useLeagues,
   useReferenceData,
@@ -65,6 +66,7 @@ export default function JournalSessionsScreen() {
   } = useSessions(leagueId);
   const { games: leagueGames, isLoading: isLeagueGamesLoading } =
     useLeagueGames(leagueId);
+  const { sessionAggregates } = useLeagueAnalytics(leagueId);
 
   const {
     setQueuedSessionCreates,
@@ -270,6 +272,7 @@ export default function JournalSessionsScreen() {
           seasonSummary={seasonSummary}
           openSessionActions={openSessionActions}
           router={router}
+          sessionAggregates={sessionAggregates}
         />
 
         <FloatingActionButton

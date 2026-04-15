@@ -14,20 +14,50 @@ import { useAppTheme } from '@/theme/use-app-theme';
 type SessionRowCardProps = {
   isDeleting: boolean;
   sessionWeekLabel: string;
-  sessionDateLabel: string;
+  _sessionDateLabel: string;
   onNavigate: () => void;
   onOpenActions: () => void;
+  gameCount?: number;
+  seriesTotal?: number;
+  average?: number;
+  highGame?: number;
 };
 
 export function SessionRowCard({
   isDeleting,
   sessionWeekLabel,
-  sessionDateLabel,
+  _sessionDateLabel,
   onNavigate,
   onOpenActions,
+  gameCount,
+  seriesTotal,
+  average,
+  highGame,
 }: SessionRowCardProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const hasStats = gameCount !== undefined && gameCount > 0;
+
+  const formatStats = () => {
+    if (!hasStats) return null;
+    const parts: string[] = [];
+    if (gameCount !== undefined) {
+      parts.push(`${gameCount} game${gameCount === 1 ? '' : 's'}`);
+    }
+    if (seriesTotal !== undefined) {
+      parts.push(`${seriesTotal} series`);
+    }
+    if (average !== undefined) {
+      parts.push(`${average} avg`);
+    }
+    if (highGame !== undefined) {
+      parts.push(`${highGame} high`);
+    }
+    return parts.join(' • ');
+  };
+
+  const statsText = formatStats();
 
   return (
     <Card style={styles.rowCard}>
@@ -40,10 +70,10 @@ export function SessionRowCard({
           onPress={onNavigate}
         >
           <Text style={styles.rowTitle}>{sessionWeekLabel}</Text>
-          <Text style={styles.meta}>{sessionDateLabel}</Text>
+          {statsText ? <Text style={styles.stats}>{statsText}</Text> : null}
         </Pressable>
         <Pressable
-          accessibilityLabel={`Session actions for ${sessionDateLabel}`}
+          accessibilityLabel={`Session actions for ${sessionWeekLabel}`}
           disabled={isDeleting}
           hitSlop={8}
           onPress={onOpenActions}
@@ -96,6 +126,12 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.bodySm,
       lineHeight: lineHeight.compact,
       color: colors.textSecondary,
+    },
+    stats: {
+      fontSize: typeScale.bodySm,
+      lineHeight: lineHeight.compact,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
     },
     rowCard: {
       paddingVertical: spacing.sm,
