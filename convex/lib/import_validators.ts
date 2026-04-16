@@ -304,6 +304,13 @@ export const submitParsedSnapshotJsonArgs = {
   skipRawMirrorPersistence: v.optional(v.boolean()),
   timezoneOffsetMinutes: v.optional(v.union(v.number(), v.null())),
   snapshotJson: v.string(),
+  detectedFormat: v.optional(
+    v.union(
+      v.literal('pinpal-sqlite'),
+      v.literal('pinpal-lite-compound'),
+      v.null()
+    )
+  ),
 };
 
 export const persistCanonicalFrameChunkArgs = {

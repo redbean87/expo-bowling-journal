@@ -134,3 +134,8 @@ export type RawImportRow =
   | Doc<'importRawWeeks'>['raw']
   | Doc<'importRawGames'>['raw']
   | Doc<'importRawFrames'>['raw'];
+
+// Import format types for tracking source backup formats
+export type ImportFormat = 'pinpal-sqlite' | 'pinpal-lite-compound';
+
+export type DetectedFormat = ImportFormat | null;

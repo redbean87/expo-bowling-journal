@@ -286,6 +286,43 @@ async function postConvexCallback(env, payload) {
   });
 }
 
+// PinPal Lite iOS uses compound format: XML plist + padding + SQLite at offset 4096
+const PINPAL_LITE_SQLITE_OFFSET = 4096;
+const SQLITE_HEADER = 'SQLite format 3\x00';
+
+function detectBackupFileFormat(bytes) {
+  const headerLength = SQLITE_HEADER.length;
+
+  // Check for standard SQLite format at offset 0
+  if (bytes.byteLength >= headerLength) {
+    const header = new TextDecoder().decode(bytes.slice(0, headerLength));
+    if (header === SQLITE_HEADER) {
+      return {
+        format: 'pinpal-sqlite',
+        sqliteOffset: 0,
+      };
+    }
+  }
+
+  // Check for PinPal Lite compound format (SQLite at offset 4096)
+  if (bytes.byteLength >= PINPAL_LITE_SQLITE_OFFSET + headerLength) {
+    const offsetHeader = new TextDecoder().decode(
+      bytes.slice(
+        PINPAL_LITE_SQLITE_OFFSET,
+        PINPAL_LITE_SQLITE_OFFSET + headerLength
+      )
+    );
+    if (offsetHeader === SQLITE_HEADER) {
+      return {
+        format: 'pinpal-lite-compound',
+        sqliteOffset: PINPAL_LITE_SQLITE_OFFSET,
+      };
+    }
+  }
+
+  return null;
+}
+
 async function processQueueMessage(env, body) {
   const { batchId, r2Key } = body;
   const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(
@@ -330,6 +367,26 @@ async function processQueueMessage(env, body) {
   const sourceFileName =
     typeof r2Key === 'string' ? (r2Key.split('/').pop() ?? null) : null;
 
+  // Detect backup file format (standard SQLite vs PinPal Lite compound)
+  const detectedFormat = detectBackupFileFormat(bytes);
+
+  if (!detectedFormat) {
+    await postConvexCallback(env, {
+      batchId,
+      stage: 'failed',
+      errorMessage:
+        'Unable to detect backup format. File is not a supported PinPal backup.',
+    });
+    return;
+  }
+
+  console.log('queue detected format', {
+    batchId,
+    r2Key,
+    detectedFormat: detectedFormat.format,
+    sqliteOffset: detectedFormat.sqliteOffset,
+  });
+
   let parsedSnapshot;
 
   try {
@@ -337,6 +394,7 @@ async function processQueueMessage(env, body) {
       sourceFileName,
       sourceHash: null,
       wasmModule: sqlWasmModule,
+      sqliteOffset: detectedFormat.sqliteOffset,
     });
   } catch (caught) {
     const errorMessage =
@@ -365,6 +423,7 @@ async function processQueueMessage(env, body) {
     r2Key,
     bytes: bytes.byteLength,
     parserVersion: parsedSnapshot.parserVersion,
+    detectedFormat: detectedFormat.format,
     counts: {
       houses: parsedSnapshot.snapshot.houses.length,
       patterns: parsedSnapshot.snapshot.patterns.length,
@@ -381,7 +440,8 @@ async function processQueueMessage(env, body) {
     buildImportingSnapshotJsonCallbackPayload(
       batchId,
       parsedSnapshot,
-      timezoneOffsetMinutes
+      timezoneOffsetMinutes,
+      detectedFormat.format
     )
   );
 }

@@ -342,6 +342,7 @@ async function processSnapshotPayload(
             skipRawMirrorPersistence: true,
             timezoneOffsetMinutes: payload.timezoneOffsetMinutes ?? null,
             snapshotJson: payload.snapshotJson as string,
+            detectedFormat: payload.detectedFormat ?? null,
           })
         : await runMutation(submitParsedSnapshotForCallbackMutation, {
             batchId: batch._id,

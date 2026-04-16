@@ -1,45 +1,45 @@
-const PARSER_VERSION = 'backupdb-parser-v1';
+const PARSER_VERSION = 'backupdb-parser-v2';
 
 const REQUIRED_TABLES = {
   house: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       name: ['name'],
     },
   },
   pattern: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       name: ['name'],
     },
   },
   ball: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       name: ['name'],
     },
   },
   league: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       name: ['name'],
     },
   },
   week: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       leagueForeignKey: ['leagueFk', 'league_fk', 'league_id'],
     },
   },
   game: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       weekForeignKey: ['weekFk', 'week_fk', 'week_id'],
     },
   },
   frame: {
     requiredColumns: {
-      sqliteId: ['id', '_id'],
+      sqliteId: ['id', '_id', 'pk'],
       gameForeignKey: ['gameFk', 'game_fk', 'game_id'],
     },
   },
@@ -740,20 +740,32 @@ export async function parseBackupDatabaseToSnapshot(
 ) {
   const parsed = await parseBackupDatabase(sourceArrayBuffer, {
     wasmModule: options.wasmModule,
+    sqliteOffset: options.sqliteOffset,
   });
   const snapshot = mapParsedBackupToSnapshot(parsed, options);
 
   return {
     parserVersion: parsed.parserVersion,
     snapshot,
+    isCompoundFormat: parsed.isCompoundFormat ?? false,
+    sqliteOffset: parsed.sqliteOffset ?? 0,
   };
 }
 
 export async function parseBackupDatabase(sourceArrayBuffer, options = {}) {
   assertNonEmptyArrayBuffer(sourceArrayBuffer);
 
+  // Handle optional sqliteOffset for compound formats (e.g., PinPal Lite at offset 4096)
+  const sqliteOffset = options.sqliteOffset ?? 0;
+  const effectiveBuffer =
+    sqliteOffset > 0
+      ? sourceArrayBuffer.slice(sqliteOffset)
+      : sourceArrayBuffer;
+
+  assertNonEmptyArrayBuffer(effectiveBuffer);
+
   const SQL = await getSqlJs(options.wasmModule);
-  const bytes = new Uint8Array(sourceArrayBuffer);
+  const bytes = new Uint8Array(effectiveBuffer);
   let database = null;
 
   try {
@@ -836,6 +848,8 @@ export async function parseBackupDatabase(sourceArrayBuffer, options = {}) {
       parserVersion: PARSER_VERSION,
       schema,
       rows,
+      isCompoundFormat: sqliteOffset > 0,
+      sqliteOffset,
     };
   } catch (caught) {
     if (caught instanceof SqliteParseError) {

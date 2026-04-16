@@ -11,6 +11,7 @@ export type CallbackPayload = {
   timezoneOffsetMinutes?: number | null;
   snapshot?: unknown;
   snapshotJson?: string;
+  detectedFormat?: 'pinpal-sqlite' | 'pinpal-lite-compound' | null;
 };
 
 export type CallbackSnapshot = {

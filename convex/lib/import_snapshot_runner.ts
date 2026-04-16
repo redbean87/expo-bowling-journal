@@ -74,19 +74,55 @@ export async function submitParsedSnapshotJsonForCallbackCore(
     skipRawMirrorPersistence?: boolean;
     timezoneOffsetMinutes?: number | null;
     snapshotJson: string;
+    detectedFormat?: 'pinpal-sqlite' | 'pinpal-lite-compound' | null;
   }
 ) {
   const snapshot = parseSnapshotJsonPayload<SqliteSnapshotInput>(
     args.snapshotJson
   );
 
-  return submitParsedSnapshotForCallbackCore(ctx, {
+  const result = await submitParsedSnapshotForCallbackCore(ctx, {
     batchId: args.batchId,
     skipReplaceAllCleanup: args.skipReplaceAllCleanup,
     skipRawMirrorPersistence: args.skipRawMirrorPersistence,
     timezoneOffsetMinutes: args.timezoneOffsetMinutes,
     snapshot,
   });
+
+  // Track import format in user settings if detected
+  if (args.detectedFormat) {
+    const batch = await ctx.db.get(args.batchId);
+    if (batch) {
+      // Update batch with detected format
+      await ctx.db.patch(args.batchId, {
+        detectedFormat: args.detectedFormat,
+      });
+
+      // Update or create user settings with import source tracking
+      const existingSettings = await ctx.db
+        .query('userSettings')
+        .withIndex('by_user', (q) => q.eq('userId', batch.userId))
+        .unique();
+
+      if (existingSettings) {
+        const currentSources = existingSettings.importSources ?? [];
+        if (!currentSources.includes(args.detectedFormat)) {
+          await ctx.db.patch(existingSettings._id, {
+            importSources: [...currentSources, args.detectedFormat],
+            updatedAt: Date.now(),
+          });
+        }
+      } else {
+        await ctx.db.insert('userSettings', {
+          userId: batch.userId,
+          importSources: [args.detectedFormat],
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 export type ImportSqliteSnapshotAfterCleanupArgs = {

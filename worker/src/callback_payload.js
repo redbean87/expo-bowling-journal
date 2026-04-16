@@ -1,7 +1,8 @@
 export function buildImportingSnapshotJsonCallbackPayload(
   batchId,
   parsedSnapshot,
-  timezoneOffsetMinutes = null
+  timezoneOffsetMinutes = null,
+  detectedFormat = null
 ) {
   return {
     batchId,
@@ -9,5 +10,6 @@ export function buildImportingSnapshotJsonCallbackPayload(
     parserVersion: parsedSnapshot.parserVersion,
     timezoneOffsetMinutes,
     snapshotJson: JSON.stringify(parsedSnapshot.snapshot),
+    detectedFormat,
   };
 }

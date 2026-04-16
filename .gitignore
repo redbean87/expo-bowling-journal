@@ -21,7 +21,7 @@ expo-env.d.ts
 .env.local
 worker/.dev.vars
 worker/.wrangler/
-Backup.pinpal
+*.pinpal
 *.db
 
 # Local UX reference screenshots (keep folders, ignore images/files)

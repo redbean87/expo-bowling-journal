@@ -160,6 +160,9 @@ export default defineSchema({
     errorMessage: v.optional(v.union(v.string(), v.null())),
     importedAt: v.number(),
     completedAt: v.optional(v.union(v.number(), v.null())),
+    detectedFormat: v.optional(
+      v.union(v.literal('pinpal-sqlite'), v.literal('pinpal-lite-compound'))
+    ),
     counts: v.object({
       houses: v.number(),
       leagues: v.number(),
@@ -333,4 +336,13 @@ export default defineSchema({
   })
     .index('by_user_type_last_used', ['userId', 'referenceType', 'lastUsedAt'])
     .index('by_user_type_ref', ['userId', 'referenceType', 'referenceId']),
+  userSettings: defineTable({
+    userId: v.id('users'),
+    importSources: v.optional(
+      v.array(
+        v.union(v.literal('pinpal-sqlite'), v.literal('pinpal-lite-compound'))
+      )
+    ),
+    updatedAt: v.number(),
+  }).index('by_user', ['userId']),
 });
