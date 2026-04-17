@@ -51,12 +51,16 @@ export function HomeQuickActions({ context, disabled }: HomeQuickActionsProps) {
     ];
 
     if (context === 'empty') {
-      // On empty state, only show journal (to create first league)
-      return [baseActions[1]!];
+      // On empty state, no quick actions needed (buttons handle navigation)
+      return [];
     }
 
     return baseActions;
   }, [context]);
+
+  if (actions.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>

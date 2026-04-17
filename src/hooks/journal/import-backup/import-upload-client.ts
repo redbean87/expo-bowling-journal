@@ -148,11 +148,21 @@ export async function uploadBackupFileAndStartImport({
   }
 
   const fileBlob = await toUploadBlob(selectedFile);
+  console.log('[Import Debug] Starting backup validation for upload:', {
+    fileName: selectedFile.name,
+    fileSize: selectedFile.size,
+  });
   const isSupportedBackup = await isSupportedBackupBlob(fileBlob);
 
   if (!isSupportedBackup) {
-    throw new Error('Selected file is not a supported PinPal SQLite backup.');
+    console.log(
+      '[Import Debug] Upload validation failed: File is not a supported SQLite backup'
+    );
+    throw new Error(
+      'Invalid backup file: Not a supported SQLite database format.'
+    );
   }
+  console.log('[Import Debug] Backup validation passed');
 
   const uploadResponse = await fetch(uploadPayload.uploadUrl, {
     method: 'PUT',

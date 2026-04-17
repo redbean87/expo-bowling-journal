@@ -116,14 +116,23 @@ export default function HomeScreen() {
                 ? "You haven't bowled in the last 3 months."
                 : 'Open Journal to create your first league.'}
             </Text>
-            <View style={{ width: '100%' }}>
+            <View style={{ width: '100%', gap: spacing.sm }}>
               <Button
                 label={hasLeagues ? 'Go to Journal' : 'Open Journal'}
                 onPress={() => router.push('/journal' as never)}
                 variant="secondary"
               />
+              <Button
+                label="View Journal"
+                onPress={() => router.push('/journal' as never)}
+                variant="secondary"
+              />
+              <Button
+                label="Import Data"
+                onPress={() => router.push('/profile' as never)}
+                variant="secondary"
+              />
             </View>
-            <HomeQuickActions context="empty" disabled={isLoading} />
           </Card>
         </ScrollView>
       </ScreenLayout>

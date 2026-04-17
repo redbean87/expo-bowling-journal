@@ -10,6 +10,7 @@ import { viewerQuery } from '@/convex/functions';
 import { useExportSqliteBackup, useImportBackup } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
 import { ProfileAccountCard } from '@/screens/profile/profile-account-card';
+import { ProfileBuildInfoCard } from '@/screens/profile/profile-build-info-card';
 import { ProfileDataExportSection } from '@/screens/profile/profile-data-export-section';
 import { ProfileDataImportSection } from '@/screens/profile/profile-data-import-section';
 import { ProfilePreferencesCard } from '@/screens/profile/profile-preferences-card';
@@ -105,6 +106,8 @@ export default function ProfileScreen() {
             }
           />
         </Card>
+
+        <ProfileBuildInfoCard />
       </ScrollView>
     </ScreenLayout>
   );
