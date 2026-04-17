@@ -208,33 +208,38 @@ export function SessionConsistencyList({
 
   return (
     <View style={s.container}>
-      {sessions.slice(-5).map((session) => {
-        const date = new Date(session.date);
-        const label = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        });
+      {sessions
+        .slice(-5)
+        .reverse()
+        .map((session) => {
+          const date = new Date(session.date);
+          const label = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
 
-        return (
-          <View key={session.sessionId} style={s.sessionRow}>
-            <View style={s.sessionInfo}>
-              <Text style={s.sessionLabel}>{label}</Text>
-              <Text style={s.sessionGames}>{session.gameCount} games</Text>
-            </View>
-            <View style={[s.cvBadge, { backgroundColor: colors.accentMuted }]}>
-              <Text
-                style={[
-                  s.cvText,
-                  { color: getCvColor(session.coefficientOfVariation) },
-                ]}
+          return (
+            <View key={session.sessionId} style={s.sessionRow}>
+              <View style={s.sessionInfo}>
+                <Text style={s.sessionLabel}>{label}</Text>
+                <Text style={s.sessionGames}>{session.gameCount} games</Text>
+              </View>
+              <View
+                style={[s.cvBadge, { backgroundColor: colors.accentMuted }]}
               >
-                CV {session.coefficientOfVariation.toFixed(1)}%
-              </Text>
+                <Text
+                  style={[
+                    s.cvText,
+                    { color: getCvColor(session.coefficientOfVariation) },
+                  ]}
+                >
+                  CV {session.coefficientOfVariation.toFixed(1)}%
+                </Text>
+              </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
     </View>
   );
 }
