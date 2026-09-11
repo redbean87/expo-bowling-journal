@@ -31,3 +31,6 @@ docs/ux-reference/next-app/*
 !docs/ux-reference/competitor-app/.gitkeep
 !docs/ux-reference/current-app/.gitkeep
 !docs/ux-reference/next-app/.gitkeep
+
+# Local Claude Code settings
+.claude/settings.local.json
