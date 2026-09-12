@@ -10,6 +10,7 @@ export {
   type SpareConversionData,
 } from './use-league-analytics';
 export { useLeagueGames } from './use-league-games';
+export { useLeagueQueue, type DisplayLeague } from './use-league-queue';
 export { useQueueSyncStatus } from './use-queue-sync-status';
 export { useReferenceData } from './use-reference-data';
 export { useSessions } from './use-sessions';
