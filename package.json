@@ -89,5 +89,8 @@
     "*.{js,json}": [
       "prettier --write"
     ]
+  },
+  "volta": {
+    "node": "24.21.0"
   }
 }
