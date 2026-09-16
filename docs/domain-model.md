@@ -29,7 +29,7 @@ This document defines the local bowling domain model that will serve as the cont
 
 * `roll1Mask`, `roll2Mask`, `roll3Mask` – nullable 10‑bit unsigned integers.
 * Each mask encodes which pins were knocked down in that roll. A helper `getRollValue(mask)` returns the numeric pin count.
-* The packed integer used by PinPal (`pins`) and the helper `packManualPins` are **transport only** – they should not be persisted locally.
+* The packed integer used by PinPal (`pins`) and the helper `packManualPins` are **transport only** – they are only used for serializing data and should not be persisted locally.
 
 ## 4. Derived Data
 
