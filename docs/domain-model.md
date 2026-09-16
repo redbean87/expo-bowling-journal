@@ -87,6 +87,67 @@ Incomplete state is distinguished from invalid state: missing mandatory masks in
 
 ## 8. PinPal Compatibility
 
+### 8.1. Export File Structure and Metadata
+
+* **Android** export is a raw SQLite database. The first byte offset is `0`.
+* **iOS** export has a 4096‑byte header/wrapper. The SQLite payload starts at byte offset `4096`.
+
+### 8.2. Shared Tables
+
+All PinPal exports contain the following domain tables:
+
+* `league`
+* `week`
+* `game`
+* `frame`
+* `ball`
+* `house`
+* `pattern`
+
+### 8.3. Hierarchy
+
+The logical relationship present in the database is:
+
+```
+League → Week → Game → Frame
+```
+
+### 8.4. Platform Differences
+
+* Primary key column names differ: Android uses `_id`, whereas iOS uses `pk`.
+* Android includes extra foreign‑key columns omitted in iOS:
+  * `lane` on `week` and `game`
+  * `pocket`, `footBoard`, `targetBoard` on `frame`
+  * `sortOrder` on reference tables where present
+* Android may contain the platform‑specific table `android_metadata`. This record is *not* part of the bowling domain.
+
+### 8.5. Frame and Game Data
+
+* The packed `pins` integer and `scores` array are part of the import payload but must be preserved losslessly.
+* `pins` is **not** a simple count; it may encode roll‑by‑roll pin data.
+* A frame row may be pre‑allocated, including rows never played. Unplayed frames are identified by sentinel values:
+  * Android: `pins = 1048575` (0xFFFFF)
+  * iOS:   `pins = 1073741823` (0x3FFFFFFF)
+* Games can contain up to 12 frame rows (including tenth‑frame and bonus slots) but this does not imply all frames are completed.
+* The fields `singlePinSpareScore` and `notes` must be transferred as‑is.
+
+### 8.6. Relationships and Identifiers
+
+* All source integer IDs should be mapped to local UUIDs when imported.
+* Treat `0` and `-1` as **none**/unassigned sentinels; normalize them to `NULL` in local foreign‑key columns.
+
+### 8.7. Dates
+
+* Android dates are stored as Unix timestamps in **milliseconds**.
+* iOS dates are stored as Unix timestamps in **seconds** with fractional precision.
+
+### 8.8. Optional Fields
+
+* Android‑only fields should become optional import‑time columns; they must not be dropped.
+* `pattern` records are optional – Android exports may omit them entirely.
+
+*The above observations are based on the fixture files and are not assumptions about all PinPal releases.*
+
 | PinPal Entity | Local Equivalent | Notes |
 |--------------|-----------------|-------|
 | `PinPal Ball` | `Ball` | Direct mapping by ID. |
