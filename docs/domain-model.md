@@ -159,6 +159,24 @@ League → Week → Game → Frame
 
 The PinPal `pins` representation (packed integer) is an interchange format. Local tables store only the per‑frame mask fields.
 
+### 8.9. Local Fixtures
+
+Sample PinPal exports are kept locally under `fixtures/pinpal/` and are **not** committed:
+
+* `cortez-android.pinpal` – Android export (raw SQLite, payload at byte offset `0`).
+* `tj-ios.pinpal` – iOS export (SQLite payload at byte offset `4096`).
+
+Both `*.pinpal` and `/fixtures/pinpal/` are listed in `.gitignore`, so each contributor supplies their own copies.
+
+The import tests resolve their fixtures from the repository root and skip when the file is absent:
+
+| Test | Fixture (repo root) |
+|------|---------------------|
+| `tests/import/worker_snapshot_transport.test.ts` | `Backup.pinpal` |
+| `tests/import/pinpal_lite_compound_parse_test.test.ts` | `Backup(TJ).pinpal` |
+
+To run these tests locally, place or copy a fixture at the expected root path (for example, `cp fixtures/pinpal/cortez-android.pinpal Backup.pinpal`).
+
 ## 9. Optional Persisted Metadata
 
 Fields that are optional and may be left `null` but persisted if the user provides them.
