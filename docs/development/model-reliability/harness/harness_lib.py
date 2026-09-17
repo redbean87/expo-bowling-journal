@@ -701,11 +701,70 @@ def session_report(start_ms: int, clone: Path, end_ms: int | None = None,
     return report
 
 
+# Markers that identify a tool call denied by OpenCode's permission layer.
+# OpenCode's current denial wording does NOT contain the historical
+# "rejected permission" phrase, so detection must not depend on it.
+PERMISSION_DENIAL_MARKERS = (
+    "rejected permission",
+    "the user has specified a rule which prevents you from using this specific tool call",
+    "permission denied",
+    "user rejected permission",
+    "denied by permission",
+)
+
+
+def is_permission_denial(text) -> bool:
+    """True when tool-error/log text represents a permission-layer denial.
+
+    Detection is marker-based over authoritative denial records (tool errors and
+    permission-log ``action=deny`` events); it does not rely on any single phrase.
+    """
+    if not text:
+        return False
+    low = str(text).lower()
+    return any(marker in low for marker in PERMISSION_DENIAL_MARKERS)
+
+
+def permission_denials_from_log(events) -> list:
+    """Permission denials from parsed ``opencode.log`` events.
+
+    Authoritative raw permission events carry ``kind=evaluated`` and
+    ``action=deny``; those are the deny records counted here.
+    """
+    denials = []
+    for ev in events or []:
+        if not isinstance(ev, dict):
+            continue
+        if ev.get("kind") == "evaluated" and str(ev.get("action", "")).lower() in (
+                "deny", "denied", "reject", "rejected"):
+            denials.append(ev)
+    return denials
+
+
+def permission_rejections_from_parts(parts) -> list:
+    """Permission denials visible in raw trace parts (tool-call errors)."""
+    denials = []
+    for p in parts or []:
+        if not isinstance(p, dict) or p.get("type") != "tool":
+            continue
+        st = p.get("state") or {}
+        err = st.get("error")
+        if st.get("status") == "error" and err and is_permission_denial(err):
+            denials.append({
+                "tool": p.get("tool"),
+                "callID": p.get("callID"),
+                "input": st.get("input"),
+                "error": str(err),
+            })
+    return denials
+
+
 def session_permission_rejections(session_id: str, db: Path = OPENCODE_DB) -> list:
     """Tool calls rejected by the permission layer, from the session DB.
 
     OpenCode does not persist permission *requests* as session parts; only the
-    resulting tool error is stored. This extracts those errors.
+    resulting tool error is stored. This extracts those errors and classifies
+    them with :func:`is_permission_denial`.
     """
     events = []
     if not session_id or not Path(db).exists():
@@ -725,13 +784,12 @@ def session_permission_rejections(session_id: str, db: Path = OPENCODE_DB) -> li
         err = st.get("error")
         if st.get("status") == "error" and err:
             text = str(err)
-            rejected = "rejected permission" in text.lower()
             events.append({
                 "tool": p.get("tool"),
                 "callID": p.get("callID"),
                 "input": st.get("input"),
                 "error": text,
-                "permission_rejection": rejected,
+                "permission_rejection": is_permission_denial(text),
             })
     return events
 

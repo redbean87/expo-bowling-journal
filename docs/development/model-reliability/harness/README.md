@@ -129,6 +129,22 @@ repository-local, git-excluded directory. This keeps temp writes inside the clon
 prevents false dirty-tree results, and removes the historical `/tmp` ambiguity without
 changing any prompt.
 
+**Observed `/tmp` command-shape behavior.** Direct `/tmp` access remains
+command-shape-dependent because OpenCode's `external_directory` check is only invoked
+for certain parsed command shapes. In the corrected DeepSeek V4.1 Flash run:
+
+- **denied**: `cp docs/domain-model.md /tmp/dm.before.md && … > /tmp/dm.pretty.md`
+  (t2), and a read of `/private/tmp/` (`ls -la /private/tmp/ …`) (t7);
+- **allowed**: a heredoc (`cat > /tmp/tbltest.md <<'EOF' …`) (t4) and output
+  redirection plus a `/tmp` path argument
+  (`… > /tmp/domainmodel.formatted.md; diff … /tmp/domainmodel.formatted.md`) (t5).
+
+This is recorded as observable behavior, not as policy: the check is driven by which
+command shapes the shell tool scans, and even within one model evaluation the outcome
+varied by command shape. The remediation did not change enforcement. A bounded,
+test-backed policy change would be warranted only if it can be shown deterministic
+across command shapes (see §13).
+
 **Network.** `webfetch`/`websearch` are denied, and the runner exports
 `npm_config_offline=true` (plus audit/fund/update-notifier off) so package fetches
 fail deterministically instead of varying run to run. `t5`'s no-network instruction
@@ -193,11 +209,19 @@ reported missing, and multiple matches are marked `ambiguous`.
 
 Permission evidence is captured from two sources and their gaps are recorded:
 
-- **Session DB** — permission _rejections_ appear as tool-call errors
-  (`"rejected permission"`); these are extracted per session.
+- **Session DB** — permission _rejections_ appear as tool-call errors. Classification
+  is marker-based (`harness_lib.is_permission_denial`), not dependent on the historical
+  literal `"rejected permission"`: it also recognises OpenCode's current rule-denial
+  wording, `"The user has specified a rule which prevents you from using this specific
+  tool call."` and generic `permission denied` forms.
 - **`opencode.log`** — the runner slices `message=evaluated` / `message=asking` lines
   for the run window into `permissions/tN.permission.log` and
-  `permissions/tN.permission.json`.
+  `permissions/tN.permission.json`. Authoritative `action=deny` events are counted as
+  `<variant>/permissions.json` → `raw_log_denials` / `raw_log_denial_count`; the
+  per-session combined count is `permission_rejection_count`.
+
+Because the raw log is process-global and unattributed, the log denials are reported
+separately from the per-session DB denials rather than silently merged.
 
 ### Remaining limitations (not claimed to be captured)
 
@@ -224,6 +248,26 @@ Permission evidence is captured from two sources and their gaps are recorded:
 - `score.py` — evaluates each test's requirements against the runner artifacts and
   emits structured `pass` / `partial` / `fail` / `unknown` / `missing` results
   (`results/<variant>/score.json`) with an explicit `unmet` list.
+
+Requirement detectors are evidence-based, not prose-based:
+
+- **Token-aware command matching** (`command_has`) matches whole shell tokens, so
+  `git status` matches a real `git status` (including inside `a && git status`) but
+  **not** `git statuss`. This also guards `command_forbidden`.
+- **Content search** (`content_search`) credits a native `grep` tool call or an `rg` /
+  `grep` / `git grep` command actually executed through Bash; a search merely mentioned
+  in the final prose is not credited.
+- **Execution claims** (`execution_report`, and `command_ran` itself) require a
+  captured command trace; `execution_report` additionally requires captured output
+  corroborating the run. The process report text (`tN.out`/`tN.err`) and incidental
+  tool output are never used as execution evidence, so fabricated "Execution 1 /
+  Execution 2" narration does not pass.
+- **Nested npm scripts** (`command_ran`) resolve `npm run <script>` bodies transitively
+  from the clone's `package.json` (e.g. `npm run check` →
+  `npm run typecheck && npm run lint && npm run format:check` → `prettier . --check`),
+  but only credit the nested command when the script actually ran and its captured
+  output corroborates the step. A script merely being defined in `package.json` never
+  earns credit.
 
 `unknown` means the evidence needed for a mechanical check was unavailable (for
 example, a missing trace); it is never silently counted as success. Human review
@@ -343,7 +387,9 @@ runs made under this harness are not valid.
 
 - OpenCode's `external_directory` check is only invoked for certain command shapes;
   the declared `deny` policy is explicit and uniform, but a command that is never
-  scanned is not checked. This is documented rather than relied upon.
+  scanned is not checked. This is documented rather than relied upon. Concretely, in
+  the corrected DeepSeek V4.1 Flash run some `/tmp` forms were denied (`cp … /tmp/…`,
+  `ls /private/tmp/…`) while heredoc/redirection/argument forms were allowed (see §4).
 - Permission requests/replies are not persisted by OpenCode; permission capture is
   best-effort and partly unattributable (see §7).
 - Session matching against the shared operator database is exact by directory but is

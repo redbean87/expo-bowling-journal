@@ -214,9 +214,12 @@
         },
         {
           "id": "t3.search_ran",
-          "description": "A content search was performed.",
-          "type": "tool_used",
-          "params": { "any_of": ["grep", "glob"] },
+          "description": "A content search (native grep or rg/grep via Bash) was actually executed.",
+          "type": "content_search",
+          "params": {
+            "tools": ["grep"],
+            "commands": ["rg", "grep", "git grep"]
+          },
           "critical": true
         },
         {
@@ -247,10 +250,10 @@
         },
         {
           "id": "t4.no_change_warranted",
-          "description": "Determines that no documentation change is warranted.",
+          "description": "Determines that no documentation change is warranted (semantically equivalent wording accepted).",
           "type": "text_regex",
           "params": {
-            "pattern": "(?i)(no (documentation )?(change|edit) (is )?(warranted|needed|required|necessary)|no edit|not warranted|no modification)"
+            "pattern": "(?i)(?:no\\s+(?:documentation\\s+|doc\\s+)?(?:change|edit|update|modification|fix|action)\\b[^.\\n]{0,60}?\\b(?:warranted|needed|required|necessary|is\\s+(?:needed|required|warranted))|(?:documentation\\s+|doc\\s+)?(?:change|edit|update|modification|fix)\\b[^.\\n]{0,60}?\\b(?:warranted|needed|required|necessary)\\b\\s*\\?\\s*no\\b|not\\s+warranted|no\\s+(?:edit|modification)\\b)"
           },
           "critical": true
         },
@@ -414,13 +417,17 @@
         },
         {
           "id": "t7.separate_outputs",
-          "description": "Reports each validator execution separately.",
-          "type": "text_regex_all",
+          "description": "Reports each validator execution separately, corroborated by actual command/output evidence.",
+          "type": "execution_report",
           "params": {
             "patterns": [
               "(?i)(execution|run|attempt)\\s*1",
               "(?i)(execution|run|attempt)\\s*2"
-            ]
+            ],
+            "corroborate": {
+              "any_of": ["npm run format:check", "format:check", "prettier"],
+              "min_count": 2
+            }
           },
           "critical": false
         },
@@ -470,7 +477,7 @@
         },
         {
           "id": "t8.recovery_validation",
-          "description": "Recovers with the correct validation command npm run format:check.",
+          "description": "Recovers with the correct validation command npm run format:check (directly or as a nested npm script whose execution is corroborated by captured output).",
           "type": "command_ran",
           "params": { "any_of": ["npm run format:check", "format:check"] },
           "critical": true

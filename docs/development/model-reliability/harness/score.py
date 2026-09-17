@@ -29,6 +29,81 @@ def norm(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 
+# Shell operators that separate independent commands inside one Bash call.
+_SHELL_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+
+
+def command_segments(text) -> list:
+    """Split a shell command string into its independently-invoked segments."""
+    return [seg.strip() for seg in _SHELL_SPLIT_RE.split(text or "") if seg.strip()]
+
+
+def command_tokens(text) -> list:
+    tokens = []
+    for segment in command_segments(text):
+        tokens.extend(segment.split())
+    return tokens
+
+
+def command_has(pattern, command) -> bool:
+    """Token-aware contiguous match of ``pattern`` within ``command``.
+
+    Matching is on whole tokens, so ``git status`` does not match ``git statuss``
+    the way a naive substring test would.
+    """
+    pat = command_tokens(pattern)
+    if not pat:
+        return False
+    toks = command_tokens(command)
+    n = len(pat)
+    return any(toks[i:i + n] == pat for i in range(len(toks) - n + 1))
+
+
+def search_command_ran(commands) -> bool:
+    """True when a content search (``rg``/``grep``/``git grep``) was invoked.
+
+    Only a command word that actually leads a shell segment counts; a mention of
+    a search in prose, a filename, or an argument does not.
+    """
+    wanted = {"rg", "grep"}
+    for cmd in commands or []:
+        for segment in command_segments(cmd):
+            toks = segment.split()
+            i = 0
+            while i < len(toks) and "=" in toks[i] and not toks[i].startswith("-"):
+                i += 1
+            if i >= len(toks):
+                continue
+            if toks[i] in wanted:
+                return True
+            if toks[i] == "git" and i + 1 < len(toks) and toks[i + 1] == "grep":
+                return True
+    return False
+
+
+def _load_package_scripts(clone) -> dict:
+    if not clone:
+        return {}
+    try:
+        data = json.loads((Path(clone) / "package.json").read_text())
+    except Exception:
+        return {}
+    scripts = data.get("scripts") or {}
+    return scripts if isinstance(scripts, dict) else {}
+
+
+def npm_script_chain(scripts: dict, body: str, _depth: int = 0) -> list:
+    """Expand ``npm run <name>`` references in a script body, transitively."""
+    found = []
+    if _depth > 10:
+        return found
+    for m in re.finditer(r"npm\s+run\s+([A-Za-z0-9:_.-]+)", body or ""):
+        name = m.group(1)
+        found.append(name)
+        found.extend(npm_script_chain(scripts, scripts.get(name, ""), _depth + 1))
+    return found
+
+
 def load_records(outdir: Path) -> list:
     path = outdir / "results.jsonl"
     if not path.exists():
@@ -71,6 +146,7 @@ class Ctx:
         self.stderr = self._read(f"t{n}.err")
         self.tools = [p.get("tool") for p in parts if p.get("type") == "tool"]
         self.commands = []
+        self.tool_calls = []
         outputs = []
         texts = []
         for p in parts:
@@ -78,6 +154,15 @@ class Ctx:
                 st = p.get("state") or {}
                 inp = st.get("input") or {}
                 cmd = inp.get("command")
+                call = {
+                    "tool": p.get("tool"),
+                    "callID": p.get("callID"),
+                    "command": cmd if isinstance(cmd, str) else None,
+                    "status": st.get("status"),
+                    "output": str(st["output"]) if st.get("output") else None,
+                    "error": str(st["error"]) if st.get("error") else None,
+                }
+                self.tool_calls.append(call)
                 if isinstance(cmd, str):
                     self.commands.append(cmd)
                 if st.get("output"):
@@ -87,25 +172,67 @@ class Ctx:
             elif p.get("type") == "text":
                 texts.append(p.get("text") or "")
         self.transcript = "\n".join(texts)
+        # Genuine captured tool output/error, separate from the process report
+        # text (stdout/stderr), which a model can fabricate.
+        self.tool_outputs = outputs
+        self.process_output = "\n".join([self.stdout, self.stderr])
         self.output = "\n".join(outputs + [self.stdout, self.stderr])
         self.text_all = self.transcript + "\n" + self.output
         self.trace_available = bool(parts) or bool(self.stdout)
+        clone = record.get("clone")
+        self.scripts = _load_package_scripts(clone)
 
     def _read(self, name):
         p = self.outdir / name
         return p.read_text(errors="replace") if p.exists() else ""
 
+    def _nested_npm_match(self, call, any_of) -> bool:
+        """True when a captured ``npm run <script>`` executed a wanted command.
+
+        The script body is resolved transitively from the clone's package.json,
+        but credit requires BOTH an executed command trace AND captured output
+        corroborating the nested step. A script merely being defined is not enough.
+        """
+        cmd = call.get("command")
+        if not cmd or not self.scripts:
+            return False
+        invoked = re.findall(r"npm\s+run\s+([A-Za-z0-9:_.-]+)", cmd)
+        if not invoked:
+            return False
+        out = call.get("output") or call.get("error") or ""
+        if not out:
+            return False
+        for name in invoked:
+            chain = [name] + npm_script_chain(self.scripts, self.scripts.get(name, ""))
+            for item in chain:
+                body = self.scripts.get(item, "")
+                for a in any_of:
+                    if command_has(a, f"npm run {item}") and f"npm run {item}" in out:
+                        return True
+                    if body and command_has(a, body):
+                        first = body.split()[0]
+                        if first in out:
+                            return True
+        return False
+
     def command_ran(self, any_of, min_count=1):
+        any_of = list(any_of)
         if self.commands:
-            hits = sum(1 for c in self.commands
-                       if any(norm(a) in norm(c) for a in any_of))
+            hits = 0
+            for call in self.tool_calls:
+                cmd = call.get("command")
+                if not isinstance(cmd, str):
+                    continue
+                if any(command_has(a, cmd) for a in any_of):
+                    hits += 1
+                elif call.get("status") != "error" and self._nested_npm_match(call, any_of):
+                    hits += 1
             return hits >= min_count, hits, "commands"
-        # Fall back to raw output only when no command trace is available.
-        if self.output.strip():
-            hits = sum(1 for a in any_of if norm(a) in norm(self.output))
-            if hits:
-                return True, hits, "output-fallback"
-            return False, 0, "output-fallback"
+        # Execution credit requires a captured command trace. Report text and
+        # incidental tool output (e.g. a cat of package.json) are not evidence
+        # that a command ran.
+        if self.parts or self.process_output.strip():
+            return False, 0, "commands"
         return None, 0, "unavailable"
 
 
@@ -187,9 +314,37 @@ def evaluate(req, ctx: Ctx):
         pool = ctx.commands if ctx.commands else [ctx.output]
         for a in req["params"]["any_of"]:
             for c in pool:
-                if norm(a) in norm(c):
+                if command_has(a, c):
                     return "fail", f"forbidden command matched: {a!r}"
         return "pass", "no forbidden command found"
+
+    if t == "content_search":
+        if not ctx.parts:
+            return "unknown", "no trace parts captured"
+        params = req["params"]
+        wanted_tools = {w.lower() for w in params.get("tools", [])}
+        tools_ok = any((tool or "").lower() in wanted_tools for tool in ctx.tools)
+        cmds_ok = search_command_ran(ctx.commands)
+        ok = tools_ok or cmds_ok
+        evidence = f"native_tool={tools_ok} bash_content_search={cmds_ok}"
+        return ("pass" if ok else "fail"), evidence
+
+    if t == "execution_report":
+        hay = ctx.transcript if ctx.transcript.strip() else ctx.text_all
+        corr = req["params"].get("corroborate") or {}
+        ran, hits, source = ctx.command_ran(corr.get("any_of", []),
+                                            corr.get("min_count", 1))
+        if ran is None:
+            return "unknown", "no command trace or output available"
+        if not ran:
+            return "fail", (f"claimed execution without corroborating evidence "
+                            f"(hits={hits} source={source})")
+        if not hay.strip():
+            return "unknown", "no assistant text captured"
+        missing = [p for p in req["params"]["patterns"] if not re.search(p, hay)]
+        return (("pass" if not missing else "fail"),
+                "all matched with execution evidence" if not missing
+                else f"missing patterns={missing}")
 
     if t == "text_regex":
         hay = ctx.transcript if ctx.transcript.strip() else ctx.text_all

@@ -114,7 +114,7 @@ def extract(workspace: Path, variant: str) -> dict:
                         out.write(f"      out={clip(st.get('output'), 800)}\n")
                     if st.get("error"):
                         err = str(st.get("error"))
-                        is_reject = "rejected permission" in err.lower()
+                        is_reject = H.is_permission_denial(err)
                         if is_reject:
                             entry["permission_rejections"] += 1
                         out.write(f"      error={'PERMISSION-REJECT ' if is_reject else ''}"
@@ -126,15 +126,18 @@ def extract(workspace: Path, variant: str) -> dict:
             if sid:
                 out.write("\n")
 
-            # Permission evidence: DB tool rejections + raw log slice.
-            rejections = [r for r in H.session_permission_rejections(sid) if r.get("permission_rejection")] if sid else []
+            # Permission evidence: DB tool denials + authoritative log deny events.
+            db_rejections = H.session_permission_rejections(sid) if sid else []
+            db_denials = [r for r in db_rejections if r.get("permission_rejection")]
             perm_record = {
                 "session_id": sid,
                 "session_match": match,
-                "tool_rejections": H.session_permission_rejections(sid) if sid else [],
-                "permission_rejection_count": len(rejections),
+                "tool_rejections": db_rejections,
+                "db_permission_rejection_count": len(db_denials),
                 "raw_log_available": False,
                 "raw_log_events": [],
+                "raw_log_denials": [],
+                "raw_log_denial_count": 0,
                 "limitations": [
                     "OpenCode does not persist permission requests/replies as session parts.",
                     "opencode.log is process-global and its permission lines carry no session id.",
@@ -145,9 +148,16 @@ def extract(workspace: Path, variant: str) -> dict:
                 log_data = json.loads(log_json.read_text())
                 perm_record["raw_log_available"] = log_data.get("available", False)
                 perm_record["raw_log_events"] = log_data.get("events", [])
+                perm_record["raw_log_denials"] = H.permission_denials_from_log(
+                    log_data.get("events", []))
+                perm_record["raw_log_denial_count"] = len(perm_record["raw_log_denials"])
                 perm_record["limitations"] = sorted(
                     set(perm_record["limitations"] + log_data.get("limitations", [])))
-            entry["permission_rejection_count"] = perm_record["permission_rejection_count"]
+            perm_record["permission_rejection_count"] = (
+                perm_record["db_permission_rejection_count"]
+                + perm_record["raw_log_denial_count"])
+            entry["permission_rejection_count"] = perm_record["db_permission_rejection_count"]
+            entry["raw_log_denial_count"] = perm_record["raw_log_denial_count"]
             all_permissions["tests"][str(n)] = perm_record
             summary["tests"][str(n)] = entry
 

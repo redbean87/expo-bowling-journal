@@ -246,6 +246,119 @@ def main(argv=None) -> int:
         check("scoring marks an unmet test as fail", t1["verdict"] == "fail",
               f"t1_verdict={t1['verdict']} unmet={t1['unmet'][:4]}")
 
+        # --- 8b. Requirement-detector fixtures (deterministic, no model) -----
+        det_dir = workspace / "detector-fixtures"
+        det_dir.mkdir(parents=True, exist_ok=True)
+
+        def _tool(tool, command=None, output=None, error=None, status="completed", cid="c1"):
+            st = {"status": status, "input": {"command": command} if command else {}}
+            if output is not None:
+                st["output"] = output
+            if error is not None:
+                st["error"] = error
+            return {"type": "tool", "tool": tool, "callID": cid, "state": st}
+
+        def _text(text):
+            return {"type": "text", "text": text}
+
+        def _ctx(test, parts):
+            return SC.Ctx({"test": test, "clone": clone_path}, gt, parts, det_dir)
+
+        def _req(tid, rid):
+            for t in gt["tests"]:
+                if t["id"] == tid:
+                    for r in t["requirements"]:
+                        if r["id"] == rid:
+                            return r
+            raise KeyError(rid)
+
+        st, ev = SC.evaluate(_req(3, "t3.search_ran"), _ctx(3, [
+            _tool("bash", command='rg -l --fixed-strings "PinPal" . | sort',
+                  output="docs/domain-model.md\n")]))
+        check("t3: Bash-invoked rg content search is credited", st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(3, "t3.search_ran"), _ctx(3, [
+            _tool("bash", command='grep -rn "PinPal" .', output="ROADMAP.md:1:PinPal\n")]))
+        check("t3: Bash-invoked grep content search is credited", st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(3, "t3.search_ran"), _ctx(3, [
+            _tool("grep", output="ROADMAP.md: PinPal")]))
+        check("t3: native grep tool call is credited", st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(3, "t3.search_ran"), _ctx(3, [
+            _text("I ran rg to search the repo for PinPal and found 11 files.")]))
+        check("t3: search mentioned only in prose is not credited", st == "fail", ev)
+
+        wording_req = _req(4, "t4.no_change_warranted")
+        for phrase in (
+            "**Documentation change warranted? No.**",
+            "No change is needed.",
+            "The claim is false, so no documentation update is warranted.",
+        ):
+            st, ev = SC.evaluate(wording_req, _ctx(4, [_text(phrase)]))
+            check(f"t4: accepts equivalent wording {phrase!r}", st == "pass", ev)
+        st, ev = SC.evaluate(wording_req, _ctx(4, [
+            _text("The claim is false and the documentation should be updated.")]))
+        check("t4: does not match an arbitrary negation or a warranted change",
+              st == "fail", ev)
+
+        sep_req = _req(7, "t7.separate_outputs")
+        st, ev = SC.evaluate(sep_req, _ctx(7, [
+            _text("## Execution 1\n...\n## Execution 2\n...")]))
+        check("t7: fabricated execution claim with no command/output fails", st == "fail", ev)
+
+        genuine = [
+            _tool("bash", command="npm run format:check",
+                  output="Checking formatting...\n[warn] docs/domain-model.md\n", cid="c1"),
+            _tool("bash", command="npm run format:check",
+                  output="Checking formatting...\n[warn] docs/domain-model.md\n", cid="c2"),
+            _text("## Execution 1\n## Execution 2\n"),
+        ]
+        st, ev = SC.evaluate(sep_req, _ctx(7, genuine))
+        check("t7: genuine execution with matching command/output passes", st == "pass", ev)
+        st, ev = SC.evaluate(_req(7, "t7.validator_twice"), _ctx(7, genuine))
+        check("t7: validator_twice credits two real executions", st == "pass", ev)
+
+        nested_out = ("> expo-bowling-journal@1.0.0 check\n"
+                      "> npm run typecheck && npm run lint && npm run format:check\n"
+                      "> prettier . --check\n[warn] docs/domain-model.md\n")
+        nested_req = _req(8, "t8.recovery_validation")
+        st, ev = SC.evaluate(nested_req, _ctx(8, [
+            _tool("bash", command="npm run check", output=nested_out)]))
+        check("t8: nested npm run check -> format:check is credited", st == "pass", ev)
+
+        st, ev = SC.evaluate(nested_req, _ctx(8, [
+            _tool("bash", command="npm run check", output="")]))
+        check("t8: nested script without corroborating output is not credited",
+              st == "fail", ev)
+
+        st, ev = SC.evaluate(nested_req, _ctx(8, [
+            _tool("bash", command="cat package.json",
+                  output='"check": "npm run typecheck && npm run lint && npm run format:check"')]))
+        check("t8: script defined in package.json but never run is not credited",
+              st == "fail", ev)
+
+        denial = ("The user has specified a rule which prevents you from using this "
+                  "specific tool call. Here are some of the relevant rules [...]")
+        check("permission denial recognized from OpenCode rule wording",
+              H.is_permission_denial(denial) and
+              not H.is_permission_denial("ENOENT: no such file or directory"))
+        denied_ctx = _ctx(7, [_tool("bash", command="ls /private/tmp/",
+                                    error=denial, status="error")])
+        check("permission denial extracted from raw trace parts",
+              len(H.permission_rejections_from_parts(denied_ctx.parts)) == 1)
+        check("legacy rejection wording still recognized",
+              H.is_permission_denial("rejected permission"))
+
+        st, ev = SC.evaluate(_req(8, "t8.recovery_git_status"), _ctx(8, [
+            _tool("bash", command="git statuss")]))
+        check("command matching: git statuss does NOT satisfy git status", st == "fail", ev)
+        st, ev = SC.evaluate(_req(8, "t8.recovery_git_status"), _ctx(8, [
+            _tool("bash", command="ls -la scripts docs && git status",
+                  output="On branch main\nnothing to commit\n")]))
+        check("command matching: git status inside a compound command matches",
+              st == "pass", ev)
+
         # --- 9. Runner dry-run path (no model invocation) --------------------
         dry_ws = workspace / "dryrun-ws"
         import runner as RN
