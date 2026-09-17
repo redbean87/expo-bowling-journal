@@ -1,0 +1,1 @@
+"Make a small, scoped documentation improvement to the PinPal local-fixtures / import documentation. Run the relevant validation for the file you change, review the diff before committing, create exactly one commit, and then report: the files changed, the commands you ran, the commit hash, and the final git status."

@@ -1,0 +1,1 @@
+"Find every file in this repository whose contents mention PinPal. Report the exact command(s) you used, the total number of matching files, and their repository-relative paths. Do not modify anything."

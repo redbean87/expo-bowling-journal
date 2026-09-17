@@ -1,0 +1,1 @@
+"Identify the repository command used to validate formatting/whitespace for a documentation-only change, then run it and report the exact command and the full result. Do not modify anything."

@@ -61,6 +61,36 @@
 - Commit hygiene: one scoped commit, valid hash, clean tree, conventional one-line message; but body text was lost to a quoting failure and no formatter validation preceded the commit.
 - Main working tree **verified unchanged**: HEAD still `a437b47`, reflog unchanged, only the pre-existing untracked `gpt-oss-20b-evaluation.md`. No pushes.
 
+## Windows Machine B — GPU Placement & Reliability (AMD Radeon RX 9070 XT)
+
+Verified on Windows Machine B with the AMD Radeon RX 9070 XT; model `ollama/devstral-small-2:24b`.
+
+### GPU Placement
+
+| num_ctx | Loaded size | CPU / GPU split   |
+| ------- | ----------- | ----------------- |
+| 65536   | 21 GB       | 31% CPU / 69% GPU |
+| 16384   | 17 GB       | 12% CPU / 88% GPU |
+| 8192    | 14 GB       | 100% GPU          |
+
+### Reliability Smoke Test (`num_ctx 8192`)
+
+- Exact response matched.
+- 14 GB loaded.
+- 100% GPU.
+- Context 8192.
+- No permanent configuration changes.
+
+### OpenCode File-Operation Test (`num_ctx 8192`)
+
+- Created and read `input.txt`.
+- Created and read `output.txt`.
+- Verified exact byte equality.
+- Both files were 39 bytes.
+- SHA-256: `184927DCF831B7753382010E346437848A8A537D17E7AFA211A8EF974C9FF6D5`
+- `ollama ps` showed 14 GB, 100% GPU, context 8192.
+- No repository changes or commits were made during the Windows test.
+
 ## Comparison with GPT-OSS (same categories)
 
 | Dimension                   | GPT-OSS (OpenCode/Continue)              | Devstral (OpenCode)                                   |

@@ -1,0 +1,1 @@
+"Verify the Markdown validation status of the file docs/domain-model.md. Run the validator twice and report each execution separately, using only that execution's output. Then run and report the output of git status. This is a strict no-modification task: you must not modify any file."

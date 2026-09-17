@@ -1,0 +1,1 @@
+"Run these two commands and report exactly what happens in each case: (1) 'npm run markdownlint'  (2) 'git statuss'. Then recover by discovering and running the correct validation command and the correct Git-status command. Do not modify anything."

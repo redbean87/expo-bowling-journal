@@ -1,0 +1,1 @@
+"Identify yourself. State your exact model name and the current working directory. Do not use any tools, do not read/edit/write files, and do not run commands. Reply in a few lines."
