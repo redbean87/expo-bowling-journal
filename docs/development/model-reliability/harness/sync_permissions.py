@@ -29,44 +29,11 @@ DEFAULT_CONFIG_DIR = Path("~/.config/opencode").expanduser()
 
 def strip_jsonc(text: str) -> str:
     # Remove // and /* */ comments that are not inside strings.
-    out = []
-    i, n = 0, len(text)
-    in_str = False
-    while i < n:
-        c = text[i]
-        if in_str:
-            out.append(c)
-            if c == "\\":
-                if i + 1 < n:
-                    out.append(text[i + 1])
-                    i += 2
-                    continue
-            elif c == '"':
-                in_str = False
-            i += 1
-            continue
-        if c == '"':
-            in_str = True
-            out.append(c)
-            i += 1
-            continue
-        if c == "/" and i + 1 < n and text[i + 1] == "/":
-            while i < n and text[i] != "\n":
-                i += 1
-            continue
-        if c == "/" and i + 1 < n and text[i + 1] == "*":
-            i += 2
-            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
-                i += 1
-            i += 2
-            continue
-        out.append(c)
-        i += 1
-    return "".join(out)
+    return H.strip_jsonc(text)
 
 
 def load_config(path: Path) -> dict:
-    return json.loads(strip_jsonc(path.read_text()))
+    return H.load_jsonc_config(path)
 
 
 def desired_permission(existing: dict) -> dict:

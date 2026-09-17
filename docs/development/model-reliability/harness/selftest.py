@@ -359,9 +359,154 @@ def main(argv=None) -> int:
         check("command matching: git status inside a compound command matches",
               st == "pass", ev)
 
+        # --- 8c. Runtime evaluation-config verification ----------------------
+        import runner as RN
+        cfg_root = workspace / "config-fixtures"
+        cfg_root.mkdir(parents=True, exist_ok=True)
+
+        def _write_cfg(name, obj):
+            path = cfg_root / name
+            path.write_text(json.dumps(obj))
+            return path
+
+        valid_cfg = _write_cfg("valid.jsonc", {
+            "mcp": {"robinhood-trading": {"enabled": False}},
+            "permission": dict(H.CANONICAL_PERMISSIONS),
+        })
+        rep = H.validate_eval_config(valid_cfg)
+        check("config: canonical permission + required MCP disabled is accepted",
+              rep["ok"] and not rep["issues"] and not rep["permission_violations"]
+              and not rep["mcp_violations"], f"issues={rep['issues']}")
+        check("config: verified state carries the config SHA-256",
+              rep["sha256"] == H.sha256_bytes(valid_cfg.read_bytes()))
+
+        changed_cfg = _write_cfg("changed.jsonc", {
+            "mcp": {"robinhood-trading": {"enabled": False}},
+            "permission": {"external_directory": "deny", "webfetch": "allow",
+                           "websearch": "deny"},
+        })
+        rep = H.validate_eval_config(changed_cfg)
+        check("config: changed permission rule is rejected",
+              not rep["ok"] and any("webfetch" in i for i in rep["issues"]),
+              f"issues={rep['issues']}")
+
+        missing_cfg = _write_cfg("missing.jsonc",
+                                 {"mcp": {"robinhood-trading": {"enabled": False}}})
+        rep = H.validate_eval_config(missing_cfg)
+        check("config: missing permission block is rejected",
+              not rep["ok"] and any("permission" in i for i in rep["issues"]),
+              f"issues={rep['issues']}")
+
+        extra_cfg = _write_cfg("extra-rule.jsonc", {
+            "mcp": {"robinhood-trading": {"enabled": False}},
+            "permission": {**H.CANONICAL_PERMISSIONS, "bash": "allow"},
+        })
+        rep = H.validate_eval_config(extra_cfg)
+        check("config: extra permission rule is rejected",
+              not rep["ok"] and any("unexpected rule" in i for i in rep["issues"]),
+              f"issues={rep['issues']}")
+
+        invalid_cfg = cfg_root / "invalid.jsonc"
+        invalid_cfg.write_text("{ this is not valid json }")
+        rep = H.validate_eval_config(invalid_cfg)
+        check("config: invalid JSON/JSONC is rejected",
+              not rep["ok"] and not rep["parse_ok"]
+              and any("parse failed" in i for i in rep["issues"]),
+              f"issues={rep['issues']}")
+
+        mcp_on_cfg = _write_cfg("mcp-on.jsonc", {
+            "mcp": {"robinhood-trading": {"enabled": True}},
+            "permission": dict(H.CANONICAL_PERMISSIONS),
+        })
+        rep = H.validate_eval_config(mcp_on_cfg)
+        check("config: robinhood-trading enabled is rejected",
+              not rep["ok"] and any("robinhood-trading" in i for i in rep["mcp_violations"]),
+              f"mcp_violations={rep['mcp_violations']}")
+
+        mcp_absent_cfg = _write_cfg("mcp-absent.jsonc",
+                                    {"permission": dict(H.CANONICAL_PERMISSIONS)})
+        rep = H.validate_eval_config(mcp_absent_cfg)
+        check("config: absent required MCP (cannot prove disabled) is rejected",
+              not rep["ok"] and any("robinhood-trading" in i for i in rep["mcp_violations"]),
+              f"mcp_violations={rep['mcp_violations']}")
+
+        good_ws = workspace / "config-run-ws"
+        rc = RN.main(["--workspace", str(good_ws), "--variant", "cfgcheck",
+                      "--tests", "0", "--no-deps", "--dry-run",
+                      "--config", str(valid_cfg)])
+        good_manifest = json.loads((good_ws / "manifest.json").read_text())
+        good_rec = json.loads(
+            (good_ws / "results" / "cfgcheck" / "results.jsonl").read_text().splitlines()[0])
+        check("config: runner records verified config state in the manifest",
+              rc == 0 and good_manifest["config_verification"]["ok"] is True
+              and good_manifest["config_verification"]["mcp"]["robinhood-trading"]["enabled"] is False,
+              f"rc={rc}")
+        check("config: runner records verified config state in the run record",
+              good_rec.get("config_verification", {}).get("ok") is True)
+        check("config: runner writes config.verification.json",
+              (good_ws / "config.verification.json").exists())
+
+        bad_ws = workspace / "config-bad-ws"
+        rc = RN.main(["--workspace", str(bad_ws), "--variant", "cfgbad",
+                      "--tests", "0", "--no-deps", "--dry-run",
+                      "--config", str(mcp_on_cfg)])
+        check("config: runner aborts before any model call when verification fails",
+              rc == 2 and not (bad_ws / "manifest.json").exists()
+              and not (bad_ws / "results" / "cfgbad" / "results.jsonl").exists(),
+              f"rc={rc}")
+
+        # --- 8d. Archive bundle mechanism ------------------------------------
+        import archive_bundle as AB
+        arc_src = workspace / "archive-src"
+        (arc_src / "sub").mkdir(parents=True, exist_ok=True)
+        (arc_src / "a.txt").write_text("alpha\n")
+        (arc_src / "sub" / "b.bin").write_bytes(bytes(range(256)))
+        arc_spec = {
+            "archive_id": "fixture",
+            "dest": str(workspace / "archive-fixture"),
+            "trees": [{"root": str(arc_src), "dest": "tree",
+                       "include": ["*.txt", "sub/*"]}],
+            "files": [],
+        }
+        spec_path = workspace / "archive-spec.json"
+        spec_path.write_text(json.dumps(arc_spec))
+        manifest_path = workspace / "archive-manifest.json"
+        man = AB.build(spec_path, manifest_path)
+        check("archive: build records every file with a SHA-256",
+              man["file_count"] == 2 and all(len(e["sha256"]) == 64 for e in man["files"]),
+              f"files={man['file_count']}")
+        rep = AB.verify(manifest_path)
+        check("archive: bundle verifies clean",
+              rep["ok"] and rep["checked"] == 2, f"issues={rep['issues']}")
+        (workspace / "archive-fixture" / "tree" / "a.txt").write_text("tampered\n")
+        rep = AB.verify(manifest_path)
+        check("archive: tampered bundle is detected",
+              not rep["ok"] and any("mismatch" in i for i in rep["issues"]),
+              f"issues={rep['issues']}")
+        rep = AB.verify(manifest_path, dest=workspace / "archive-fixture-missing")
+        check("archive: missing bundle is detected", not rep["ok"])
+
+        real_manifest_path = H.HARNESS_DIR / "archive-manifest.deepseek-v41-flash.json"
+        if real_manifest_path.exists():
+            real = json.loads(real_manifest_path.read_text())
+            check("archive: committed DeepSeek manifest is well-formed",
+                  real.get("archive_id") == "deepseek-v41-flash-2026-09-17"
+                  and real.get("file_count") == len(real.get("files", [])),
+                  f"file_count={real.get('file_count')}")
+            real_dest = Path(real["archive_location"])
+            if real_dest.is_dir():
+                rrep = AB.verify(real_manifest_path)
+                check("archive: durable DeepSeek bundle verifies", rrep["ok"],
+                      f"issues={rrep['issues'][:3]}")
+            else:
+                check("archive: durable DeepSeek bundle present (skipped if absent)", True,
+                      f"bundle absent: {real_dest}")
+        else:
+            check("archive: committed DeepSeek manifest present (skipped if absent)", True,
+                  "manifest absent")
+
         # --- 9. Runner dry-run path (no model invocation) --------------------
         dry_ws = workspace / "dryrun-ws"
-        import runner as RN
         rc = RN.main(["--workspace", str(dry_ws), "--variant", "drycheck",
                       "--tests", "0", "--no-deps", "--dry-run"])
         rec_path = dry_ws / "results" / "drycheck" / "results.jsonl"

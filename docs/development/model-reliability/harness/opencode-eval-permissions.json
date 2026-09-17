@@ -5,6 +5,8 @@
     "webfetch": "deny",
     "websearch": "deny"
   },
+  "mcp_network_policy": "MCP servers are NOT governed by the 'permission' block: an MCP server such as the base-config 'robinhood-trading' remote server exposes a separate network-capable tool surface that the external_directory/webfetch/websearch rules do not cover. Evaluation configs therefore disable each required MCP explicitly (mcp.<name>.enabled=false), and runner.py parses the actual --config file and verifies that disablement at runtime before any model call, aborting otherwise. The verified permission block, MCP states, and config SHA-256 are recorded in the run manifest (manifest.json -> config_verification) and in each results.jsonl record.",
+  "required_disabled_mcp": ["robinhood-trading"],
   "network_environment": {
     "npm_config_offline": "true",
     "npm_config_audit": "false",

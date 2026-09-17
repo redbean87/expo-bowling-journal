@@ -8,6 +8,10 @@ Compared with the historical runner this one:
 * aborts if a clone's HEAD is not the expected baseline or if it is dirty;
 * verifies prompt SHA-256 against prompt_manifest.json before running and
   records the hashes in the run artifacts;
+* parses the actual config supplied via ``--config`` and verifies, before any
+  model call, that its permission block equals ``CANONICAL_PERMISSIONS`` and
+  that the required ``robinhood-trading`` MCP is disabled -- aborting otherwise
+  and recording the verified state in the manifest and run records;
 * captures complete Git state (untracked nested files, ignored files, staged and
   unstaged diffs, final HEAD, and commits created during the run);
 * matches the session by exact realpath working directory (no recency fallback);
@@ -46,7 +50,10 @@ def parse_args(argv=None):
     p.add_argument("--variant", default="unnamed",
                    help="artifact/label name for this model variant")
     p.add_argument("--model", default=None, help="model id passed to `opencode run -m`")
-    p.add_argument("--config", default=None, help="OPENCODE_CONFIG to use")
+    p.add_argument("--config", default=None,
+                   help="OPENCODE_CONFIG to use; required for a real run, and its "
+                        "permission block and required-MCP disablement are verified "
+                        "before any model call")
     p.add_argument("--binary", default=DEFAULT_BINARY)
     p.add_argument("--timeout", type=int, default=2400, help="per-test timeout in seconds")
     p.add_argument("--tests", nargs="*", type=int, default=H.DEFAULT_TESTS)
@@ -85,7 +92,8 @@ def build_env(clone: Path, config: str | None) -> dict:
     return env
 
 
-def run_one(args, workspace: Path, baseline_meta: dict, prompt_report: dict, n: int) -> dict:
+def run_one(args, workspace: Path, baseline_meta: dict, prompt_report: dict,
+            config_report: dict, n: int) -> dict:
     variant = args.variant
     outdir = workspace / "results" / variant
     perms_dir = outdir / "permissions"
@@ -133,6 +141,7 @@ def run_one(args, workspace: Path, baseline_meta: dict, prompt_report: dict, n: 
             "expected_sha256": prompt_report["prompts"][str(n)]["expected_sha256"],
         },
         "permission_policy": dict(H.CANONICAL_PERMISSIONS),
+        "config_verification": H.config_verification_summary(config_report),
         "environment": {
             "TMPDIR": str(clone / ".eval-tmp"),
             "npm_config_offline": "true",
@@ -241,6 +250,33 @@ def main(argv=None) -> int:
             print(f"  - {issue}", file=sys.stderr)
         return 2
 
+    # 1b. The actual evaluation config must be verified before any model call.
+    #     The config file is read, never rewritten.
+    if args.config:
+        config_report = H.validate_eval_config(
+            args.config, required_disabled_mcps=H.REQUIRED_DISABLED_MCPS)
+    elif args.dry_run:
+        config_report = {
+            "path": None, "ok": None, "note": "no --config supplied (dry-run)",
+            "permission": None, "permission_violations": [], "mcp": {},
+            "mcp_violations": [], "issues": [],
+        }
+    else:
+        config_report = {
+            "path": None, "ok": False, "issues": [
+                "--config is required so the actual evaluation config can be "
+                "verified before any model call"],
+            "permission": None, "permission_violations": [], "mcp": {},
+            "mcp_violations": [],
+        }
+    H.write_json(workspace / "config.verification.json", config_report)
+    if config_report.get("ok") is False:
+        print("FATAL: evaluation config verification failed; refusing to run:",
+              file=sys.stderr)
+        for issue in config_report.get("issues", []):
+            print(f"  - {issue}", file=sys.stderr)
+        return 2
+
     # 2. Provision (or validate) the clean baseline and isolated clones.
     if args.skip_provision:
         meta_path = workspace / "baseline.meta.json"
@@ -293,14 +329,16 @@ def main(argv=None) -> int:
                         for k, v in prompt_report["prompts"].items()},
         },
         "permission_policy": dict(H.CANONICAL_PERMISSIONS),
+        "config_verification": config_report,
         "temporary_directory_policy": "TMPDIR=<clone>/.eval-tmp (git-excluded)",
         "network_policy": "webfetch/websearch denied; npm_config_offline=true",
+        "mcp_policy": ("required disabled: " + ", ".join(H.REQUIRED_DISABLED_MCPS)),
     })
 
     failures = 0
     for n in args.tests:
         try:
-            run_one(args, workspace, baseline_meta, prompt_report, n)
+            run_one(args, workspace, baseline_meta, prompt_report, config_report, n)
         except H.HarnessError as exc:
             print(f"FATAL: {exc}", file=sys.stderr)
             failures += 1

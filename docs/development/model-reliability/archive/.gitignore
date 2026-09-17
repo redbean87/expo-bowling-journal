@@ -1,0 +1,5 @@
+# Durable archival bundles. Raw evaluation traces and results.jsonl files are
+# large and are intentionally not committed to Git. The committed spec,
+# manifest, and verifier under ../harness/ describe and verify them.
+*
+!.gitignore

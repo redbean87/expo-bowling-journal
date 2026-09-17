@@ -75,6 +75,13 @@ CANONICAL_PERMISSIONS = {
     "websearch": "deny",
 }
 
+# MCP/network access is not governed by the ``permission`` block: an MCP server
+# (e.g. ``robinhood-trading``, defined as a remote server in the base config) is
+# a separate network-capable tool surface. Evaluation configs therefore disable
+# it explicitly (``mcp.<name>.enabled = false``), and runner.py verifies that
+# disablement at runtime before any model call rather than trusting the path.
+REQUIRED_DISABLED_MCPS = ("robinhood-trading",)
+
 # Written to each clone's .git/info/exclude. This never modifies the tracked
 # baseline; it only prevents harness/dependency files from producing false
 # dirty-tree results.
@@ -145,6 +152,161 @@ def write_json(path: Path, data) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=False) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Evaluation config verification (runtime invariant)
+# ---------------------------------------------------------------------------
+
+def strip_jsonc(text: str) -> str:
+    """Remove ``//`` and ``/* */`` comments that are not inside strings."""
+    out = []
+    i, n = 0, len(text)
+    in_str = False
+    while i < n:
+        c = text[i]
+        if in_str:
+            out.append(c)
+            if c == "\\":
+                if i + 1 < n:
+                    out.append(text[i + 1])
+                    i += 2
+                    continue
+            elif c == '"':
+                in_str = False
+            i += 1
+            continue
+        if c == '"':
+            in_str = True
+            out.append(c)
+            i += 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def load_jsonc_config(path: Path) -> dict:
+    """Parse a JSONC OpenCode config file into a dict."""
+    return json.loads(strip_jsonc(Path(path).read_text()))
+
+
+def permission_violations(actual, canonical=None) -> list:
+    """Diff an actual ``permission`` block against the canonical policy.
+
+    Exact-match semantics: every canonical rule must be present with the exact
+    value, and no extra permission rule may be introduced. Extra rules are
+    reported because the benchmark policy is a declared constant, not something
+    a config may silently broaden.
+    """
+    canonical = dict(CANONICAL_PERMISSIONS if canonical is None else canonical)
+    actual = actual if isinstance(actual, dict) else {}
+    issues = []
+    for key, value in canonical.items():
+        if actual.get(key) != value:
+            issues.append(
+                f"permission.{key}: expected {value!r}, found {actual.get(key)!r}")
+    for key in sorted(actual):
+        if key not in canonical:
+            issues.append(
+                f"permission.{key}: unexpected rule {actual[key]!r} "
+                "(not part of the canonical policy)")
+    return issues
+
+
+def validate_eval_config(path: Path, canonical=None,
+                         required_disabled_mcps=REQUIRED_DISABLED_MCPS) -> dict:
+    """Verify an evaluation config before any model call.
+
+    Requires the actual file supplied via ``--config`` to (1) parse, (2) carry a
+    ``permission`` block exactly equal to the canonical policy, and (3) disable
+    every MCP server in ``required_disabled_mcps`` (the currently required
+    ``robinhood-trading``). Returns a report with ``ok`` and an ``issues`` list;
+    callers must abort when ``ok`` is false. The config is never rewritten.
+    """
+    canonical = dict(CANONICAL_PERMISSIONS if canonical is None else canonical)
+    required = tuple(REQUIRED_DISABLED_MCPS if required_disabled_mcps is None
+                     else required_disabled_mcps)
+    p = Path(path).expanduser()
+    report = {
+        "path": str(p),
+        "exists": p.exists(),
+        "parse_ok": False,
+        "sha256": None,
+        "bytes": None,
+        "permission": None,
+        "permission_expected": dict(canonical),
+        "permission_violations": [],
+        "mcp": {},
+        "required_disabled_mcps": list(required),
+        "mcp_violations": [],
+        "issues": [],
+        "ok": False,
+    }
+    if not p.exists():
+        report["issues"].append(f"config file not found: {p}")
+        return report
+
+    raw = p.read_bytes()
+    report["sha256"] = sha256_bytes(raw)
+    report["bytes"] = len(raw)
+    try:
+        cfg = load_jsonc_config(p)
+    except Exception as exc:  # JSONDecodeError etc.
+        report["issues"].append(f"config parse failed: {exc}")
+        return report
+    if not isinstance(cfg, dict):
+        report["issues"].append("config root is not a JSON object")
+        return report
+    report["parse_ok"] = True
+
+    actual_perm = cfg.get("permission")
+    report["permission"] = actual_perm
+    if not isinstance(actual_perm, dict):
+        report["issues"].append(
+            "missing or invalid 'permission' block (expected an object)")
+    else:
+        report["permission_violations"] = permission_violations(actual_perm, canonical)
+        report["issues"].extend(report["permission_violations"])
+
+    mcp = cfg.get("mcp") if isinstance(cfg.get("mcp"), dict) else {}
+    for name in required:
+        present = isinstance(mcp, dict) and name in mcp
+        entry = mcp.get(name) if present and isinstance(mcp.get(name), dict) else {}
+        enabled = entry.get("enabled") if present else None
+        report["mcp"][name] = {"present": present, "enabled": enabled}
+        if enabled is not False:
+            msg = (f"required MCP '{name}' is not disabled "
+                   f"(mcp.{name}.enabled={enabled!r}; expected false)")
+            report["mcp_violations"].append(msg)
+            report["issues"].append(msg)
+
+    report["ok"] = not report["issues"]
+    return report
+
+
+def config_verification_summary(report: dict) -> dict:
+    """Compact, manifest-safe view of a config verification report."""
+    return {
+        "path": report.get("path"),
+        "sha256": report.get("sha256"),
+        "ok": report.get("ok"),
+        "permission": report.get("permission"),
+        "permission_violations": list(report.get("permission_violations") or []),
+        "mcp": dict(report.get("mcp") or {}),
+        "mcp_violations": list(report.get("mcp_violations") or []),
+        "issues": list(report.get("issues") or []),
+    }
 
 
 # ---------------------------------------------------------------------------

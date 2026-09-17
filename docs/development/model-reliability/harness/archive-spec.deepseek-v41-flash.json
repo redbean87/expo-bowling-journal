@@ -1,0 +1,214 @@
+{
+  "archive_id": "deepseek-v41-flash-2026-09-17",
+  "description": "Durable archival bundle for the corrected DeepSeek V4.1 Flash OpenCode t0-t8 evaluation on the sanitized baseline (ef91057), together with the initial pre-correction aggregate run and the hardened re-score. Built from the volatile OS-temp workspaces so the completed evaluation no longer depends solely on /var/folders storage.",
+  "dest": "docs/development/model-reliability/archive/deepseek-v41-flash-2026-09-17",
+  "provenance": {
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "provider": "opencode-go (OpenCode Go)",
+    "binary": "/Users/cortezashley/.local/opencode-patched/bin/opencode",
+    "per_test_timeout_s": 900,
+    "initial_run_timeout_s": 2400,
+    "baseline_head": "ef91057c47744b25dc5e14af16ed9b7ad609c0f4",
+    "baseline_source_ref": "a07d38e8f3d48c6880759cb69d0c1f42433c7b03",
+    "harness_revision_at_archive": "62fb894b05983d5f67f15ec97514b8b5346afcfa",
+    "harness_revisions_used": {
+      "t0_smoke": "b841597",
+      "t1_t8": "b69fb1f",
+      "hardened_rescore": "62fb894"
+    },
+    "harness_revision_note": "Timing evidence, not a recorded manifest field: the artifacts predate the current commit. t0 smoke started 2026-09-17T13:20Z (after b841597 at 13:09Z, before b69fb1f at 14:39Z); t1-t8 started 2026-09-17T14:54Z-16:55Z (at b69fb1f); the hardened re-score ran ~17:08-17:09Z using the working-tree score.py committed as 62fb894 at 17:16Z. The exact harness code for each revision is recoverable from repository history.",
+    "config": "/Users/cortezashley/.config/opencode/opencode.deepseek-v41-flash-eval.jsonc",
+    "notes": "The initial pre-correction aggregate run used baseline a437b47 (contaminated) and the historical runner; it is archived under initial-pre-correction-run/ for provenance only and is not internally comparable to the corrected per-test runs."
+  },
+  "original_volatile_roots": [
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-smoke",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t1",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t2",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t3",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t4",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t5",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t6",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t7",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t8",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-rescore",
+    "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-eval"
+  ],
+  "trees": [
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-smoke",
+      "dest": "t0-smoke",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t1",
+      "dest": "t1",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t2",
+      "dest": "t2",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t3",
+      "dest": "t3",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t4",
+      "dest": "t4",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t5",
+      "dest": "t5",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t6",
+      "dest": "t6",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t7",
+      "dest": "t7",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t8",
+      "dest": "t8",
+      "include": [
+        "manifest.json",
+        "baseline.meta.json",
+        "baseline.validation.json",
+        "clones.validation.json",
+        "prompt.verification.json",
+        "status.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-rescore",
+      "dest": "rescore",
+      "include": [
+        "score.recomputed.json",
+        "permissions.recomputed.json",
+        "results/**"
+      ]
+    },
+    {
+      "root": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-eval",
+      "dest": "initial-pre-correction-run",
+      "include": [
+        "manifest.json",
+        "status.json",
+        "runner.py",
+        "extract_traces.py",
+        "runner.log",
+        "results/**"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t1.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t1.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t2.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t2.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t3.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t3.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t4.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t4.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t5.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t5.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t6.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t6.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t7.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t7.runner.log"
+    },
+    {
+      "src": "/var/folders/lq/gtznj14x70d1bgnvckqy6c6m0000gn/T/opencode/deepseek-v41-flash-t8.runner.log",
+      "dest": "runner-logs/deepseek-v41-flash-t8.runner.log"
+    },
+    {
+      "src": "/Users/cortezashley/.config/opencode/opencode.deepseek-v41-flash-eval.jsonc",
+      "dest": "config/opencode.deepseek-v41-flash-eval.jsonc"
+    }
+  ]
+}

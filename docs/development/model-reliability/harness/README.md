@@ -123,6 +123,32 @@ command shapes the shell tool happens to scan. Denying external directories prev
 any evaluation run from reading the live repository directly, through dependency
 symlinks, or via path traversal.
 
+**Runtime verification (mandatory invariant).** `runner.py` parses the **actual**
+config file supplied through `--config` and verifies, before any model call, that:
+
+- the file parses (JSONC) and carries a `permission` block **exactly** equal to
+  `CANONICAL_PERMISSIONS` (missing, changed, or extra permission rules are rejected);
+- every server in `REQUIRED_DISABLED_MCPS` (currently `robinhood-trading`) has
+  `mcp.<name>.enabled == false`.
+
+If either requirement is violated the run **aborts before the model is invoked**
+(exit 2) and the failure is recorded in `<workspace>/config.verification.json`. The
+verified state — config path, SHA-256, parsed permission block, MCP states, and any
+violations — is written into `manifest.json` and into each `results.jsonl` record, so
+the run records the verified configuration itself rather than merely a config path.
+The config is never rewritten and the canonical policy is never changed. A real
+(non-`--dry-run`) run requires `--config`; a dry run may omit it.
+
+**MCP / network-capable tools.** The `permission` block does not cover MCP servers:
+`robinhood-trading` is defined in the base config as a **remote** MCP server, a
+separate network-capable tool surface. The canonical permission rules therefore do
+not constrain it, and the previous harness recorded only the config path without
+checking whether the server was actually disabled. Evaluation configs disable each
+required MCP explicitly (`mcp.<name>.enabled = false`) and the runner verifies that
+disablement at runtime (above). This is a narrow, evidence-backed check: it verifies
+the MCP already required by the evaluation configs and does not add unrelated
+restrictions.
+
 **Controlled temporary directory.** `runner.py` sets `TMPDIR=<clone>/.eval-tmp` for
 the evaluated process, so OpenCode and its tools write temporary files into a
 repository-local, git-excluded directory. This keeps temp writes inside the clone,
@@ -289,7 +315,8 @@ location for retention:
   clones/t0..t8/                 # isolated per-test repos
   clones.validation.json         # per-clone validation reports
   prompt.verification.json       # prompt-set + hash verification
-  manifest.json                  # run config, hashes, permission/network policy
+  config.verification.json       # parsed --config: permission block + MCP disablement
+  manifest.json                  # run config, hashes, permission/network/MCP policy
   status.json                    # incremental progress
   results/<variant>/
     results.jsonl                # one record per test (git state, session, permissions)
@@ -304,7 +331,10 @@ location for retention:
 
 The historical harness stored artifacts under a purgeable OS temp directory, so
 evidence referenced by old reports can vanish. Pin `--workspace` to a durable path
-for any run whose artifacts must be retained.
+for any run whose artifacts must be retained. When a workspace cannot be made
+durable, archive it with `archive_bundle.py` (see §11 and
+`docs/development/model-reliability/ARCHIVE.md`): it copies the retention-relevant
+artifacts into a durable bundle and records a per-file SHA-256 manifest.
 
 ---
 
@@ -349,6 +379,19 @@ escapes into the live repository, that wrong-HEAD and dirty clones are rejected,
 prompt-hash mismatches abort, that untracked/ignored/nested files are captured, that
 the permission policy is uniform across configs, and that ground truth loads and the
 scoring script produces structured results.
+
+It also exercises the runtime config verification (valid canonical config accepted;
+changed permission rule, missing/invalid permission block, and `robinhood-trading`
+enabled all rejected; disabled accepted; verified state recorded in the run manifest;
+the runner aborting before any model call on a bad config) and the archival
+mechanism (a fixture bundle builds and verifies, and a tampered file is detected).
+
+Verify a retained archive bundle independently:
+
+```bash
+python3 docs/development/model-reliability/harness/archive_bundle.py verify \
+  --manifest docs/development/model-reliability/harness/archive-manifest.deepseek-v41-flash.json
+```
 
 ---
 
