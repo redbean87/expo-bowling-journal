@@ -1,0 +1,22 @@
+{
+  "policy": "Uniform OpenCode evaluation permission policy. External directories are denied outright so no evaluation run can read the live repository (directly, through dependency symlinks, or via path traversal), and web tools are denied. Temporary files are redirected into a controlled repository-local directory (<clone>/.eval-tmp, git-excluded) by runner.py, and network package installs are disabled via npm_config_offline=true. This policy is applied identically to every opencode.*-eval.jsonc file; the benchmark policy is a declared constant, not an artifact of command-shape-dependent scanning.",
+  "permission": {
+    "external_directory": "deny",
+    "webfetch": "deny",
+    "websearch": "deny"
+  },
+  "network_environment": {
+    "npm_config_offline": "true",
+    "npm_config_audit": "false",
+    "npm_config_fund": "false",
+    "npm_config_update_notifier": "false"
+  },
+  "temporary_directory": {
+    "TMPDIR": "<clone>/.eval-tmp",
+    "git_exclusion": ".git/info/exclude"
+  },
+  "applies_to": ["~/.config/opencode/opencode.*eval*.jsonc"],
+  "limitations": [
+    "OpenCode's external_directory check is only invoked for certain command shapes in the shell tool (FILES commands; shell redirections are not scanned). Setting external_directory=deny makes the policy explicit and identical across runs, but a command that is never scanned is still not checked. This is documented, not relied upon."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "suite": "opencode-t0-t8",
+  "description": "Authoritative OpenCode t0-t8 prompt set for the model-reliability evaluation. The prompt text is frozen; changing it would create a new benchmark version and invalidate direct comparisons with prior runs.",
+  "source": "docs/development/model-reliability/opencode-prompts/MANIFEST.md",
+  "directory": "docs/development/model-reliability/opencode-prompts",
+  "quote_preservation": "Each tN.txt stores the recovered text byte-for-byte, including the surrounding literal double-quote characters and with no trailing newline. The SHA-256 values are computed over those exact bytes.",
+  "hash_algorithm": "sha256",
+  "tests": [
+    {
+      "id": 0,
+      "file": "t0.txt",
+      "purpose": "Smoke / self-identification: name model + cwd, no tools",
+      "bytes": 182,
+      "sha256": "0b32ac32260c6a8d72dbdab67047e8fb35f9aad416662bea1cb8f0ce977c1863"
+    },
+    {
+      "id": 1,
+      "file": "t1.txt",
+      "purpose": "File/path recovery from a wrong hint; report path + line count",
+      "bytes": 384,
+      "sha256": "daafab3a64a4c859b42e51e0740a856023537eb9813cdbf3017d6c3288927d77"
+    },
+    {
+      "id": 2,
+      "file": "t2.txt",
+      "purpose": "Git accuracy / commit reporting: scoped edit, validate, single commit",
+      "bytes": 317,
+      "sha256": "66482d5f94070fdf01be2585eb173c3ade37a3aa509aa32d1db41e98f6e26d79"
+    },
+    {
+      "id": 3,
+      "file": "t3.txt",
+      "purpose": "Repository/content search for PinPal; exact count + paths",
+      "bytes": 202,
+      "sha256": "fb2bb066324035ffff7ea2925720f4e15f1dd2b98eed3e2c261564a4ecd3302d"
+    },
+    {
+      "id": 4,
+      "file": "t4.txt",
+      "purpose": "Semantic judgment of the 'asterisks in table cells' claim",
+      "bytes": 447,
+      "sha256": "29ba5ec47d5c3d318ddc526d63fcd91e9a1fcd779d02441c21666fe415e1ff3f"
+    },
+    {
+      "id": 5,
+      "file": "t5.txt",
+      "purpose": "No-op discipline: mandatory ordered workflow, no network fetch",
+      "bytes": 471,
+      "sha256": "639e9f9b93bd2c77a98e8c8decdefcea9cf1b7392f78d94b2821183a13f75358"
+    },
+    {
+      "id": 6,
+      "file": "t6.txt",
+      "purpose": "Validation / tool discovery: identify + run format:check",
+      "bytes": 191,
+      "sha256": "0bf30373af219c1795cbc6b67a0089395721ab1995894aff37cfc2063c60964f"
+    },
+    {
+      "id": 7,
+      "file": "t7.txt",
+      "purpose": "Fresh-evidence / provenance: validator twice, separate outputs",
+      "bytes": 286,
+      "sha256": "53baaf4db6b896c84b662c70d837f08e0b772f545c62757429412b9ab33f06dc"
+    },
+    {
+      "id": 8,
+      "file": "t8.txt",
+      "purpose": "Invalid-command recovery from two bogus commands",
+      "bytes": 248,
+      "sha256": "ff79951270dd7edecc99da561cb50a1649f7b4fe64958f36dff5b713eef58624"
+    }
+  ]
+}

@@ -1,0 +1,494 @@
+{
+  "suite": "opencode-t0-t8",
+  "version": 1,
+  "description": "Machine-readable ground truth for the OpenCode t0-t8 model-reliability suite, evaluated against the sanitized clean baseline. Facts were independently verified by the harness audit; see README.md. Requirement types are implemented by score.py.",
+  "baseline": {
+    "source_ref": "a07d38e8f3d48c6880759cb69d0c1f42433c7b03",
+    "source_ref_subject": "docs: remove stray asterisks from League notes in domain model spec",
+    "expected_head": "ef91057c47744b25dc5e14af16ed9b7ad609c0f4",
+    "expected_branch": "main",
+    "expected_refs": ["refs/heads/main"],
+    "expected_tracked_files": 338,
+    "excluded_path": "docs/development/model-reliability",
+    "domain_model_path": "docs/domain-model.md",
+    "domain_model_lines": 205,
+    "files_mentioning_pinpal": 11,
+    "pinpal_paths": [
+      "ROADMAP.md",
+      "convex/exports.ts",
+      "docs/domain-model.md",
+      "journal-league-types.md",
+      "scripts/patch-open-bowling.py",
+      "src/hooks/journal/import-backup/file-picker-web.ts",
+      "src/hooks/journal/import-backup/file-validation.ts",
+      "src/hooks/journal/use-export-sqlite-backup.ts",
+      "tests/import/pinpal_lite_compound_parse_test.test.ts",
+      "worker/src/index.js",
+      "worker/src/sqlite_parser.js"
+    ],
+    "pinpal_fixture_files": 0,
+    "validator_command": "npm run format:check",
+    "validator_underlying": "prettier . --check",
+    "preexisting_validator_failure_path": "docs/domain-model.md",
+    "prompt_manifest": "prompt_manifest.json"
+  },
+  "common_requirements": [
+    {
+      "id": "common.prompt_verified",
+      "description": "Every prompt file matches the frozen manifest SHA-256 and byte length.",
+      "type": "prompt_verified",
+      "critical": true
+    },
+    {
+      "id": "common.baseline_head",
+      "description": "The clone started at the expected sanitized baseline HEAD.",
+      "type": "baseline_head",
+      "critical": true
+    },
+    {
+      "id": "common.clean_before",
+      "description": "The clone was clean before the run (no tracked modifications or untracked non-ignored files).",
+      "type": "clean_before",
+      "critical": true
+    }
+  ],
+  "tests": [
+    {
+      "id": 0,
+      "file": "t0.txt",
+      "title": "Smoke / self-identification",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "reports exact model id and cwd; uses no tools",
+      "requirements": [
+        {
+          "id": "t0.no_tools",
+          "description": "No tool calls were made.",
+          "type": "no_tools",
+          "critical": true
+        },
+        {
+          "id": "t0.model_id",
+          "description": "Assistant text reports the model identifier under test.",
+          "type": "reports_model_id",
+          "critical": true
+        },
+        {
+          "id": "t0.cwd",
+          "description": "Assistant text reports the evaluation working directory.",
+          "type": "reports_cwd",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "file": "t1.txt",
+      "title": "File/path recovery + line count",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "correct path docs/domain-model.md and 205-line count; no Git",
+      "requirements": [
+        {
+          "id": "t1.path",
+          "description": "Reports the correct repository-relative path docs/domain-model.md.",
+          "type": "path_in_text",
+          "params": { "path": "docs/domain-model.md" },
+          "critical": true
+        },
+        {
+          "id": "t1.line_count",
+          "description": "Reports the correct line count (205).",
+          "type": "text_regex",
+          "params": { "pattern": "\\b205\\b" },
+          "critical": true
+        },
+        {
+          "id": "t1.line_count_output",
+          "description": "A tool output demonstrates the 205-line count.",
+          "type": "output_regex",
+          "params": { "pattern": "\\b205\\b" },
+          "critical": false
+        },
+        {
+          "id": "t1.no_git",
+          "description": "No Git command was used.",
+          "type": "command_forbidden",
+          "params": { "any_of": ["git "] },
+          "critical": true
+        },
+        {
+          "id": "t1.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "file": "t2.txt",
+      "title": "Scoped edit + one commit",
+      "expect_commit": true,
+      "expected_commit_count": 1,
+      "clean_tree_after": true,
+      "semantic_verdict": "one scoped docs edit, validator run, diff reviewed, exactly one commit",
+      "requirements": [
+        {
+          "id": "t2.modified_domain_model",
+          "description": "The commit changes docs/domain-model.md.",
+          "type": "baseline_diff_touches",
+          "params": { "path": "docs/domain-model.md" },
+          "critical": true
+        },
+        {
+          "id": "t2.validator_run",
+          "description": "Runs the repository Markdown validator (format:check / prettier).",
+          "type": "command_ran",
+          "params": {
+            "any_of": ["npm run format:check", "format:check", "prettier"]
+          },
+          "critical": true
+        },
+        {
+          "id": "t2.diff_reviewed",
+          "description": "Reviews the diff with Git before committing.",
+          "type": "command_ran",
+          "params": { "any_of": ["git diff"] },
+          "critical": true
+        },
+        {
+          "id": "t2.exactly_one_commit",
+          "description": "Creates exactly one commit.",
+          "type": "commit_count",
+          "params": { "n": 1 },
+          "critical": true
+        },
+        {
+          "id": "t2.clean_after",
+          "description": "Working tree is clean after the commit.",
+          "type": "clean_tree",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "file": "t3.txt",
+      "title": "Content search for PinPal",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "reports exactly 11 files mentioning PinPal with paths",
+      "requirements": [
+        {
+          "id": "t3.count",
+          "description": "Reports the correct count of files mentioning PinPal (11).",
+          "type": "text_regex",
+          "params": { "pattern": "\\b11\\b" },
+          "critical": true
+        },
+        {
+          "id": "t3.paths",
+          "description": "Lists the PinPal-matching repository-relative paths.",
+          "type": "paths_in_text_min",
+          "params": {
+            "paths": [
+              "ROADMAP.md",
+              "convex/exports.ts",
+              "docs/domain-model.md",
+              "journal-league-types.md",
+              "scripts/patch-open-bowling.py",
+              "src/hooks/journal/import-backup/file-picker-web.ts",
+              "src/hooks/journal/import-backup/file-validation.ts",
+              "src/hooks/journal/use-export-sqlite-backup.ts",
+              "tests/import/pinpal_lite_compound_parse_test.test.ts",
+              "worker/src/index.js",
+              "worker/src/sqlite_parser.js"
+            ],
+            "min": 8
+          },
+          "critical": true
+        },
+        {
+          "id": "t3.search_ran",
+          "description": "A content search was performed.",
+          "type": "tool_used",
+          "params": { "any_of": ["grep", "glob"] },
+          "critical": true
+        },
+        {
+          "id": "t3.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "file": "t4.txt",
+      "title": "Semantic judgment of the asterisks-in-table-cells claim",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "claim is false; no documentation change warranted; required diff checks run",
+      "requirements": [
+        {
+          "id": "t4.verdict_false",
+          "description": "Delivers a verdict that the claim is false/incorrect.",
+          "type": "text_regex",
+          "params": {
+            "pattern": "(?i)(claim is (false|incorrect|invalid|not true)|false\\.|not true|incorrect\\b|is false)"
+          },
+          "critical": true
+        },
+        {
+          "id": "t4.no_change_warranted",
+          "description": "Determines that no documentation change is warranted.",
+          "type": "text_regex",
+          "params": {
+            "pattern": "(?i)(no (documentation )?(change|edit) (is )?(warranted|needed|required|necessary)|no edit|not warranted|no modification)"
+          },
+          "critical": true
+        },
+        {
+          "id": "t4.diff_check",
+          "description": "Runs git diff --check.",
+          "type": "command_ran",
+          "params": { "any_of": ["git diff --check"] },
+          "critical": true
+        },
+        {
+          "id": "t4.diff_staged",
+          "description": "Runs git diff --staged (or --cached).",
+          "type": "command_ran",
+          "params": { "any_of": ["git diff --staged", "git diff --cached"] },
+          "critical": true
+        },
+        {
+          "id": "t4.validator_run",
+          "description": "Uses the repository Markdown validator.",
+          "type": "command_ran",
+          "params": {
+            "any_of": ["npm run format:check", "format:check", "prettier"]
+          },
+          "critical": false
+        },
+        {
+          "id": "t4.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "file": "t5.txt",
+      "title": "Mandatory ordered no-op workflow",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "runs validation, classifies failure as pre-existing, no network, no commit",
+      "requirements": [
+        {
+          "id": "t5.validator_run",
+          "description": "Runs the repository Markdown/format validation (format:check).",
+          "type": "command_ran",
+          "params": {
+            "any_of": ["npm run format:check", "format:check", "prettier"]
+          },
+          "critical": true
+        },
+        {
+          "id": "t5.preexisting_classified",
+          "description": "Classifies the formatting failure as pre-existing.",
+          "type": "text_regex",
+          "params": {
+            "pattern": "(?i)(pre[- ]?existing|pre-existing|already (present|failing)|baseline (drift|failure))"
+          },
+          "critical": true
+        },
+        {
+          "id": "t5.working_tree_reviewed",
+          "description": "Reviews the working tree and diff with Git.",
+          "type": "command_ran",
+          "params": { "any_of": ["git status", "git diff"] },
+          "critical": true
+        },
+        {
+          "id": "t5.no_network",
+          "description": "Does not install or fetch packages from the network.",
+          "type": "command_forbidden",
+          "params": {
+            "any_of": [
+              "npm install",
+              "npm i ",
+              "npm ci",
+              "yarn add",
+              "pnpm add",
+              "curl ",
+              "wget ",
+              "npm view",
+              "npm pack"
+            ]
+          },
+          "critical": true
+        },
+        {
+          "id": "t5.no_commit",
+          "description": "Commits nothing.",
+          "type": "commit_count",
+          "params": { "n": 0 },
+          "critical": true
+        },
+        {
+          "id": "t5.clean_after",
+          "description": "Working tree remains clean.",
+          "type": "clean_tree",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "file": "t6.txt",
+      "title": "Identify + run format check",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "identifies and runs npm run format:check and reports its output",
+      "requirements": [
+        {
+          "id": "t6.validator_identified",
+          "description": "Names the validator command npm run format:check.",
+          "type": "text_regex",
+          "params": { "pattern": "format:check" },
+          "critical": true
+        },
+        {
+          "id": "t6.validator_run",
+          "description": "Runs the validator.",
+          "type": "command_ran",
+          "params": { "any_of": ["npm run format:check", "format:check"] },
+          "critical": true
+        },
+        {
+          "id": "t6.output_reported",
+          "description": "Reports the validator output (prettier warning on docs/domain-model.md).",
+          "type": "output_regex",
+          "params": {
+            "pattern": "(?i)(prettier|code style issues|docs/domain-model\\.md)"
+          },
+          "critical": true
+        },
+        {
+          "id": "t6.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "file": "t7.txt",
+      "title": "Validator twice + git status",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "runs the validator twice with separate outputs and reports git status; no modification",
+      "requirements": [
+        {
+          "id": "t7.validator_twice",
+          "description": "Runs the Markdown validator at least twice.",
+          "type": "command_ran",
+          "params": {
+            "any_of": ["npm run format:check", "format:check", "prettier"],
+            "min_count": 2
+          },
+          "critical": true
+        },
+        {
+          "id": "t7.separate_outputs",
+          "description": "Reports each validator execution separately.",
+          "type": "text_regex_all",
+          "params": {
+            "patterns": [
+              "(?i)(execution|run|attempt)\\s*1",
+              "(?i)(execution|run|attempt)\\s*2"
+            ]
+          },
+          "critical": false
+        },
+        {
+          "id": "t7.git_status",
+          "description": "Runs and reports git status.",
+          "type": "command_ran",
+          "params": { "any_of": ["git status"] },
+          "critical": true
+        },
+        {
+          "id": "t7.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "file": "t8.txt",
+      "title": "Invalid-command recovery",
+      "expect_commit": false,
+      "clean_tree_after": true,
+      "no_change": true,
+      "semantic_verdict": "reports both bogus commands accurately then recovers with format:check and git status",
+      "requirements": [
+        {
+          "id": "t8.invalid_markdownlint",
+          "description": "Runs npm run markdownlint and reports it is invalid.",
+          "type": "invalid_command_reported",
+          "params": {
+            "command": "npm run markdownlint",
+            "output_regex": "(?i)(missing script|unknown command|not found)"
+          },
+          "critical": true
+        },
+        {
+          "id": "t8.invalid_git_statuss",
+          "description": "Runs git statuss and reports it is invalid.",
+          "type": "invalid_command_reported",
+          "params": {
+            "command": "git statuss",
+            "output_regex": "(?i)(not a git command|did not match|unknown command)"
+          },
+          "critical": true
+        },
+        {
+          "id": "t8.recovery_validation",
+          "description": "Recovers with the correct validation command npm run format:check.",
+          "type": "command_ran",
+          "params": { "any_of": ["npm run format:check", "format:check"] },
+          "critical": true
+        },
+        {
+          "id": "t8.recovery_git_status",
+          "description": "Recovers with the correct git status command.",
+          "type": "command_ran",
+          "params": { "any_of": ["git status"] },
+          "critical": true
+        },
+        {
+          "id": "t8.no_modification",
+          "description": "No file was modified.",
+          "type": "no_change",
+          "critical": true
+        }
+      ]
+    }
+  ]
+}
