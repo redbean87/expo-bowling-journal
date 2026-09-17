@@ -655,34 +655,49 @@ def session_report(start_ms: int, clone: Path, end_ms: int | None = None,
     sid = rows[0][0]
     report["session_id"] = sid
 
-    try:
-        roles = _db_query(
-            "select coalesce(json_extract(data,'$.role'),'?')||':'||count(*) from message "
-            "where session_id=? group by 1", (sid,), db)
-        parts = _db_query(
-            "select coalesce(json_extract(data,'$.type'),'?')||':'||count(*) from part "
-            "where session_id=? group by 1", (sid,), db)
-        meta = _db_query(
-            "select json_extract(data,'$.providerID'), json_extract(data,'$.modelID') "
-            "from message where session_id=? and json_extract(data,'$.role')='assistant' "
-            "order by time_created asc limit 1", (sid,), db)
-        toks = _db_query(
-            "select tokens_input, tokens_output, tokens_reasoning from session where id=?",
-            (sid,), db)
-        max_step = _db_query(
-            "select max(cast(json_extract(data,'$.tokens.input') as integer)) from part "
-            "where session_id=? and json_extract(data,'$.type')='step-finish'", (sid,), db)
+    def _meta(label, sql, params=()):
+        try:
+            return _db_query(sql, params, db)
+        except Exception as exc:  # pragma: no cover - defensive
+            report["notes"].append(f"session metadata query failed ({label}): {exc}")
+            return None
+
+    roles = _meta(
+        "roles",
+        "select coalesce(json_extract(data,'$.role'),'?')||':'||count(*) from message "
+        "where session_id=? group by coalesce(json_extract(data,'$.role'),'?')", (sid,))
+    if roles:
         report["roles"] = [r[0] for r in roles]
+
+    parts = _meta(
+        "parts",
+        "select coalesce(json_extract(data,'$.type'),'?')||':'||count(*) from part "
+        "where session_id=? group by coalesce(json_extract(data,'$.type'),'?')", (sid,))
+    if parts:
         report["parts"] = [r[0] for r in parts]
-        if meta:
-            report["session_provider"] = meta[0][0]
-            report["session_model"] = meta[0][1]
-        if toks:
-            report["tokens_in_out_reason"] = list(toks[0])
-        if max_step and max_step[0]:
-            report["max_step_input_tokens"] = max_step[0][0]
-    except Exception as exc:  # pragma: no cover - defensive
-        report["notes"].append(f"session metadata query failed: {exc}")
+
+    meta = _meta(
+        "provider/model",
+        "select json_extract(data,'$.providerID'), json_extract(data,'$.modelID') "
+        "from message where session_id=? and json_extract(data,'$.role')='assistant' "
+        "order by time_created asc limit 1", (sid,))
+    if meta:
+        report["session_provider"] = meta[0][0]
+        report["session_model"] = meta[0][1]
+
+    toks = _meta(
+        "tokens",
+        "select tokens_input, tokens_output, tokens_reasoning from session where id=?",
+        (sid,))
+    if toks:
+        report["tokens_in_out_reason"] = list(toks[0])
+
+    max_step = _meta(
+        "max step input tokens",
+        "select max(cast(json_extract(data,'$.tokens.input') as integer)) from part "
+        "where session_id=? and json_extract(data,'$.type')='step-finish'", (sid,))
+    if max_step and max_step[0]:
+        report["max_step_input_tokens"] = max_step[0][0]
     return report
 
 
