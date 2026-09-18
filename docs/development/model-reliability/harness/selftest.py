@@ -302,6 +302,17 @@ def main(argv=None) -> int:
         check("t4: does not match an arbitrary negation or a warranted change",
               st == "fail", ev)
 
+        verdict_req = _req(4, "t4.verdict_false")
+        exact_t4 = ("## Verdict: the claim is **false** in this repository "
+                    "\u2014 no documentation change is warranted.")
+        st, ev = SC.evaluate(verdict_req, _ctx(4, [_text(exact_t4)]))
+        check("t4: recognizes Markdown-bolded boolean verdict (**false**)",
+              st == "pass", ev)
+        for phrase in ("The claim is *false*.", "The claim is __false__.",
+                       "The claim is false."):
+            st, ev = SC.evaluate(verdict_req, _ctx(4, [_text(phrase)]))
+            check(f"t4: recognizes verdict wording {phrase!r}", st == "pass", ev)
+
         sep_req = _req(7, "t7.separate_outputs")
         st, ev = SC.evaluate(sep_req, _ctx(7, [
             _text("## Execution 1\n...\n## Execution 2\n...")]))

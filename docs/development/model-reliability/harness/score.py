@@ -29,6 +29,17 @@ def norm(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 
+# Markdown emphasis delimiter runs that wrap a word, e.g. ``**false**`` or
+# ``_false_``. Internal underscores (``foo_bar``) and list bullets are left alone.
+_MD_EMPHASIS_RE = re.compile(
+    r"(?<!\w)(?:\*{1,3}|_{1,3})(?=\w)|(?<=\w)(?:\*{1,3}|_{1,3})(?!\w)")
+
+
+def strip_markdown_emphasis(text: str) -> str:
+    """Drop emphasis markers around words so ``**false**`` still matches ``false``."""
+    return _MD_EMPHASIS_RE.sub("", text or "")
+
+
 # Shell operators that separate independent commands inside one Bash call.
 _SHELL_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
 
@@ -350,7 +361,7 @@ def evaluate(req, ctx: Ctx):
         hay = ctx.transcript if ctx.transcript.strip() else ctx.text_all
         if not hay.strip():
             return "unknown", "no assistant text captured"
-        m = re.search(req["params"]["pattern"], hay)
+        m = re.search(req["params"]["pattern"], strip_markdown_emphasis(hay))
         return (("pass" if m else "fail"), f"match={m.group(0)!r}" if m else "no match")
 
     if t == "text_regex_all":
