@@ -815,7 +815,7 @@ PinPal
 → Frame
 → Ball
 → House
-→ Oil Pattern
+→ Pattern
 ```
 
 Preserve meaningful source data.

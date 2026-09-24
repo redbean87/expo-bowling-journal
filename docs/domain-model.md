@@ -15,8 +15,8 @@ This document defines the local bowling domain model that will serve as the cont
 
 | Entity | Purpose | Authoritative Fields | Optional / Metadata | Derived / Computed | Relationships | Notes |
 |--------|---------|-----------------------|---------------------|--------------------|---------------|-------|
-| **League** | Collection of sessions for a user. | `name` | `clientSyncId`, `gamesPerSession`, `houseId`, `houseName`, `startDate`, `endDate`, `legacyFlags`, `type` | – | `sessions` | No userId field stored locally. | 
-| **Session** | A set of games, either associated with a league or standalone (open/casual). | `date`, `leagueId` (nullable) | `clientSyncId`, `weekNumber`, `houseId`, `ballId`, `patternId`, `notes`, `laneContext` (left/right/lanePair/startingLane) | – | `games` | `leagueId` = `null` → open/casual session; non-null → league session. | 
+| **League** | Collection of sessions for a user. | `name` | `gamesPerSession`, `houseId`, `houseName`, `startDate`, `endDate`, `legacyFlags`, `type` | – | `sessions` | No userId field stored locally. | 
+| **Session** | A set of games, either associated with a league or standalone (open/casual). | `date`, `leagueId` (nullable) | `weekNumber`, `houseId`, `ballId`, `patternId`, `notes`, `laneContext` (left/right/lanePair/startingLane) | – | `games` | `leagueId` = `null` → open/casual session; non-null → league session. | 
 | **Game** | Individual bowling game. | `date`, `houseId` | `ballId`, `patternId`, `handicap`, `notes`, `laneContext`, `ballSwitches` (array of `{frameNumber, rollNumber, ballId, ballName, note}`) | `totalScore`, `strikes`, `spares`, `opens` | `frames` | 
 | **Frame** | A single frame within a game. | `frameNumber`, `roll1Mask`, `roll2Mask`, `roll3Mask`, `ballId` | `flags`, `pocket`, `footBoard`, `targetBoard` | derived *roll pin count* (from mask), *frame score*, *isStrike*, *isSpare*, *isOpen*, *isIncomplete*, *canHaveBonusRoll* | `game` | **Pattern** & **House** are referenced via foreign UUIDs. |
 | **Ball** | Physical bowling ball. | `name`, `brand`, `coverstock` | *nameNorm* | – | – | – |
@@ -150,9 +150,9 @@ League → Week → Game → Frame
 
 | PinPal Entity | Local Equivalent | Notes |
 |--------------|-----------------|-------|
-| `PinPal Ball` | `Ball` | Direct mapping by ID. |
-| `PinPal Pattern` | `Pattern` | Direct mapping by ID. |
-| `PinPal House` | `House` | Direct mapping by ID. |
+| `PinPal Ball` | `Ball` | Direct mapping; source IDs are import provenance only, and the local entity receives a new UUID. |
+| `PinPal Pattern` | `Pattern` | Direct mapping; source IDs are import provenance only, and the local entity receives a new UUID. |
+| `PinPal House` | `House` | Direct mapping; source IDs are import provenance only, and the local entity receives a new UUID. |
 | `PinPal Week` | `Session` | `weekNumber` maps to the PinPal “week” number. |
 | `PinPal Game` | `Game` | Primary fields (`date`, `notes`, etc.) map over. |
 | `PinPal Frame` | `Frame` | Only mask fields are authoritative; numeric `pins` field in PinPal is **not** stored locally. |
