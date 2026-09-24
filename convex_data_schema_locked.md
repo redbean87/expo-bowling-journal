@@ -1,6 +1,12 @@
 # Convex Data Schema (Locked)
 
-This document defines the **final, locked Convex schema** for the bowling journal app.
+> ⚠️ **LEGACY — no longer authoritative.** This document describes the legacy Convex-backed schema and is
+> retained for reference/history only. It is **not** the authority for the local architecture.
+> The authority for the local architecture is
+> [docs/local-first-architecture.md](docs/local-first-architecture.md). The canonical frame representation
+> is defined in [docs/domain-model.md](docs/domain-model.md).
+
+This document defines the **final, locked Convex schema** for the bowling journal app (legacy).
 
 - Optimized for **Expo + Convex**
 - Designed for **multi-user auth**

@@ -15,9 +15,9 @@ This document defines the local bowling domain model that will serve as the cont
 
 | Entity | Purpose | Authoritative Fields | Optional / Metadata | Derived / Computed | Relationships | Notes |
 |--------|---------|-----------------------|---------------------|--------------------|---------------|-------|
-| **League** | Collection of sessions for a user. | `name` | `clientSyncId`, `gamesPerSession`, `houseId`, `houseName`, `startDate`, `endDate`, `legacyFlags`, `isOpenBowling`, `type` | – | `sessions` | No userId field stored locally. | 
-| **Session** | A scheduled set of games within a league. | `date` | `clientSyncId`, `weekNumber`, `houseId`, `ballId`, `patternId`, `notes`, `laneContext` (left/right/lanePair/startingLane) | – | `games` | 
-| **Game** | Individual bowling game. | `date` | `ballId`, `patternId`, `handicap`, `notes`, `laneContext`, `ballSwitches` (array of `{frameNumber, rollNumber, ballId, ballName, note}`) | `totalScore`, `strikes`, `spares`, `opens` | `frames` | 
+| **League** | Collection of sessions for a user. | `name` | `clientSyncId`, `gamesPerSession`, `houseId`, `houseName`, `startDate`, `endDate`, `legacyFlags`, `type` | – | `sessions` | No userId field stored locally. | 
+| **Session** | A set of games, either associated with a league or standalone (open/casual). | `date`, `leagueId` (nullable) | `clientSyncId`, `weekNumber`, `houseId`, `ballId`, `patternId`, `notes`, `laneContext` (left/right/lanePair/startingLane) | – | `games` | `leagueId` = `null` → open/casual session; non-null → league session. | 
+| **Game** | Individual bowling game. | `date`, `houseId` | `ballId`, `patternId`, `handicap`, `notes`, `laneContext`, `ballSwitches` (array of `{frameNumber, rollNumber, ballId, ballName, note}`) | `totalScore`, `strikes`, `spares`, `opens` | `frames` | 
 | **Frame** | A single frame within a game. | `frameNumber`, `roll1Mask`, `roll2Mask`, `roll3Mask`, `ballId` | `flags`, `pocket`, `footBoard`, `targetBoard` | derived *roll pin count* (from mask), *frame score*, *isStrike*, *isSpare*, *isOpen*, *isIncomplete*, *canHaveBonusRoll* | `game` | **Pattern** & **House** are referenced via foreign UUIDs. |
 | **Ball** | Physical bowling ball. | `name`, `brand`, `coverstock` | *nameNorm* | – | – | – |
 | **Pattern** | Oil / lane pattern. | `name`, `length` | *nameNorm* | – | – | – |
