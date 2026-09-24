@@ -84,11 +84,10 @@ The GitHub Actions worker deploy workflow uses `--env production` automatically 
 
 ## Default session workflow
 
-Unless a task explicitly says otherwise:
-
-1. Read `AGENTS.md`, `CONTRIBUTING.md`, and `ROADMAP.md`
-2. Continue with the top unchecked item in `## Todo` from `ROADMAP.md`
-3. Follow import pipeline guardrails when import code is touched
+- Roadmap work requires **explicit human assignment**. An AI agent must NOT automatically select or continue the next unchecked item in `ROADMAP.md` on its own.
+- Do **not** automatically load `AGENTS.md`, `CONTRIBUTING.md`, `ROADMAP.md`, or other broad documentation as a default. Load context based on task relevance (see `AGENTS.md`, Context-Loading Rules).
+- When a task is explicitly assigned by the human, follow the `AGENTS.md` approval workflow (analyze → report → approval → implement).
+- Follow import pipeline guardrails when import code is touched.
 
 For frontend iteration, keep current baseline screenshots in `docs/ux-reference/current-app/` and target visual references in `docs/ux-reference/next-app/`.
 
