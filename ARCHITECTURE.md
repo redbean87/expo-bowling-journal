@@ -78,8 +78,25 @@ Defined in [convex/schema.ts](convex/schema.ts):
 - [convex/games.ts](convex/games.ts): game list/get/create/update
 - [convex/frames.ts](convex/frames.ts): frame replacement + score/stat recomputation
 - [convex/imports.ts](convex/imports.ts): import lifecycle, cleanup, chunked persistence, refinement
-- [convex/http.ts](convex/http.ts): signed import callback endpoint
+- [convex/http.ts](convex/http.ts): health endpoints and signed import callback endpoint
+- [convex/health.ts](convex/health.ts): database ping used by readiness checks
 - [convex/users.ts](convex/users.ts): viewer identity query
+
+### Health Checks
+
+Backend HTTP health checks are served by the Convex HTTP router and follow the
+same liveness/readiness split as the import worker:
+
+- `GET /health` (liveness) returns HTTP 200 with `status: "ok"`, `alive: true`,
+  a `timestamp`, and a `schemaVersion` while the function runtime is serving.
+- `GET /health/ready` (readiness) runs a lightweight database query and returns
+  HTTP 200 when it succeeds or HTTP 503 with `status: "unavailable"` when the
+  database check fails. The response includes a `checks` array so monitors can
+  see the failing dependency.
+
+Readiness never contacts the import worker, so a worker outage does not mark the
+core journal backend unready. Worker health is reported by the worker's own
+`GET /health` and `GET /health/ready` endpoints ([worker/README.md](worker/README.md)).
 
 ## Import Pipeline Architecture
 

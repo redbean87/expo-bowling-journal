@@ -5,11 +5,26 @@ Cloudflare Worker that issues signed upload URLs, accepts SQLite backup uploads,
 ## Endpoints
 
 - `GET /health`
+- `GET /health/ready`
 - `POST /imports/upload-url`
 - `PUT /imports/upload`
 - `POST /imports/queue`
 
 `POST /imports/process` is also supported as a compatibility alias for older callers.
+
+### Health checks
+
+Both health endpoints return `application/json` and include `ok`, `status`,
+`service`, `timestamp`, and `schemaVersion` fields.
+
+- `GET /health` (liveness) always returns HTTP 200 while the worker is running.
+  It reports `{"ok": true, "status": "ok", "alive": true, ...}` and never
+  depends on bindings or secrets.
+- `GET /health/ready` (readiness) returns HTTP 200 with `ready: true` when every
+  required dependency is configured, and HTTP 503 with
+  `{"ok": false, "status": "unavailable", "ready": false, ...}` otherwise. The
+  `checks` array reports per-dependency status for the `r2` and `queue` bindings
+  plus the `callbackSecret`, `queueSecret`, and `convexUrl` configuration.
 
 ## Local development
 

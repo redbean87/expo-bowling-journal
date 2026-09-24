@@ -74,6 +74,7 @@ Roadmap execution follows the ordered `## Todo` list (top unchecked item first).
 - **Convex hooks + mutations** drive real-time data updates
 - **Convex Auth** gates journal and import workflows by signed-in user
 - **Import pipeline** routes SQLite backups through worker parsing and callback import
+- **Health checks** expose liveness (`GET /health`) and readiness (`GET /health/ready`) on both the Convex backend and the import worker
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design details and [worker/README.md](worker/README.md) for worker-specific setup.
 
@@ -113,6 +114,7 @@ convex/
   imports.ts
   users.ts
   http.ts
+  health.ts
   lib/
 
 worker/

@@ -1,6 +1,12 @@
 import sqlWasmModule from 'sql.js/dist/sql-wasm.wasm';
 
 import { buildImportingSnapshotJsonCallbackPayload } from './callback_payload.js';
+import {
+  buildLivenessPayload,
+  buildReadinessPayload,
+  evaluateWorkerDependencies,
+  readinessHttpStatus,
+} from './health.js';
 import { buildSqliteBackupBytes } from './sqlite_exporter.js';
 import {
   SqliteParseError,
@@ -483,16 +489,25 @@ export default {
       });
     }
 
+    if (request.method === 'GET' && url.pathname === '/health') {
+      return json(request, env, buildLivenessPayload(Date.now()));
+    }
+
+    if (request.method === 'GET' && url.pathname === '/health/ready') {
+      const payload = buildReadinessPayload(
+        Date.now(),
+        evaluateWorkerDependencies(env)
+      );
+
+      return json(request, env, payload, readinessHttpStatus(payload));
+    }
+
     if (!env.IMPORT_CALLBACK_HMAC_SECRET) {
       return internalError(
         request,
         env,
         'IMPORT_CALLBACK_HMAC_SECRET is not configured'
       );
-    }
-
-    if (request.method === 'GET' && url.pathname === '/health') {
-      return json(request, env, { ok: true });
     }
 
     if (request.method === 'POST' && url.pathname === '/imports/upload-url') {
