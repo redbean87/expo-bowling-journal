@@ -1,21 +1,24 @@
 import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
 
+import { CANONICAL_SCHEMA_SQL } from './schema';
+
 /**
- * Local-first SQLite foundation (A2).
+ * Local-first SQLite foundation (A2) + canonical schema (A3).
  *
  * This module is the SINGLE application-local access boundary for the local
- * SQLite data store. It owns one shared database handle, opens it lazily, and
- * applies ordered schema migrations so that initialization is safe to call
- * repeatedly.
+ * SQLite data store. It owns one shared database handle, opens it lazily,
+ * enables foreign-key enforcement, and applies ordered schema migrations so
+ * that initialization is safe to call repeatedly.
  *
- * Scope (A2): persistence foundation only. It deliberately creates NO canonical
- * entity tables and exposes NO repositories, CRUD, import/export, or Convex
- * coupling. The migration/version mechanism below is the only thing that
- * ships; future packets layer the canonical schema onto it.
+ * Scope: persistence + schema only. Version 1 (A2) is the foundation baseline
+ * (version tracking, no tables); version 2 (A3) creates the seven canonical
+ * bowling entities (League, Session, Game, Frame, Ball, House, Pattern) from
+ * the DDL in {@link ./schema}. This module exposes NO repositories, CRUD,
+ * import/export, UI wiring, or Convex coupling.
  *
- * Isolation: this module imports only `expo-sqlite`. It does not import from
- * `src/convex` or `src/services/journal`, and nothing in the Convex path
- * imports it.
+ * Isolation: this module imports only `expo-sqlite` and `./schema`. It does not
+ * import from `src/convex` or `src/services/journal`, and nothing in the Convex
+ * path imports it.
  */
 
 /** Logical name of the single local database file. */
@@ -28,7 +31,7 @@ export const DATABASE_NAME = 'bowling-journal.db';
  * Future schema packets bump this and append a migration; they never rewrite
  * earlier ones (forward-only).
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * A single ordered, forward-only schema migration.
@@ -53,9 +56,12 @@ export interface Migration {
  * Ordered, forward-only migrations, ascending by `version`.
  *
  * Version 1 is the A2 foundation baseline: it establishes version tracking but
- * intentionally creates NO canonical entity tables (those arrive in a later
- * packet). It is a DDL no-op so the version mechanism is real and observable
- * from the first open.
+ * intentionally creates NO canonical entity tables. It is a DDL no-op so the
+ * version mechanism is real and observable from the first open.
+ *
+ * Version 2 is the A3 canonical schema: it creates the seven canonical bowling
+ * entities, their foreign keys, and their indexes (see {@link
+ * CANONICAL_SCHEMA_SQL}).
  */
 export const MIGRATIONS: readonly Migration[] = [
   {
@@ -63,6 +69,13 @@ export const MIGRATIONS: readonly Migration[] = [
     name: 'a2-foundation-baseline',
     up: async () => {
       // Intentionally empty: A2 creates no canonical tables (see module docs).
+    },
+  },
+  {
+    version: 2,
+    name: 'a3-canonical-schema',
+    up: async (db) => {
+      await db.execAsync(CANONICAL_SCHEMA_SQL);
     },
   },
 ];
@@ -123,6 +136,9 @@ async function ensureDatabase(): Promise<SQLiteDatabase> {
   assertMigrationsValid();
 
   const db = await openDatabaseAsync(DATABASE_NAME);
+  // SQLite foreign keys are OFF per-connection by default; enable them on the
+  // shared handle so every DML statement enforces the canonical foreign keys.
+  await db.execAsync('PRAGMA foreign_keys = ON');
   const appliedVersion = await readUserVersion(db);
 
   for (const migration of MIGRATIONS) {
