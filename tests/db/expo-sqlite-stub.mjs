@@ -5,14 +5,18 @@
 // (its `SCHEMA_VERSION`, `MIGRATIONS` registry, `ensureDatabase`, and
 // `getDatabase`). But `database.ts` imports `expo-sqlite`, a native module
 // that cannot load under the plain Node/tsx test runner. This stub provides
-// the minimal expo-sqlite runtime API surface (`openDatabaseAsync`) that
-// `database.ts` consumes, so the UNMODIFIED migration code path runs against
-// an in-memory `node:sqlite` database.
+// the minimal expo-sqlite runtime API surface (`openDatabaseAsync`,
+// `runAsync`, `getFirstAsync`, `getAllAsync`, `execAsync`,
+// `withTransactionAsync`, and `closeAsync`) that `database.ts` and the C2
+// `SqliteLocalJournalService` consume, so the UNMODIFIED code paths run
+// against an in-memory `node:sqlite` database (or a file-backed one via the
+// seeding seam below).
 //
 // It is wired in from the DB tests (`a3-canonical-migrations.test.ts`, and A5's
-// `a5-migration-versioning.test.ts`) via an on-thread `module.registerHooks`
-// resolve remap. It is not imported by app code and is not a package dependency
-// (it uses only Node built-ins).
+// `a5-migration-versioning.test.ts`) and the C2 league/session persistence
+// tests via an on-thread `module.registerHooks` resolve remap. It is not
+// imported by app code and is not a package dependency (it uses only Node
+// built-ins).
 
 import { DatabaseSync } from 'node:sqlite';
 
@@ -21,13 +25,32 @@ class NodeBackedSqliteAdapter {
     this._db = db;
   }
 
+  // expo-sqlite accepts bind values either as a single `SQLiteBindParams`
+  // array or as variadic arguments. `node:sqlite` binds anonymous parameters
+  // positionally, so normalize both call shapes to a flat argument list.
+  normalizeParams(params) {
+    return params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+  }
+
   async execAsync(sql) {
     this._db.exec(sql);
   }
 
+  async runAsync(sql, ...params) {
+    const result = this._db.prepare(sql).run(...this.normalizeParams(params));
+    return {
+      changes: Number(result.changes),
+      lastInsertRowId: Number(result.lastInsertRowid),
+    };
+  }
+
   async getFirstAsync(sql, ...params) {
-    const row = this._db.prepare(sql).get(...params);
+    const row = this._db.prepare(sql).get(...this.normalizeParams(params));
     return row == null ? null : row;
+  }
+
+  async getAllAsync(sql, ...params) {
+    return this._db.prepare(sql).all(...this.normalizeParams(params));
   }
 
   async withTransactionAsync(fn) {
