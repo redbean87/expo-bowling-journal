@@ -1,7 +1,8 @@
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useConvexAuth, useQuery } from 'convex/react';
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card } from '@/components/ui';
@@ -20,6 +21,7 @@ import { useAppTheme } from '@/theme/use-app-theme';
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
   const viewer = useQuery(viewerQuery, isAuthenticated ? {} : 'skip');
@@ -108,6 +110,27 @@ export default function ProfileScreen() {
         </Card>
 
         <ProfileBuildInfoCard />
+
+        {__DEV__ ? (
+          <Card muted style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Developer</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/dev-sqlite' as never)}
+              style={styles.devRow}
+            >
+              <View style={styles.devRowText}>
+                <Text style={styles.devRowLabel}>SQLite diagnostics</Text>
+                <Text style={styles.devRowMeta}>
+                  Local database checks: open, init, tables, foreign keys,
+                  read/write.
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          </Card>
+        ) : null}
       </ScrollView>
     </ScreenLayout>
   );
@@ -131,6 +154,28 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: typeScale.titleSm,
       fontWeight: '700',
       color: colors.textPrimary,
+    },
+    devRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    devRowText: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    devRowLabel: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    devRowMeta: {
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+    },
+    chevron: {
+      fontSize: typeScale.title,
+      color: colors.textSecondary,
     },
     divider: {
       height: 1,
