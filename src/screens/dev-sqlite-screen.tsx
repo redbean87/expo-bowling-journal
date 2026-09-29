@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -23,7 +23,19 @@ import {
 } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
-type Phase = 'loading' | 'ready' | 'error';
+type Phase = 'loading' | 'ready' | 'error' | 'timeout';
+
+/**
+ * Bounded, diagnostic-reporting-only timeout for the entire diagnostic run
+ * (shared-handle open plus every check). It guarantees this screen reaches a
+ * terminal state even if a native SQLite operation never settles. It does NOT
+ * cancel, abort, or close the underlying operation — it only stops this screen
+ * from waiting forever.
+ */
+const DIAGNOSTICS_TIMEOUT_MS = 30_000;
+
+/** Progress label shown while the shared handle is still opening. */
+const OPENING_CHECK_LABEL = 'Opening shared database';
 
 type CheckState = 'pass' | 'fail' | 'warn' | 'unknown';
 
@@ -211,6 +223,9 @@ export default function DevSqliteScreen() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [report, setReport] = useState<SqliteDiagnosticsReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentCheck, setCurrentCheck] = useState<string>(OPENING_CHECK_LABEL);
+  const [stuckCheck, setStuckCheck] = useState<string>(OPENING_CHECK_LABEL);
+  const currentCheckRef = useRef<string>(OPENING_CHECK_LABEL);
 
   useEffect(() => {
     // Development-only gate: never open the database or run diagnostics in a
@@ -220,26 +235,68 @@ export default function DevSqliteScreen() {
     }
 
     let cancelled = false;
-    void (async () => {
-      try {
-        const db = await getDatabase();
-        const result = await runSqliteDiagnostics(db);
-        if (cancelled) {
-          return;
-        }
-        setReport(result);
-        setPhase('ready');
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        setError(errorMessage(err));
-        setPhase('error');
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = (
+      nextPhase: 'ready' | 'error' | 'timeout',
+      payload: {
+        report?: SqliteDiagnosticsReport;
+        error?: string;
+        stuckCheck?: string;
+      } = {}
+    ) => {
+      if (cancelled || settled) {
+        return;
       }
+      settled = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      if (nextPhase === 'ready' && payload.report) {
+        setReport(payload.report);
+      } else if (nextPhase === 'error' && payload.error) {
+        setError(payload.error);
+      } else if (nextPhase === 'timeout') {
+        setStuckCheck(payload.stuckCheck ?? currentCheckRef.current);
+      }
+      setPhase(nextPhase);
+    };
+
+    // The diagnostic run is one promise chain: open the shared handle, then
+    // run every check. A bounded timer races this whole chain but never
+    // cancels it — if the chain still settles after the timer fires, we simply
+    // ignore it (the UI is already terminal). This converts any never-
+    // settling native operation into a concrete terminal "timed out" state
+    // instead of an indefinite spinner.
+    const diagnosticsPromise = (async () => {
+      const db = await getDatabase();
+      return runSqliteDiagnostics(db, {
+        onProgress: (label) => {
+          if (!cancelled) {
+            currentCheckRef.current = label;
+            setCurrentCheck(label);
+          }
+        },
+      });
     })();
+
+    timer = setTimeout(() => {
+      finish('timeout', { stuckCheck: currentCheckRef.current });
+    }, DIAGNOSTICS_TIMEOUT_MS);
+
+    diagnosticsPromise.then(
+      (result) => finish('ready', { report: result }),
+      (err) => finish('error', { error: errorMessage(err) })
+    );
 
     return () => {
       cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
     };
   }, []);
 
@@ -261,6 +318,27 @@ export default function DevSqliteScreen() {
       <ScreenLayout title="SQLite Diagnostics" subtitle="Running local checks…">
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
+          <Text style={styles.progressLabel}>{currentCheck}</Text>
+        </View>
+      </ScreenLayout>
+    );
+  }
+
+  if (phase === 'timeout') {
+    return (
+      <ScreenLayout title="SQLite Diagnostics" subtitle="Timed out">
+        <Text style={styles.error}>
+          Diagnostics did not finish within{' '}
+          {Math.round(DIAGNOSTICS_TIMEOUT_MS / 1000)} seconds.
+        </Text>
+        <View style={styles.timeoutBlock}>
+          <Text style={styles.timeoutTitle}>Where it was stuck</Text>
+          <Text style={styles.timeoutBody}>{stuckCheck}</Text>
+          <Text style={styles.muted}>
+            The underlying SQLite operation was not cancelled or interrupted —
+            it is still running in the background. This timeout only stops this
+            screen from waiting forever; it cannot unblock the operation itself.
+          </Text>
         </View>
       </ScreenLayout>
     );
@@ -378,6 +456,31 @@ const createStyles = (colors: ThemeColors) =>
     error: {
       fontSize: typeScale.body,
       color: colors.danger,
+    },
+    progressLabel: {
+      marginTop: spacing.md,
+      fontSize: typeScale.bodySm,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    timeoutBlock: {
+      gap: spacing.xs,
+      marginTop: spacing.md,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+    },
+    timeoutTitle: {
+      fontSize: typeScale.bodySm,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    timeoutBody: {
+      fontSize: typeScale.body,
+      fontWeight: '600',
+      color: colors.textPrimary,
     },
   });
 

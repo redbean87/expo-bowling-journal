@@ -160,16 +160,30 @@ async function probeWriteReadDeleteSmoke(
   }
 }
 
+export interface RunSqliteDiagnosticsOptions {
+  /**
+   * Optional progress reporter. Called synchronously, exactly once, right
+   * before each probe step begins (five steps, which together produce the
+   * seven reported checks). It is used purely for UI progress reporting: it
+   * is never awaited, its return value is ignored, and it cannot influence
+   * the diagnostic outcome.
+   */
+  onProgress?: (currentCheck: string) => void;
+}
+
 /**
  * Run the development-only SQLite diagnostics against an already-open shared
  * database handle. Never opens a second database and never writes to a
  * canonical table.
  */
 export async function runSqliteDiagnostics(
-  db: SQLiteDatabase
+  db: SQLiteDatabase,
+  options?: RunSqliteDiagnosticsOptions
 ): Promise<SqliteDiagnosticsReport> {
+  const onProgress = options?.onProgress;
   const errors: string[] = [];
 
+  onProgress?.('Reading schema version (open / initialization)');
   const openProbe = await probeUserVersion(db);
 
   const userVersion = openProbe.userVersion;
@@ -184,11 +198,13 @@ export async function runSqliteDiagnostics(
     initialization = 'stale';
   }
 
+  onProgress?.('Enumerating canonical tables');
   const tables = await probeCanonicalTables(db);
   if (tables.missingTables.length > 0) {
     errors.push(`Missing canonical tables: ${tables.missingTables.join(', ')}`);
   }
 
+  onProgress?.('Checking foreign-key enforcement');
   const foreignKeyEnforcement = await probeForeignKeys(db);
   if (foreignKeyEnforcement !== 1) {
     errors.push(
@@ -196,11 +212,13 @@ export async function runSqliteDiagnostics(
     );
   }
 
+  onProgress?.('Running basic read test (SELECT 1)');
   const readTest = await probeReadTest(db);
   if (readTest !== 'pass') {
     errors.push('Basic read probe (SELECT 1) did not pass.');
   }
 
+  onProgress?.('Running write/read/delete smoke test');
   const writeReadDeleteSmoke = await probeWriteReadDeleteSmoke(db);
   if (writeReadDeleteSmoke !== 'pass') {
     errors.push(
