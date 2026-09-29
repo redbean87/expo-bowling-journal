@@ -155,6 +155,45 @@ export interface Frame {
   targetBoard?: number | null;
 }
 
+/**
+ * Derived scoring and statistics for a game (C5).
+ *
+ * Computed on demand from the game's authoritative frame masks; the result
+ * is never persisted. All values are scratch scores: the game's `handicap`,
+ * when present, is stored on the `Game` and is not applied here.
+ */
+export interface GameScore {
+  /**
+   * True when every one of the ten frames is settled (a settled tenth
+   * frame includes its earned bonus rolls).
+   */
+  isComplete: boolean;
+  /**
+   * Provisional total score: points earned so far, counting partial frames
+   * (an in-flight strike counts 10, a partial open frame counts its
+   * entered rolls). For a complete game this equals the final score.
+   */
+  totalScore: number;
+  /**
+   * Settled per-frame running totals (cumulative scores), one entry per
+   * frame (ten entries). `null` marks frames that are not yet settled
+   * (in-flight strike/spare, partial frame, or unstarted frame).
+   */
+  settledRunningTotals: Array<number | null>;
+  /**
+   * Settled per-frame scores (the frame's own points including earned
+   * bonuses), one entry per frame (ten entries). `null` marks frames that
+   * are not yet settled.
+   */
+  frameScores: Array<number | null>;
+  /** Number of strike frames. */
+  strikes: number;
+  /** Number of spare frames. */
+  spares: number;
+  /** Number of open frames. */
+  opens: number;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Operation inputs                                                            */
 /* -------------------------------------------------------------------------- */

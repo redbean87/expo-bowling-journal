@@ -12,15 +12,18 @@
  *
  * In scope: the canonical read/write operations the current app uses —
  * leagues, sessions, games, game frames, and the ball/house/pattern reference
- * data — including open sessions (`leagueId = null`).
+ * data — including open sessions (`leagueId = null`) — plus derived per-game
+ * scoring/statistics (`getGameScore`).
  *
  * League summaries (`listLeagueSummaries`) return each league with the
  * derived `mostRecentSessionDate`; that value is computed by the service and
  * is never persisted in SQLite.
  *
- * Out of scope (deliberately not on this contract): scoring/statistics
- * analytics (game stats, session aggregates, spare conversion), import, and
- * export.
+ * Derived game scoring (`getGameScore`) is computed on demand from a game's
+ * authoritative frame masks and is never persisted.
+ *
+ * Out of scope (deliberately not on this contract): session aggregates,
+ * spare conversion, import, and export.
  */
 import type {
   Ball,
@@ -33,6 +36,7 @@ import type {
   Frame,
   FrameInput,
   Game,
+  GameScore,
   House,
   League,
   LeagueSummary,
@@ -76,6 +80,15 @@ export interface LocalJournalService {
   /* -- Game frames ----------------------------------------------------- */
   getGameFrames(gameId: Uuid): Promise<Frame[]>;
   replaceGameFrames(gameId: Uuid, frames: FrameInput[]): Promise<void>;
+
+  /* -- Derived game scoring (C5) --------------------------------------- */
+  /**
+   * Derived scoring/statistics for a game (C5), computed on demand from the
+   * game's authoritative frame masks. The result is scratch scoring only and
+   * is never persisted; the game's `handicap`, when present, is not applied.
+   * Resolves to `null` when the game does not exist.
+   */
+  getGameScore(gameId: Uuid): Promise<GameScore | null>;
 
   /* -- Reference data: balls ------------------------------------------- */
   listBalls(): Promise<Ball[]>;

@@ -17,7 +17,9 @@
  *   three roll masks (`roll1Mask`/`roll2Mask`/`roll3Mask`), `ballId`, and
  *   `flags`/`pocket`/`footBoard`/`targetBoard`. There is no packed `pins`
  *   column, no derived frame or cumulative score, and no strike/spare/open
- *   classification — scoring and classification are out of scope here.
+ *   classification stored in the database — scoring is derived on demand
+ *   (C5, `getGameScore`) from the stored frame masks and is never
+ *   persisted.
  * - `League.houseName` has no canonical column; it is persisted inside the
  *   league `metadata` JSON TEXT column (key `houseName`) and read back from
  *   it. The `metadata` column is a storage detail and is never part of the
@@ -68,6 +70,7 @@
  *   replacement set — all-or-nothing, so a failure leaves the previous
  *   frame set untouched.
  */
+import { scoreGameFrames } from './game-scoring';
 import { getDatabase } from '../../db/database';
 
 import type { LocalJournalService } from './local-journal-service';
@@ -83,6 +86,7 @@ import type {
   Frame,
   FrameInput,
   Game,
+  GameScore,
   House,
   LaneContext,
   League,
@@ -950,6 +954,18 @@ export class SqliteLocalJournalService implements LocalJournalService {
         );
       }
     });
+  }
+
+  /* -- Derived game scoring (C5) ---------------------------------------- */
+
+  async getGameScore(gameId: Uuid): Promise<GameScore | null> {
+    const game = await this.getGame(gameId);
+    if (game === null) {
+      return null;
+    }
+
+    const frames = await this.getGameFrames(gameId);
+    return scoreGameFrames(frames);
   }
 
   /* -- Reference data: balls ------------------------------------------- */
