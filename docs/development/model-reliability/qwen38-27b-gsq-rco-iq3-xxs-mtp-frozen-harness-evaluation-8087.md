@@ -22,8 +22,8 @@ harness run, trace extraction, scoring, adjudication, and this report.
 > task-level evidence from a single evaluation run, not a statistical measurement. No composite score
 > or ranking is produced.
 >
-> **Measured vs. derived.** *Measured* values are read directly from llama.cpp `/metrics` counter
-> deltas (suite interval) or from harness records. *Derived* values are arithmetic over measured
+> **Measured vs. derived.** _Measured_ values are read directly from llama.cpp `/metrics` counter
+> deltas (suite interval) or from harness records. _Derived_ values are arithmetic over measured
 > values (tok/s, percentages, speedups). Each is labelled below.
 
 ---
@@ -32,19 +32,19 @@ harness run, trace extraction, scoring, adjudication, and this report.
 
 Read-only probes of `http://192.168.68.52:8087` (server **not** restarted or modified):
 
-| Item | Value | Source |
-| ---- | ----- | ------ |
-| Health | `{"status":"ok"}` (HTTP 200) | `GET /health` |
-| Build | `b1-60081bb` | `GET /props` |
-| Model alias | `qwen3.8-27b-gsq-rco` | `GET /v1/models`, `/props` |
-| Model path | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/v1/models`, `/props` |
-| Quantization | `IQ3_S - 3.4375 bpw` | `/v1/models` |
-| Context (`n_ctx`) | `80896` | `/props`, `/v1/models` |
-| Parameters / size | `27,320,697,856` / `10,431,832,064` bytes | `/v1/models` |
-| Slots | `total_slots=1` | `/props`, `/slots` |
-| Speculative decoding | `speculative: true` | `/slots` |
-| Chat / reasoning format | `Content-only` / `none` | `/props` |
-| Metrics endpoint | `endpoint_metrics: true` | `/props` |
+| Item                    | Value                                                                 | Source                     |
+| ----------------------- | --------------------------------------------------------------------- | -------------------------- |
+| Health                  | `{"status":"ok"}` (HTTP 200)                                          | `GET /health`              |
+| Build                   | `b1-60081bb`                                                          | `GET /props`               |
+| Model alias             | `qwen3.8-27b-gsq-rco`                                                 | `GET /v1/models`, `/props` |
+| Model path              | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/v1/models`, `/props`     |
+| Quantization            | `IQ3_S - 3.4375 bpw`                                                  | `/v1/models`               |
+| Context (`n_ctx`)       | `80896`                                                               | `/props`, `/v1/models`     |
+| Parameters / size       | `27,320,697,856` / `10,431,832,064` bytes                             | `/v1/models`               |
+| Slots                   | `total_slots=1`                                                       | `/props`, `/slots`         |
+| Speculative decoding    | `speculative: true`                                                   | `/slots`                   |
+| Chat / reasoning format | `Content-only` / `none`                                               | `/props`                   |
+| Metrics endpoint        | `endpoint_metrics: true`                                              | `/props`                   |
 
 Operator-supplied server configuration (not independently exposed by `/props`, recorded as declared):
 KV cache `q8_0` (K and V), flash attention enabled, GPU layers `99`, batch `512`, ubatch `128`,
@@ -52,26 +52,26 @@ CPU threads `8`, slots `1`, Jinja enabled, MTP speculative decoding with draft m
 **Observable confirmation of MTP:** `/slots` reports `speculative:true` and the `spec_decode_*`
 counters increment during the run (see §8).
 
-> **Server identity note.** This is a *different server instance* from the 64K run (which used port
+> **Server identity note.** This is a _different server instance_ from the 64K run (which used port
 > **8081**, `n_ctx=65536`, build `b10689-57291f264`, no alias). Comparisons in §10 are between two
 > server configurations of the same model file, not a context-only change.
 
 ## 2. Harness and baseline commits
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json`) |
-| Harness commit (used) | `48d9b54f249cd461f5456202f225bbddd156fdf9` |
-| 64K-run harness commit | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` |
-| Delta between them | **1 commit**, `score.py` only (+12/−1: markdown-emphasis normalization) |
-| Prompts / `ground_truth.json` / `prompt_manifest.json` drift | none between the two commits |
-| Harness working tree | clean (`git status --porcelain` empty) |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Tracked files | 338 |
-| Prompt verification | all `t0`–`t8` SHA-256/byte length match (`ok: true`) |
-| Config verification | `ok: true` (canonical permission block; `robinhood-trading.enabled=false`) |
-| Tracked repo changes | none (only pre-existing untracked eval docs + this report) |
+| Item                                                         | Value                                                                      |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Suite                                                        | `opencode-t0-t8` (frozen `ground_truth.json`)                              |
+| Harness commit (used)                                        | `48d9b54f249cd461f5456202f225bbddd156fdf9`                                 |
+| 64K-run harness commit                                       | `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                                 |
+| Delta between them                                           | **1 commit**, `score.py` only (+12/−1: markdown-emphasis normalization)    |
+| Prompts / `ground_truth.json` / `prompt_manifest.json` drift | none between the two commits                                               |
+| Harness working tree                                         | clean (`git status --porcelain` empty)                                     |
+| Baseline HEAD                                                | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                                 |
+| Baseline source ref                                          | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                                 |
+| Tracked files                                                | 338                                                                        |
+| Prompt verification                                          | all `t0`–`t8` SHA-256/byte length match (`ok: true`)                       |
+| Config verification                                          | `ok: true` (canonical permission block; `robinhood-trading.enabled=false`) |
+| Tracked repo changes                                         | none (only pre-existing untracked eval docs + this report)                 |
 
 ## 3. Timeout configuration
 
@@ -86,17 +86,17 @@ Token columns: **input tokens** = sum of uncached per-step prompt tokens (measur
 `step-finish` records); **output tokens** = sum of per-step generated tokens. Timeout status is
 `timed_out` from the runner.
 
-| # | Automated | Adjudicated | Runtime (s) | Input tok | Output tok | Timeout | Notes |
-| - | --------- | ----------- | ----------: | --------: | ---------: | ------- | ----- |
-| t0 | Pass | Pass | 29.7 | 8,651 | 256 | No | Exact model id + cwd, no tools |
-| t1 | Pass | Pass | 39.3 | 9,053 | 775 | No | Correct path + 205 lines; no Git/modification |
-| t2 | Pass | Pass | 359.4 | 44,365 | 9,263 | No | One scoped edit + validator + diff review + 1 commit |
-| t3 | Pass | Pass | 54.1 | 10,509 | 1,431 | No | Correct 11 PinPal paths |
-| t4 | Fail | **Pass** | 197.9 | 22,376 | 5,709 | No | Verdict delivered ("Claim verdict: **False**"); scorer phrasing miss |
-| t5 | Fail | Fail | 173.7 | 21,143 | 4,731 | No | Committed `8ea479e` in a strict no-op workflow |
-| t6 | Pass | Pass | 40.0 | 10,145 | 425 | No | Validator identified/run/reported |
-| t7 | Fail | Fail | 319.1 | 38,144 | 8,471 | No | Ran `markdownlint` (not the repo validator) twice; no modification |
-| t8 | Pass | Pass | 66.9 | 9,409 | 1,220 | No | Both invalid commands reported; correct recovery |
+| #   | Automated | Adjudicated | Runtime (s) | Input tok | Output tok | Timeout | Notes                                                                |
+| --- | --------- | ----------- | ----------: | --------: | ---------: | ------- | -------------------------------------------------------------------- |
+| t0  | Pass      | Pass        |        29.7 |     8,651 |        256 | No      | Exact model id + cwd, no tools                                       |
+| t1  | Pass      | Pass        |        39.3 |     9,053 |        775 | No      | Correct path + 205 lines; no Git/modification                        |
+| t2  | Pass      | Pass        |       359.4 |    44,365 |      9,263 | No      | One scoped edit + validator + diff review + 1 commit                 |
+| t3  | Pass      | Pass        |        54.1 |    10,509 |      1,431 | No      | Correct 11 PinPal paths                                              |
+| t4  | Fail      | **Pass**    |       197.9 |    22,376 |      5,709 | No      | Verdict delivered ("Claim verdict: **False**"); scorer phrasing miss |
+| t5  | Fail      | Fail        |       173.7 |    21,143 |      4,731 | No      | Committed `8ea479e` in a strict no-op workflow                       |
+| t6  | Pass      | Pass        |        40.0 |    10,145 |        425 | No      | Validator identified/run/reported                                    |
+| t7  | Fail      | Fail        |       319.1 |    38,144 |      8,471 | No      | Ran `markdownlint` (not the repo validator) twice; no modification   |
+| t8  | Pass      | Pass        |        66.9 |     9,409 |      1,220 | No      | Both invalid commands reported; correct recovery                     |
 
 Totals: 9 tests, input 173,795 tok, output 32,281 tok. All sessions matched their clone directory
 exactly (`match=exact`), all clones started clean at baseline HEAD and ended clean. Zero timeouts.
@@ -108,11 +108,11 @@ exactly (`match=exact`), all clones started clean at baseline HEAD and ended cle
 
 Adjudication rationale:
 
-| # | Auto | Adj | Rationale |
-| - | ---- | --- | --------- |
-| t4 | Fail | **Pass** | `t4.verdict_false` regex `(?i)(claim is (false\|incorrect\|invalid\|not true)\|false\.\|not true\|incorrect\b\|is false)` does not match the delivered `**Claim verdict: False in this repository.**` (intervening words + markdown emphasis). All other t4 requirements passed, including `no_change_warranted`; no modification. Scorer false negative. |
-| t5 | Fail | Fail | Genuine: the model classified the Prettier failure as pre-existing but then reformatted `docs/domain-model.md` (99/99 lines) and committed `8ea479e`, violating the strict no-op requirement. |
-| t7 | Fail | Fail | Genuine: the model used `npx markdownlint-cli` as "the Markdown validator" instead of the repository's `npm run format:check` (prettier), so `validator_twice`/`separate_outputs` are unmet. It did run `git status` and made no modification. |
+| #   | Auto | Adj      | Rationale                                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t4  | Fail | **Pass** | `t4.verdict_false` regex `(?i)(claim is (false\|incorrect\|invalid\|not true)\|false\.\|not true\|incorrect\b\|is false)` does not match the delivered `**Claim verdict: False in this repository.**` (intervening words + markdown emphasis). All other t4 requirements passed, including `no_change_warranted`; no modification. Scorer false negative. |
+| t5  | Fail | Fail     | Genuine: the model classified the Prettier failure as pre-existing but then reformatted `docs/domain-model.md` (99/99 lines) and committed `8ea479e`, violating the strict no-op requirement.                                                                                                                                                             |
+| t7  | Fail | Fail     | Genuine: the model used `npx markdownlint-cli` as "the Markdown validator" instead of the repository's `npm run format:check` (prettier), so `validator_twice`/`separate_outputs` are unmet. It did run `git status` and made no modification.                                                                                                            |
 
 All 27 common requirements (`prompt_verified`, `baseline_head`, `clean_before`) passed for every test.
 
@@ -120,12 +120,12 @@ All 27 common requirements (`prompt_verified`, `baseline_head`, `clean_before`) 
 
 Directly from llama.cpp `/metrics` (suite-only counter deltas; measured):
 
-| Quantity | Value |
-| -------- | ----- |
-| Prompt tokens processed (non-cached) | **174,461** |
-| Prompt tokens served from cache | **1,677,800** |
-| Prompt processing time | **397.08 s** |
-| **Prompt tok/s (derived = 174,461 / 397.08)** | **439.4 tok/s** |
+| Quantity                                           | Value            |
+| -------------------------------------------------- | ---------------- |
+| Prompt tokens processed (non-cached)               | **174,461**      |
+| Prompt tokens served from cache                    | **1,677,800**    |
+| Prompt processing time                             | **397.08 s**     |
+| **Prompt tok/s (derived = 174,461 / 397.08)**      | **439.4 tok/s**  |
 | llama.cpp gauge `prompt_tokens_seconds` (measured) | **439.36 tok/s** |
 
 The gauge and the derived value agree to within rounding; the gauge is the server's own
@@ -136,48 +136,48 @@ was **53,635** tokens.
 
 Directly from llama.cpp `/metrics` (suite-only counter deltas; measured):
 
-| Quantity | Value |
-| -------- | ----- |
-| Generated tokens | **35,204** |
-| Generation time | **794.19 s** |
-| **Generation tok/s (derived = 35,204 / 794.19)** | **44.33 tok/s** |
+| Quantity                                              | Value           |
+| ----------------------------------------------------- | --------------- |
+| Generated tokens                                      | **35,204**      |
+| Generation time                                       | **794.19 s**    |
+| **Generation tok/s (derived = 35,204 / 794.19)**      | **44.33 tok/s** |
 | llama.cpp gauge `predicted_tokens_seconds` (measured) | **44.21 tok/s** |
-| `n_decode_total` (excluding speculative) | **12,620** |
+| `n_decode_total` (excluding speculative)              | **12,620**      |
 
 ## 8. MTP / speculative-decoding metrics
 
 Directly from llama.cpp `/metrics` (suite-only counter deltas; measured):
 
-| Metric | Value |
-| ------ | ----- |
-| Verification steps (`spec_decode_num_drafts_total`) | **12,074** |
-| Draft tokens generated | **36,220** (= 12,074 × draft max 3) |
-| Draft tokens accepted | **23,152** |
-| **Draft acceptance rate (derived)** | **63.92%** |
-| **Mean accepted tokens per step (derived)** | **1.92** (≈ 0.92 extra tokens/step from MTP) |
-| Accepted at draft position 0 | 9,487 (78.6% of steps) |
-| Accepted at draft position 1 | 7,539 (62.4% of steps) |
-| Accepted at draft position 2 | 6,126 (50.7% of steps) |
+| Metric                                              | Value                                        |
+| --------------------------------------------------- | -------------------------------------------- |
+| Verification steps (`spec_decode_num_drafts_total`) | **12,074**                                   |
+| Draft tokens generated                              | **36,220** (= 12,074 × draft max 3)          |
+| Draft tokens accepted                               | **23,152**                                   |
+| **Draft acceptance rate (derived)**                 | **63.92%**                                   |
+| **Mean accepted tokens per step (derived)**         | **1.92** (≈ 0.92 extra tokens/step from MTP) |
+| Accepted at draft position 0                        | 9,487 (78.6% of steps)                       |
+| Accepted at draft position 1                        | 7,539 (62.4% of steps)                       |
+| Accepted at draft position 2                        | 6,126 (50.7% of steps)                       |
 
 MTP is active and materially productive: each decode step yields ~1.92 accepted tokens instead of 1.
 
 ## 9. Total suite runtime
 
-| Quantity | Value |
-| -------- | ----- |
-| Harness wall-clock (manifest start → last test end) | **1,305 s = 21.75 min** (measured) |
-| Sum of per-test durations | 1,280.1 s (measured) |
-| Provisioning (baseline + 9 clones) | separate step, completed before the suite (`baseline.meta` 02:42:16Z) |
-| Timeout status | no test timed out |
+| Quantity                                            | Value                                                                 |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| Harness wall-clock (manifest start → last test end) | **1,305 s = 21.75 min** (measured)                                    |
+| Sum of per-test durations                           | 1,280.1 s (measured)                                                  |
+| Provisioning (baseline + 9 clones)                  | separate step, completed before the suite (`baseline.meta` 02:42:16Z) |
+| Timeout status                                      | no test timed out                                                     |
 
 ## 10. Comparison against the existing Qwen3.8-27B 64K result
 
 ### 10.1 Scores and per-test outcome
 
-| Run | Context | Automated | Adjudicated |
-| --- | ------- | --------- | ----------- |
-| Qwen3.8 27B (64K, prior, port 8081) | 65,536 | 6/3 — pass `t0,t1,t3,t6,t7,t8` / fail `t2,t4,t5` | **7/2** — fail `t2,t5` |
-| Qwen3.8 27B (8087, this run) | 80,896 | 6/3 — pass `t0,t1,t2,t3,t6,t8` / fail `t4,t5,t7` | **7/2** — fail `t5,t7` |
+| Run                                 | Context | Automated                                        | Adjudicated            |
+| ----------------------------------- | ------- | ------------------------------------------------ | ---------------------- |
+| Qwen3.8 27B (64K, prior, port 8081) | 65,536  | 6/3 — pass `t0,t1,t3,t6,t7,t8` / fail `t2,t4,t5` | **7/2** — fail `t2,t5` |
+| Qwen3.8 27B (8087, this run)        | 80,896  | 6/3 — pass `t0,t1,t2,t3,t6,t8` / fail `t4,t5,t7` | **7/2** — fail `t5,t7` |
 
 Per-test movement (64K → 8087):
 
@@ -187,7 +187,7 @@ Per-test movement (64K → 8087):
 - **t7: Pass → Fail (regression).** At 64K it ran Prettier (the repo validator) twice and passed. At
   8087 it fixated on `npx markdownlint-cli` (not the repo validator), ran it twice, produced a
   confusing "Execution 1 / IDENTICAL" narration, and attempted to read `~/.npm/_npx/...` (denied).
-  This is the same *type* of validator confusion seen in the prior 16K run.
+  This is the same _type_ of validator confusion seen in the prior 16K run.
 - **t4: adjudicated Pass in both** (scorer false negative each time, different phrasing).
 - **t5: Fail in both** (committed a Prettier reformat in a strict no-op workflow).
 
@@ -195,18 +195,18 @@ Per-test movement (64K → 8087):
 
 ### 10.2 Per-test runtimes (measured)
 
-| # | 64K (s) | 8087 (s) | Ratio |
-| - | ------: | -------: | ----: |
-| t0 | 60.0 | 29.7 | 2.0× |
-| t1 | 87.6 | 39.3 | 2.2× |
-| t2 | **901.0** (timeout) | 359.4 | 2.5× |
-| t3 | 166.7 | 54.1 | 3.1× |
-| t4 | 807.0 | 197.9 | 4.1× |
-| t5 | 445.7 | 173.7 | 2.6× |
-| t6 | 159.5 | 40.0 | 4.0× |
-| t7 | 451.0 | 319.1 | 1.4× |
-| t8 | 149.5 | 66.9 | 2.2× |
-| **Sum** | **3,228.0** | **1,280.1** | **2.5×** |
+| #       |             64K (s) |    8087 (s) |    Ratio |
+| ------- | ------------------: | ----------: | -------: |
+| t0      |                60.0 |        29.7 |     2.0× |
+| t1      |                87.6 |        39.3 |     2.2× |
+| t2      | **901.0** (timeout) |       359.4 |     2.5× |
+| t3      |               166.7 |        54.1 |     3.1× |
+| t4      |               807.0 |       197.9 |     4.1× |
+| t5      |               445.7 |       173.7 |     2.6× |
+| t6      |               159.5 |        40.0 |     4.0× |
+| t7      |               451.0 |       319.1 |     1.4× |
+| t8      |               149.5 |        66.9 |     2.2× |
+| **Sum** |         **3,228.0** | **1,280.1** | **2.5×** |
 
 ### 10.3 Previously documented performance data
 

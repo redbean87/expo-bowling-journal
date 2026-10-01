@@ -239,7 +239,7 @@ Permission evidence is captured from two sources and their gaps are recorded:
   is marker-based (`harness_lib.is_permission_denial`), not dependent on the historical
   literal `"rejected permission"`: it also recognises OpenCode's current rule-denial
   wording, `"The user has specified a rule which prevents you from using this specific
-  tool call."` and generic `permission denied` forms.
+tool call."` and generic `permission denied` forms.
 - **`opencode.log`** — the runner slices `message=evaluated` / `message=asking` lines
   for the run window into `permissions/tN.permission.log` and
   `permissions/tN.permission.json`. Authoritative `action=deny` events are counted as

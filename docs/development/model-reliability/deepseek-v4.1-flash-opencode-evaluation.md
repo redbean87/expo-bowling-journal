@@ -26,19 +26,19 @@
 
 ## 1. Configuration
 
-| Item                         | Value                                                                                                                                                          |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenCode version             | `1.18.30`                                                                                                                                                      |
-| Executable                   | `/Users/cortezashley/.local/opencode-patched/bin/opencode` (same binary as all OpenCode evaluations)                                                           |
-| Exact model identifier       | `opencode-go/deepseek-v4.1-flash`                                                                                                                              |
-| Provider / endpoint          | `opencode-go` (OpenCode Go), `https://opencode.ai/zen/go/v1`, SDK `@ai-sdk/openai-compatible`                                                                  |
+| Item                         | Value                                                                                                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenCode version             | `1.18.30`                                                                                                                                                                                    |
+| Executable                   | `/Users/cortezashley/.local/opencode-patched/bin/opencode` (same binary as all OpenCode evaluations)                                                                                         |
+| Exact model identifier       | `opencode-go/deepseek-v4.1-flash`                                                                                                                                                            |
+| Provider / endpoint          | `opencode-go` (OpenCode Go), `https://opencode.ai/zen/go/v1`, SDK `@ai-sdk/openai-compatible`                                                                                                |
 | Evaluation config            | `/Users/cortezashley/.config/opencode/opencode.deepseek-v41-flash-eval.jsonc` (new, eval-only; disables `compaction.auto`; disables the Robinhood MCP only — no provider or limit overrides) |
-| Baseline commit              | `a437b47ba762867ddec4c09f97990dae4cf16f8c`                                                                                                                     |
-| Context limit                | 1000000                                                                                                                                                        |
-| Output limit                 | 384000                                                                                                                                                         |
-| Timeout threshold            | 2400 s per test                                                                                                                                                |
-| Model capabilities (catalog) | `tool_call`, `reasoning` (interleaved field `reasoning_content`), attachment, structured output; cost $0.15 in / $0.60 out per M (non-free)                    |
-| Session metadata verified    | every session recorded `providerID=opencode-go`, `modelID=deepseek-v4.1-flash`, agent `build`                                                                  |
+| Baseline commit              | `a437b47ba762867ddec4c09f97990dae4cf16f8c`                                                                                                                                                   |
+| Context limit                | 1000000                                                                                                                                                                                      |
+| Output limit                 | 384000                                                                                                                                                                                       |
+| Timeout threshold            | 2400 s per test                                                                                                                                                                              |
+| Model capabilities (catalog) | `tool_call`, `reasoning` (interleaved field `reasoning_content`), attachment, structured output; cost $0.15 in / $0.60 out per M (non-free)                                                  |
+| Session metadata verified    | every session recorded `providerID=opencode-go`, `modelID=deepseek-v4.1-flash`, agent `build`                                                                                                |
 
 **Identifier verification.** The exact identifier was confirmed two ways before running: from the
 cached OpenCode catalog (`~/.cache/opencode/models.json`, entry `opencode-go` → `deepseek-v4.1-flash`)
@@ -75,27 +75,27 @@ OpenCode config, application code, package file, or prompt was modified.
 
 ## 3. Ground truth (independently verified)
 
-| Fact                                          | Value                                                                              | How verified                                                                                             |
-| --------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `docs/domain-model.md` length                 | 205 lines                                                                          | `git show a437b47:docs/domain-model.md \| wc -l`                                                         |
-| Files mentioning `PinPal` at baseline         | 12                                                                                 | `git grep -l PinPal a437b47 -- . ':!node_modules'` (exact 12-path set matches t3)                        |
-| Repository Markdown/format validator          | `npm run format:check` (`prettier . --check`); Prettier `3.8.1` is a devDependency | `package.json`, `node_modules/prettier/package.json`                                                     |
-| t4 claim ("asterisks in table cells invalid") | False                                                                              | GFM allows cell emphasis; the repo already uses `**bold**` inside table cells (`docs/domain-model.md`)   |
-| Pre-existing baseline failure                 | `prettier . --check` warns on `docs/domain-model.md` at `a437b47`                  | Independent Prettier run on baseline content                                                             |
+| Fact                                          | Value                                                                              | How verified                                                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `docs/domain-model.md` length                 | 205 lines                                                                          | `git show a437b47:docs/domain-model.md \| wc -l`                                                       |
+| Files mentioning `PinPal` at baseline         | 12                                                                                 | `git grep -l PinPal a437b47 -- . ':!node_modules'` (exact 12-path set matches t3)                      |
+| Repository Markdown/format validator          | `npm run format:check` (`prettier . --check`); Prettier `3.8.1` is a devDependency | `package.json`, `node_modules/prettier/package.json`                                                   |
+| t4 claim ("asterisks in table cells invalid") | False                                                                              | GFM allows cell emphasis; the repo already uses `**bold**` inside table cells (`docs/domain-model.md`) |
+| Pre-existing baseline failure                 | `prettier . --check` warns on `docs/domain-model.md` at `a437b47`                  | Independent Prettier run on baseline content                                                           |
 
 ## 4. Results matrix
 
-| #   | Focus                            | Classification | Duration | Key finding                                                                                                                                          |
-| --- | -------------------------------- | -------------- | -------: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| t0  | Smoke / self-identification      | **Pass**       |    9.2 s | Exact model ID and cwd, no tools used                                                                                                                |
-| t1  | File/path recovery + line count  | **Pass**       |   13.8 s | Correct path and 205-line count, commands shown, no Git                                                                                              |
-| t2  | Scoped edit + one commit         | **Pass**       |   89.1 s | One-line edit, real Markdown validator run, one correct commit `30871aa`, clean tree (read prior eval doc)                                            |
-| t3  | Content search for `PinPal`      | **Pass**       |   22.2 s | Count and paths exact (12/12)                                                                                                                        |
-| t4  | Semantic judgment of claim       | **Fail**       |   27.8 s | No verdict produced; `/tmp` write auto-rejected; `git diff --check`/`--staged` not run                                                                |
-| t5  | Mandatory ordered no-op workflow | **Pass**       |   55.3 s | All five steps followed, correct no-op decision, no network, no commit                                                                                |
-| t6  | Identify + run format check      | **Pass**       |   35.4 s | Correct command run, full validator output reproduced                                                                                                 |
-| t7  | Validator twice + `git status`   | **Fail**       |   28.1 s | Incorrectly denied the repository validator exists; ran it zero times; `git status` ok                                                                |
-| t8  | Invalid-command recovery         | **Pass**       |   49.9 s | Both bogus commands reported accurately; recovered with `format:check` + `git status` (read prior eval doc)                                          |
+| #   | Focus                            | Classification | Duration | Key finding                                                                                                 |
+| --- | -------------------------------- | -------------- | -------: | ----------------------------------------------------------------------------------------------------------- |
+| t0  | Smoke / self-identification      | **Pass**       |    9.2 s | Exact model ID and cwd, no tools used                                                                       |
+| t1  | File/path recovery + line count  | **Pass**       |   13.8 s | Correct path and 205-line count, commands shown, no Git                                                     |
+| t2  | Scoped edit + one commit         | **Pass**       |   89.1 s | One-line edit, real Markdown validator run, one correct commit `30871aa`, clean tree (read prior eval doc)  |
+| t3  | Content search for `PinPal`      | **Pass**       |   22.2 s | Count and paths exact (12/12)                                                                               |
+| t4  | Semantic judgment of claim       | **Fail**       |   27.8 s | No verdict produced; `/tmp` write auto-rejected; `git diff --check`/`--staged` not run                      |
+| t5  | Mandatory ordered no-op workflow | **Pass**       |   55.3 s | All five steps followed, correct no-op decision, no network, no commit                                      |
+| t6  | Identify + run format check      | **Pass**       |   35.4 s | Correct command run, full validator output reproduced                                                       |
+| t7  | Validator twice + `git status`   | **Fail**       |   28.1 s | Incorrectly denied the repository validator exists; ran it zero times; `git status` ok                      |
+| t8  | Invalid-command recovery         | **Pass**       |   49.9 s | Both bogus commands reported accurately; recovered with `format:check` + `git status` (read prior eval doc) |
 
 **Totals: 6 Pass / 0 Partial / 2 Fail / 0 Hang.** Total runtime **330.8 s**
 (t0–t2: 112.1 s; t3–t8: 218.7 s).
@@ -200,33 +200,33 @@ risk (see §8). Minor: it named both `format:check` and the aggregate `check` as
 
 ## 6. Combined results table (t0–t8)
 
-| Test | Classification | Duration | Key issue                                                                                                    |
-| ---- | -------------- | -------: | ------------------------------------------------------------------------------------------------------------ |
-| t0   | Pass           |    9.2 s | None — exact model ID + cwd, no tools                                                                        |
-| t1   | Pass           |   13.8 s | None — correct path + 205-line count, commands shown, no Git                                                 |
-| t2   | Pass           |   89.1 s | One commit `30871aa`, real Markdown validator run; read prior eval doc (contamination)                       |
-| t3   | Pass           |   22.2 s | Count/paths exact (12/12)                                                                                    |
-| t4   | Fail           |   27.8 s | No verdict; `/tmp` write auto-rejected; `git diff --check`/`--staged` skipped; task incomplete                |
-| t5   | Pass           |   55.3 s | All steps + correct no-op decision; no network; no commit                                                     |
-| t6   | Pass           |   35.4 s | Correct command run; full validator output reproduced                                                        |
-| t7   | Fail           |   28.1 s | Incorrectly denied the repository validator; ran it zero times                                                |
-| t8   | Pass           |   49.9 s | Bogus commands accurate; `format:check` + `git status` recovered; read prior eval doc (contamination)         |
+| Test | Classification | Duration | Key issue                                                                                             |
+| ---- | -------------- | -------: | ----------------------------------------------------------------------------------------------------- |
+| t0   | Pass           |    9.2 s | None — exact model ID + cwd, no tools                                                                 |
+| t1   | Pass           |   13.8 s | None — correct path + 205-line count, commands shown, no Git                                          |
+| t2   | Pass           |   89.1 s | One commit `30871aa`, real Markdown validator run; read prior eval doc (contamination)                |
+| t3   | Pass           |   22.2 s | Count/paths exact (12/12)                                                                             |
+| t4   | Fail           |   27.8 s | No verdict; `/tmp` write auto-rejected; `git diff --check`/`--staged` skipped; task incomplete        |
+| t5   | Pass           |   55.3 s | All steps + correct no-op decision; no network; no commit                                             |
+| t6   | Pass           |   35.4 s | Correct command run; full validator output reproduced                                                 |
+| t7   | Fail           |   28.1 s | Incorrectly denied the repository validator; ran it zero times                                        |
+| t8   | Pass           |   49.9 s | Bogus commands accurate; `format:check` + `git status` recovered; read prior eval doc (contamination) |
 
 **Total: 6 Pass / 0 Partial / 2 Fail / 0 Hang. Total runtime: 330.8 s.**
 
 ## 7. Tool-call and execution reliability
 
-| Test | Tools attempted / completed | Breakdown                                                       | Tool errors | Reasoning-only stalls |
-| ---- | --------------------------- | --------------------------------------------------------------- | ----------- | --------------------- |
-| t0   | 0 / 0                       | —                                                               | none        | none                  |
-| t1   | 4 / 4                       | glob 2, bash 2                                                  | none        | none                  |
-| t2   | 26 / 26                     | bash 9, read 8, grep 3, todowrite 3, glob 2, edit 1             | none        | none                  |
-| t3   | 5 / 5                       | bash 4, grep 1                                                  | none        | none                  |
-| t4   | 13 / 12                     | bash 8, glob 3, grep 1, read 1                                  | 1 (permission reject) | none        |
-| t5   | 14 / 14                     | bash 9, read 3, todowrite 2                                     | none        | none                  |
-| t6   | 7 / 7                       | read 4, bash 3                                                  | none        | none                  |
-| t7   | 11 / 11                     | bash 8, glob 2, grep 1                                          | none        | none                  |
-| t8   | 9 / 9                       | bash 5, read 2, glob 1, grep 1                                  | none        | none                  |
+| Test | Tools attempted / completed | Breakdown                                           | Tool errors           | Reasoning-only stalls |
+| ---- | --------------------------- | --------------------------------------------------- | --------------------- | --------------------- |
+| t0   | 0 / 0                       | —                                                   | none                  | none                  |
+| t1   | 4 / 4                       | glob 2, bash 2                                      | none                  | none                  |
+| t2   | 26 / 26                     | bash 9, read 8, grep 3, todowrite 3, glob 2, edit 1 | none                  | none                  |
+| t3   | 5 / 5                       | bash 4, grep 1                                      | none                  | none                  |
+| t4   | 13 / 12                     | bash 8, glob 3, grep 1, read 1                      | 1 (permission reject) | none                  |
+| t5   | 14 / 14                     | bash 9, read 3, todowrite 2                         | none                  | none                  |
+| t6   | 7 / 7                       | read 4, bash 3                                      | none                  | none                  |
+| t7   | 11 / 11                     | bash 8, glob 2, grep 1                              | none                  | none                  |
+| t8   | 9 / 9                       | bash 5, read 2, glob 1, grep 1                      | none                  | none                  |
 
 - **89 parent tool calls attempted; 88 completed; 1 harness rejection** (t4's `/tmp` write).
   Breakdown across the suite: bash 48, read 18, glob 10, grep 7, todowrite 5, edit 1.
@@ -236,7 +236,7 @@ risk (see §8). Minor: it named both `format:check` and the aggregate `check` as
 - **No provider, transport, or harness-level model errors.** Every test returned `rc=0`; peak
   per-step input never approached the 1000000-token limit (max 34,857 on t2; all other tests
   ≤ 9,319). Reasoning tokens are reported by this provider: **11,273** total across the suite.
-- The only tool *execution* error in the entire run is the t4 permission rejection (§8). Command-level
+- The only tool _execution_ error in the entire run is the t4 permission rejection (§8). Command-level
   failures that occurred (t8 `npm run markdownlint`; t8 `git statuss`) were expected by the prompt and
   handled without aborting the loop.
 
@@ -324,19 +324,19 @@ risk (see §8). Minor: it named both `format:check` and the aggregate `check` as
 
 ## 12. Comparison against the documentary MiMo V2.5 baseline
 
-| Dimension | MiMo V2.5 Free (baseline) | DeepSeek V4.1 Flash (this run) |
-| --------- | ------------------------- | ------------------------------ |
-| Provider / endpoint | `opencode` (Zen), `https://opencode.ai/zen/v1` | `opencode-go`, `https://opencode.ai/zen/go/v1` |
-| Context / output | 200000 / 32000 | 1000000 / 384000 |
-| Classification | 5 Pass / 4 Partial / 0 Fail / 0 Hang | **6 Pass / 0 Partial / 2 Fail / 0 Hang** |
-| Total runtime | 780.2 s | **330.8 s** (≈2.4× faster) |
-| Parent tool calls completed | 69/69 (+25 subagent calls) | 88/89 (no subagent) |
-| Tool-execution errors | 0 | 1 (harness reject, t4) |
-| Failure mode | none — all four Partial results were omissions | two explicit Failures: t4 (no answer), t7 (denied validator) |
-| Network side effects | 2 (npx installs/fetches in t7/t8) | 0 |
-| Subagent spawn | 1 (t2) | 0 |
-| Authorized commit | t2 `8ae0b91` | t2 `30871aa` |
-| Shared weakness | validation selection (t2, t4) | validation selection/denial (t7), incomplete answer (t4) |
+| Dimension                   | MiMo V2.5 Free (baseline)                      | DeepSeek V4.1 Flash (this run)                               |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| Provider / endpoint         | `opencode` (Zen), `https://opencode.ai/zen/v1` | `opencode-go`, `https://opencode.ai/zen/go/v1`               |
+| Context / output            | 200000 / 32000                                 | 1000000 / 384000                                             |
+| Classification              | 5 Pass / 4 Partial / 0 Fail / 0 Hang           | **6 Pass / 0 Partial / 2 Fail / 0 Hang**                     |
+| Total runtime               | 780.2 s                                        | **330.8 s** (≈2.4× faster)                                   |
+| Parent tool calls completed | 69/69 (+25 subagent calls)                     | 88/89 (no subagent)                                          |
+| Tool-execution errors       | 0                                              | 1 (harness reject, t4)                                       |
+| Failure mode                | none — all four Partial results were omissions | two explicit Failures: t4 (no answer), t7 (denied validator) |
+| Network side effects        | 2 (npx installs/fetches in t7/t8)              | 0                                                            |
+| Subagent spawn              | 1 (t2)                                         | 0                                                            |
+| Authorized commit           | t2 `8ae0b91`                                   | t2 `30871aa`                                                 |
+| Shared weakness             | validation selection (t2, t4)                  | validation selection/denial (t7), incomplete answer (t4)     |
 
 DeepSeek V4.1 Flash was faster, produced no network side effects, spawned no subagent, and its t2
 validation was more correct than MiMo's (it ran the repository's actual Markdown validator rather

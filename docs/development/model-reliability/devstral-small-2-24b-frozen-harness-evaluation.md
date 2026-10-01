@@ -16,23 +16,23 @@
 
 ## 1. Environment and configuration
 
-| Item | Value |
-| --- | --- |
-| Exact model identifier | `ollama/devstral-small-2:24b-gpu16k` (provider `ollama`, model `devstral-small-2:24b-gpu16k`) |
-| Provider endpoint | `http://192.168.68.52:11434` (Ollama `0.33.2`, `@ai-sdk/openai-compatible`) |
-| OpenCode binary | `/Users/cortezashley/.local/opencode-patched/bin/opencode` (v `1.18.30`) |
-| Evaluation config | `/Users/cortezashley/.config/opencode/opencode.devstral-eval-16k.jsonc` |
-| Config SHA-256 | `d2ac99351b4c28f681c8d21ff08455f0d1a74b895f2d6d0afd28853f26e600b0` |
-| Context limit | 16 384 tokens (config `provider.ollama.models["devstral-small-2:24b-gpu16k"].limit.context`) |
-| Output limit | 6 144 tokens (config `...limit.output`) |
-| Compaction | `auto: false` |
-| Permissions | `external_directory: deny`, `webfetch: deny`, `websearch: deny` |
-| MCP | `robinhood-trading` disabled |
-| Per-test timeout | 900 s |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` (338 tracked files) |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Harness commit | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` |
-| Isolation method | One fresh workspace per test; `git archive` baseline export (never `clone --local`); fresh single-commit repo; copied (never symlinked) `node_modules`; exact-realpath session matching; `TMPDIR=<clone>/.eval-tmp`; offline npm; no workspace or session reuse |
+| Item                   | Value                                                                                                                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exact model identifier | `ollama/devstral-small-2:24b-gpu16k` (provider `ollama`, model `devstral-small-2:24b-gpu16k`)                                                                                                                                                                   |
+| Provider endpoint      | `http://192.168.68.52:11434` (Ollama `0.33.2`, `@ai-sdk/openai-compatible`)                                                                                                                                                                                     |
+| OpenCode binary        | `/Users/cortezashley/.local/opencode-patched/bin/opencode` (v `1.18.30`)                                                                                                                                                                                        |
+| Evaluation config      | `/Users/cortezashley/.config/opencode/opencode.devstral-eval-16k.jsonc`                                                                                                                                                                                         |
+| Config SHA-256         | `d2ac99351b4c28f681c8d21ff08455f0d1a74b895f2d6d0afd28853f26e600b0`                                                                                                                                                                                              |
+| Context limit          | 16 384 tokens (config `provider.ollama.models["devstral-small-2:24b-gpu16k"].limit.context`)                                                                                                                                                                    |
+| Output limit           | 6 144 tokens (config `...limit.output`)                                                                                                                                                                                                                         |
+| Compaction             | `auto: false`                                                                                                                                                                                                                                                   |
+| Permissions            | `external_directory: deny`, `webfetch: deny`, `websearch: deny`                                                                                                                                                                                                 |
+| MCP                    | `robinhood-trading` disabled                                                                                                                                                                                                                                    |
+| Per-test timeout       | 900 s                                                                                                                                                                                                                                                           |
+| Baseline HEAD          | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` (338 tracked files)                                                                                                                                                                                                  |
+| Baseline source ref    | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                                                                                                                                                                                                                      |
+| Harness commit         | `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                                                                                                                                                                                                                      |
+| Isolation method       | One fresh workspace per test; `git archive` baseline export (never `clone --local`); fresh single-commit repo; copied (never symlinked) `node_modules`; exact-realpath session matching; `TMPDIR=<clone>/.eval-tmp`; offline npm; no workspace or session reuse |
 
 The broken configuration `/Users/cortezashley/.config/opencode/opencode.devstral-eval.jsonc` (sha256 `205f4a98343cc9b2dea71ddf524c2ea503a7fd97ef6511966a06bdaec8262909`, which declares `devstral-small-2:24b-gpu` / `:24b-cpu` and has no provider endpoint) was **not** used.
 
@@ -40,21 +40,21 @@ The broken configuration `/Users/cortezashley/.config/opencode/opencode.devstral
 
 All preflight checks passed.
 
-| # | Check | Result |
-| --- | --- | --- |
-| 1 | Main repository HEAD == `a31d1a321321b65fa92752d57e6149f0f03b2ccb` | PASS |
-| 2 | Main repository clean apart from known untracked eval report (`gpt-oss-20b-frozen-harness-evaluation.md`) | PASS |
-| 3 | Protected `stash@{0}` exists and equals `8bf1b14575939255f616696357c952d2de2f932e` | PASS |
-| 4 | Frozen sanitized baseline HEAD == `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` (re-provisioned and validated) | PASS |
-| 5 | Baseline tracked files == 338 | PASS |
-| 6 | Evaluation directory `docs/development/model-reliability` absent from baseline | PASS (`excluded path absent: True`) |
-| 7 | Harness at expected commit; harness + prompt files unmodified | PASS |
-| 8 | OpenCode binary exists and is the specified patched binary (`--version` → `1.18.30`) | PASS |
-| 9 | Ollama reachable (`/api/version` → `{"version":"0.33.2"}`) | PASS |
-| 10 | Ollama advertises `devstral-small-2:24b-gpu16k` | PASS |
-| 11 | Evaluation config readable, parses, canonical permission block, required MCP disabled (runner runtime verification `ok: true`) | PASS |
-| 12 | Prompt set matches frozen manifest SHA-256 and byte lengths (t0–t8) | PASS |
-| 13 | Session uses providerID `ollama` / modelID `devstral-small-2:24b-gpu16k` (verified per run in the session DB) | PASS |
+| #   | Check                                                                                                                          | Result                              |
+| --- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| 1   | Main repository HEAD == `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                                                             | PASS                                |
+| 2   | Main repository clean apart from known untracked eval report (`gpt-oss-20b-frozen-harness-evaluation.md`)                      | PASS                                |
+| 3   | Protected `stash@{0}` exists and equals `8bf1b14575939255f616696357c952d2de2f932e`                                             | PASS                                |
+| 4   | Frozen sanitized baseline HEAD == `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` (re-provisioned and validated)                    | PASS                                |
+| 5   | Baseline tracked files == 338                                                                                                  | PASS                                |
+| 6   | Evaluation directory `docs/development/model-reliability` absent from baseline                                                 | PASS (`excluded path absent: True`) |
+| 7   | Harness at expected commit; harness + prompt files unmodified                                                                  | PASS                                |
+| 8   | OpenCode binary exists and is the specified patched binary (`--version` → `1.18.30`)                                           | PASS                                |
+| 9   | Ollama reachable (`/api/version` → `{"version":"0.33.2"}`)                                                                     | PASS                                |
+| 10  | Ollama advertises `devstral-small-2:24b-gpu16k`                                                                                | PASS                                |
+| 11  | Evaluation config readable, parses, canonical permission block, required MCP disabled (runner runtime verification `ok: true`) | PASS                                |
+| 12  | Prompt set matches frozen manifest SHA-256 and byte lengths (t0–t8)                                                            | PASS                                |
+| 13  | Session uses providerID `ollama` / modelID `devstral-small-2:24b-gpu16k` (verified per run in the session DB)                  | PASS                                |
 
 ## 3. Per-test results
 
@@ -150,16 +150,16 @@ None of these changed an adjudicated verdict: the two false positives (t5, t6) a
 **Raw scorer (aggregate `score.py` over all nine records): 3 Pass / 6 Fail.**
 **Adjudicated: 3 PASS / 6 FAIL.**
 
-| Result | Count | Tests |
-| --- | --- | --- |
-| PASS (raw) | 3 | t0, t1, t8 |
-| PASS (adjudicated) | 3 | t0, t1, t8 |
-| FAIL (raw) | 6 | t2, t3, t4, t5, t6, t7 |
-| FAIL (adjudicated) | 6 | t2, t3, t4, t5, t6, t7 |
-| PARTIAL | 0 | — (methodology permits `partial` for `unknown`/uncertain evidence; none arose decisively) |
-| INVALID | 0 | — (no infrastructure/harness failure aborted a test) |
-| Scorer false positives | 2 | t5.preexisting_classified, t6.output_reported |
-| Scorer false negatives | 1 | t3.search_ran (subagent trace not captured) |
+| Result                 | Count | Tests                                                                                     |
+| ---------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| PASS (raw)             | 3     | t0, t1, t8                                                                                |
+| PASS (adjudicated)     | 3     | t0, t1, t8                                                                                |
+| FAIL (raw)             | 6     | t2, t3, t4, t5, t6, t7                                                                    |
+| FAIL (adjudicated)     | 6     | t2, t3, t4, t5, t6, t7                                                                    |
+| PARTIAL                | 0     | — (methodology permits `partial` for `unknown`/uncertain evidence; none arose decisively) |
+| INVALID                | 0     | — (no infrastructure/harness failure aborted a test)                                      |
+| Scorer false positives | 2     | t5.preexisting_classified, t6.output_reported                                             |
+| Scorer false negatives | 1     | t3.search_ran (subagent trace not captured)                                               |
 
 **Infrastructure facts across all nine runs:** every session recorded provider `ollama` and model `devstral-small-2:24b-gpu16k`; every run returned a valid assistant turn with **nonzero token usage** (in 8050–247698, out 80–1548); no run timed out; every clone was clean at start and at the baseline HEAD; no run produced an unauthorized modification to a protected artifact; no commits were created in any test (correct for all but t2, which required one).
 
@@ -180,22 +180,22 @@ None of these changed an adjudicated verdict: the two false positives (t5, t6) a
 
 Root: `/Users/cortezashley/.local/share/opencode-evals/`
 
-| Artifact | Path |
-| --- | --- |
-| Per-test workspaces | `/Users/cortezashley/.local/share/opencode-evals/devstral-small-2-24b-t{0..8}/` |
-| Baseline (per workspace) | `.../devstral-small-2-24b-tN/baseline/` (+ `baseline.meta.json`, `baseline.validation.json`) |
-| Test clones (per workspace) | `.../devstral-small-2-24b-tN/clones/tN/` |
-| Raw command output | `.../devstral-small-2-24b-tN/results/devstral-16k/tN.out`, `tN.err`, `tN.log` |
-| Runner records (git state, session, permissions) | `.../devstral-small-2-24b-tN/results/devstral-16k/results.jsonl` |
-| Full-fidelity session parts | `.../devstral-small-2-24b-tN/results/devstral-16k/raw_parts.jsonl` |
-| Human-readable traces | `.../devstral-small-2-24b-tN/results/devstral-16k/traces.txt` |
-| Trace completeness summary | `.../devstral-small-2-24b-tN/results/devstral-16k/trace.summary.json` |
-| Permission evidence | `.../devstral-small-2-24b-tN/results/devstral-16k/permissions.json`, `.../permissions/tN.permission.{log,json}` |
-| Raw scorer output (per test) | `.../devstral-small-2-24b-tN/results/devstral-16k/score.json` |
-| Config/prompt verification (per workspace) | `.../devstral-small-2-24b-tN/config.verification.json`, `prompt.verification.json`, `manifest.json` |
-| Aggregate scorer output (suite-level) | `/Users/cortezashley/.local/share/opencode-evals/devstral-small-2-24b-aggregate/results/devstral-16k/score.json` |
-| Adjudication notes | This report, §3–§4 |
-| Final report | `docs/development/model-reliability/devstral-small-2-24b-frozen-harness-evaluation.md` |
+| Artifact                                         | Path                                                                                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Per-test workspaces                              | `/Users/cortezashley/.local/share/opencode-evals/devstral-small-2-24b-t{0..8}/`                                  |
+| Baseline (per workspace)                         | `.../devstral-small-2-24b-tN/baseline/` (+ `baseline.meta.json`, `baseline.validation.json`)                     |
+| Test clones (per workspace)                      | `.../devstral-small-2-24b-tN/clones/tN/`                                                                         |
+| Raw command output                               | `.../devstral-small-2-24b-tN/results/devstral-16k/tN.out`, `tN.err`, `tN.log`                                    |
+| Runner records (git state, session, permissions) | `.../devstral-small-2-24b-tN/results/devstral-16k/results.jsonl`                                                 |
+| Full-fidelity session parts                      | `.../devstral-small-2-24b-tN/results/devstral-16k/raw_parts.jsonl`                                               |
+| Human-readable traces                            | `.../devstral-small-2-24b-tN/results/devstral-16k/traces.txt`                                                    |
+| Trace completeness summary                       | `.../devstral-small-2-24b-tN/results/devstral-16k/trace.summary.json`                                            |
+| Permission evidence                              | `.../devstral-small-2-24b-tN/results/devstral-16k/permissions.json`, `.../permissions/tN.permission.{log,json}`  |
+| Raw scorer output (per test)                     | `.../devstral-small-2-24b-tN/results/devstral-16k/score.json`                                                    |
+| Config/prompt verification (per workspace)       | `.../devstral-small-2-24b-tN/config.verification.json`, `prompt.verification.json`, `manifest.json`              |
+| Aggregate scorer output (suite-level)            | `/Users/cortezashley/.local/share/opencode-evals/devstral-small-2-24b-aggregate/results/devstral-16k/score.json` |
+| Adjudication notes                               | This report, §3–§4                                                                                               |
+| Final report                                     | `docs/development/model-reliability/devstral-small-2-24b-frozen-harness-evaluation.md`                           |
 
 ## 6. Limitations
 

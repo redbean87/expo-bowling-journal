@@ -12,27 +12,27 @@ GPT-OSS 20B demonstrated that it can execute repository operations, modify files
 
 The primary problems were not transport failures or inability to use tools. They were:
 
-* Incorrect tool selection
-* Inadequate investigation
-* Failure to recover from incorrect approaches
-* Skipped validation
-* Weak semantic judgment
-* Incomplete or misleading final reporting
-* Unsupported claims about command results
-* Reuse of prior output as though it were fresh evidence
-* Failure to distinguish pre-existing problems from worker-caused problems without intervention
+- Incorrect tool selection
+- Inadequate investigation
+- Failure to recover from incorrect approaches
+- Skipped validation
+- Weak semantic judgment
+- Incomplete or misleading final reporting
+- Unsupported claims about command results
+- Reuse of prior output as though it were fresh evidence
+- Failure to distinguish pre-existing problems from worker-caused problems without intervention
 
 DeepSeek V4.1 Flash was able to supervise GPT-OSS, identify omissions, and obtain correct outcomes after intervention. GPT-OSS should therefore be treated as an optional, low-trust worker rather than an autonomous development agent.
 
 ## Test Environment
 
-* Worker: `ollama/gpt-oss:20b`
-* Supervisor: DeepSeek V4.1 Flash
-* OpenCode execution used the patched binary:
+- Worker: `ollama/gpt-oss:20b`
+- Supervisor: DeepSeek V4.1 Flash
+- OpenCode execution used the patched binary:
   `/Users/cortezashley/.local/opencode-patched/bin/opencode`
-* Baseline repository states were clean before each test.
-* Tests were conducted against the PinPal/bowling repository documentation and related repository tooling.
-* No application feature work was part of these tests.
+- Baseline repository states were clean before each test.
+- Tests were conducted against the PinPal/bowling repository documentation and related repository tooling.
+- No application feature work was part of these tests.
 
 ## Findings
 
@@ -48,10 +48,10 @@ When explicitly told that the conclusion was wrong, GPT-OSS repeated the same gl
 
 **Failure categories:**
 
-* Incorrect tool usage
-* Inadequate investigation
-* Failure to recover
-* Unsupported negative conclusion
+- Incorrect tool usage
+- Inadequate investigation
+- Failure to recover
+- Unsupported negative conclusion
 
 **Assessment:** GPT-OSS did not understand the distinction between filename search and content search and did not adapt after correction.
 
@@ -59,19 +59,19 @@ When explicitly told that the conclusion was wrong, GPT-OSS repeated the same gl
 
 In a subsequent test, GPT-OSS:
 
-* Enumerated Markdown files
-* Used `grep` to search file contents
-* Located `docs/domain-model.md`
-* Made a scoped documentation edit
-* Created a valid commit
-* Left the working tree clean
+- Enumerated Markdown files
+- Used `grep` to search file contents
+- Located `docs/domain-model.md`
+- Made a scoped documentation edit
+- Created a valid commit
+- Left the working tree clean
 
 However:
 
-* It did not run validation.
-* It did not inspect the diff before committing.
-* It introduced invisible non-breaking-space characters.
-* Its final report omitted relevant command details.
+- It did not run validation.
+- It did not inspect the diff before committing.
+- It introduced invisible non-breaking-space characters.
+- Its final report omitted relevant command details.
 
 **Assessment:** The mechanical workflow succeeded, but verification and edit hygiene were insufficient.
 
@@ -85,10 +85,10 @@ The edit was unnecessary and reduced consistency.
 
 **Failure categories:**
 
-* Incorrect semantic judgment
-* Unsupported justification
-* Insufficient inspection of surrounding conventions
-* Failure to distinguish a real defect from stylistic preference
+- Incorrect semantic judgment
+- Unsupported justification
+- Insufficient inspection of surrounding conventions
+- Failure to distinguish a real defect from stylistic preference
 
 **Assessment:** GPT-OSS can produce syntactically valid changes that are not meaningful improvements.
 
@@ -96,18 +96,18 @@ The edit was unnecessary and reduced consistency.
 
 When asked to determine whether the Markdown emphasis issue warranted a change, GPT-OSS eventually made the correct decision:
 
-* No change was warranted.
-* No commit was created.
-* The repository remained unchanged.
+- No change was warranted.
+- No commit was created.
+- The repository remained unchanged.
 
 It also recovered from an invalid regular-expression search and abandoned an unavailable tool.
 
 However, it:
 
-* Did not run the required validation.
-* Did not run or report Git status.
-* Did not provide the requested defect/style/assumption classification.
-* Assumed that no Markdown validator was available despite the repository having a `format:check` script.
+- Did not run the required validation.
+- Did not run or report Git status.
+- Did not provide the requested defect/style/assumption classification.
+- Assumed that no Markdown validator was available despite the repository having a `format:check` script.
 
 **Assessment:** The high-level decision was correct, but the supporting investigation was incomplete.
 
@@ -115,12 +115,12 @@ However, it:
 
 Under explicit supervision, GPT-OSS:
 
-* Inspected `package.json`
-* Found and ran `npm run format:check`
-* Ran lint and typecheck
-* Reported a pre-existing formatting failure
-* Ran Git status
-* Correctly avoided making an unjustified change
+- Inspected `package.json`
+- Found and ran `npm run format:check`
+- Ran lint and typecheck
+- Reported a pre-existing formatting failure
+- Ran Git status
+- Correctly avoided making an unjustified change
 
 DeepSeek identified missing steps and instructed GPT-OSS to complete them.
 
@@ -132,14 +132,14 @@ In one supervised run, GPT-OSS displayed command output in its final response as
 
 The actual recovery-phase commands were only:
 
-* `git diff`
-* `sed`
+- `git diff`
+- `sed`
 
 The displayed validation and Git-status output had been produced earlier. The underlying facts were accurate, but the evidence was presented without clearly distinguishing fresh output from prior output.
 
 **Failure category:**
 
-* Evidence-integrity/reporting failure
+- Evidence-integrity/reporting failure
 
 **Assessment:** Even when the final factual conclusion is correct, GPT-OSS may present historical or reconstructed evidence as fresh verification. This is unacceptable for high-trust autonomous workflows.
 
@@ -147,48 +147,48 @@ The displayed validation and Git-status output had been produced earlier. The un
 
 The tests indicate that GPT-OSS can:
 
-* Read repository files
-* Search content when it selects the correct tool
-* Make simple scoped edits
-* Execute shell commands
-* Run common project checks
-* Create commits
-* Maintain a clean working tree
-* Recover from some tool errors
-* Make a correct no-op decision when the issue is clearly framed
+- Read repository files
+- Search content when it selects the correct tool
+- Make simple scoped edits
+- Execute shell commands
+- Run common project checks
+- Create commits
+- Maintain a clean working tree
+- Recover from some tool errors
+- Make a correct no-op decision when the issue is clearly framed
 
 ## What GPT-OSS Cannot Yet Be Trusted to Do Autonomously
 
 GPT-OSS should not be trusted to independently:
 
-* Select the correct investigation tool in unfamiliar situations
-* Infer repository-wide absence from failed searches
-* Recover consistently after an incorrect approach
-* Map abstract requirements to repository-specific tooling
-* Distinguish meaningful defects from stylistic preferences
-* Perform mandatory diff review
-* Classify validation failures as pre-existing or newly introduced
-* Report command evidence with reliable provenance
-* Produce complete and accurate completion reports
+- Select the correct investigation tool in unfamiliar situations
+- Infer repository-wide absence from failed searches
+- Recover consistently after an incorrect approach
+- Map abstract requirements to repository-specific tooling
+- Distinguish meaningful defects from stylistic preferences
+- Perform mandatory diff review
+- Classify validation failures as pre-existing or newly introduced
+- Report command evidence with reliable provenance
+- Produce complete and accurate completion reports
 
 ## Architectural Decision
 
 DeepSeek V4.1 Flash will remain the primary supervisor/orchestrator responsible for:
 
-* Task decomposition
-* Delegation to worker models
-* Monitoring worker progress
-* Detecting skipped steps and unsupported claims
-* Reviewing validation results
-* Verifying Git state
-* Accepting or rejecting the final result
+- Task decomposition
+- Delegation to worker models
+- Monitoring worker progress
+- Detecting skipped steps and unsupported claims
+- Reviewing validation results
+- Verifying Git state
+- Accepting or rejecting the final result
 
 GPT-OSS 20B may be used only for bounded, low-risk subtasks where:
 
-* The task is reversible
-* The expected change is narrowly scoped
-* Independent verification is available
-* DeepSeek or external tooling performs final acceptance checks
+- The task is reversible
+- The expected change is narrowly scoped
+- Independent verification is available
+- DeepSeek or external tooling performs final acceptance checks
 
 GPT-OSS should not be treated as a self-verifying autonomous repository agent.
 
@@ -208,14 +208,14 @@ git show --stat --oneline HEAD
 
 Additional safeguards should include:
 
-* Require explicit command/result reporting.
-* Require a diff review before commit.
-* Require validation appropriate to the file type.
-* Require comparison against the baseline when classifying failures as pre-existing.
-* Distinguish fresh command output from historical output.
-* Reject completion reports that omit required evidence.
-* Prevent dependency installation unless explicitly authorized.
-* Require no-op tasks to report why no change was warranted and what validation was performed.
+- Require explicit command/result reporting.
+- Require a diff review before commit.
+- Require validation appropriate to the file type.
+- Require comparison against the baseline when classifying failures as pre-existing.
+- Distinguish fresh command output from historical output.
+- Reject completion reports that omit required evidence.
+- Prevent dependency installation unless explicitly authorized.
+- Require no-op tasks to report why no change was warranted and what validation was performed.
 
 ## Final Assessment
 

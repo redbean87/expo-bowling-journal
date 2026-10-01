@@ -8,14 +8,14 @@ volatile storage.
 
 ## Archive location
 
-| Item | Value |
-| ---- | ----- |
-| Archive ID | `deepseek-v41-flash-2026-09-17` |
+| Item            | Value                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------- |
+| Archive ID      | `deepseek-v41-flash-2026-09-17`                                                                          |
 | Bundle location | `docs/development/model-reliability/archive/deepseek-v41-flash-2026-09-17/` (git-ignored; not committed) |
-| Manifest | `docs/development/model-reliability/harness/archive-manifest.deepseek-v41-flash.json` |
-| Build spec | `docs/development/model-reliability/harness/archive-spec.deepseek-v41-flash.json` |
-| Mechanism | `docs/development/model-reliability/harness/archive_bundle.py` |
-| Files / bytes | 227 files / 213,447,714 bytes |
+| Manifest        | `docs/development/model-reliability/harness/archive-manifest.deepseek-v41-flash.json`                    |
+| Build spec      | `docs/development/model-reliability/harness/archive-spec.deepseek-v41-flash.json`                        |
+| Mechanism       | `docs/development/model-reliability/harness/archive_bundle.py`                                           |
+| Files / bytes   | 227 files / 213,447,714 bytes                                                                            |
 
 The bundle is a byte-for-byte copy of the retention-relevant artifacts. It is
 **not committed to Git** because raw traces and `results.jsonl` files are large;

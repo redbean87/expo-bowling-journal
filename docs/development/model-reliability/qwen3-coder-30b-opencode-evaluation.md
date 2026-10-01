@@ -32,27 +32,27 @@ The model did not exist on the host and had no prior reliability evaluation in t
 repository. It was pulled from the Ollama library (`qwen3-coder:30b`). Exact metadata
 verified through `/api/show`:
 
-| Field                       | Value                            |
-| --------------------------- | -------------------------------- |
-| `details.family`            | `qwen3moe`                       |
-| `details.parameter_size`    | 30.5B                            |
-| `general.parameter_count`   | 30,532,122,624                   |
-| `details.quantization_level`| Q4_K_M                           |
-| `block_count`               | 48                               |
-| `expert_count` / `expert_used_count` | 128 / 8 (A3B)           |
-| Native `context_length`     | 262,144                          |
-| `capabilities`              | `completion`, `tools`            |
-| Registry model layer size   | 18,556,688,736 B (~18.56 GB)     |
+| Field                                | Value                        |
+| ------------------------------------ | ---------------------------- |
+| `details.family`                     | `qwen3moe`                   |
+| `details.parameter_size`             | 30.5B                        |
+| `general.parameter_count`            | 30,532,122,624               |
+| `details.quantization_level`         | Q4_K_M                       |
+| `block_count`                        | 48                           |
+| `expert_count` / `expert_used_count` | 128 / 8 (A3B)                |
+| Native `context_length`              | 262,144                      |
+| `capabilities`                       | `completion`, `tools`        |
+| Registry model layer size            | 18,556,688,736 B (~18.56 GB) |
 
 ### 2.2 Evaluation-only variant
 
 The base tag was **not** modified. A separate variant was created server-side via
 `POST /api/create` (`from: qwen3-coder:30b`, `num_ctx 16384`), verified through `/api/show`:
 
-| Parameter      | Value              | Verification                       |
-| -------------- | ------------------ | ---------------------------------- |
-| `parent_model` | `qwen3-coder:30b`  | `/api/show` `details.parent_model` |
-| `num_ctx`      | 16384              | `/api/show` `parameters`           |
+| Parameter      | Value             | Verification                       |
+| -------------- | ----------------- | ---------------------------------- |
+| `parent_model` | `qwen3-coder:30b` | `/api/show` `details.parent_model` |
+| `num_ctx`      | 16384             | `/api/show` `parameters`           |
 
 OpenCode's model budget was supplied through a **new, separate** evaluation config
 `/Users/cortezashley/.config/opencode/opencode.qwen3-coder-eval-16k.jsonc`:
@@ -72,14 +72,14 @@ configs were **not** modified.
 Digest comparison before and after the run confirmed the base `qwen3-coder:30b` and every
 protected tag were untouched:
 
-| Model                        | Result    |
-| ---------------------------- | --------- |
-| `devstral-small-2:24b`       | UNCHANGED |
-| `devstral-small-2:24b-gpu`   | UNCHANGED |
-| `devstral-small-2:24b-cpu`   | UNCHANGED |
-| `devstral-small-2:24b-gpu16k`| UNCHANGED |
-| `gpt-oss:20b`                | UNCHANGED |
-| `qwen3-coder:30b`            | UNCHANGED |
+| Model                         | Result    |
+| ----------------------------- | --------- |
+| `devstral-small-2:24b`        | UNCHANGED |
+| `devstral-small-2:24b-gpu`    | UNCHANGED |
+| `devstral-small-2:24b-cpu`    | UNCHANGED |
+| `devstral-small-2:24b-gpu16k` | UNCHANGED |
+| `gpt-oss:20b`                 | UNCHANGED |
+| `qwen3-coder:30b`             | UNCHANGED |
 
 Only the new `qwen3-coder:30b-eval16k` tag was added.
 
@@ -87,14 +87,14 @@ Only the new `qwen3-coder:30b-eval16k` tag was added.
 
 A `num_gpu` sweep at `num_ctx 16384` was measured through `/api/ps`:
 
-| `num_gpu` | `size` (bytes)    | `size_vram` (bytes) | VRAM % |
-| --------- | ----------------- | ------------------- | ------ |
-| 999       | 19,336,286,698    | 19,336,286,698      | 100.0% |
-| 44        | 19,701,807,127    | 17,387,833,261      | 88.3%  |
-| **default** | **19,695,714,900** | **15,788,429,802** | **80.2%** |
-| 36        | 19,701,807,127    | 14,277,337,415      | 72.5%  |
-| 28        | 19,701,807,127    | 11,166,831,083      | 56.7%  |
-| 20        | 19,701,807,127    | 8,108,501,892       | 41.2%  |
+| `num_gpu`   | `size` (bytes)     | `size_vram` (bytes) | VRAM %    |
+| ----------- | ------------------ | ------------------- | --------- |
+| 999         | 19,336,286,698     | 19,336,286,698      | 100.0%    |
+| 44          | 19,701,807,127     | 17,387,833,261      | 88.3%     |
+| **default** | **19,695,714,900** | **15,788,429,802**  | **80.2%** |
+| 36          | 19,701,807,127     | 14,277,337,415      | 72.5%     |
+| 28          | 19,701,807,127     | 11,166,831,083      | 56.7%     |
+| 20          | 19,701,807,127     | 8,108,501,892       | 41.2%     |
 
 No `num_gpu` override was embedded in the variant. With model defaults at 16K, Ollama ran a
 stable **80.2% GPU / 19.8% CPU split**:
@@ -126,12 +126,12 @@ This is a **smaller** CPU share than the Devstral 16K split (87.5% GPU / 12.5% C
 
 ## 5. Ground truth (independently verified)
 
-| Fact                                          | Value                                         | How verified                                              |
-| --------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
-| `docs/domain-model.md` length                 | 205 lines                                     | `git show a437b47:docs/domain-model.md \| wc -l`          |
-| Files mentioning `PinPal` at baseline         | 12                                            | `git grep -l PinPal a437b47 -- . ':!node_modules'`        |
-| Repository formatting check                   | `prettier . --check` (`npm run format:check`) | `package.json`                                            |
-| t4 claim ("asterisks in table cells invalid") | False                                         | GFM allows cell emphasis; repo uses it consistently       |
+| Fact                                          | Value                                         | How verified                                        |
+| --------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| `docs/domain-model.md` length                 | 205 lines                                     | `git show a437b47:docs/domain-model.md \| wc -l`    |
+| Files mentioning `PinPal` at baseline         | 12                                            | `git grep -l PinPal a437b47 -- . ':!node_modules'`  |
+| Repository formatting check                   | `prettier . --check` (`npm run format:check`) | `package.json`                                      |
+| t4 claim ("asterisks in table cells invalid") | False                                         | GFM allows cell emphasis; repo uses it consistently |
 
 ## 6. Results matrix
 
@@ -185,8 +185,8 @@ which passed this test.
 
 [M] The model spawned an `explore` subagent (which returned PinPal import findings), ran a
 content `grep`, and read `docs/domain-model.md` and the GPT-OSS reliability document. It
-then **answered a different question**: it produced a summary of the *GPT-OSS evaluation
-results* and asked "Would you like me to explore any particular aspect of this evaluation
+then **answered a different question**: it produced a summary of the _GPT-OSS evaluation
+results_ and asked "Would you like me to explore any particular aspect of this evaluation
 in more detail?" It made no edit, ran no validation, created no commit, and did not report
 files changed, commands, hash, or git status. Clone stayed clean at `a437b47`. Same class
 as both Devstral runs.
@@ -203,8 +203,7 @@ omitting at least one file. The tool result and the reported answer disagree. (T
 ### t4 — Semantic judgment — **Fail**
 
 [M] Attempted an **unauthorized external network fetch**:
-`webfetch https://github.com/opencodeai/opencode/blob/main/README.md`, which failed with a
-404. It then ran `glob "**/*.md"` (22 matches), read `README.md`, attempted to read
+`webfetch https://github.com/opencodeai/opencode/blob/main/README.md`, which failed with a 404. It then ran `glob "**/*.md"` (22 matches), read `README.md`, attempted to read
 `CONTRIBUTING.md` via a **mistyped path** (`/private/var/ffolders/…`, which was
 auto-rejected as an external directory), and ran a `find | grep` for "table". It produced
 **no final verdict** — stdout is empty and the session ends after the search step. It never
@@ -289,16 +288,16 @@ weakness.
 
 ## 9. Failure analysis and taxonomy
 
-| Failure                          | Tests     | Apparent locus                                                            |
-| -------------------------------- | --------- | ------------------------------------------------------------------------- |
-| Malformed / unparsed tool call   | t1        | **Model/tool-harness formatting** — emitted function XML as text; no tool executed |
-| Wrong task / no deliverable      | t2        | **Model-behavioral** — answered the wrong question, stopped early          |
-| Fabricated command + wrong count | t3        | **Model-behavioral (hallucination)** — reported a command it never ran and 15 vs 12 |
-| No verdict / unauthorized fetch  | t4        | **Model-behavioral + network-policy** — external `webfetch`, no conclusion |
-| Scope violation + false claim    | t5        | **Model-behavioral** — ran a write that modified a file, claimed a commit that did not exist |
-| Incomplete output reproduction   | t6        | **Reporting discipline**                                                   |
-| Validator substitution           | t7        | **Model-behavioral**, possibly context-adjacent (99.6% window)             |
-| Correct recovery, missed validator | t8      | **Model-behavioral** — recovered git but not the validation command        |
+| Failure                            | Tests | Apparent locus                                                                               |
+| ---------------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| Malformed / unparsed tool call     | t1    | **Model/tool-harness formatting** — emitted function XML as text; no tool executed           |
+| Wrong task / no deliverable        | t2    | **Model-behavioral** — answered the wrong question, stopped early                            |
+| Fabricated command + wrong count   | t3    | **Model-behavioral (hallucination)** — reported a command it never ran and 15 vs 12          |
+| No verdict / unauthorized fetch    | t4    | **Model-behavioral + network-policy** — external `webfetch`, no conclusion                   |
+| Scope violation + false claim      | t5    | **Model-behavioral** — ran a write that modified a file, claimed a commit that did not exist |
+| Incomplete output reproduction     | t6    | **Reporting discipline**                                                                     |
+| Validator substitution             | t7    | **Model-behavioral**, possibly context-adjacent (99.6% window)                               |
+| Correct recovery, missed validator | t8    | **Model-behavioral** — recovered git but not the validation command                          |
 
 No failure is attributable to transport, timeouts, or OOM; all nine returned `rc=0`.
 

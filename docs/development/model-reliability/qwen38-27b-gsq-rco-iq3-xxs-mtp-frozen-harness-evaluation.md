@@ -77,17 +77,17 @@ The model is a reasoning model: responses carry a separate `reasoning_content` c
 `~/.config/opencode/opencode.jsonc` by OpenCode. `opencode debug config` under that variable shows
 the merged result includes the `qwen-local` provider (base config) plus the eval-only policy:
 
-| Item | Value |
-| ---- | ----- |
-| Config path | `/Users/cortezashley/.config/opencode/opencode.qwen-local-eval.jsonc` |
-| Config SHA-256 | `e7e93dae8278b56fb64dc30c2e1c1a534d3f2ebd11a291d45438cedb1f8dab03` |
-| Config bytes | 269 |
-| `compaction.auto` | `false` |
-| `mcp.robinhood-trading.enabled` | `false` (verified by the runner before any model call) |
-| Canonical permission block | `external_directory=deny`, `webfetch=deny`, `websearch=deny` (exact match) |
-| Provider / endpoint | `qwen-local`, `http://192.168.68.52:8080/v1` |
-| Downstream model key | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` |
-| Context / output limit | 16384 / 4096 (from the base config model entry) |
+| Item                            | Value                                                                      |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| Config path                     | `/Users/cortezashley/.config/opencode/opencode.qwen-local-eval.jsonc`      |
+| Config SHA-256                  | `e7e93dae8278b56fb64dc30c2e1c1a534d3f2ebd11a291d45438cedb1f8dab03`         |
+| Config bytes                    | 269                                                                        |
+| `compaction.auto`               | `false`                                                                    |
+| `mcp.robinhood-trading.enabled` | `false` (verified by the runner before any model call)                     |
+| Canonical permission block      | `external_directory=deny`, `webfetch=deny`, `websearch=deny` (exact match) |
+| Provider / endpoint             | `qwen-local`, `http://192.168.68.52:8080/v1`                               |
+| Downstream model key            | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf`      |
+| Context / output limit          | 16384 / 4096 (from the base config model entry)                            |
 
 The runner’s runtime `config_verification` recorded `ok: true`, with the parsed permission block equal
 to the canonical policy and `robinhood-trading` present with `enabled=false`. The config file was
@@ -100,18 +100,18 @@ Qwen model above; the base default was never used.
 
 ## 3. Harness and baseline identifiers
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json` v1) |
-| Harness commit | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` |
+| Item                                      | Value                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| Suite                                     | `opencode-t0-t8` (frozen `ground_truth.json` v1)                     |
+| Harness commit                            | `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                           |
 | Harness/scorer/prompts working-tree drift | none (`git status --porcelain` on the harness and prompt dirs empty) |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline tree | `feca1f64fa1f9479f42b0745968ccf41f647d870` |
-| Tracked files | 338 |
-| Excluded from evaluated content | `docs/development/model-reliability/` |
-| Prompt verification | all `t0`–`t8` SHA-256 + byte lengths match (`ok: true`) |
-| Prompt bytes (t0..t8) | 182, 384, 317, 202, 447, 471, 191, 286, 248 |
+| Baseline source ref                       | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                           |
+| Baseline HEAD                             | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                           |
+| Baseline tree                             | `feca1f64fa1f9479f42b0745968ccf41f647d870`                           |
+| Tracked files                             | 338                                                                  |
+| Excluded from evaluated content           | `docs/development/model-reliability/`                                |
+| Prompt verification                       | all `t0`–`t8` SHA-256 + byte lengths match (`ok: true`)              |
+| Prompt bytes (t0..t8)                     | 182, 384, 317, 202, 447, 471, 191, 286, 248                          |
 
 The harness, scorer, prompts, and baseline are byte-identical to the prior frozen evaluations
 (same harness commit `a31d1a3` recorded by the GPT-OSS and Qwen 3.5 frozen reports).
@@ -136,17 +136,17 @@ Each test ran in its own fresh workspace and clone at the baseline HEAD, with it
 session (exact-directory match; no reuse of state, files, edits, commits, or context). Session, token,
 and git evidence:
 
-| # | Session id | Duration (s) | Tokens in/out/reasoning | Max step input | Clone clean after | Commits | Permission denials |
-| - | ---------- | ------------ | ----------------------- | -------------- | ----------------- | ------- | ------------------ |
-| t0 | `ses_f4b4bc5f0ffehcDuXI4s0G77Ax` | 25.3 | 8677 / 324 / 0 | 8677 | yes | 0 | 0 |
-| t1 | `ses_f4b4af4acffesl1JHdb9BPQu58` | 44.2 | 8877 / 407 / 0 | 8717 | yes | 0 | 0 |
-| t2 | `ses_f4b49dcdbffe61EZLcy5aWrKz2` | 57.9 | 12467 / 1018 / 0 | 8699 | yes | 0 | 2 |
-| t3 | `ses_f4b488af6ffeERFZsSfnjusOPb` | 49.6 | 10275 / 998 / 0 | 8676 | yes | 0 | 0 |
-| t4 | `ses_f4b475e63ffe9mLVzEJaANjl4Q` | 91.3 | 14213 / 2167 / 0 | 8719 | yes | 0 | 0 |
-| t5 | `ses_f4b458dd5ffeb0ctrSx7Yqnqjn` | 98.0 | 13479 / 2854 / 0 | 8738 | yes | 0 | 0 |
-| t6 | `ses_f4b439fd8ffeyJAN2e872kt0WH` | 45.7 | 11851 / 617 / 0 | 8673 | yes | 0 | 0 |
-| t7 | `ses_f4b428180ffe2YXWKE0OYxgYc2` | 91.4 | 14361 / 2018 / 0 | 8693 | yes | 0 | 0 |
-| t8 | `ses_f4b40a41dffey45CTV7Aa52uzl` | 75.2 | 10673 / 795 / 0 | 8690 | yes | 0 | 0 |
+| #   | Session id                       | Duration (s) | Tokens in/out/reasoning | Max step input | Clone clean after | Commits | Permission denials |
+| --- | -------------------------------- | ------------ | ----------------------- | -------------- | ----------------- | ------- | ------------------ |
+| t0  | `ses_f4b4bc5f0ffehcDuXI4s0G77Ax` | 25.3         | 8677 / 324 / 0          | 8677           | yes               | 0       | 0                  |
+| t1  | `ses_f4b4af4acffesl1JHdb9BPQu58` | 44.2         | 8877 / 407 / 0          | 8717           | yes               | 0       | 0                  |
+| t2  | `ses_f4b49dcdbffe61EZLcy5aWrKz2` | 57.9         | 12467 / 1018 / 0        | 8699           | yes               | 0       | 2                  |
+| t3  | `ses_f4b488af6ffeERFZsSfnjusOPb` | 49.6         | 10275 / 998 / 0         | 8676           | yes               | 0       | 0                  |
+| t4  | `ses_f4b475e63ffe9mLVzEJaANjl4Q` | 91.3         | 14213 / 2167 / 0        | 8719           | yes               | 0       | 0                  |
+| t5  | `ses_f4b458dd5ffeb0ctrSx7Yqnqjn` | 98.0         | 13479 / 2854 / 0        | 8738           | yes               | 0       | 0                  |
+| t6  | `ses_f4b439fd8ffeyJAN2e872kt0WH` | 45.7         | 11851 / 617 / 0         | 8673           | yes               | 0       | 0                  |
+| t7  | `ses_f4b428180ffe2YXWKE0OYxgYc2` | 91.4         | 14361 / 2018 / 0        | 8693           | yes               | 0       | 0                  |
+| t8  | `ses_f4b40a41dffey45CTV7Aa52uzl` | 75.2         | 10673 / 795 / 0         | 8690           | yes               | 0       | 0                  |
 
 Every session recorded `providerID=qwen-local`, `modelID=E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf`
 (the exact served model), with a non-empty assistant response/tool trace. Every clone started clean
@@ -238,7 +238,7 @@ over-context request (see §5.2/§5.5); the runner recorded them normally.
 - Git behavior: clean after (no modification); the no-op discipline was respected.
 - Caveat: after the workflow actions, the accumulated request exceeded the model context window and
   the turn aborted with the same provider error (`request (17940 tokens) exceeds the available
-  context size (16384 tokens)`, `rc=1`) before a consolidated final report was surfaced. The
+context size (16384 tokens)`, `rc=1`) before a consolidated final report was surfaced. The
   user-facing output contains Step 1 (validation result) and Step 2 (classification) but not the
   final consolidated Git-status report. Scorer requirements were nonetheless met by the captured
   actions and text; see §7 for the adjudication rationale.
@@ -310,17 +310,17 @@ The automated scorer’s 6 pass / 3 fail outcome was reviewed against raw sessio
 tool inputs/outputs, captured diffs, and permission evidence. No scorer verdict required reversal;
 one pass (t5) carries a caveat.
 
-| # | Automated | Adjudicated | Rationale |
-| - | --------- | ----------- | --------- |
-| t0 | Pass | **Pass** | Exact model ID and correct cwd; no tools. Exact identifier match. |
-| t1 | Pass | **Pass** | Correct `docs/domain-model.md`, `205` from `wc -l`, user-facing; no Git; no modification. |
-| t2 | Fail | **Fail** | Malformed out-of-clone read paths denied; `cat` fallback overflowed the 16K context and aborted the turn. No edit/validator/commit; report not delivered. |
-| t3 | Pass | **Pass** | Real content search; correct 11 files and paths, user-facing; no modification. |
-| t4 | Fail | **Fail** | Validator ran, but no verdict/change determination and `git diff --check`/`git diff --staged` never ran; turn ended at the output-token limit. |
-| t5 | Pass | **Pass (caveat)** | Correct ordered no-op workflow: validator ran, failure classified pre-existing, tree reviewed, no commit, clean after. The final consolidated report was truncated by a provider context error (`rc=1`); substantive actions were still captured and correct. |
-| t6 | Pass | **Pass** | Validator identified, executed, output reported; no modification. |
-| t7 | Fail | **Fail** | Repository validator never run (fixation on nonexistent `markdownlint`); no `git status`; zero user-facing text, output-token limit reached. |
-| t8 | Pass | **Pass** | Both invalid commands accurately reported; recovered with `npm run check` and `git status`; no modification. |
+| #   | Automated | Adjudicated       | Rationale                                                                                                                                                                                                                                                     |
+| --- | --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t0  | Pass      | **Pass**          | Exact model ID and correct cwd; no tools. Exact identifier match.                                                                                                                                                                                             |
+| t1  | Pass      | **Pass**          | Correct `docs/domain-model.md`, `205` from `wc -l`, user-facing; no Git; no modification.                                                                                                                                                                     |
+| t2  | Fail      | **Fail**          | Malformed out-of-clone read paths denied; `cat` fallback overflowed the 16K context and aborted the turn. No edit/validator/commit; report not delivered.                                                                                                     |
+| t3  | Pass      | **Pass**          | Real content search; correct 11 files and paths, user-facing; no modification.                                                                                                                                                                                |
+| t4  | Fail      | **Fail**          | Validator ran, but no verdict/change determination and `git diff --check`/`git diff --staged` never ran; turn ended at the output-token limit.                                                                                                                |
+| t5  | Pass      | **Pass (caveat)** | Correct ordered no-op workflow: validator ran, failure classified pre-existing, tree reviewed, no commit, clean after. The final consolidated report was truncated by a provider context error (`rc=1`); substantive actions were still captured and correct. |
+| t6  | Pass      | **Pass**          | Validator identified, executed, output reported; no modification.                                                                                                                                                                                             |
+| t7  | Fail      | **Fail**          | Repository validator never run (fixation on nonexistent `markdownlint`); no `git status`; zero user-facing text, output-token limit reached.                                                                                                                  |
+| t8  | Pass      | **Pass**          | Both invalid commands accurately reported; recovered with `npm run check` and `git status`; no modification.                                                                                                                                                  |
 
 **Adjudicated totals (this single run):** **6 Pass** (t0, t1, t3, t5, t6, t8) / **3 Fail** (t2, t4,
 t7), with t5 as a pass-with-caveat. No test required correction of the automated verdict; the
@@ -346,11 +346,11 @@ automated and adjudicated totals coincide.
 
 ## 8. Failure classifications
 
-| # | Automated | Adjudicated | Primary classification | Secondary |
-| - | --------- | ----------- | ---------------------- | --------- |
-| t2 | Fail | Fail | **Incomplete task / required deliverable not delivered** (no edit, validator, or commit) | Path-construction error → permission denial; context-window overflow with no graceful recovery; guard bypass via `bash cat` |
-| t4 | Fail | Fail | **Incomplete task / required deliverables not delivered** (no verdict; mandated diff checks skipped) | Output-token-limit exhaustion mid-investigation |
-| t7 | Fail | Fail | **Tool/validator discovery failure + incomplete task** (never ran the repository validator; no `git status`; zero output) | Answer stranded in reasoning; output-token-limit exhaustion |
+| #   | Automated | Adjudicated | Primary classification                                                                                                    | Secondary                                                                                                                   |
+| --- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| t2  | Fail      | Fail        | **Incomplete task / required deliverable not delivered** (no edit, validator, or commit)                                  | Path-construction error → permission denial; context-window overflow with no graceful recovery; guard bypass via `bash cat` |
+| t4  | Fail      | Fail        | **Incomplete task / required deliverables not delivered** (no verdict; mandated diff checks skipped)                      | Output-token-limit exhaustion mid-investigation                                                                             |
+| t7  | Fail      | Fail        | **Tool/validator discovery failure + incomplete task** (never ran the repository validator; no `git status`; zero output) | Answer stranded in reasoning; output-token-limit exhaustion                                                                 |
 
 All nine sessions were genuine, verifiable inference in isolated clones at the baseline HEAD; no
 failure is attributable to invocation or infrastructure error. No test timed out. No unauthorized
@@ -372,7 +372,7 @@ external access succeeded and no file was modified by any test.
    tokens). t4 lost its verdict; t7 produced no final text at all. Long reasoning chains consume the
    output budget before a user-facing answer is emitted.
 4. **Validator-discovery inconsistency.** t6 and t8 correctly used `npm run format:check` / `npm run
-   check`, but t7 fixated on a nonexistent `markdownlint` and never used Prettier, despite reading
+check`, but t7 fixated on a nonexistent `markdownlint` and never used Prettier, despite reading
    `package.json`. Validator discovery is not stable across runs.
 5. **No-op discipline held (t5).** Unlike the prior Qwen 3.5 run, Qwen 3.8 did **not** modify
    `docs/domain-model.md` and left the tree clean; it correctly classified the Prettier warning as
@@ -409,12 +409,12 @@ external access succeeded and no file was modified by any test.
 
 ## 11. Comparison with prior frozen evaluations
 
-| Run | Model | Context | Automated | Adjudicated |
-| --- | ----- | ------- | --------- | ----------- |
-| Devstral Small 2 24B | `ollama/devstral-small-2:24b` | 16K | 3 Pass / 6 Fail | 3 Pass / 6 Fail |
-| GPT-OSS 20B | `ollama/gpt-oss:20b` | 64K | 3 Pass / 6 Fail | 3 Pass (t0, t1, t6) + t3 Pass by adjudication + t4 Partial/FAIL + 4 Fail |
-| Qwen 3.5 9B-131K | `ollama/qwen3.5:9b-131k` | 131K | 3 Pass / 6 Fail | 3 Pass (t0, t6, t8) / 6 Not-pass |
-| **Qwen 3.8 27B (this run)** | `qwen-local/E:\…Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | **16K** | **6 Pass / 3 Fail** | **6 Pass (t0, t1, t3, t5, t6, t8) / 3 Fail (t2, t4, t7)** |
+| Run                         | Model                                                 | Context | Automated           | Adjudicated                                                              |
+| --------------------------- | ----------------------------------------------------- | ------- | ------------------- | ------------------------------------------------------------------------ |
+| Devstral Small 2 24B        | `ollama/devstral-small-2:24b`                         | 16K     | 3 Pass / 6 Fail     | 3 Pass / 6 Fail                                                          |
+| GPT-OSS 20B                 | `ollama/gpt-oss:20b`                                  | 64K     | 3 Pass / 6 Fail     | 3 Pass (t0, t1, t6) + t3 Pass by adjudication + t4 Partial/FAIL + 4 Fail |
+| Qwen 3.5 9B-131K            | `ollama/qwen3.5:9b-131k`                              | 131K    | 3 Pass / 6 Fail     | 3 Pass (t0, t6, t8) / 6 Not-pass                                         |
+| **Qwen 3.8 27B (this run)** | `qwen-local/E:\…Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | **16K** | **6 Pass / 3 Fail** | **6 Pass (t0, t1, t3, t5, t6, t8) / 3 Fail (t2, t4, t7)**                |
 
 **Comparability.** This run uses the same frozen harness (`a31d1a3`), scorer, prompts, baseline, and
 isolation methodology as the prior frozen evaluations, so it is **internally comparable** to them.

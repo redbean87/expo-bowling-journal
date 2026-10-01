@@ -30,27 +30,27 @@ disposable-clone methodology.
 
 ### 2.1 Model identity (`/api/show`, before and after)
 
-| Field                        | Value                          |
-| ---------------------------- | ------------------------------ |
-| `details.family`             | `gemma4`                       |
-| `details.parameter_size`     | 11.9B                          |
-| `general.parameter_count`    | 11,907,350,576                 |
-| `details.quantization_level` | Q4_K_M                         |
-| `block_count`                | 48                             |
-| `embedding_length`           | 3840                           |
-| Native `context_length`      | 262,144                        |
+| Field                        | Value                                                |
+| ---------------------------- | ---------------------------------------------------- |
+| `details.family`             | `gemma4`                                             |
+| `details.parameter_size`     | 11.9B                                                |
+| `general.parameter_count`    | 11,907,350,576                                       |
+| `details.quantization_level` | Q4_K_M                                               |
+| `block_count`                | 48                                                   |
+| `embedding_length`           | 3840                                                 |
+| Native `context_length`      | 262,144                                              |
 | `capabilities`               | `completion`, `vision`, `audio`, `tools`, `thinking` |
-| Base digest                  | `4eb23ef187e2c546…`            |
+| Base digest                  | `4eb23ef187e2c546…`                                  |
 
 ### 2.2 Evaluation-only variant and config
 
 The base tag was **not** modified. A separate variant was created server-side via
 `POST /api/create` (`from: gemma4:12b`), verified through `/api/show`:
 
-| Parameter      | Value             | Verification                       |
-| -------------- | ----------------- | ---------------------------------- |
-| `parent_model` | `gemma4:12b`      | `/api/show` `details.parent_model` |
-| `num_ctx`      | 16384             | `/api/show` `parameters`           |
+| Parameter      | Value        | Verification                       |
+| -------------- | ------------ | ---------------------------------- |
+| `parent_model` | `gemma4:12b` | `/api/show` `details.parent_model` |
+| `num_ctx`      | 16384        | `/api/show` `parameters`           |
 
 OpenCode's model budget was supplied through the **new, separate** evaluation config
 `/Users/cortezashley/.config/opencode/opencode.gemma4-eval-16k.jsonc`:
@@ -69,17 +69,17 @@ configs were **not** modified.
 
 Digest comparison before and after the run confirmed all protected tags were untouched:
 
-| Model                          | Result    |
-| ------------------------------ | --------- |
-| `gemma4:12b`                   | UNCHANGED |
-| `gemma4:12b-131k`              | UNCHANGED |
-| `devstral-small-2:24b`         | UNCHANGED |
-| `devstral-small-2:24b-gpu`     | UNCHANGED |
-| `devstral-small-2:24b-cpu`     | UNCHANGED |
-| `devstral-small-2:24b-gpu16k`  | UNCHANGED |
-| `gpt-oss:20b`                  | UNCHANGED |
-| `qwen3-coder:30b`              | UNCHANGED |
-| `qwen3-coder:30b-eval16k`      | UNCHANGED |
+| Model                         | Result    |
+| ----------------------------- | --------- |
+| `gemma4:12b`                  | UNCHANGED |
+| `gemma4:12b-131k`             | UNCHANGED |
+| `devstral-small-2:24b`        | UNCHANGED |
+| `devstral-small-2:24b-gpu`    | UNCHANGED |
+| `devstral-small-2:24b-cpu`    | UNCHANGED |
+| `devstral-small-2:24b-gpu16k` | UNCHANGED |
+| `gpt-oss:20b`                 | UNCHANGED |
+| `qwen3-coder:30b`             | UNCHANGED |
+| `qwen3-coder:30b-eval16k`     | UNCHANGED |
 
 Only the new `gemma4:12b-eval16k` tag was added.
 
@@ -88,12 +88,12 @@ Only the new `gemma4:12b-eval16k` tag was added.
 At `num_ctx 16384` with model defaults the model is **fully GPU-resident** — no CPU
 offload, no `num_gpu` override required. A `num_gpu` sweep measured through `/api/ps`:
 
-| `num_gpu` | `size` (bytes)  | `size_vram` (bytes) | VRAM % |
-| --------- | --------------- | ------------------- | ------ |
-| **default** | **8,076,467,895** | **8,076,467,895** | **100.0%** |
-| 40        | 8,191,228,748   | 6,706,220,235       | 81.9%  |
-| 32        | 8,191,228,748   | 5,590,294,199       | 68.2%  |
-| 16        | 8,191,228,748   | 3,326,974,360       | 40.6%  |
+| `num_gpu`   | `size` (bytes)    | `size_vram` (bytes) | VRAM %     |
+| ----------- | ----------------- | ------------------- | ---------- |
+| **default** | **8,076,467,895** | **8,076,467,895**   | **100.0%** |
+| 40          | 8,191,228,748     | 6,706,220,235       | 81.9%      |
+| 32          | 8,191,228,748     | 5,590,294,199       | 68.2%      |
+| 16          | 8,191,228,748     | 3,326,974,360       | 40.6%      |
 
 Live polling during t0 took 7 samples, all identical:
 
@@ -128,12 +128,12 @@ the 16K Qwen3-Coder ran 80.2% GPU. No load or inference errors occurred.
 
 ## 5. Ground truth (independently verified)
 
-| Fact                                          | Value                                         | How verified                                              |
-| --------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
-| `docs/domain-model.md` length                 | 205 lines                                     | `git show a437b47:docs/domain-model.md \| wc -l`          |
-| Files mentioning `PinPal` at baseline         | 12                                            | `git grep -l PinPal a437b47 -- . ':!node_modules'`        |
-| Repository formatting check                   | `prettier . --check` (`npm run format:check`) | `package.json`                                            |
-| t4 claim ("asterisks in table cells invalid") | False                                         | GFM allows cell emphasis; repo uses it consistently       |
+| Fact                                          | Value                                         | How verified                                        |
+| --------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| `docs/domain-model.md` length                 | 205 lines                                     | `git show a437b47:docs/domain-model.md \| wc -l`    |
+| Files mentioning `PinPal` at baseline         | 12                                            | `git grep -l PinPal a437b47 -- . ':!node_modules'`  |
+| Repository formatting check                   | `prettier . --check` (`npm run format:check`) | `package.json`                                      |
+| t4 claim ("asterisks in table cells invalid") | False                                         | GFM allows cell emphasis; repo uses it consistently |
 
 ## 6. Results matrix
 
@@ -194,8 +194,8 @@ Qwen3-Coder.
 
 [M] Selected the correct tool — `grep {pattern:"PinPal"}` — receiving the 35-match result.
 It initially stated "**11** matching files" and listed 11, then **self-corrected in the
-same response**: "*(Wait, the grep tool output reported 35 matches, but many matches are in
-the same file. Let me re-verify the unique file count.)* Actually, there are **12** unique
+same response**: "_(Wait, the grep tool output reported 35 matches, but many matches are in
+the same file. Let me re-verify the unique file count.)_ Actually, there are **12** unique
 files", and listed all 12 correct repository-relative paths. Ground truth is 12 files.
 Because the **final** answer is correct, grounded in the actual tool output, and complete,
 this is a **Pass** — the first pass on t3 by any model tested. (Devstral 8K/16K and
@@ -272,17 +272,17 @@ leakage present.
 `gemma4` advertises a `thinking` capability, and OpenCode surfaces `reasoning` parts. Leakage
 audit results:
 
-| Test | `<channel|>` / `channel` tokens in stdout | `<|channel>thought` in reasoning part |
-| ---- | ----------------------------------------- | ------------------------------------- |
-| t0   | 0                                         | 0                                     |
-| t1   | 0                                         | 0                                     |
-| t2   | 0                                         | 0                                     |
-| t3   | 0                                         | 0                                     |
-| t4   | 0                                         | 0                                     |
-| t5   | 1                                         | 1                                     |
-| t6   | 1                                         | 1                                     |
-| t7   | 1                                         | 0 (but duplicated answer ×3)          |
-| t8   | 1                                         | 0                                     |
+| Test | `<channel | >`/`channel` tokens in stdout | `<  | channel>thought` in reasoning part |
+| ---- | --------- | ----------------------------- | --- | ---------------------------------- |
+| t0   | 0         | 0                             |
+| t1   | 0         | 0                             |
+| t2   | 0         | 0                             |
+| t3   | 0         | 0                             |
+| t4   | 0         | 0                             |
+| t5   | 1         | 1                             |
+| t6   | 1         | 1                             |
+| t7   | 1         | 0 (but duplicated answer ×3)  |
+| t8   | 1         | 0                             |
 
 Measured observations:
 
@@ -290,12 +290,12 @@ Measured observations:
   `<channel|>`) appeared in **4 of 9** tests (t5–t8), the four highest-step-count tests.
   No leakage appeared in t0–t4.
 - **Functional impact was limited to output quality, not tool execution.** In every case
-  the leaked text was *additional* content around otherwise correct tool calls: t6's
+  the leaked text was _additional_ content around otherwise correct tool calls: t6's
   placeholder `[Success]` was followed by the real, correct `npm run format:check` run and
   result; t7's leakage duplicated an already-issued answer; t8's leakage repeated a
   correct bogus-command report. No tool call was skipped or corrupted because of leakage.
 - **One behavioral failure is leakage-adjacent but not caused by it:** t6 shows the model
-  emitting a fake `[Success]` placeholder *before* running the command, in the same
+  emitting a fake `[Success]` placeholder _before_ running the command, in the same
   "I'll pretend, then correct myself" pattern seen in the Phase 1 probe. It self-corrected,
   so t6 still passes, but this is a real hygiene risk on longer tasks.
 - **The t7 and t8 failures are grounding failures, not leakage failures.** t7 fabricated a
@@ -343,15 +343,15 @@ follow-up, not a default.
 
 ## 10. Failure analysis and taxonomy
 
-| Failure                                    | Tests | Apparent locus                                                       |
-| ------------------------------------------ | ----- | -------------------------------------------------------------------- |
-| Wrong line count                           | t1    | **Model-behavioral** — misread the read window as the file length    |
-| Incomplete task (no edit/commit)           | t2    | **Model-behavioral + possible context** — stopped mid-investigation at 97.8% |
-| Off-task drift / no verdict                | t4    | **Model-behavioral** — reasoned about an unrelated "Season entity"    |
-| Fabricated `git status`                    | t7    | **Model-behavioral (hallucination/provenance)**                      |
-| Claimed a command it did not run           | t8    | **Model-behavioral (provenance)**                                    |
-| Placeholder output before real run         | t6    | **Harness/model formatting hygiene** (self-corrected)                 |
-| Protocol-token / answer duplication         | t5–t8 | **Model thinking-channel hygiene**                                   |
+| Failure                             | Tests | Apparent locus                                                               |
+| ----------------------------------- | ----- | ---------------------------------------------------------------------------- |
+| Wrong line count                    | t1    | **Model-behavioral** — misread the read window as the file length            |
+| Incomplete task (no edit/commit)    | t2    | **Model-behavioral + possible context** — stopped mid-investigation at 97.8% |
+| Off-task drift / no verdict         | t4    | **Model-behavioral** — reasoned about an unrelated "Season entity"           |
+| Fabricated `git status`             | t7    | **Model-behavioral (hallucination/provenance)**                              |
+| Claimed a command it did not run    | t8    | **Model-behavioral (provenance)**                                            |
+| Placeholder output before real run  | t6    | **Harness/model formatting hygiene** (self-corrected)                        |
+| Protocol-token / answer duplication | t5–t8 | **Model thinking-channel hygiene**                                           |
 
 No failure is attributable to transport, timeouts, or OOM; all nine returned `rc=0`.
 
@@ -459,6 +459,7 @@ reference baseline.**
   self-correcting in t6. It should be tracked, not treated as a blocker.
 
 **Suggested next steps (requiring separate approval):**
+
 1. A targeted **32K-context** Gemma run is the best-justified context experiment in this
    series, because the one incomplete task (t2) is the only near-ceiling (97.8%) test. On
    a 16 GB card a 32K Gemma remains likely GPU-resident (~9–10 GB), unlike the larger

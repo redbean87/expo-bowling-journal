@@ -96,15 +96,15 @@ or PinPal storage.
 
 Exactly seven canonical bowling entities:
 
-| Entity | Purpose |
-|---|---|
-| **League** | Long-running competition/collection of sessions. |
+| Entity      | Purpose                                                                 |
+| ----------- | ----------------------------------------------------------------------- |
+| **League**  | Long-running competition/collection of sessions.                        |
 | **Session** | A set of games, either associated with a league or casual/open bowling. |
-| **Game** | One bowling game. |
-| **Frame** | One frame; the authoritative bowling record. |
-| **Ball** | A physical bowling ball. |
-| **House** | A bowling center/location. |
-| **Pattern** | A lane/oil pattern. |
+| **Game**    | One bowling game.                                                       |
+| **Frame**   | One frame; the authoritative bowling record.                            |
+| **Ball**    | A physical bowling ball.                                                |
+| **House**   | A bowling center/location.                                              |
+| **Pattern** | A lane/oil pattern.                                                     |
 
 Canonical entities use local UUIDs.
 
@@ -135,7 +135,7 @@ League
 A session may have:
 
 ```ts
-leagueId: UUID | null
+leagueId: UUID | null;
 ```
 
 - `leagueId != null` → league session.
@@ -186,7 +186,7 @@ A cached/derived value must always be reproducible from frames.
 Canonical entities may have:
 
 ```ts
-metadata: Record<string, unknown> | null
+metadata: Record<string, unknown> | null;
 ```
 
 Metadata is an extension mechanism, not a substitute for proper modeling.
@@ -1130,18 +1130,18 @@ Report only checks actually run.
 
 These boundaries are mandatory.
 
-| From | To | Boundary |
-|---|---|---|
-| A | B | Documentation/model must be locked before database implementation. |
-| B | C | SQLite exists before the local service is implemented. |
-| C | D | Local service exists before normal bowling is detached from auth. |
-| D | E | No-account access is separate from data-source migration. |
-| E | F | Normal bowling works locally before import is migrated. |
-| F | G | Local import works before own export is implemented. |
-| G | H | Both directions exist before round-trip verification. |
-| H | I | Compatibility is proven before old sync machinery is removed. |
-| I | J | Local authoritative storage replaces old offline machinery before server import/export removal. |
-| J | K | Server-dependent import/export is gone before final documentation cleanup. |
+| From | To  | Boundary                                                                                        |
+| ---- | --- | ----------------------------------------------------------------------------------------------- |
+| A    | B   | Documentation/model must be locked before database implementation.                              |
+| B    | C   | SQLite exists before the local service is implemented.                                          |
+| C    | D   | Local service exists before normal bowling is detached from auth.                               |
+| D    | E   | No-account access is separate from data-source migration.                                       |
+| E    | F   | Normal bowling works locally before import is migrated.                                         |
+| F    | G   | Local import works before own export is implemented.                                            |
+| G    | H   | Both directions exist before round-trip verification.                                           |
+| H    | I   | Compatibility is proven before old sync machinery is removed.                                   |
+| I    | J   | Local authoritative storage replaces old offline machinery before server import/export removal. |
+| J    | K   | Server-dependent import/export is gone before final documentation cleanup.                      |
 
 ---
 
@@ -1196,32 +1196,32 @@ Qwen must never report a command as passed unless it actually ran.
 
 These are settled and must not be reopened by Qwen.
 
-| Decision | Choice |
-|---|---|
-| Product architecture | Fully local-first |
-| Normal bowling account requirement | None |
-| Normal bowling network requirement | None |
-| Authoritative store | Local SQLite |
-| Cloud sync | Not core |
-| Portability | Files |
-| Canonical entities | League, Session, Game, Frame, Ball, House, Pattern |
-| Open bowling | Native session with `leagueId = null` |
-| Game house | First-class `games.houseId` |
-| Frame representation | `roll1Mask`, `roll2Mask`, `roll3Mask` |
-| Frame authority | Frames are authoritative |
-| Statistics | Derived/cacheable from frames |
-| Canonical identity | Local UUID |
-| PinPal IDs | Import provenance only |
-| Metadata | `Record<string, unknown> \| null` |
-| Import policy | Additive/non-destructive by default |
-| Own export | Versioned, self-describing JSON-based `.pinpal` |
-| Own-format identity | Preserve canonical UUIDs |
-| PinPal import identity | Generate local UUIDs |
-| Normal bowling UI | Local service → SQLite |
-| Old offline queues | Remove after local migration |
-| Server import/export | Remove after local import/export is proven |
-| Existing Convex | Retain until explicitly removed by a later approved packet |
-| AGENTS.md | Preserve human-approval rules; reconcile obsolete domain guardrails late |
+| Decision                           | Choice                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| Product architecture               | Fully local-first                                                        |
+| Normal bowling account requirement | None                                                                     |
+| Normal bowling network requirement | None                                                                     |
+| Authoritative store                | Local SQLite                                                             |
+| Cloud sync                         | Not core                                                                 |
+| Portability                        | Files                                                                    |
+| Canonical entities                 | League, Session, Game, Frame, Ball, House, Pattern                       |
+| Open bowling                       | Native session with `leagueId = null`                                    |
+| Game house                         | First-class `games.houseId`                                              |
+| Frame representation               | `roll1Mask`, `roll2Mask`, `roll3Mask`                                    |
+| Frame authority                    | Frames are authoritative                                                 |
+| Statistics                         | Derived/cacheable from frames                                            |
+| Canonical identity                 | Local UUID                                                               |
+| PinPal IDs                         | Import provenance only                                                   |
+| Metadata                           | `Record<string, unknown> \| null`                                        |
+| Import policy                      | Additive/non-destructive by default                                      |
+| Own export                         | Versioned, self-describing JSON-based `.pinpal`                          |
+| Own-format identity                | Preserve canonical UUIDs                                                 |
+| PinPal import identity             | Generate local UUIDs                                                     |
+| Normal bowling UI                  | Local service → SQLite                                                   |
+| Old offline queues                 | Remove after local migration                                             |
+| Server import/export               | Remove after local import/export is proven                               |
+| Existing Convex                    | Retain until explicitly removed by a later approved packet               |
+| AGENTS.md                          | Preserve human-approval rules; reconcile obsolete domain guardrails late |
 
 ### 10.1 Open items — pending human decision (not settled)
 
@@ -1282,4 +1282,4 @@ The local-first migration is complete when:
 
 If a packet becomes too large to understand and verify within one session, split the packet before asking Qwen to implement it.
 
-*End of document.*
+_End of document._

@@ -79,17 +79,17 @@ Unlike the 27B 64K run — which had to edit the base config because the `qwen-l
 declared there — the Flash-Next provider was declared **entirely inside a new isolated evaluation
 overlay**:
 
-| Setting | Value |
-| ------- | ----- |
-| Provider id | `qwen38-flash-next-64k` |
-| `options.baseURL` | `http://192.168.68.52:8085/v1` |
-| `options.timeout` (request) | `1200000` ms |
-| `options.headerTimeout` | `1200000` ms |
-| model key | `qwen3.8-flash-next` |
-| `limit.context` / `limit.output` | `65536` / `4096` |
-| `compaction.auto` | `false` |
-| `mcp.robinhood-trading.enabled` | `false` |
-| `permission` | `external_directory=deny`, `webfetch=deny`, `websearch=deny` |
+| Setting                          | Value                                                        |
+| -------------------------------- | ------------------------------------------------------------ |
+| Provider id                      | `qwen38-flash-next-64k`                                      |
+| `options.baseURL`                | `http://192.168.68.52:8085/v1`                               |
+| `options.timeout` (request)      | `1200000` ms                                                 |
+| `options.headerTimeout`          | `1200000` ms                                                 |
+| model key                        | `qwen3.8-flash-next`                                         |
+| `limit.context` / `limit.output` | `65536` / `4096`                                             |
+| `compaction.auto`                | `false`                                                      |
+| `mcp.robinhood-trading.enabled`  | `false`                                                      |
+| `permission`                     | `external_directory=deny`, `webfetch=deny`, `websearch=deny` |
 
 The overlay lives in the new workspace rather than `~/.config/opencode`. This was a deliberate,
 operator-approved choice: the evaluating session's own `external_directory=deny` policy blocks file
@@ -106,17 +106,17 @@ harness nor the scorer was changed to accommodate the model.
 
 `opencode debug config` with `OPENCODE_CONFIG=<workspace>/opencode.qwen38-flash-next-64k-eval.jsonc`:
 
-| Item | Value |
-| ---- | ----- |
-| Providers resolved | `ollama`, `qwen-local`, `qwen38-flash-next-64k` |
-| Base URL | `http://192.168.68.52:8085/v1` |
-| Downstream model key | `qwen3.8-flash-next` |
-| Context / output limit | `65536` / `4096` |
-| `timeout` / `headerTimeout` | `1200000` / `1200000` |
-| `compaction.auto` | `false` |
-| `mcp.robinhood-trading.enabled` | `false` |
-| `permission.external_directory` | `deny` |
-| `permission.webfetch` / `websearch` | `deny` / `deny` |
+| Item                                | Value                                           |
+| ----------------------------------- | ----------------------------------------------- |
+| Providers resolved                  | `ollama`, `qwen-local`, `qwen38-flash-next-64k` |
+| Base URL                            | `http://192.168.68.52:8085/v1`                  |
+| Downstream model key                | `qwen3.8-flash-next`                            |
+| Context / output limit              | `65536` / `4096`                                |
+| `timeout` / `headerTimeout`         | `1200000` / `1200000`                           |
+| `compaction.auto`                   | `false`                                         |
+| `mcp.robinhood-trading.enabled`     | `false`                                         |
+| `permission.external_directory`     | `deny`                                          |
+| `permission.webfetch` / `websearch` | `deny` / `deny`                                 |
 
 The base config declares a default model (`ollama/gpt-oss:20b`), but the harness always passes
 `--model`, so the evaluated model is the exact Flash-Next model above; no fallback occurred (every
@@ -147,17 +147,17 @@ The runner's pre-model-call `config.verification.json` recorded `ok: true`: eval
 
 ## 5. Harness, baseline, and prompt integrity
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json`) |
-| Harness commit | `48d9b54f249cd461f5456202f225bbddd156fdf9` |
-| Harness/scorer/prompt drift | none (`git status --porcelain` on those dirs empty) |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Baseline tree | `feca1f64fa1f9479f42b0745968ccf41f647d870` |
-| Tracked files | 338 |
-| Prompt verification | all `t0`–`t8` SHA-256 and byte lengths match (`ok: true`, no issues) |
-| Tracked repo changes | none (only the pre-existing untracked evaluation docs + this report) |
+| Item                        | Value                                                                |
+| --------------------------- | -------------------------------------------------------------------- |
+| Suite                       | `opencode-t0-t8` (frozen `ground_truth.json`)                        |
+| Harness commit              | `48d9b54f249cd461f5456202f225bbddd156fdf9`                           |
+| Harness/scorer/prompt drift | none (`git status --porcelain` on those dirs empty)                  |
+| Baseline HEAD               | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                           |
+| Baseline source ref         | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                           |
+| Baseline tree               | `feca1f64fa1f9479f42b0745968ccf41f647d870`                           |
+| Tracked files               | 338                                                                  |
+| Prompt verification         | all `t0`–`t8` SHA-256 and byte lengths match (`ok: true`, no issues) |
+| Tracked repo changes        | none (only the pre-existing untracked evaluation docs + this report) |
 
 **Harness-version note (important for comparison).** This run used harness commit `48d9b54`, which is
 one commit **after** the 27B 64K run's `a31d1a3`. The intervening commit
@@ -174,17 +174,17 @@ Every session matched its clone directory exactly (`match=exact`), used
 `provider=qwen38-flash-next-64k` and `session_model=qwen3.8-flash-next`, and every clone started
 clean at baseline HEAD and ended clean. No harness per-test (2400 s) timeout occurred.
 
-| # | Session id | Duration (s) | rc | Tokens in/out | Max step input | Commits | Rejections | Automated |
-| - | ---------- | ------------ | -- | ------------- | -------------- | ------- | ---------- | --------- |
-| t0 | `ses_f47be4641ffePu0ZnlWrY8G3YC` | 1099.9 | 0 | 8562 / 197 | 8562 | 0 | 0 | Pass |
-| t1 | `ses_f47ad613bffevXklIwrHj9Fixq` | 1173.1 | 0 | 8692 / 369 | 8602 | 0 | 0 | Pass |
-| t2 | `ses_f479b5cb1ffeferLWzDWshsY4l` | 1204.2 | 1 | 0 / 0 | — | 0 | 0 | Fail |
-| t3 | `ses_f4788e07bffe1w8WbgMdL3D0KO` | 1247.6 | 0 | 8879 / 667 | 8561 | 0 | 0 | Pass |
-| t4 | `ses_f4775bae2ffe6QeT8SAm6q3knA` | 2313.4 | 0 | 15686 / 5370 | 8604 | 0 | 1 | Pass |
-| t5 | `ses_f47524f75ffelG9MW1tM3WpQ7N` | 1204.8 | 1 | 0 / 0 | — | 0 | 0 | Fail |
-| t6 | `ses_f473fd460ffem4XJo9R5joy6De` | 1363.7 | 0 | 10081 / 421 | 8558 | 0 | 0 | Pass |
-| t7 | `ses_f472ae9d7ffeik7HvsikD1emqU` | 1428.5 | 0 | 10117 / 1460 | 8578 | 0 | 0 | Pass |
-| t8 | `ses_f4714faa5ffe0381BKali7BLf5` | 1204.2 | 1 | 0 / 0 | — | 0 | 0 | Fail |
+| #   | Session id                       | Duration (s) | rc  | Tokens in/out | Max step input | Commits | Rejections | Automated |
+| --- | -------------------------------- | ------------ | --- | ------------- | -------------- | ------- | ---------- | --------- |
+| t0  | `ses_f47be4641ffePu0ZnlWrY8G3YC` | 1099.9       | 0   | 8562 / 197    | 8562           | 0       | 0          | Pass      |
+| t1  | `ses_f47ad613bffevXklIwrHj9Fixq` | 1173.1       | 0   | 8692 / 369    | 8602           | 0       | 0          | Pass      |
+| t2  | `ses_f479b5cb1ffeferLWzDWshsY4l` | 1204.2       | 1   | 0 / 0         | —              | 0       | 0          | Fail      |
+| t3  | `ses_f4788e07bffe1w8WbgMdL3D0KO` | 1247.6       | 0   | 8879 / 667    | 8561           | 0       | 0          | Pass      |
+| t4  | `ses_f4775bae2ffe6QeT8SAm6q3knA` | 2313.4       | 0   | 15686 / 5370  | 8604           | 0       | 1          | Pass      |
+| t5  | `ses_f47524f75ffelG9MW1tM3WpQ7N` | 1204.8       | 1   | 0 / 0         | —              | 0       | 0          | Fail      |
+| t6  | `ses_f473fd460ffem4XJo9R5joy6De` | 1363.7       | 0   | 10081 / 421   | 8558           | 0       | 0          | Pass      |
+| t7  | `ses_f472ae9d7ffeik7HvsikD1emqU` | 1428.5       | 0   | 10117 / 1460  | 8578           | 0       | 0          | Pass      |
+| t8  | `ses_f4714faa5ffe0381BKali7BLf5` | 1204.2       | 1   | 0 / 0         | —              | 0       | 0          | Fail      |
 
 Token figures are totals summed over completed model steps (from session `step-finish` parts).
 Aborted runs (t2, t5, t8) completed no step, so no usage was recorded.
@@ -201,7 +201,7 @@ Aborted runs (t2, t5, t8) completed no step, so no usage was recorded.
 - **t3 — Content search for PinPal — Pass.** `rg` search; correct exact-case total (**11**) and a
   complete path list; no modification.
 - **t4 — Semantic judgment of the asterisks-in-table-cells claim — Pass.** Delivered the verdict
-  *"Claim: False."* with evidence (GFM table cells parse inline emphasis; repo uses the pattern),
+  _"Claim: False."_ with evidence (GFM table cells parse inline emphasis; repo uses the pattern),
   ran Prettier (`npm run format:check`) as the repository's Markdown validator, and made no
   modification. One `external_directory` denial occurred (the model attempted a path under
   `.eval-tmp/opencode/*`), correctly enforced and unrelated to the task outcome. This is the task
@@ -237,17 +237,17 @@ All 27 common requirements (`prompt_verified`, `baseline_head`, `clean_before`) 
 
 ## 8. Adjudication
 
-| # | Automated | Adjudicated | Rationale |
-| - | --------- | ----------- | --------- |
-| t0 | Pass | Pass | Exact model id + cwd, no tools. |
-| t1 | Pass | Pass | Correct path/line count; no Git/modification. |
-| t2 | Fail | Fail | Provider request timeout before any tool call; no deliverable. Genuinely unmet. |
-| t3 | Pass | Pass | Correct 11 files/paths. |
-| t4 | Pass | Pass | Verdict delivered ("Claim: False."); validator run; no change. |
-| t5 | Fail | Fail | Provider request timeout; validator/working-tree review never ran. Genuinely unmet. |
-| t6 | Pass | Pass | Validator identified/run/reported. |
-| t7 | Pass | Pass | Validator twice (separate outputs) + `git status`; no modification. |
-| t8 | Fail | Fail | Provider request timeout during prefill; no commands reported or recovered. Genuinely unmet. |
+| #   | Automated | Adjudicated | Rationale                                                                                    |
+| --- | --------- | ----------- | -------------------------------------------------------------------------------------------- |
+| t0  | Pass      | Pass        | Exact model id + cwd, no tools.                                                              |
+| t1  | Pass      | Pass        | Correct path/line count; no Git/modification.                                                |
+| t2  | Fail      | Fail        | Provider request timeout before any tool call; no deliverable. Genuinely unmet.              |
+| t3  | Pass      | Pass        | Correct 11 files/paths.                                                                      |
+| t4  | Pass      | Pass        | Verdict delivered ("Claim: False."); validator run; no change.                               |
+| t5  | Fail      | Fail        | Provider request timeout; validator/working-tree review never ran. Genuinely unmet.          |
+| t6  | Pass      | Pass        | Validator identified/run/reported.                                                           |
+| t7  | Pass      | Pass        | Validator twice (separate outputs) + `git status`; no modification.                          |
+| t8  | Fail      | Fail        | Provider request timeout during prefill; no commands reported or recovered. Genuinely unmet. |
 
 Unlike the 27B 64K run (where t4 was a scorer false negative), **no automated verdict required
 reversal here**: the three failures have zero assistant output and zero completed tool calls, so there
@@ -255,11 +255,11 @@ is no evidence to adjudicate in the model's favor.
 
 ## 9. Failure classifications
 
-| # | Automated | Adjudicated | Primary classification | Secondary |
-| - | --------- | ----------- | ---------------------- | --------- |
-| t2 | Fail | Fail | **Provider request timeout** (1,200,000 ms) before any tool call | Incomplete task / no deliverable |
-| t5 | Fail | Fail | **Provider request timeout** after one `ls` and an aborted `read` | Incomplete task / no deliverable |
-| t8 | Fail | Fail | **Provider request timeout** during prompt prefill (zero output) | Incomplete task / no deliverable |
+| #   | Automated | Adjudicated | Primary classification                                            | Secondary                        |
+| --- | --------- | ----------- | ----------------------------------------------------------------- | -------------------------------- |
+| t2  | Fail      | Fail        | **Provider request timeout** (1,200,000 ms) before any tool call  | Incomplete task / no deliverable |
+| t5  | Fail      | Fail        | **Provider request timeout** after one `ls` and an aborted `read` | Incomplete task / no deliverable |
+| t8  | Fail      | Fail        | **Provider request timeout** during prompt prefill (zero output)  | Incomplete task / no deliverable |
 
 No failure is attributable to invocation, transport, context-window exhaustion, or permission policy.
 The only permission denial (`t4`) was correctly enforced and did not affect the result. Every harness
@@ -269,10 +269,10 @@ or exceeds.
 
 ## 10. Comparison with the prior Qwen3.8-27B 64K evaluation
 
-| Run | Context | Automated | Adjudicated |
-| --- | ------- | --------- | ----------- |
-| Qwen3.8 27B (64K, prior) | 65,536 | 6 Pass / 3 Fail: **t0,t1,t3,t6,t7,t8** / t2,t4,t5 | **7 Pass / 2 Fail**: t0,t1,t3,t4,t6,t7,t8 / t2,t5 |
-| Qwen3.8-Flash-Next (64K, this run) | 65,536 | 6 Pass / 3 Fail: **t0,t1,t3,t4,t6,t7** / t2,t5,t8 | **6 Pass / 3 Fail**: t0,t1,t3,t4,t6,t7 / t2,t5,t8 |
+| Run                                | Context | Automated                                         | Adjudicated                                       |
+| ---------------------------------- | ------- | ------------------------------------------------- | ------------------------------------------------- |
+| Qwen3.8 27B (64K, prior)           | 65,536  | 6 Pass / 3 Fail: **t0,t1,t3,t6,t7,t8** / t2,t4,t5 | **7 Pass / 2 Fail**: t0,t1,t3,t4,t6,t7,t8 / t2,t5 |
+| Qwen3.8-Flash-Next (64K, this run) | 65,536  | 6 Pass / 3 Fail: **t0,t1,t3,t4,t6,t7** / t2,t5,t8 | **6 Pass / 3 Fail**: t0,t1,t3,t4,t6,t7 / t2,t5,t8 |
 
 Per-test changes:
 

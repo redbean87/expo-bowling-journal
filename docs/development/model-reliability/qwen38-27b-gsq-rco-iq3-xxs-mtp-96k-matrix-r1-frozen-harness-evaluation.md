@@ -27,8 +27,8 @@ frozen suite run, trace extraction, scoring, adjudication, and this report.
 > task-level evidence from a single evaluation run, not a statistical measurement. No composite score
 > or ranking is produced, and no single-run difference is treated as statistically significant.
 >
-> **Measured vs. derived.** *Measured* values are read directly from llama.cpp `/metrics` counter
-> deltas (suite interval) or from harness/session records. *Derived* values are arithmetic over
+> **Measured vs. derived.** _Measured_ values are read directly from llama.cpp `/metrics` counter
+> deltas (suite interval) or from harness/session records. _Derived_ values are arithmetic over
 > measured values (tok/s, percentages). Each is labelled below.
 >
 > **Scope note.** This run validates the **Qwen3.8-27B-GSQ-RCO-IQ3_XXS-MTP** server at its configured
@@ -40,20 +40,20 @@ frozen suite run, trace extraction, scoring, adjudication, and this report.
 
 ## 1. Provenance
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json`) |
-| Matrix position | **1 of 6** (`GSQ-RCO 96K × OpenCode`) |
-| Harness commit (used) | `48d9b54f249cd461f5456202f225bbddd156fdf9` |
-| Harness working tree | tracked harness/scorer/prompt files clean (no diff); only pre-existing *untracked* DSH adapters present |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Tracked files in baseline | 338 |
-| Prompt verification | all `t0`–`t8` SHA-256 **and** byte length match (`ok: true`) |
-| Config verification | `ok: true` (canonical permission block; `robinhood-trading.enabled=false`) |
-| Engine | direct OpenCode (`runner.py` → `extract_traces.py` → `score.py`), same procedure as the prior OpenCode evaluations |
-| Timeout | 2400 s/test (runner default; recorded in `manifest.json` and every `results.jsonl` record) |
-| Application source | untouched by this run; pre-existing uncommitted changes present before and after, unchanged |
+| Item                      | Value                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Suite                     | `opencode-t0-t8` (frozen `ground_truth.json`)                                                                      |
+| Matrix position           | **1 of 6** (`GSQ-RCO 96K × OpenCode`)                                                                              |
+| Harness commit (used)     | `48d9b54f249cd461f5456202f225bbddd156fdf9`                                                                         |
+| Harness working tree      | tracked harness/scorer/prompt files clean (no diff); only pre-existing _untracked_ DSH adapters present            |
+| Baseline HEAD             | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                                                                         |
+| Baseline source ref       | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                                                                         |
+| Tracked files in baseline | 338                                                                                                                |
+| Prompt verification       | all `t0`–`t8` SHA-256 **and** byte length match (`ok: true`)                                                       |
+| Config verification       | `ok: true` (canonical permission block; `robinhood-trading.enabled=false`)                                         |
+| Engine                    | direct OpenCode (`runner.py` → `extract_traces.py` → `score.py`), same procedure as the prior OpenCode evaluations |
+| Timeout                   | 2400 s/test (runner default; recorded in `manifest.json` and every `results.jsonl` record)                         |
+| Application source        | untouched by this run; pre-existing uncommitted changes present before and after, unchanged                        |
 
 Run sequence: read-only server probes → direct cold/warm smoke → client smoke → provision the sanitized
 baseline + 9 clones → capture `metrics.before_suite.prom` → run `t0`–`t8` serially → capture
@@ -65,23 +65,23 @@ reconfigured at any point.
 
 Read-only probes of `http://192.168.68.52:8087` (server **not** restarted or modified):
 
-| Item | Value | Source |
-| ---- | ----- | ------ |
-| Health | `{"status":"ok"}` (HTTP 200) | `GET /health` |
-| Build | `b1-60081bb` | `GET /props` |
-| Model alias / id | `qwen3.8-27b-gsq-rco` | `/props`, `/v1/models` |
-| Model path | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/props` |
-| Quantization | `IQ3_S - 3.4375 bpw` | `/props`, `/v1/models` |
-| Context (`n_ctx`) | **97,280** | `/props`, `/v1/models` |
-| Trained context | `262,144` | `/v1/models` (meta) |
-| Parameters / size | `27,320,697,856` / `10,431,832,064` bytes | `/v1/models` (meta) |
-| Vocab / embedding | `n_vocab=248320` / `n_embd=5120` | `/v1/models` (meta) |
-| Slots | `total_slots=1`, slot `id=0` | `/props`, `/slots` |
-| Vision | `modalities.vision=true`; `capabilities=["completion","multimodal"]` | `/props`, `/v1/models` |
-| Speculative decoding | slot `speculative: true`; per-request `speculative.types = "none,draft-mtp"` | `/slots` (post-request) |
-| Chat / reasoning (request) | `chat_format=peg-native`, `reasoning_format=deepseek`, `generation_prompt=<|im_start|>assistant\n<think>\n` | `/slots` |
-| Max predict (request) | `n_predict=4096` | `/slots` |
-| Metrics endpoint | `endpoint_metrics: true` | `/props` |
+| Item                       | Value                                                                                   | Source                  |
+| -------------------------- | --------------------------------------------------------------------------------------- | ----------------------- | ---------------------- | -------- |
+| Health                     | `{"status":"ok"}` (HTTP 200)                                                            | `GET /health`           |
+| Build                      | `b1-60081bb`                                                                            | `GET /props`            |
+| Model alias / id           | `qwen3.8-27b-gsq-rco`                                                                   | `/props`, `/v1/models`  |
+| Model path                 | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/props`                |
+| Quantization               | `IQ3_S - 3.4375 bpw`                                                                    | `/props`, `/v1/models`  |
+| Context (`n_ctx`)          | **97,280**                                                                              | `/props`, `/v1/models`  |
+| Trained context            | `262,144`                                                                               | `/v1/models` (meta)     |
+| Parameters / size          | `27,320,697,856` / `10,431,832,064` bytes                                               | `/v1/models` (meta)     |
+| Vocab / embedding          | `n_vocab=248320` / `n_embd=5120`                                                        | `/v1/models` (meta)     |
+| Slots                      | `total_slots=1`, slot `id=0`                                                            | `/props`, `/slots`      |
+| Vision                     | `modalities.vision=true`; `capabilities=["completion","multimodal"]`                    | `/props`, `/v1/models`  |
+| Speculative decoding       | slot `speculative: true`; per-request `speculative.types = "none,draft-mtp"`            | `/slots` (post-request) |
+| Chat / reasoning (request) | `chat_format=peg-native`, `reasoning_format=deepseek`, `generation_prompt=<             | im_start                | >assistant\n<think>\n` | `/slots` |
+| Max predict (request)      | `n_predict=4096`                                                                        | `/slots`                |
+| Metrics endpoint           | `endpoint_metrics: true`                                                                | `/props`                |
 
 Operator-supplied server configuration (not independently exposed by `/props`): KV cache `q8_0`,
 flash attention, GPU layers `99`, batch `512`, ubatch `128`, CPU threads `8`, MTP draft max `3`.
@@ -98,16 +98,16 @@ suite did not restart it.
 
 ## 3. Context validation
 
-| Item | Value |
-| ---- | ----- |
-| Configured window (`n_ctx`) | **97,280** |
+| Item                                       | Value                                                |
+| ------------------------------------------ | ---------------------------------------------------- |
+| Configured window (`n_ctx`)                | **97,280**                                           |
 | Largest sequence actually observed (suite) | **29,788** prompt+generation tokens (`n_tokens_max`) |
-| Occupancy as a fraction of `n_ctx` | **30.62%** |
-| Pre-suite `n_tokens_max` (after smoke) | 7,845 |
-| Tests approaching/exceeding ~96K | **none** |
+| Occupancy as a fraction of `n_ctx`         | **30.62%**                                           |
+| Pre-suite `n_tokens_max` (after smoke)     | 7,845                                                |
+| Tests approaching/exceeding ~96K           | **none**                                             |
 
 The suite's workload peak (29,788) is well below the configured window. The run confirms the server was
-*configured* for 97,280 and ran the frozen suite cleanly at low occupancy; it provides **no evidence**
+_configured_ for 97,280 and ran the frozen suite cleanly at low occupancy; it provides **no evidence**
 about reliability or throughput at the ~96K operating point. This is expected for a 9-task coding suite
 and is reported as a limitation.
 
@@ -131,17 +131,17 @@ Token columns are sums of per-step session values from `step-finish` records (me
 runner wall-clock per test. Every session matched its clone directory exactly (`match=exact`); every
 clone started clean at baseline HEAD and ended clean. `rc=0` throughout.
 
-| # | Automated | Adjudicated | Runtime (s) | Input tok | Output tok | Timeout | Commits | Tools | Validator invoked | Notes |
-| - | --------- | ----------- | ----------: | --------: | ---------: | ------- | ------: | ----: | ----------------- | ----- |
-| t0 | Pass | Pass | 23.6 | 8,663 | 242 | No | 0 | 0 | none | Exact model id + cwd, no tools |
-| t1 | Pass | Pass | 40.8 | 9,174 | 948 | No | 0 | 4 | none | Correct path + 205 lines; no Git/modification |
-| t2 | Pass | Pass | 315.6 | 19,414 | 9,547 | No | 1 (`448f343`) | 29 | `npx prettier` | One scoped docs edit + validator + diff review + one commit; **1 permission denial** (`write` to `/tmp/para.md`) |
-| t3 | Pass | Pass | 41.1 | 8,794 | 819 | No | 0 | 2 | none | Correct 11 PinPal paths |
-| t4 | Fail | **Pass** | 173.2 | 20,112 | 4,583 | No | 0 | 20 | `npx prettier` | Verdict `false` + explicit no-change; scorer phrasing false negative |
-| t5 | Pass | Pass | 130.8 | 16,930 | 3,447 | No | 0 | 10 | `npm run format:check` | Correct strict no-op: validator run, failure classified pre-existing, **no commit** |
-| t6 | Pass | Pass | 49.8 | 12,576 | 914 | No | 0 | 5 | `npm run format:check` | Validator identified/run/reported |
-| t7 | Fail | Fail | 223.2 | 23,401 | 6,386 | No | 0 | 19 | `npx markdownlint-cli` (external) | Used the wrong validator (external markdownlint, not the repo's `format:check`); ran it twice |
-| t8 | Fail | Fail | 66.4 | 9,309 | 1,195 | No | 0 | 5 | `npm run lint` | Bogus commands reported accurately; recovered with `npm run lint`, not `format:check` |
+| #   | Automated | Adjudicated | Runtime (s) | Input tok | Output tok | Timeout |       Commits | Tools | Validator invoked                 | Notes                                                                                                            |
+| --- | --------- | ----------- | ----------: | --------: | ---------: | ------- | ------------: | ----: | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| t0  | Pass      | Pass        |        23.6 |     8,663 |        242 | No      |             0 |     0 | none                              | Exact model id + cwd, no tools                                                                                   |
+| t1  | Pass      | Pass        |        40.8 |     9,174 |        948 | No      |             0 |     4 | none                              | Correct path + 205 lines; no Git/modification                                                                    |
+| t2  | Pass      | Pass        |       315.6 |    19,414 |      9,547 | No      | 1 (`448f343`) |    29 | `npx prettier`                    | One scoped docs edit + validator + diff review + one commit; **1 permission denial** (`write` to `/tmp/para.md`) |
+| t3  | Pass      | Pass        |        41.1 |     8,794 |        819 | No      |             0 |     2 | none                              | Correct 11 PinPal paths                                                                                          |
+| t4  | Fail      | **Pass**    |       173.2 |    20,112 |      4,583 | No      |             0 |    20 | `npx prettier`                    | Verdict `false` + explicit no-change; scorer phrasing false negative                                             |
+| t5  | Pass      | Pass        |       130.8 |    16,930 |      3,447 | No      |             0 |    10 | `npm run format:check`            | Correct strict no-op: validator run, failure classified pre-existing, **no commit**                              |
+| t6  | Pass      | Pass        |        49.8 |    12,576 |        914 | No      |             0 |     5 | `npm run format:check`            | Validator identified/run/reported                                                                                |
+| t7  | Fail      | Fail        |       223.2 |    23,401 |      6,386 | No      |             0 |    19 | `npx markdownlint-cli` (external) | Used the wrong validator (external markdownlint, not the repo's `format:check`); ran it twice                    |
+| t8  | Fail      | Fail        |        66.4 |     9,309 |      1,195 | No      |             0 |     5 | `npm run lint`                    | Bogus commands reported accurately; recovered with `npm run lint`, not `format:check`                            |
 
 Totals: 9 tests; session input **128,373** tok, output **28,081** tok; sum of runtimes **1,064.5 s**.
 Zero timeouts. `448f343` (t2) is the expected single scoped commit
@@ -152,12 +152,12 @@ Zero timeouts. `448f343` (t2) is the expected single scoped commit
 - **Automated (frozen scorer): 6 Pass / 3 Fail** — Pass `t0,t1,t2,t3,t5,t6`; Fail `t4,t7,t8`.
 - **Adjudicated: 7 Pass / 2 Fail** — Pass `t0,t1,t2,t3,t4,t5,t6`; Fail `t7,t8`.
 
-| # | Auto | Adj | Exact reason |
-| - | ---- | --- | ------------ |
-| t4 | Fail | **Pass** | Only `t4.no_change_warranted` unmet. The model delivered the correct verdict — *"**Claim is false in this repository.**"* — and an explicit no-change determination — *"**Doc change warranted?** No."* — ran `npx prettier --check` / `npm run format:check`, ran `git diff --check` and `git diff --staged`, and modified nothing. The frozen detector requires `…warranted\b\s*\?\s*no\b`; the delivered text is `warranted?** No.` and the scorer's emphasis stripper leaves the `**` (preceded by `?`, followed by space), so the regex misses. Verified directly against `score.strip_markdown_emphasis` (raw **and** normalized both fail to match). **Scorer false negative**; scorer not modified. |
-| t5 | Pass | Pass | Correct strict ordered no-op. Ran `npm run format:check`, correctly classified the `docs/domain-model.md` failure as **pre-existing** (byte-identical to baseline), reviewed the tree/diff with Git, and **committed nothing**. This is the behaviour the frozen requirement asks for; the prior 96K run failed t5 by reformatting and committing. |
-| t7 | Fail | Fail | Genuine relative to the frozen requirement. The task requires the repository's Markdown validator (`npm run format:check` / `prettier`) run twice, each execution reported separately. After searching, the model concluded no project-specific Markdown validator exists and ran an **external** `npx --yes markdownlint-cli docs/domain-model.md` twice instead. `t7.validator_twice` (critical) and `t7.separate_outputs` are unmet; `git status` ran and nothing was modified. Same frozen-requirement failure mode recorded in the prior 8087 run. |
-| t8 | Fail | Fail | Genuine. Both bogus commands were run and reported accurately (`npm run markdownlint` → "Missing script"; `git statuss` → "not a git command"), and `git status` recovered correctly. But the recovery validation used **`npm run lint`** (eslint), not the repository Markdown/format validator (`npm run format:check`); `t8.recovery_validation` (critical) is unmet. Same genuine failure mode adjudicated in the prior 96K and 8087 DSH runs. |
+| #   | Auto | Adj      | Exact reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --- | ---- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t4  | Fail | **Pass** | Only `t4.no_change_warranted` unmet. The model delivered the correct verdict — _"**Claim is false in this repository.**"_ — and an explicit no-change determination — _"**Doc change warranted?** No."_ — ran `npx prettier --check` / `npm run format:check`, ran `git diff --check` and `git diff --staged`, and modified nothing. The frozen detector requires `…warranted\b\s*\?\s*no\b`; the delivered text is `warranted?** No.` and the scorer's emphasis stripper leaves the `**` (preceded by `?`, followed by space), so the regex misses. Verified directly against `score.strip_markdown_emphasis` (raw **and** normalized both fail to match). **Scorer false negative**; scorer not modified. |
+| t5  | Pass | Pass     | Correct strict ordered no-op. Ran `npm run format:check`, correctly classified the `docs/domain-model.md` failure as **pre-existing** (byte-identical to baseline), reviewed the tree/diff with Git, and **committed nothing**. This is the behaviour the frozen requirement asks for; the prior 96K run failed t5 by reformatting and committing.                                                                                                                                                                                                                                                                                                                                                          |
+| t7  | Fail | Fail     | Genuine relative to the frozen requirement. The task requires the repository's Markdown validator (`npm run format:check` / `prettier`) run twice, each execution reported separately. After searching, the model concluded no project-specific Markdown validator exists and ran an **external** `npx --yes markdownlint-cli docs/domain-model.md` twice instead. `t7.validator_twice` (critical) and `t7.separate_outputs` are unmet; `git status` ran and nothing was modified. Same frozen-requirement failure mode recorded in the prior 8087 run.                                                                                                                                                     |
+| t8  | Fail | Fail     | Genuine. Both bogus commands were run and reported accurately (`npm run markdownlint` → "Missing script"; `git statuss` → "not a git command"), and `git status` recovered correctly. But the recovery validation used **`npm run lint`** (eslint), not the repository Markdown/format validator (`npm run format:check`); `t8.recovery_validation` (critical) is unmet. Same genuine failure mode adjudicated in the prior 96K and 8087 DSH runs.                                                                                                                                                                                                                                                          |
 
 All 27 common requirements (`common.prompt_verified`, `common.baseline_head`, `common.clean_before`,
 i.e. 3 × 9) passed for every test.
@@ -166,18 +166,18 @@ i.e. 3 × 9) passed for every test.
 
 Directly from llama.cpp `/metrics`, suite-only counter deltas (measured):
 
-| Quantity | Value |
-| -------- | ----- |
-| Prompt tokens processed (non-cached) | **129,039** |
-| Prompt tokens served from cache | **973,142** |
-| Prompt processing time | **233.4 s** |
-| **Prompt tok/s (derived = 129,039 / 233.4)** | **553.51** |
-| llama.cpp gauge `prompt_tokens_seconds` (measured, suite end) | **553.51** |
-| Generated tokens | **31,710** |
-| Generation time | **756.2 s** |
-| **Generation tok/s (derived = 31,710 / 756.2)** | **41.97** |
-| llama.cpp gauge `predicted_tokens_seconds` (measured, suite end) | **41.87** |
-| `n_decode_total` (excluding speculative) | **11,433** |
+| Quantity                                                         | Value       |
+| ---------------------------------------------------------------- | ----------- |
+| Prompt tokens processed (non-cached)                             | **129,039** |
+| Prompt tokens served from cache                                  | **973,142** |
+| Prompt processing time                                           | **233.4 s** |
+| **Prompt tok/s (derived = 129,039 / 233.4)**                     | **553.51**  |
+| llama.cpp gauge `prompt_tokens_seconds` (measured, suite end)    | **553.51**  |
+| Generated tokens                                                 | **31,710**  |
+| Generation time                                                  | **756.2 s** |
+| **Generation tok/s (derived = 31,710 / 756.2)**                  | **41.97**   |
+| llama.cpp gauge `predicted_tokens_seconds` (measured, suite end) | **41.87**   |
+| `n_decode_total` (excluding speculative)                         | **11,433**  |
 
 Derived and gauge values agree to within rounding; the gauges are the server's own measurements.
 Direct smoke (separate from the suite): cold short request 49.41 tok/s prompt / **55.72 tok/s decode**;
@@ -188,13 +188,13 @@ the short-context warm rate, consistent with the expected decode cost as sequenc
 
 Directly from llama.cpp `/metrics`, suite-only counter deltas (measured):
 
-| Metric | Value |
-| ------ | ----- |
-| Verification steps (`spec_decode_num_drafts_total`) | **11,009** |
-| Draft tokens generated (`spec_decode_num_draft_tokens_total`) | **33,026** (= 3.000 per step; draft max 3) |
-| Draft tokens accepted (`spec_decode_num_accepted_tokens_total`) | **20,719** |
-| **Draft acceptance rate (derived)** | **62.74%** |
-| **Mean accepted tokens per verification step (derived)** | **1.8820** (≈ 0.882 extra tokens/step from MTP) |
+| Metric                                                          | Value                                           |
+| --------------------------------------------------------------- | ----------------------------------------------- |
+| Verification steps (`spec_decode_num_drafts_total`)             | **11,009**                                      |
+| Draft tokens generated (`spec_decode_num_draft_tokens_total`)   | **33,026** (= 3.000 per step; draft max 3)      |
+| Draft tokens accepted (`spec_decode_num_accepted_tokens_total`) | **20,719**                                      |
+| **Draft acceptance rate (derived)**                             | **62.74%**                                      |
+| **Mean accepted tokens per verification step (derived)**        | **1.8820** (≈ 0.882 extra tokens/step from MTP) |
 
 MTP is active and materially productive: each decode step yields ~1.88 accepted tokens instead of 1.
 Acceptance (62.74%) is above the prior 96K run (59.21%) and below the prior 8087 run (63.92%); it is a
@@ -202,14 +202,14 @@ single-run observation, not a controlled comparison.
 
 ## 9. Maximum context occupancy
 
-| Quantity | Value |
-| -------- | ----- |
-| `n_tokens_max` (largest prompt+generation sequence observed, suite) | **29,788** |
-| `n_tokens_max` absolute at suite end | 29,788 |
-| Pre-suite `n_tokens_max` (after smoke) | 7,845 |
-| `n_ctx` | **97,280** |
-| Occupancy | **30.62% of the window** |
-| Tests approaching/exceeding the validated ~96K occupancy | **none** |
+| Quantity                                                            | Value                    |
+| ------------------------------------------------------------------- | ------------------------ |
+| `n_tokens_max` (largest prompt+generation sequence observed, suite) | **29,788**               |
+| `n_tokens_max` absolute at suite end                                | 29,788                   |
+| Pre-suite `n_tokens_max` (after smoke)                              | 7,845                    |
+| `n_ctx`                                                             | **97,280**               |
+| Occupancy                                                           | **30.62% of the window** |
+| Tests approaching/exceeding the validated ~96K occupancy            | **none**                 |
 
 ## 10. Memory / working-set observations
 
@@ -222,17 +222,17 @@ Windows host. The following are **observable proxies**, not direct memory measur
 - **No counter resets / no restart:** every `/metrics` counter increased monotonically across the suite
   (see §14); a restart would have reset them to zero.
 - **No context-trim signal:** no test reached a length where trimming could be triggered (max 30.62% of
-  the window); no *prompt* truncation was observed.
+  the window); no _prompt_ truncation was observed.
 - **Paging / working-set trimming / anomalous memory pressure:** **not observed** in any
   client-observable signal, and **not independently measurable** from this client.
 
 ## 11. Timeout / runtime behavior
 
-| Quantity | Value |
-| -------- | ----- |
-| Per-test timeout | 2400 s |
-| Tests timed out | **0 / 9** |
-| Sum of per-test durations | **1,064.5 s** |
+| Quantity                                                          | Value                  |
+| ----------------------------------------------------------------- | ---------------------- |
+| Per-test timeout                                                  | 2400 s                 |
+| Tests timed out                                                   | **0 / 9**              |
+| Sum of per-test durations                                         | **1,064.5 s**          |
 | Continuous suite wall-clock (t0 start 12:25:07 → t8 end 12:43:17) | **1,090 s = 18.2 min** |
 
 Per-test runtimes: t0 23.6, t1 40.8, t2 315.6, t3 41.1, t4 173.2, t5 130.8, t6 49.8, t7 223.2,
@@ -244,10 +244,10 @@ All rows are the **GSQ-RCO `IQ3_S`** model on the same file and build, using the
 
 ### 12.1 Scores
 
-| Run | Context | Automated | Adjudicated |
-| --- | ------- | --------- | ----------- |
-| 8087 OpenCode (prior) | 80,896 | 6/3 — fail `t4,t5,t7` | 7/2 — fail `t5,t7` |
-| 96K OpenCode (prior, Sep-21) | 97,280 | 5/4 — fail `t4,t5,t7,t8` | 6/3 — fail `t5,t7,t8` |
+| Run                                    | Context    | Automated                 | Adjudicated            |
+| -------------------------------------- | ---------- | ------------------------- | ---------------------- |
+| 8087 OpenCode (prior)                  | 80,896     | 6/3 — fail `t4,t5,t7`     | 7/2 — fail `t5,t7`     |
+| 96K OpenCode (prior, Sep-21)           | 97,280     | 5/4 — fail `t4,t5,t7,t8`  | 6/3 — fail `t5,t7,t8`  |
 | **96K OpenCode (this run, matrix r1)** | **97,280** | **6/3 — fail `t4,t7,t8`** | **7/2 — fail `t7,t8`** |
 
 Per-test movement vs the prior 96K run:
@@ -266,17 +266,17 @@ statistically significant.
 
 ### 12.2 Performance (measured / derived)
 
-| Metric | 8087 OpenCode GSQ-RCO | 96K OpenCode (prior) | **This run (96K, matrix r1)** |
-| ------ | --------------------: | -------------------: | ----------------------------: |
-| Prompt tok/s (derived) | 439.4 | 580.8 | **553.51** |
-| Generation tok/s (derived) | 44.33 | 49.02 | **41.97** |
-| `n_decode_total` | 12,620 | 11,286 | **11,433** |
-| `n_tokens_max` | 53,635 | 33,166 | **29,788** |
-| Prompt tokens (non-cached) | 174,461 | 126,644 | **129,039** |
-| Generated tokens | 35,204 | 30,142 | **31,710** |
-| Sum of test durations | 1,280.1 s | 904.6 s | **1,064.5 s** |
-| MTP acceptance rate | 63.92% | 59.21% | **62.74%** |
-| Mean accepted/step | 1.92 | 1.776 | **1.882** |
+| Metric                     | 8087 OpenCode GSQ-RCO | 96K OpenCode (prior) | **This run (96K, matrix r1)** |
+| -------------------------- | --------------------: | -------------------: | ----------------------------: |
+| Prompt tok/s (derived)     |                 439.4 |                580.8 |                    **553.51** |
+| Generation tok/s (derived) |                 44.33 |                49.02 |                     **41.97** |
+| `n_decode_total`           |                12,620 |               11,286 |                    **11,433** |
+| `n_tokens_max`             |                53,635 |               33,166 |                    **29,788** |
+| Prompt tokens (non-cached) |               174,461 |              126,644 |                   **129,039** |
+| Generated tokens           |                35,204 |               30,142 |                    **31,710** |
+| Sum of test durations      |             1,280.1 s |              904.6 s |                 **1,064.5 s** |
+| MTP acceptance rate        |                63.92% |               59.21% |                    **62.74%** |
+| Mean accepted/step         |                  1.92 |                1.776 |                     **1.882** |
 
 ### 12.3 Interpretation of the comparison
 
@@ -292,8 +292,8 @@ statistically significant.
 ## 13. Interpretation and limitations
 
 1. **The suite does not exercise ~96K occupancy (dominant limitation).** Peak sequence was 29,788
-   tokens (30.62% of 97,280). The run validates the server *configured* at ~96K, not the ~96K
-   *operating point*.
+   tokens (30.62% of 97,280). The run validates the server _configured_ at ~96K, not the ~96K
+   _operating point_.
 2. **Single run per prompt.** Non-deterministic decoding; no statistical significance; no composite
    score. The t5 change is one run and must not be read as a reliable improvement.
 3. **Suite-level metrics only.** Per-test throughput is not available (the direct OpenCode runner
@@ -314,18 +314,18 @@ statistically significant.
 
 ## 14. Memory / server-integrity evidence (no restart)
 
-| Counter (measured) | pre-smoke | before-suite | after-suite | monotonic |
-| ------------------ | --------: | -----------: | ----------: | --------- |
-| `prompt_tokens_total` | 0 | 8,462 | 137,501 | ✔ |
-| `prompt_tokens_cached_total` | 0 | 64 | 973,206 | ✔ |
-| `prompt_seconds_total` | 0 | 14 | 247 | ✔ |
-| `tokens_predicted_total` | 0 | 482 | 32,192 | ✔ |
-| `tokens_predicted_seconds_total` | 0 | 9 | 765 | ✔ |
-| `n_decode_total` | 0 | 200 | 11,633 | ✔ |
-| `n_tokens_max` (max, absolute) | 0 | 7,845 | 29,788 | ✔ |
-| `spec_decode_num_drafts_total` | 0 | 173 | 11,182 | ✔ |
-| `spec_decode_num_draft_tokens_total` | 0 | 519 | 33,545 | ✔ |
-| `spec_decode_num_accepted_tokens_total` | 0 | 311 | 21,030 | ✔ |
+| Counter (measured)                      | pre-smoke | before-suite | after-suite | monotonic |
+| --------------------------------------- | --------: | -----------: | ----------: | --------- |
+| `prompt_tokens_total`                   |         0 |        8,462 |     137,501 | ✔         |
+| `prompt_tokens_cached_total`            |         0 |           64 |     973,206 | ✔         |
+| `prompt_seconds_total`                  |         0 |           14 |         247 | ✔         |
+| `tokens_predicted_total`                |         0 |          482 |      32,192 | ✔         |
+| `tokens_predicted_seconds_total`        |         0 |            9 |         765 | ✔         |
+| `n_decode_total`                        |         0 |          200 |      11,633 | ✔         |
+| `n_tokens_max` (max, absolute)          |         0 |        7,845 |      29,788 | ✔         |
+| `spec_decode_num_drafts_total`          |         0 |          173 |      11,182 | ✔         |
+| `spec_decode_num_draft_tokens_total`    |         0 |          519 |      33,545 | ✔         |
+| `spec_decode_num_accepted_tokens_total` |         0 |          311 |      21,030 | ✔         |
 
 Server identity was identical before and after: build `b1-60081bb`, model path unchanged,
 `n_ctx=97280` (both `/props` and `/v1/models` meta), model id `qwen3.8-27b-gsq-rco`,

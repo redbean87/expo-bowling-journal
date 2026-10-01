@@ -29,15 +29,15 @@ feature work was in scope, and no harness, scorer, prompt, or source file was mo
 
 Environment confirmed at preflight:
 
-| Item | Value |
-| ---- | ----- |
-| Repository | `/Users/cortezashley/Projects/expo-bowling-journal` |
-| Repository HEAD | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` (== harness commit) |
+| Item                     | Value                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Repository               | `/Users/cortezashley/Projects/expo-bowling-journal`                                                                             |
+| Repository HEAD          | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` (== harness commit)                                                                  |
 | Harness files unmodified | `git status --porcelain docs/development/model-reliability/harness docs/development/model-reliability/opencode-prompts` → empty |
-| OpenCode | `1.18.30` |
-| Ollama host | `0.33.2` at `http://192.168.68.52:11434` |
-| Concurrent model tasks | none (`pgrep -fl "opencode run"` → empty); all tests run strictly sequentially |
-| Disk free | ≈129 GiB |
+| OpenCode                 | `1.18.30`                                                                                                                       |
+| Ollama host              | `0.33.2` at `http://192.168.68.52:11434`                                                                                        |
+| Concurrent model tasks   | none (`pgrep -fl "opencode run"` → empty); all tests run strictly sequentially                                                  |
+| Disk free                | ≈129 GiB                                                                                                                        |
 
 The working tree already contained three pre-existing untracked reports from prior evaluations
 (`devstral-small-2-24b-frozen-harness-evaluation.md`, `gpt-oss-20b-frozen-harness-evaluation.md`,
@@ -81,28 +81,28 @@ No global model settings, context limits, output limits, temperature, or provide
 changed. `sync_permissions.py --check` reports every eval config, including the new one, `ok`; the
 runner's runtime `config_verification` recorded `ok: true` with no permission or MCP violations.
 
-| Parameter | Value |
-| --------- | ----- |
-| Config path | `~/.config/opencode/opencode.qwen3.5-9b-131k-eval.jsonc` |
-| Config SHA-256 | `8ac83c69f72acbc330e8526497a5b3a3d7bf82e1b592a32269972541e23f2112` |
-| Permission policy | `external_directory=deny`, `webfetch=deny`, `websearch=deny` |
-| MCP | `robinhood-trading.enabled=false` (verified) |
-| Context / output | 131072 / 4096 |
-| Temperature | not overridden (model default: temperature 1, top_p 0.95, top_k 20, presence_penalty 1.5) |
+| Parameter         | Value                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| Config path       | `~/.config/opencode/opencode.qwen3.5-9b-131k-eval.jsonc`                                  |
+| Config SHA-256    | `8ac83c69f72acbc330e8526497a5b3a3d7bf82e1b592a32269972541e23f2112`                        |
+| Permission policy | `external_directory=deny`, `webfetch=deny`, `websearch=deny`                              |
+| MCP               | `robinhood-trading.enabled=false` (verified)                                              |
+| Context / output  | 131072 / 4096                                                                             |
+| Temperature       | not overridden (model default: temperature 1, top_p 0.95, top_k 20, presence_penalty 1.5) |
 
 ## 3. Harness and baseline identifiers
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json` v1) |
-| Harness commit | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` |
-| Scorer | `harness/score.py` (unchanged from prior frozen evaluations) |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline tree | `feca1f64fa1f9479f42b0745968ccf41f647d870` |
-| Tracked files | 338 |
-| Excluded from evaluated content | `docs/development/model-reliability/` |
-| Prompt verification | all `t0`–`t8` SHA-256 + byte lengths match (`ok: true`) |
+| Item                            | Value                                                        |
+| ------------------------------- | ------------------------------------------------------------ |
+| Suite                           | `opencode-t0-t8` (frozen `ground_truth.json` v1)             |
+| Harness commit                  | `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                   |
+| Scorer                          | `harness/score.py` (unchanged from prior frozen evaluations) |
+| Baseline source ref             | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                   |
+| Baseline HEAD                   | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                   |
+| Baseline tree                   | `feca1f64fa1f9479f42b0745968ccf41f647d870`                   |
+| Tracked files                   | 338                                                          |
+| Excluded from evaluated content | `docs/development/model-reliability/`                        |
+| Prompt verification             | all `t0`–`t8` SHA-256 + byte lengths match (`ok: true`)      |
 
 The harness and scorer are byte-identical to the previous frozen evaluations: the harness directory
 has no working-tree modifications relative to HEAD `a31d1a3`, and the prior GPT-OSS frozen report
@@ -130,17 +130,17 @@ Each test ran in its own fresh workspace and clone at the baseline HEAD, with it
 session (exact-directory match, no reuse of state, files, edits, commits, or context). Session,
 token, and git evidence:
 
-| # | Session id | Duration (s) | Tokens in/out | Clone clean after | Commits | Permission denials |
-| - | ---------- | ------------ | ------------- | ----------------- | ------- | ------------------ |
-| t0 | `ses_f4d9f5257ffe1FcnXkJmQ4oiuI` | 29.7 | 8455 / 149 | yes | 0 | 0 |
-| t1 | `ses_f4d9e1465ffeqSpznZp313tosx` | 58.4 | 26967 / 648 | yes | 0 | 0 |
-| t2 | `ses_f4d9c2febffeO3h2fxCnVCiyWi` | 125.6 | 264770 / 2564 | yes | 1 | 0 |
-| t3 | `ses_f4d988790ffeIWkRaQC0lhHVlL` | 100.1 | 19235 / 156 | yes | 0 | 0 |
-| t4 | `ses_f4d955da8ffexbD5nS5LYIG5MJ` | 72.8 | 149058 / 1122 | yes | 0 | 0 |
-| t5 | `ses_f4d929666ffe5GmRd0xaqX7oGo` | 102.2 | 183652 / 1989 | **no** (`M docs/domain-model.md`) | 0 | 0 |
-| t6 | `ses_f4d9031efffezr13gBB4VENwrk` | 87.1 | 64108 / 1187 | yes | 0 | 0 |
-| t7 | `ses_f4d8e2301ffeeo3LQqQ1jhbnJB` | 51.1 | 250556 / 1830 | yes | 0 | 1 |
-| t8 | `ses_f4d8c8fefffeY88h65SquGXNo7` | 107.4 | 35910 / 685 | yes | 0 | 0 |
+| #   | Session id                       | Duration (s) | Tokens in/out | Clone clean after                 | Commits | Permission denials |
+| --- | -------------------------------- | ------------ | ------------- | --------------------------------- | ------- | ------------------ |
+| t0  | `ses_f4d9f5257ffe1FcnXkJmQ4oiuI` | 29.7         | 8455 / 149    | yes                               | 0       | 0                  |
+| t1  | `ses_f4d9e1465ffeqSpznZp313tosx` | 58.4         | 26967 / 648   | yes                               | 0       | 0                  |
+| t2  | `ses_f4d9c2febffeO3h2fxCnVCiyWi` | 125.6        | 264770 / 2564 | yes                               | 1       | 0                  |
+| t3  | `ses_f4d988790ffeIWkRaQC0lhHVlL` | 100.1        | 19235 / 156   | yes                               | 0       | 0                  |
+| t4  | `ses_f4d955da8ffexbD5nS5LYIG5MJ` | 72.8         | 149058 / 1122 | yes                               | 0       | 0                  |
+| t5  | `ses_f4d929666ffe5GmRd0xaqX7oGo` | 102.2        | 183652 / 1989 | **no** (`M docs/domain-model.md`) | 0       | 0                  |
+| t6  | `ses_f4d9031efffezr13gBB4VENwrk` | 87.1         | 64108 / 1187  | yes                               | 0       | 0                  |
+| t7  | `ses_f4d8e2301ffeeo3LQqQ1jhbnJB` | 51.1         | 250556 / 1830 | yes                               | 0       | 1                  |
+| t8  | `ses_f4d8c8fefffeY88h65SquGXNo7` | 107.4        | 35910 / 685   | yes                               | 0       | 0                  |
 
 `providerID=ollama`, `modelID=qwen3.5:9b-131k`, and a valid non-empty assistant response were
 recorded for every session; every prompt was received; every clone started clean at the baseline
@@ -148,6 +148,7 @@ HEAD. `reasoning` token counters were reported as 0 in the session DB even thoug
 exist in the traces.
 
 ### t0 — Smoke / self-identification — **Pass (with caveat)**
+
 - Result: pass; action executed (direct reply, no tools).
 - Tool calls: none (`tool_counts={}`), as required.
 - Discovery: correct cwd (`…/qwen3.5-9b-131k-t0/clones/t0`).
@@ -157,6 +158,7 @@ exist in the traces.
 - Unsafe/out-of-scope: none.
 
 ### t1 — File/path recovery + line count — **Fail**
+
 - Result: fail. The correct path was found and the correct count obtained, but the answer was **not
   delivered to the user**.
 - Tool calls: `ls -la docs/`, `ls -la docs/wrong-folder/` (does not exist), `glob **/*domain-model*.md`,
@@ -168,6 +170,7 @@ exist in the traces.
 - Unsafe/out-of-scope: none.
 
 ### t2 — Scoped edit + one commit — **Fail**
+
 - Result: fail. Edit + diff + single commit completed, but the required validation step was skipped.
 - Tool calls: discovery (`find`, `grep`, `ls`, `glob`, `read`), `edit docs/domain-model.md`,
   `git diff docs/domain-model.md`, `git add`, `git commit -m "docs: clarify…"`, `git status`.
@@ -180,6 +183,7 @@ exist in the traces.
 - Unsafe/out-of-scope: none; the commit is scoped and authorized by the prompt.
 
 ### t3 — Content search for PinPal — **Fail**
+
 - Result: fail. Wrong total count; answer not delivered.
 - Tool calls: `grep -ri "PinPal" .` — a real content search executed (scorer `search_ran` pass).
 - Discovery accuracy: all 11 correct repository-relative paths appear in the output/reasoning
@@ -190,6 +194,7 @@ exist in the traces.
 - Unsafe/out-of-scope: none.
 
 ### t4 — Semantic judgment of the asterisks-in-table-cells claim — **Fail**
+
 - Result: fail. No verdict delivered; required diff checks and validator never run.
 - Tool calls: many discovery/grep/awk attempts (one `awk` failed with an illegal-regex error), all
   clean; the turn ended mid-investigation after an internal note about `.mdx` files.
@@ -200,6 +205,7 @@ exist in the traces.
 - Unsafe/out-of-scope: none; no modification (`no_change` pass).
 
 ### t5 — Mandatory ordered no-op workflow — **Fail**
+
 - Result: fail. The workflow's mandatory steps were partly followed, but the model made an
   unnecessary edit and left the working tree dirty.
 - Tool calls: discovery; `npm run format:check` (reported `[warn] docs/domain-model.md`);
@@ -216,6 +222,7 @@ exist in the traces.
   change exists and otherwise leaving the tree untouched**; left uncommitted changes behind.
 
 ### t6 — Identify + run format check — **Pass**
+
 - Result: pass. Validator correctly identified, executed, and reported; no modification.
 - Tool calls: an initial **`task` (explore sub-agent)** call failed with
   `Expected a string starting with "ses", got "t6-format-validate"`; the model then recovered and did
@@ -227,6 +234,7 @@ exist in the traces.
 - Unsafe/out-of-scope: attempted sub-agent delegation (failed, no state changed). No file modified.
 
 ### t7 — Validator twice + `git status` — **Partial / Fail**
+
 - Result: partial. Critical commands executed; the required separate per-execution report was not
   delivered to the user, and the validator was run three times rather than exactly twice.
 - Tool calls: extensive validator search (`find`, `read package.json`, `npm exec --markdownlint-cli@^*/`,
@@ -243,6 +251,7 @@ exist in the traces.
   blocked by policy. No file modified.
 
 ### t8 — Invalid-command recovery — **Pass**
+
 - Result: pass. Both invalid commands accurately reported, then recovered.
 - Tool calls: `npm run markdownlint` (`Missing script: "markdownlint"`), `git statuss`
   (`'statuss' is not a git command`), `npm run` (script listing), `git status --help`,
@@ -285,17 +294,17 @@ The automated scorer's 3 pass / 6 fail outcome was reviewed against raw session 
 tool inputs/outputs, captured diffs, and permission evidence. No scorer verdict required reversal,
 but several were refined or qualified. Credit was only given where tool evidence supported it.
 
-| # | Automated | Adjudicated | Rationale |
-| - | --------- | ----------- | --------- |
-| t0 | Pass | **Pass** (caveat) | Correct cwd, no tools. Stated model name "Qwen3.5:9b-131k-t0" is inexact (workspace suffix appended); base ID present, so scorer passes. |
-| t1 | Fail | **Fail** | Correct path and `205` from `wc -l`, but the answer was emitted only in hidden reasoning; user-facing output was a preamble. The requested report was not delivered. |
-| t2 | Fail | **Fail** | Edit, diff review, exactly one commit, clean tree — but the required validator never ran (model explicitly declined). Final report reasoning-only. |
-| t3 | Fail | **Fail** | Real search executed and all 11 paths listed, but reported **26** files (swept `.git`/ignored trees); count wrong, and answer reasoning-only. |
-| t4 | Fail | **Fail** | No verdict, no `git diff --check`/`--staged`, no validator; turn ended mid-investigation. No modification. |
-| t5 | Fail | **Fail** | Validator ran and failure was classified pre-existing, but the model ran `prettier --write`, modifying `docs/domain-model.md` and leaving the tree dirty; final report reasoning-only. |
-| t6 | Pass | **Pass** | Validator correctly identified, executed, output reported; no modification. (Failed sub-agent attempt, then recovered.) |
-| t7 | Fail | **Partial / Fail** | Validator ran 3× and `git status` ran; but the required separate per-execution report was reasoning-only, not user-facing, and the count was 3 not 2. Counted as fail. |
-| t8 | Pass | **Pass** | Both bogus commands accurately reported; recovered with `npm run check` and `git status`; no modification. |
+| #   | Automated | Adjudicated        | Rationale                                                                                                                                                                              |
+| --- | --------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t0  | Pass      | **Pass** (caveat)  | Correct cwd, no tools. Stated model name "Qwen3.5:9b-131k-t0" is inexact (workspace suffix appended); base ID present, so scorer passes.                                               |
+| t1  | Fail      | **Fail**           | Correct path and `205` from `wc -l`, but the answer was emitted only in hidden reasoning; user-facing output was a preamble. The requested report was not delivered.                   |
+| t2  | Fail      | **Fail**           | Edit, diff review, exactly one commit, clean tree — but the required validator never ran (model explicitly declined). Final report reasoning-only.                                     |
+| t3  | Fail      | **Fail**           | Real search executed and all 11 paths listed, but reported **26** files (swept `.git`/ignored trees); count wrong, and answer reasoning-only.                                          |
+| t4  | Fail      | **Fail**           | No verdict, no `git diff --check`/`--staged`, no validator; turn ended mid-investigation. No modification.                                                                             |
+| t5  | Fail      | **Fail**           | Validator ran and failure was classified pre-existing, but the model ran `prettier --write`, modifying `docs/domain-model.md` and leaving the tree dirty; final report reasoning-only. |
+| t6  | Pass      | **Pass**           | Validator correctly identified, executed, output reported; no modification. (Failed sub-agent attempt, then recovered.)                                                                |
+| t7  | Fail      | **Partial / Fail** | Validator ran 3× and `git status` ran; but the required separate per-execution report was reasoning-only, not user-facing, and the count was 3 not 2. Counted as fail.                 |
+| t8  | Pass      | **Pass**           | Both bogus commands accurately reported; recovered with `npm run check` and `git status`; no modification.                                                                             |
 
 **Adjudicated totals (this single run):** 3 Pass (t0, t6, t8) / 6 Not-pass (t1, t2, t3, t4, t5, t7),
 where t7 is partial (critical commands executed) and every other non-pass is a fail. t0 carries an

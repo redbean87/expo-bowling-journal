@@ -73,11 +73,11 @@ The evaluation client previously pointed at the down port 8080 and declared a 16
 Applied to the **base** config `~/.config/opencode/opencode.jsonc` (the file that declares the
 `qwen-local` provider; the eval overlay does not declare it and merges over the base):
 
-| Setting | Before | After |
-| ------- | ------ | ----- |
-| `qwen-local` `options.baseURL` | `http://192.168.68.52:8080/v1` | `http://192.168.68.52:8081/v1` |
-| `qwen-local` model `limit.context` | `16384` | `65536` |
-| `qwen-local` model `limit.output` | `4096` | `4096` (unchanged) |
+| Setting                            | Before                         | After                          |
+| ---------------------------------- | ------------------------------ | ------------------------------ |
+| `qwen-local` `options.baseURL`     | `http://192.168.68.52:8080/v1` | `http://192.168.68.52:8081/v1` |
+| `qwen-local` model `limit.context` | `16384`                        | `65536`                        |
+| `qwen-local` model `limit.output`  | `4096`                         | `4096` (unchanged)             |
 
 A unified diff against the pre-edit backup confirms **only** these two tokens changed; the file is
 byte-length-identical (1786 bytes) and no other provider, permission, MCP, or compaction setting was
@@ -99,17 +99,17 @@ part of the evaluation configuration, and the permanent `external_directory=deny
 
 `opencode debug config` with `OPENCODE_CONFIG=~/.config/opencode/opencode.qwen-local-eval.jsonc`:
 
-| Item | Value |
-| ---- | ----- |
-| Provider | `qwen-local` (present; providers resolved: `ollama`, `qwen-local`) |
-| Base URL | `http://192.168.68.52:8081/v1` |
-| Downstream model key | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` |
-| Context / output limit | `65536` / `4096` |
-| `compaction.auto` | `false` |
-| `mcp.robinhood-trading.enabled` | `false` |
-| `permission.external_directory` | `deny` |
-| `permission.webfetch` | `deny` |
-| `permission.websearch` | `deny` |
+| Item                            | Value                                                                 |
+| ------------------------------- | --------------------------------------------------------------------- |
+| Provider                        | `qwen-local` (present; providers resolved: `ollama`, `qwen-local`)    |
+| Base URL                        | `http://192.168.68.52:8081/v1`                                        |
+| Downstream model key            | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` |
+| Context / output limit          | `65536` / `4096`                                                      |
+| `compaction.auto`               | `false`                                                               |
+| `mcp.robinhood-trading.enabled` | `false`                                                               |
+| `permission.external_directory` | `deny`                                                                |
+| `permission.webfetch`           | `deny`                                                                |
+| `permission.websearch`          | `deny`                                                                |
 
 The base config declares a default model (`ollama/gpt-oss:20b`), but the harness always passes
 `--model`, so the evaluated model is the exact Qwen GGUF above; no fallback occurred (every session
@@ -141,17 +141,17 @@ The runner's pre-model-call `config.verification.json` recorded `ok: true`: eval
 
 ## 5. Harness, baseline, and prompt integrity
 
-| Item | Value |
-| ---- | ----- |
-| Suite | `opencode-t0-t8` (frozen `ground_truth.json`) |
-| Harness commit | `a31d1a321321b65fa92752d57e6149f0f03b2ccb` |
-| Harness/scorer/prompt drift | none (`git status --porcelain` on those dirs empty) |
-| Baseline HEAD | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4` |
-| Baseline source ref | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03` |
-| Baseline tree | `feca1f64fa1f9479f42b0745968ccf41f647d870` |
-| Tracked files | 338 |
-| Prompt verification | all `t0`–`t8` SHA-256 and byte lengths match (`ok: true`, no issues) |
-| Tracked repo changes | none (only the pre-existing untracked evaluation docs + this report) |
+| Item                        | Value                                                                |
+| --------------------------- | -------------------------------------------------------------------- |
+| Suite                       | `opencode-t0-t8` (frozen `ground_truth.json`)                        |
+| Harness commit              | `a31d1a321321b65fa92752d57e6149f0f03b2ccb`                           |
+| Harness/scorer/prompt drift | none (`git status --porcelain` on those dirs empty)                  |
+| Baseline HEAD               | `ef91057c47744b25dc5e14af16ed9b7ad609c0f4`                           |
+| Baseline source ref         | `a07d38e8f3d48c6880759cb69d0c1f42433c7b03`                           |
+| Baseline tree               | `feca1f64fa1f9479f42b0745968ccf41f647d870`                           |
+| Tracked files               | 338                                                                  |
+| Prompt verification         | all `t0`–`t8` SHA-256 and byte lengths match (`ok: true`, no issues) |
+| Tracked repo changes        | none (only the pre-existing untracked evaluation docs + this report) |
 
 ## 6. Per-test results (`t0`–`t8`)
 
@@ -162,17 +162,17 @@ Every session matched its clone directory exactly (`match=exact`), used `provide
 clone started clean at baseline HEAD and ended clean. No test produced a process-level error other
 than the noted timeout; no test timed out except `t2`.
 
-| # | Session id | Duration (s) | rc | Tokens in/out | Max step input | Commits | Rejections | Automated | Adjudicated |
-| - | ---------- | ------------ | -- | ------------- | -------------- | ------- | ---------- | --------- | ----------- |
-| t0 | `ses_f4a8f55b2ffeVetWRDZTn9LNg7` | 60.0 | 0 | 8685 / 224 | 8685 | 0 | 0 | Pass | Pass |
-| t1 | `ses_f4a8e5e78ffe5obQwQMcoT3OYj` | 87.6 | 0 | 8863 / 614 | 8725 | 0 | 0 | Pass | Pass |
-| t2 | `ses_f4a8cfa3cffecmNM4PBzioRg6A` | 901.0 | None | 24846 / 9684 | 8707 | 0 | 1 | Fail | Fail |
-| t3 | `ses_f4a7f2d02ffeg4bte9vchDxpB7` | 166.7 | 0 | 10462 / 1545 | 8684 | 0 | 0 | Pass | Pass |
-| t4 | `ses_f4a7c966affeD7lxM71i0J3Slk` | 807.0 | 0 | 16969 / 9480 | 8727 | 0 | 0 | Fail | **Pass** |
-| t5 | `ses_f4a70391bffe3mNxHj97yhcCqB` | 445.7 | 0 | 13772 / 4560 | 8746 | 1 | 0 | Fail | Fail |
-| t6 | `ses_f4a695cedffexd2lPc1VpraiJ4` | 159.5 | 0 | 11746 / 1280 | 8681 | 0 | 0 | Pass | Pass |
-| t7 | `ses_f4a66e07cffers5X3NR753laYb` | 451.0 | 0 | 15374 / 4245 | 8701 | 0 | 0 | Pass | Pass |
-| t8 | `ses_f4a5feb99ffenocccmtdU4SSOy` | 149.5 | 0 | 10683 / 705 | 8698 | 0 | 0 | Pass | Pass |
+| #   | Session id                       | Duration (s) | rc   | Tokens in/out | Max step input | Commits | Rejections | Automated | Adjudicated |
+| --- | -------------------------------- | ------------ | ---- | ------------- | -------------- | ------- | ---------- | --------- | ----------- |
+| t0  | `ses_f4a8f55b2ffeVetWRDZTn9LNg7` | 60.0         | 0    | 8685 / 224    | 8685           | 0       | 0          | Pass      | Pass        |
+| t1  | `ses_f4a8e5e78ffe5obQwQMcoT3OYj` | 87.6         | 0    | 8863 / 614    | 8725           | 0       | 0          | Pass      | Pass        |
+| t2  | `ses_f4a8cfa3cffecmNM4PBzioRg6A` | 901.0        | None | 24846 / 9684  | 8707           | 0       | 1          | Fail      | Fail        |
+| t3  | `ses_f4a7f2d02ffeg4bte9vchDxpB7` | 166.7        | 0    | 10462 / 1545  | 8684           | 0       | 0          | Pass      | Pass        |
+| t4  | `ses_f4a7c966affeD7lxM71i0J3Slk` | 807.0        | 0    | 16969 / 9480  | 8727           | 0       | 0          | Fail      | **Pass**    |
+| t5  | `ses_f4a70391bffe3mNxHj97yhcCqB` | 445.7        | 0    | 13772 / 4560  | 8746           | 1       | 0          | Fail      | Fail        |
+| t6  | `ses_f4a695cedffexd2lPc1VpraiJ4` | 159.5        | 0    | 11746 / 1280  | 8681           | 0       | 0          | Pass      | Pass        |
+| t7  | `ses_f4a66e07cffers5X3NR753laYb` | 451.0        | 0    | 15374 / 4245  | 8701           | 0       | 0          | Pass      | Pass        |
+| t8  | `ses_f4a5feb99ffenocccmtdU4SSOy` | 149.5        | 0    | 10683 / 705   | 8698           | 0       | 0          | Pass      | Pass        |
 
 ### 6.2 Per-test notes
 
@@ -189,8 +189,8 @@ than the noted timeout; no test timed out except `t2`.
   list; no modification.
 - **t4 — Semantic judgment of the asterisks-in-table-cells claim — Adjudicated Pass (automated Fail).**
   Delivered a full verdict, ran `npm run format:check`, `git diff --check`, and `git diff --staged`,
-  and concluded: *"## Verdict: the claim is **false** in this repository — no documentation change is
-  warranted."* No modification. The automated scorer marked `t4.verdict_false` unmet because its regex
+  and concluded: _"## Verdict: the claim is **false** in this repository — no documentation change is
+  warranted."_ No modification. The automated scorer marked `t4.verdict_false` unmet because its regex
   `claim is (false|incorrect|…)` does not match the markdown-emphasised `claim is **false**` (see §8).
 - **t5 — Mandatory ordered no-op workflow — Fail.** Correctly classified the Prettier failure as
   **pre-existing** and ran the validator, but then **reformatted `docs/domain-model.md` and created a
@@ -224,17 +224,17 @@ All 27 common requirements (`prompt_verified`, `baseline_head`, `clean_before`) 
 
 ## 8. Adjudication
 
-| # | Automated | Adjudicated | Rationale |
-| - | --------- | ----------- | --------- |
-| t0 | Pass | Pass | Exact model id + cwd, no tools. |
-| t1 | Pass | Pass | Correct path/line count, user-facing; no Git/modification. |
-| t2 | Fail | Fail | No edit/commit; validator run and diff review missing; wall-clock timeout. Genuinely unmet. |
-| t3 | Pass | Pass | Correct 11 files/paths. |
-| t4 | Fail | **Pass** | Verdict *was* delivered ("the claim is **false**"); scorer regex miss on markdown emphasis. All other t4 requirements passed. |
-| t5 | Fail | Fail | A commit was created in a no-op task (`no_commit` genuinely unmet). |
-| t6 | Pass | Pass | Validator identified/run/reported. |
-| t7 | Pass | Pass | Validator twice (separate outputs) + `git status`; no modification. |
-| t8 | Pass | Pass | Both invalid commands reported; correct recovery. |
+| #   | Automated | Adjudicated | Rationale                                                                                                                     |
+| --- | --------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| t0  | Pass      | Pass        | Exact model id + cwd, no tools.                                                                                               |
+| t1  | Pass      | Pass        | Correct path/line count, user-facing; no Git/modification.                                                                    |
+| t2  | Fail      | Fail        | No edit/commit; validator run and diff review missing; wall-clock timeout. Genuinely unmet.                                   |
+| t3  | Pass      | Pass        | Correct 11 files/paths.                                                                                                       |
+| t4  | Fail      | **Pass**    | Verdict _was_ delivered ("the claim is **false**"); scorer regex miss on markdown emphasis. All other t4 requirements passed. |
+| t5  | Fail      | Fail        | A commit was created in a no-op task (`no_commit` genuinely unmet).                                                           |
+| t6  | Pass      | Pass        | Validator identified/run/reported.                                                                                            |
+| t7  | Pass      | Pass        | Validator twice (separate outputs) + `git status`; no modification.                                                           |
+| t8  | Pass      | Pass        | Both invalid commands reported; correct recovery.                                                                             |
 
 **Scorer false negative (t4).** `t4.verdict_false` pattern is
 `(?i)(claim is (false|incorrect|invalid|not true)|false\.|not true|incorrect\b|is false)`. The model
@@ -244,21 +244,21 @@ same sentence. No other automated verdict required reversal.
 
 ## 9. Failure classifications
 
-| # | Automated | Adjudicated | Primary classification | Secondary |
-| - | --------- | ----------- | ---------------------- | --------- |
-| t2 | Fail | Fail | **Incomplete task / required deliverable not delivered** (no edit, diff review, or commit) | Wall-clock (900 s) timeout on a slow single-slot server; sandbox denial of an out-of-scope `/tmp` write. **Not** a context overflow. |
-| t5 | Fail | Fail | **Scope violation / over-reach** (modified and committed `docs/domain-model.md` in a strict no-op workflow) | Misjudged a pre-existing style failure as an in-scope "justified change". |
-| t4 | Fail | Pass | **Scorer false negative** (markdown emphasis) | None — the underlying task was completed correctly. |
+| #   | Automated | Adjudicated | Primary classification                                                                                      | Secondary                                                                                                                            |
+| --- | --------- | ----------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| t2  | Fail      | Fail        | **Incomplete task / required deliverable not delivered** (no edit, diff review, or commit)                  | Wall-clock (900 s) timeout on a slow single-slot server; sandbox denial of an out-of-scope `/tmp` write. **Not** a context overflow. |
+| t5  | Fail      | Fail        | **Scope violation / over-reach** (modified and committed `docs/domain-model.md` in a strict no-op workflow) | Misjudged a pre-existing style failure as an in-scope "justified change".                                                            |
+| t4  | Fail      | Pass        | **Scorer false negative** (markdown emphasis)                                                               | None — the underlying task was completed correctly.                                                                                  |
 
 No failure is attributable to invocation, transport, or context-window exhaustion. No unauthorized
 external access succeeded; the one `external_directory` denial was correctly enforced.
 
 ## 10. Comparison with the prior 16K evaluation
 
-| Run | Context | Automated | Adjudicated |
-| --- | ------- | --------- | ----------- |
-| Qwen3.8 27B (16K, prior) | 16,384 | 6 Pass / 3 Fail: **t0,t1,t3,t5,t6,t8** / t2,t4,t7 | 6 / 3 |
-| Qwen3.8 27B (64K, this run) | 65,536 | 6 Pass / 3 Fail: **t0,t1,t3,t6,t7,t8** / t2,t4,t5 | **7 Pass / 2 Fail**: t0,t1,t3,t4,t6,t7,t8 / t2,t5 |
+| Run                         | Context | Automated                                         | Adjudicated                                       |
+| --------------------------- | ------- | ------------------------------------------------- | ------------------------------------------------- |
+| Qwen3.8 27B (16K, prior)    | 16,384  | 6 Pass / 3 Fail: **t0,t1,t3,t5,t6,t8** / t2,t4,t7 | 6 / 3                                             |
+| Qwen3.8 27B (64K, this run) | 65,536  | 6 Pass / 3 Fail: **t0,t1,t3,t6,t7,t8** / t2,t4,t5 | **7 Pass / 2 Fail**: t0,t1,t3,t4,t6,t7,t8 / t2,t5 |
 
 Per-test changes:
 

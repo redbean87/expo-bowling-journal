@@ -14,35 +14,35 @@ GLM-4.7-Flash is not part of the production set.
 
 ## Hardware / Runtime
 
-| Item | Value |
-| --- | --- |
-| OS | Windows 11 Insider Preview, build **26340**, 64-bit |
-| CPU | AMD Ryzen 7 7800X3D (8C/16T) |
-| RAM | 32 GB DDR5 |
-| GPU | AMD Radeon RX 9070 XT, ~16 GB VRAM |
-| Qwen runtime | llama.cpp **b11046**, Vulkan build |
+| Item         | Value                                                                           |
+| ------------ | ------------------------------------------------------------------------------- |
+| OS           | Windows 11 Insider Preview, build **26340**, 64-bit                             |
+| CPU          | AMD Ryzen 7 7800X3D (8C/16T)                                                    |
+| RAM          | 32 GB DDR5                                                                      |
+| GPU          | AMD Radeon RX 9070 XT, ~16 GB VRAM                                              |
+| Qwen runtime | llama.cpp **b11046**, Vulkan build                                              |
 | Runtime path | `E:\LocalAI\runtimes\llama.cpp\vulkan-b11046\build-vulkan\bin\llama-server.exe` |
 
 ---
 
 ## Production Models
 
-| Model | Validated context | Backend | Vision | Port |
-| --- | ---: | --- | --- | ---: |
-| Qwen3.8-27B GSQ-RCO 96K Vision | 96,000 | llama.cpp / Vulkan | Yes | 8087 |
-| Qwen3.8-27B Unsloth 80K | 80,000 | llama.cpp / Vulkan | No | 8087 |
-| GPT-OSS 20B | 122,880 | Ollama | No | 11434 |
+| Model                          | Validated context | Backend            | Vision |  Port |
+| ------------------------------ | ----------------: | ------------------ | ------ | ----: |
+| Qwen3.8-27B GSQ-RCO 96K Vision |            96,000 | llama.cpp / Vulkan | Yes    |  8087 |
+| Qwen3.8-27B Unsloth 80K        |            80,000 | llama.cpp / Vulkan | No     |  8087 |
+| GPT-OSS 20B                    |           122,880 | Ollama             | No     | 11434 |
 
 ### 1. Qwen3.8-27B GSQ-RCO 96K Vision
 
-| Item | Value |
-| --- | --- |
-| Model | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` |
-| mmproj | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\mmproj-Qwen3.8-27B-BF16.gguf` |
-| Alias | `qwen3.8-27b-gsq-rco` |
-| Context | occupancy 96,000 / `n_ctx` 97,280 |
-| Port | 8087 |
-| Launcher | `E:\LocalAI\production\scripts\start-qwen3.8-27b-gsq-rco-96k-vision.ps1` |
+| Item     | Value                                                                                   |
+| -------- | --------------------------------------------------------------------------------------- |
+| Model    | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` |
+| mmproj   | `E:\LocalAI\models\qwen3.8-27b\gsq-rco\production\mmproj-Qwen3.8-27B-BF16.gguf`         |
+| Alias    | `qwen3.8-27b-gsq-rco`                                                                   |
+| Context  | occupancy 96,000 / `n_ctx` 97,280                                                       |
+| Port     | 8087                                                                                    |
+| Launcher | `E:\LocalAI\production\scripts\start-qwen3.8-27b-gsq-rco-96k-vision.ps1`                |
 
 Production flags:
 
@@ -54,14 +54,14 @@ BF16 mmproj loaded; vision and video enabled; MTP speculative decoding active.
 
 ### 2. Qwen3.8-27B Unsloth 80K
 
-| Item | Value |
-| --- | --- |
-| Model | `E:\LocalAI\models\qwen3.8-27b\unsloth\production\Qwen3.8-27B-UD-IQ3_XXS.gguf` |
-| mmproj | none (text-only) |
-| Alias | `qwen3.8-27b-unsloth-ud-iq3xxs` |
-| Context | occupancy 80,000 / `n_ctx` 80,896 |
-| Port | 8087 |
-| Launcher | `E:\LocalAI\production\scripts\start-qwen3.8-27b-unsloth-80k.ps1` |
+| Item     | Value                                                                          |
+| -------- | ------------------------------------------------------------------------------ |
+| Model    | `E:\LocalAI\models\qwen3.8-27b\unsloth\production\Qwen3.8-27B-UD-IQ3_XXS.gguf` |
+| mmproj   | none (text-only)                                                               |
+| Alias    | `qwen3.8-27b-unsloth-ud-iq3xxs`                                                |
+| Context  | occupancy 80,000 / `n_ctx` 80,896                                              |
+| Port     | 8087                                                                           |
+| Launcher | `E:\LocalAI\production\scripts\start-qwen3.8-27b-unsloth-80k.ps1`              |
 
 Production flags are the same established llama.cpp flags as the GSQ launcher,
 without mmproj.
@@ -70,12 +70,12 @@ without mmproj.
 
 Served by **Ollama** (not the Qwen `llama.cpp` launcher).
 
-| Item | Value |
-| --- | --- |
-| Ollama tag | `gpt-oss:20b` |
-| Storage | `E:\OllamaModels` |
-| Validated production context | `num_ctx=122880` |
-| Port | 11434 |
+| Item                         | Value             |
+| ---------------------------- | ----------------- |
+| Ollama tag                   | `gpt-oss:20b`     |
+| Storage                      | `E:\OllamaModels` |
+| Validated production context | `num_ctx=122880`  |
+| Port                         | 11434             |
 
 122,880 is the **validated production context**, not a claim of theoretical
 maximum.
@@ -202,11 +202,11 @@ E:\LocalAI\
 
 ## Benchmark Summary
 
-| Model | Validated context | Status | Primary use | Warm decode |
-| --- | ---: | --- | --- | ---: |
-| Qwen3.8-27B GSQ-RCO | 96K | Production | Long-context multimodal | 16.568 tok/s |
-| Qwen3.8-27B Unsloth | 80K | Production | Long-context text | 29.107 tok/s |
-| GPT-OSS 20B | 122,880 | Production | Reasoning / agent workloads | 70.472 tok/s |
+| Model               | Validated context | Status     | Primary use                 |  Warm decode |
+| ------------------- | ----------------: | ---------- | --------------------------- | -----------: |
+| Qwen3.8-27B GSQ-RCO |               96K | Production | Long-context multimodal     | 16.568 tok/s |
+| Qwen3.8-27B Unsloth |               80K | Production | Long-context text           | 29.107 tok/s |
+| GPT-OSS 20B         |           122,880 | Production | Reasoning / agent workloads | 70.472 tok/s |
 
 ---
 

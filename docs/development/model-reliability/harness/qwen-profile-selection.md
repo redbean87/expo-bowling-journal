@@ -14,11 +14,11 @@ at a time.**
 
 ## Profiles
 
-| Profile | Model ID (client) | Context | Input | Server-side expectation |
-|---|---|---:|---|---|
-| `qwen-unsloth-80k-text` | `qwen3.8-27b-unsloth-ud-iq3xxs` | 80896 | text | `Qwen3.8-27B-UD-IQ3_XXS.gguf`, no mmproj, MTP on, 1 slot |
-| `qwen-gsq-96k-text` | `qwen3.8-27b-gsq-rco-96k-text` | 97280 | text | `Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf`, no mmproj, MTP on, 1 slot |
-| `qwen-gsq-80k-vision` | `qwen3.8-27b-gsq-rco-80k-vision` | 80896 | text+image | GSQ-RCO production GGUF **plus** `mmproj-Qwen3.8-27B-BF16.gguf` loaded server-side, MTP on, 1 slot |
+| Profile                 | Model ID (client)                | Context | Input      | Server-side expectation                                                                            |
+| ----------------------- | -------------------------------- | ------: | ---------- | -------------------------------------------------------------------------------------------------- |
+| `qwen-unsloth-80k-text` | `qwen3.8-27b-unsloth-ud-iq3xxs`  |   80896 | text       | `Qwen3.8-27B-UD-IQ3_XXS.gguf`, no mmproj, MTP on, 1 slot                                           |
+| `qwen-gsq-96k-text`     | `qwen3.8-27b-gsq-rco-96k-text`   |   97280 | text       | `Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf`, no mmproj, MTP on, 1 slot                                  |
+| `qwen-gsq-80k-vision`   | `qwen3.8-27b-gsq-rco-80k-vision` |   80896 | text+image | GSQ-RCO production GGUF **plus** `mmproj-Qwen3.8-27B-BF16.gguf` loaded server-side, MTP on, 1 slot |
 
 `qwen-gsq-96k-text` is valid only when the server reports alias
 `qwen3.8-27b-gsq-rco-96k-text` with `n_ctx=97280` and `vision=false`.

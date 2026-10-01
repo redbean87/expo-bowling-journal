@@ -19,28 +19,28 @@ DSH, converted traces, ran the frozen scorer, adjudicated, and produced this rep
 > **Single-run qualification.** One run per prompt. Decoding is non-deterministic; results are
 > task-level evidence from a single evaluation run, not a statistical measurement.
 >
-> **Measured vs. derived.** *Measured* = read directly from llama.cpp `/metrics` counter deltas or
-> from harness records. *Derived* = arithmetic over measured values. Each is labelled.
+> **Measured vs. derived.** _Measured_ = read directly from llama.cpp `/metrics` counter deltas or
+> from harness records. _Derived_ = arithmetic over measured values. Each is labelled.
 >
 > **This is NOT a DeepSeek V4.1 Flash coding evaluation.** DeepSeek V4.1 Flash is the OpenCode
-> *orchestrator* only; it produced no task code. Every task was executed by **DSH driving
+> _orchestrator_ only; it produced no task code. Every task was executed by **DSH driving
 > `qwen3.8-27b-gsq-rco` on the 8087 server**.
 
 ---
 
 ## 1. Exact DSH version and configuration used
 
-| Item | Value | Source |
-| ---- | ----- | ------ |
-| Harness | **DSH (DeepSeek Harness)** | `~/.dsh` |
-| Package / version | `@deepseek-ai/dsh` **0.1.5-rc.2** | `dsh --version` |
-| Repo | `deepseek-ai/deepseek-harness` (`apps/cli`) | package.json |
-| Binary (no PATH entry) | `/Users/cortezashley/.npm/_npx/1e7f6d9597241db0/node_modules/.bin/dsh` | npx cache |
-| Profile | `headless` (bundles `@deepseek-ai/dsh-base` + `@deepseek-ai/dsh-headless`) | `~/.dsh/profiles/headless/package.json` |
-| DSH home | `/Users/cortezashley/.dsh` (settings.yaml **unmodified**) | run env `DSH_HOME` |
-| Permission mode | `workspace-write` (sandbox) + approval `ask` (fail-closed headless) | `DSH_PERMISSION_MODE` |
-| Invocation | `dsh --profile headless [--patch <overlay>] "<task>"` | validated probe |
-| Invocation-only patch | `<workspace>/dsh-bash-timeout.patch.yml` (sha256 `d93b4957…`) raising `bash-sandbox.timeoutMs` 60000 → 1200000 | new file, no `~/.dsh` edit |
+| Item                   | Value                                                                                                          | Source                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Harness                | **DSH (DeepSeek Harness)**                                                                                     | `~/.dsh`                                |
+| Package / version      | `@deepseek-ai/dsh` **0.1.5-rc.2**                                                                              | `dsh --version`                         |
+| Repo                   | `deepseek-ai/deepseek-harness` (`apps/cli`)                                                                    | package.json                            |
+| Binary (no PATH entry) | `/Users/cortezashley/.npm/_npx/1e7f6d9597241db0/node_modules/.bin/dsh`                                         | npx cache                               |
+| Profile                | `headless` (bundles `@deepseek-ai/dsh-base` + `@deepseek-ai/dsh-headless`)                                     | `~/.dsh/profiles/headless/package.json` |
+| DSH home               | `/Users/cortezashley/.dsh` (settings.yaml **unmodified**)                                                      | run env `DSH_HOME`                      |
+| Permission mode        | `workspace-write` (sandbox) + approval `ask` (fail-closed headless)                                            | `DSH_PERMISSION_MODE`                   |
+| Invocation             | `dsh --profile headless [--patch <overlay>] "<task>"`                                                          | validated probe                         |
+| Invocation-only patch  | `<workspace>/dsh-bash-timeout.patch.yml` (sha256 `d93b4957…`) raising `bash-sandbox.timeoutMs` 60000 → 1200000 | new file, no `~/.dsh` edit              |
 
 **No DSH configuration, plugin, or provider was installed or modified.** `~/.dsh/settings.yaml` already
 targeted the required downstream model and was preserved verbatim. The only DSH-side addition is an
@@ -56,15 +56,15 @@ coding model under test.
 
 ## 3. Downstream Qwen model / server (unchanged, not restarted)
 
-| Item | Value | Source |
-| ---- | ----- | ------ |
-| Build | `b1-60081bb` | `GET /props` |
-| Model alias | `qwen3.8-27b-gsq-rco` | `/v1/models`, `/props` |
-| Model path | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/props` |
-| Context (`n_ctx`) | `80896` | `GET /slots` |
-| Slots | `total_slots=1` | `/props`, `/slots` |
-| Speculative decoding | `speculative: true` (MTP) | `/slots` |
-| Health | `{"status":"ok"}` | `GET /health` |
+| Item                 | Value                                                                 | Source                 |
+| -------------------- | --------------------------------------------------------------------- | ---------------------- |
+| Build                | `b1-60081bb`                                                          | `GET /props`           |
+| Model alias          | `qwen3.8-27b-gsq-rco`                                                 | `/v1/models`, `/props` |
+| Model path           | `E:\LocalAI\Qwen3.8-27B-GSQ-RCO\Qwen3.8-27B-GSQ-RCO-IQ3_XXS-mtp.gguf` | `/props`               |
+| Context (`n_ctx`)    | `80896`                                                               | `GET /slots`           |
+| Slots                | `total_slots=1`                                                       | `/props`, `/slots`     |
+| Speculative decoding | `speculative: true` (MTP)                                             | `/slots`               |
+| Health               | `{"status":"ok"}`                                                     | `GET /health`          |
 
 The server was **not** restarted or reconfigured. DSH's provider profile sets context 80896 and
 `maxTokens` 32768. Note this is the same model file but a **different server instance** from the 64K run
@@ -72,13 +72,13 @@ The server was **not** restarted or reconfigured. DSH's provider profile sets co
 
 ## 4. Harness commit and adapter provenance
 
-| Item | Value |
-| ---- | ----- |
-| Frozen suite | `opencode-t0-t8` (`ground_truth.json`, `prompt_manifest.json`, prompts) |
-| Frozen harness commit | `48d9b54f249cd461f5456202f225bbddd156fdf9` |
-| Frozen files changed | **none** (`runner.py`, `extract_traces.py`, `score.py`, `harness_lib.py`, prompts, ground truth all untouched) |
-| New adapter files (untracked) | `harness/runner_dsh.py`, `harness/extract_traces_dsh.py` |
-| Why an adapter | the frozen `runner.py` only invokes the OpenCode binary and reads the OpenCode SQLite session DB; it has no DSH path. `score.py` is agent-agnostic (reads `results.jsonl` + `raw_parts.jsonl` + `tN.out/err`), so the adapter reuses it unchanged. |
+| Item                          | Value                                                                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen suite                  | `opencode-t0-t8` (`ground_truth.json`, `prompt_manifest.json`, prompts)                                                                                                                                                                            |
+| Frozen harness commit         | `48d9b54f249cd461f5456202f225bbddd156fdf9`                                                                                                                                                                                                         |
+| Frozen files changed          | **none** (`runner.py`, `extract_traces.py`, `score.py`, `harness_lib.py`, prompts, ground truth all untouched)                                                                                                                                     |
+| New adapter files (untracked) | `harness/runner_dsh.py`, `harness/extract_traces_dsh.py`                                                                                                                                                                                           |
+| Why an adapter                | the frozen `runner.py` only invokes the OpenCode binary and reads the OpenCode SQLite session DB; it has no DSH path. `score.py` is agent-agnostic (reads `results.jsonl` + `raw_parts.jsonl` + `tN.out/err`), so the adapter reuses it unchanged. |
 
 ## 5. Baseline commit
 
@@ -96,82 +96,82 @@ real (non-symlink) `node_modules`). All 9 clones validated clean at that HEAD be
 
 ## 7. Per-test results (t0–t8) — automated and adjudicated
 
-| # | Automated | Adjudicated | Runtime (s) | Notes |
-| - | --------- | ----------- | ----------: | ----- |
-| t0 | Pass | Pass | 9.1 | model id + cwd; no tools |
-| t1 | Pass | Pass | 52.9 | `docs/domain-model.md`, 205 lines; no Git, no change |
-| t2 | Fail | **Pass** | 211.7 | one scoped edit + validator + **one** commit, clean; diff reviewed via `git --no-optional-locks diff` (scorer token match missed it) |
-| t3 | Pass | Pass | 171.8 | 11 PinPal paths, search executed, no change |
-| t4 | Fail | Fail | 569.3 | verdict correct but never ran the repo validator; used web-fetched GFM spec + custom validator (network) |
-| t5 | Fail | Fail | 184.4 | committed `f46611a` in a strict no-op workflow |
-| t6 | Pass | Pass | 54.8 | identified/ran `npm run format:check`, reported output |
-| t7 | Fail | Fail | 201.1 | ran `markdownlint-cli2` (npm offline), never the repo validator; no change |
-| t8 | Fail | Fail | 55.1 | bogus commands reported correctly, but recovered with `npm run lint` (eslint), not `format:check` |
+| #   | Automated | Adjudicated | Runtime (s) | Notes                                                                                                                                |
+| --- | --------- | ----------- | ----------: | ------------------------------------------------------------------------------------------------------------------------------------ |
+| t0  | Pass      | Pass        |         9.1 | model id + cwd; no tools                                                                                                             |
+| t1  | Pass      | Pass        |        52.9 | `docs/domain-model.md`, 205 lines; no Git, no change                                                                                 |
+| t2  | Fail      | **Pass**    |       211.7 | one scoped edit + validator + **one** commit, clean; diff reviewed via `git --no-optional-locks diff` (scorer token match missed it) |
+| t3  | Pass      | Pass        |       171.8 | 11 PinPal paths, search executed, no change                                                                                          |
+| t4  | Fail      | Fail        |       569.3 | verdict correct but never ran the repo validator; used web-fetched GFM spec + custom validator (network)                             |
+| t5  | Fail      | Fail        |       184.4 | committed `f46611a` in a strict no-op workflow                                                                                       |
+| t6  | Pass      | Pass        |        54.8 | identified/ran `npm run format:check`, reported output                                                                               |
+| t7  | Fail      | Fail        |       201.1 | ran `markdownlint-cli2` (npm offline), never the repo validator; no change                                                           |
+| t8  | Fail      | Fail        |        55.1 | bogus commands reported correctly, but recovered with `npm run lint` (eslint), not `format:check`                                    |
 
 - **Automated:** 4 Pass / 5 Fail — Pass `t0,t1,t3,t6`; Fail `t2,t4,t5,t7,t8`.
 - **Adjudicated:** **5 Pass / 4 Fail** — Pass `t0,t1,t2,t3,t6`; Fail `t4,t5,t7,t8`.
 
 Adjudication rationale (full evidence in `results/.../score.json`, `raw_parts.jsonl`, `traces.txt`):
 
-| # | Auto | Adj | Rationale |
-| - | ---- | --- | --------- |
-| t2 | Fail | **Pass** | Only `t2.diff_reviewed` unmet because the scorer matches the literal token pair `git diff`; DSH's model ran `git --no-optional-locks diff` (a genuine diff review) **before** committing. `validator_run` (prettier), `exactly_one_commit`, and `clean_after` all pass. |
-| t4 | Fail | Fail | Genuine: `t4.validator_run` unmet — the model never ran the repository's Markdown validator (`npm run format:check`/prettier). It fetched the GFM spec over the network and implemented a custom table/emphasis validator instead. `t4.verdict_false` is a scorer phrasing miss (`"Verdict: FALSE in this repository."` matches no alternative), but the requirement that the repo validator run is truly unmet, so t4 fails. |
-| t5 | Fail | Fail | Genuine over-reach: the model correctly classified the Prettier failure as pre-existing, then **fixed and committed** `f46611a` in a strict no-op workflow. |
-| t7 | Fail | Fail | Genuine: the model fixated on `markdownlint-cli2` (via `npx -y`, blocked by offline npm) and never ran the repo validator, so `validator_twice`/`separate_outputs` are unmet. Same failure *mode* as the direct-OpenCode t7. |
-| t8 | Fail | Fail | Genuine: both bogus commands were run and reported accurately, but recovery used `npm run lint` (eslint) as "the correct validation command" instead of `npm run format:check`. |
+| #   | Auto | Adj      | Rationale                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ---- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t2  | Fail | **Pass** | Only `t2.diff_reviewed` unmet because the scorer matches the literal token pair `git diff`; DSH's model ran `git --no-optional-locks diff` (a genuine diff review) **before** committing. `validator_run` (prettier), `exactly_one_commit`, and `clean_after` all pass.                                                                                                                                                       |
+| t4  | Fail | Fail     | Genuine: `t4.validator_run` unmet — the model never ran the repository's Markdown validator (`npm run format:check`/prettier). It fetched the GFM spec over the network and implemented a custom table/emphasis validator instead. `t4.verdict_false` is a scorer phrasing miss (`"Verdict: FALSE in this repository."` matches no alternative), but the requirement that the repo validator run is truly unmet, so t4 fails. |
+| t5  | Fail | Fail     | Genuine over-reach: the model correctly classified the Prettier failure as pre-existing, then **fixed and committed** `f46611a` in a strict no-op workflow.                                                                                                                                                                                                                                                                   |
+| t7  | Fail | Fail     | Genuine: the model fixated on `markdownlint-cli2` (via `npx -y`, blocked by offline npm) and never ran the repo validator, so `validator_twice`/`separate_outputs` are unmet. Same failure _mode_ as the direct-OpenCode t7.                                                                                                                                                                                                  |
+| t8  | Fail | Fail     | Genuine: both bogus commands were run and reported accurately, but recovery used `npm run lint` (eslint) as "the correct validation command" instead of `npm run format:check`.                                                                                                                                                                                                                                               |
 
 All 27 common requirements (`prompt_verified`, `baseline_head`, `clean_before`) passed for every test.
 Every clone started and ended clean; every prompt SHA-256/byte length matched the frozen manifest.
 
 ## 8. Per-test runtime
 
-| # | DSH (s) | Direct OpenCode (s) | Ratio |
-| - | ------: | ------------------: | ----: |
-| t0 | 9.1 | 29.7 | 0.31× |
-| t1 | 52.9 | 39.3 | 1.35× |
-| t2 | 211.7 | 359.4 | 0.59× |
-| t3 | 171.8 | 54.1 | 3.18× |
-| t4 | 569.3 | 197.9 | 2.88× |
-| t5 | 184.4 | 173.7 | 1.06× |
-| t6 | 54.8 | 40.0 | 1.37× |
-| t7 | 201.1 | 319.1 | 0.63× |
-| t8 | 55.1 | 66.9 | 0.82× |
-| **Sum** | **1,510.2** | **1,280.1** | **1.18×** |
+| #       |     DSH (s) | Direct OpenCode (s) |     Ratio |
+| ------- | ----------: | ------------------: | --------: |
+| t0      |         9.1 |                29.7 |     0.31× |
+| t1      |        52.9 |                39.3 |     1.35× |
+| t2      |       211.7 |               359.4 |     0.59× |
+| t3      |       171.8 |                54.1 |     3.18× |
+| t4      |       569.3 |               197.9 |     2.88× |
+| t5      |       184.4 |               173.7 |     1.06× |
+| t6      |        54.8 |                40.0 |     1.37× |
+| t7      |       201.1 |               319.1 |     0.63× |
+| t8      |        55.1 |                66.9 |     0.82× |
+| **Sum** | **1,510.2** |         **1,280.1** | **1.18×** |
 
 ## 9. Input / output tokens (per test)
 
 From **llama.cpp `/metrics` counter deltas** taken immediately before and after each test
-(measured; no wall-clock fabrication). *Input* = non-cached prompt tokens processed; *output* =
+(measured; no wall-clock fabrication). _Input_ = non-cached prompt tokens processed; _output_ =
 generated tokens. Cached prompt tokens are shown separately (DSH reuses the prompt cache heavily).
 
-| # | Input tok (non-cached) | Cached prompt tok | Output tok (generated) |
-| - | ---------------------: | ----------------: | ---------------------: |
-| t0 | 8 | 8,330 | 278 |
-| t1 | 7,309 | 62,330 | 1,668 |
-| t2 | 16,569 | 379,630 | 6,341 |
-| t3 | 12,633 | 58,500 | 6,111 |
-| t4 | 34,028 | 802,680 | 17,724 |
-| t5 | 22,552 | 209,190 | 5,570 |
-| t6 | 12,734 | 58,770 | 1,211 |
-| t7 | 18,823 | 419,410 | 6,328 |
-| t8 | 10,152 | 38,470 | 1,472 |
-| **Total** | **134,808** | **2,037,310** | **46,703** |
+| #         | Input tok (non-cached) | Cached prompt tok | Output tok (generated) |
+| --------- | ---------------------: | ----------------: | ---------------------: |
+| t0        |                      8 |             8,330 |                    278 |
+| t1        |                  7,309 |            62,330 |                  1,668 |
+| t2        |                 16,569 |           379,630 |                  6,341 |
+| t3        |                 12,633 |            58,500 |                  6,111 |
+| t4        |                 34,028 |           802,680 |                 17,724 |
+| t5        |                 22,552 |           209,190 |                  5,570 |
+| t6        |                 12,734 |            58,770 |                  1,211 |
+| t7        |                 18,823 |           419,410 |                  6,328 |
+| t8        |                 10,152 |            38,470 |                  1,472 |
+| **Total** |            **134,808** |     **2,037,310** |             **46,703** |
 
 ## 10. llama.cpp throughput metrics (suite interval, measured)
 
-| Quantity | Value |
-| -------- | ----- |
-| Prompt tokens processed (non-cached) | **134,808** |
-| Prompt processing time | **315.72 s** |
-| **Prompt tok/s (derived = 134,808 / 315.72)** | **426.99** |
-| Generated tokens | **46,703** |
-| Generation time | **1,095.43 s** |
-| **Generation tok/s (derived = 46,703 / 1,095.43)** | **42.63** |
-| `n_decode_total` (excluding speculative) | 16,962 |
-| `n_tokens_max` | 53,635 |
-| Server gauge `prompt_tokens_seconds` (value at suite end) | 628.53 |
-| Server gauge `predicted_tokens_seconds` (value at suite end) | 54.75 |
+| Quantity                                                     | Value          |
+| ------------------------------------------------------------ | -------------- |
+| Prompt tokens processed (non-cached)                         | **134,808**    |
+| Prompt processing time                                       | **315.72 s**   |
+| **Prompt tok/s (derived = 134,808 / 315.72)**                | **426.99**     |
+| Generated tokens                                             | **46,703**     |
+| Generation time                                              | **1,095.43 s** |
+| **Generation tok/s (derived = 46,703 / 1,095.43)**           | **42.63**      |
+| `n_decode_total` (excluding speculative)                     | 16,962         |
+| `n_tokens_max`                                               | 53,635         |
+| Server gauge `prompt_tokens_seconds` (value at suite end)    | 628.53         |
+| Server gauge `predicted_tokens_seconds` (value at suite end) | 54.75          |
 
 **Note on the gauges.** The throughput gauges are server-level running averages and reflect the
 server's whole recent history (including prior evaluations and pre-suite probes), not the suite window.
@@ -181,25 +181,25 @@ estimates. This is why they differ from the end-of-suite gauge values.
 
 ## 11. MTP / speculative-decoding metrics (suite interval, measured)
 
-| Metric | Value |
-| ------ | ----- |
-| Verification steps (`spec_decode_num_drafts_total`) | **16,445** |
-| Draft tokens generated (`spec_decode_num_draft_tokens_total`) | **49,329** |
-| Draft tokens accepted (`spec_decode_num_accepted_tokens_total`) | **30,267** |
-| **Acceptance rate (derived)** | **61.36%** |
-| **Mean accepted tokens per step (derived)** | **1.840** |
-| Accepted at draft position 0 / 1 / 2 | 12,648 / 9,799 / 7,820 |
+| Metric                                                          | Value                  |
+| --------------------------------------------------------------- | ---------------------- |
+| Verification steps (`spec_decode_num_drafts_total`)             | **16,445**             |
+| Draft tokens generated (`spec_decode_num_draft_tokens_total`)   | **49,329**             |
+| Draft tokens accepted (`spec_decode_num_accepted_tokens_total`) | **30,267**             |
+| **Acceptance rate (derived)**                                   | **61.36%**             |
+| **Mean accepted tokens per step (derived)**                     | **1.840**              |
+| Accepted at draft position 0 / 1 / 2                            | 12,648 / 9,799 / 7,820 |
 
 MTP was active and materially productive (≈1.84 accepted tokens per decode step instead of 1).
 
 ## 12. Total suite runtime
 
-| Quantity | Value |
-| -------- | ----- |
-| Continuous suite wall-clock (first test start → last test end) | **1,536.0 s = 25.60 min** (measured) |
-| Sum of per-test durations | 1,510.2 s (measured) |
-| Provisioning (baseline + 9 clones) | separate step, completed before the suite |
-| Timeout status | no test timed out |
+| Quantity                                                       | Value                                     |
+| -------------------------------------------------------------- | ----------------------------------------- |
+| Continuous suite wall-clock (first test start → last test end) | **1,536.0 s = 25.60 min** (measured)      |
+| Sum of per-test durations                                      | 1,510.2 s (measured)                      |
+| Provisioning (baseline + 9 clones)                             | separate step, completed before the suite |
+| Timeout status                                                 | no test timed out                         |
 
 ## 13. DSH-specific failures / orchestration anomalies
 
@@ -231,19 +231,19 @@ MTP was active and materially productive (≈1.84 accepted tokens per decode ste
 
 ## 14. Comparison against the direct-OpenCode 8087 run
 
-| Metric | Direct OpenCode 8087 | DSH-orchestrated 8087 | Delta |
-| ------ | -------------------: | --------------------: | ----- |
-| Adjudicated score | **7/9** | **5/9** | −2 |
-| Automated score | 6/9 | 4/9 | −2 |
-| Sum of test durations | **1,280.1 s** | **1,510.2 s** | +18.0% |
-| Suite wall-clock | 1,305 s | 1,536 s | +17.7% |
-| Prompt tok/s (derived) | **439.4** | **426.99** | −2.8% |
-| Generation tok/s (derived) | **44.33** | **42.63** | −3.8% |
-| MTP acceptance rate | **63.92%** | **61.36%** | −2.56 pp |
-| Generated tokens | 35,204 | 46,703 | +32.7% |
-| Non-cached prompt tokens | 174,461 | 134,808 | −22.7% |
-| Cached prompt tokens | 1,677,800 | 2,037,310 | +21.4% |
-| MTP verification steps | 12,074 | 16,445 | +36.2% |
+| Metric                     | Direct OpenCode 8087 | DSH-orchestrated 8087 | Delta    |
+| -------------------------- | -------------------: | --------------------: | -------- |
+| Adjudicated score          |              **7/9** |               **5/9** | −2       |
+| Automated score            |                  6/9 |                   4/9 | −2       |
+| Sum of test durations      |        **1,280.1 s** |         **1,510.2 s** | +18.0%   |
+| Suite wall-clock           |              1,305 s |               1,536 s | +17.7%   |
+| Prompt tok/s (derived)     |            **439.4** |            **426.99** | −2.8%    |
+| Generation tok/s (derived) |            **44.33** |             **42.63** | −3.8%    |
+| MTP acceptance rate        |           **63.92%** |            **61.36%** | −2.56 pp |
+| Generated tokens           |               35,204 |                46,703 | +32.7%   |
+| Non-cached prompt tokens   |              174,461 |               134,808 | −22.7%   |
+| Cached prompt tokens       |            1,677,800 |             2,037,310 | +21.4%   |
+| MTP verification steps     |               12,074 |                16,445 | +36.2%   |
 
 Per-test adjudicated movement (OpenCode → DSH): `t0 P→P`, `t1 P→P`, `t2 P→P`, `t3 P→P`,
 **`t4 P→F`**, `t5 F→F`, `t6 P→P`, `t7 F→F`, **`t8 P→F`**. Net: **regression on t4 and t8**.
@@ -252,7 +252,7 @@ Per-test adjudicated movement (OpenCode → DSH): `t0 P→P`, `t1 P→P`, `t2 P�
 
 **Yes — the single-run adjudicated score dropped from 7/9 to 5/9** (automated 6/9 → 4/9). The drop is
 two genuinely failed tasks (t4, t8) plus one adjudication-only automated miss (t2, which is a pass on
-intent). Reliability was *lower* under DSH in this run.
+intent). Reliability was _lower_ under DSH in this run.
 
 ### 14.2 Did DSH change task-completion behavior?
 
@@ -268,18 +268,18 @@ intent). Reliability was *lower* under DSH in this run.
 **This is mostly DSH-orchestration behavior, not a different model:** the weights and server are
 identical. The divergence is explained by (a) DSH exposing web/network tools the OpenCode reference
 denied, which redirected t4's strategy, and (b) DSH's distinct system prompt/tool surface nudging
-validator identification. The t5 and t7 failure *modes* were unchanged (commit over-reach; markdownlint
+validator identification. The t5 and t7 failure _modes_ were unchanged (commit over-reach; markdownlint
 fixation), which is model behavior that DSH did not fix.
 
 ### 14.3 Did DSH change tool usage?
 
 **Yes.** DSH agents used a larger, differently-shaped tool surface and made more calls:
 
-| # | OpenCode tools | DSH tools |
-| - | -------------- | --------- |
-| t4 | local validator + diff checks | 35 calls incl. `web_fetch`×5, `web_search`×1, `curl` |
-| t7 | markdownlint attempts | 31 calls incl. `npx -y`, `pip3 download` |
-| t2 | plain `git diff` | `git --no-optional-locks diff` (scorer miss) |
+| #   | OpenCode tools                | DSH tools                                            |
+| --- | ----------------------------- | ---------------------------------------------------- |
+| t4  | local validator + diff checks | 35 calls incl. `web_fetch`×5, `web_search`×1, `curl` |
+| t7  | markdownlint attempts         | 31 calls incl. `npx -y`, `pip3 download`             |
+| t2  | plain `git diff`              | `git --no-optional-locks diff` (scorer miss)         |
 
 DSH's bash tool runs each command in a fresh shell, so the agent used absolute paths and
 `cd <clone> && …` prefixes. DSH also provides native `grep`/`glob`/`read`/`write`/`edit` tools, which
