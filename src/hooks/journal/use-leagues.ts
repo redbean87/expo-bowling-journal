@@ -13,6 +13,7 @@ import {
   type RemoveLeagueInput,
   type UpdateLeagueInput,
 } from '@/services/journal';
+import { listLocalLeagues } from '@/services/journal/local-reads';
 
 const LEAGUE_CACHE_KEY = 'journal:leagues-cache:v1';
 
@@ -24,6 +25,8 @@ export function useLeagues() {
   );
   const [leagueCache, setLeagueCache] = useState<League[] | null>(null);
   const [isCacheLoading, setIsCacheLoading] = useState(true);
+  const [localLeagues, setLocalLeagues] = useState<League[] | null>(null);
+  const [isLocalLeaguesLoading, setIsLocalLeaguesLoading] = useState(true);
 
   useEffect(() => {
     const loadCache = async () => {
@@ -66,6 +69,42 @@ export function useLeagues() {
       persistCache();
     }
   }, [leagues]);
+
+  // Unauthenticated users read the locally persisted journal (local SQLite
+  // is the authoritative source; the AsyncStorage cache above is cloud-only
+  // and never used for local reads).
+  useEffect(() => {
+    if (isAuthenticated) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadLocalLeagues = async () => {
+      try {
+        const localList = await listLocalLeagues();
+
+        if (isMounted) {
+          setLocalLeagues(localList);
+        }
+      } catch {
+        if (isMounted) {
+          setLocalLeagues([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLocalLeaguesLoading(false);
+        }
+      }
+    };
+
+    void loadLocalLeagues();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
+
   const createLeagueMutation = useMutation(convexJournalService.createLeague);
   const updateLeagueMutation = useMutation(convexJournalService.updateLeague);
   const removeLeagueMutation = useMutation(convexJournalService.removeLeague);
@@ -139,17 +178,19 @@ export function useLeagues() {
 
   const mergedLeagues = useMemo(() => {
     if (!isAuthenticated) {
-      return leagues ?? [];
+      return localLeagues ?? [];
     }
 
     return displayLeagues;
-  }, [displayLeagues, isAuthenticated, leagues]);
+  }, [displayLeagues, isAuthenticated, localLeagues]);
 
   return {
     leagues: mergedLeagues,
     isLoading:
       isAuthLoading ||
-      (isAuthenticated && leagues === undefined && isCacheLoading),
+      (isAuthenticated
+        ? leagues === undefined && isCacheLoading
+        : isLocalLeaguesLoading),
     isAuthenticated,
     createLeague,
     createOpenBowlingLeague,

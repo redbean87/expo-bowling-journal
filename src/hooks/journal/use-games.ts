@@ -10,6 +10,7 @@ import {
   type RemoveGameInput,
   type SessionId,
 } from '@/services/journal';
+import { listLocalGamesBySession } from '@/services/journal/local-reads';
 
 export function useGames(sessionId: SessionId | null) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -19,6 +20,8 @@ export function useGames(sessionId: SessionId | null) {
   );
   const [gameCache, setGameCache] = useState<GameListItem[] | null>(null);
   const [isCacheLoading, setIsCacheLoading] = useState(true);
+  const [localGames, setLocalGames] = useState<GameListItem[] | null>(null);
+  const [isLocalGamesLoading, setIsLocalGamesLoading] = useState(true);
   const createGameMutation = useMutation(convexJournalService.createGame);
   const removeGameMutation = useMutation(convexJournalService.removeGame);
   const [isCreating, setIsCreating] = useState(false);
@@ -72,6 +75,42 @@ export function useGames(sessionId: SessionId | null) {
     }
   }, [games, sessionId]);
 
+  // Unauthenticated users read the locally persisted journal (local SQLite
+  // is the authoritative source; the AsyncStorage cache above is cloud-only
+  // and never used for local reads).
+  useEffect(() => {
+    if (isAuthenticated || !sessionId) {
+      setIsLocalGamesLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadLocalGames = async () => {
+      try {
+        const localList = await listLocalGamesBySession(sessionId);
+
+        if (isMounted) {
+          setLocalGames(localList);
+        }
+      } catch {
+        if (isMounted) {
+          setLocalGames([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLocalGamesLoading(false);
+        }
+      }
+    };
+
+    void loadLocalGames();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, sessionId]);
+
   const createGame = useCallback(
     async (input: CreateGameInput) => {
       setIsCreating(true);
@@ -93,16 +132,16 @@ export function useGames(sessionId: SessionId | null) {
   );
 
   return {
-    games:
-      isAuthenticated && games === undefined
+    games: !isAuthenticated
+      ? (localGames ?? [])
+      : games === undefined
         ? (gameCache ?? [])
-        : (games ?? []),
+        : games,
     isLoading:
       isAuthLoading ||
-      (isAuthenticated &&
-        sessionId !== null &&
-        games === undefined &&
-        isCacheLoading),
+      (isAuthenticated
+        ? sessionId !== null && games === undefined && isCacheLoading
+        : sessionId !== null && isLocalGamesLoading),
     createGame,
     removeGame,
     isCreating,

@@ -13,6 +13,7 @@ import {
   type Session,
   type UpdateSessionInput,
 } from '@/services/journal';
+import { listLocalSessionsByLeague } from '@/services/journal/local-reads';
 
 export function useSessions(leagueId: LeagueId | null) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -22,6 +23,8 @@ export function useSessions(leagueId: LeagueId | null) {
   );
   const [sessionCache, setSessionCache] = useState<Session[] | null>(null);
   const [isCacheLoading, setIsCacheLoading] = useState(true);
+  const [localSessions, setLocalSessions] = useState<Session[] | null>(null);
+  const [isLocalSessionsLoading, setIsLocalSessionsLoading] = useState(true);
   const createSessionMutation = useMutation(convexJournalService.createSession);
   const updateSessionMutation = useMutation(convexJournalService.updateSession);
   const removeSessionMutation = useMutation(convexJournalService.removeSession);
@@ -75,6 +78,42 @@ export function useSessions(leagueId: LeagueId | null) {
       persistCache();
     }
   }, [sessions, leagueId]);
+
+  // Unauthenticated users read the locally persisted journal (local SQLite
+  // is the authoritative source; the AsyncStorage cache above is cloud-only
+  // and never used for local reads).
+  useEffect(() => {
+    if (isAuthenticated || !leagueId) {
+      setIsLocalSessionsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadLocalSessions = async () => {
+      try {
+        const localList = await listLocalSessionsByLeague(leagueId);
+
+        if (isMounted) {
+          setLocalSessions(localList);
+        }
+      } catch {
+        if (isMounted) {
+          setLocalSessions([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLocalSessionsLoading(false);
+        }
+      }
+    };
+
+    void loadLocalSessions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, leagueId]);
 
   const createSession = useCallback(
     async (input: CreateSessionInput) => {
@@ -146,16 +185,16 @@ export function useSessions(leagueId: LeagueId | null) {
   );
 
   return {
-    sessions:
-      isAuthenticated && sessions === undefined
+    sessions: !isAuthenticated
+      ? (localSessions ?? [])
+      : sessions === undefined
         ? (sessionCache ?? [])
-        : (sessions ?? []),
+        : sessions,
     isLoading:
       isAuthLoading ||
-      (isAuthenticated &&
-        leagueId !== null &&
-        sessions === undefined &&
-        isCacheLoading),
+      (isAuthenticated
+        ? leagueId !== null && sessions === undefined && isCacheLoading
+        : leagueId !== null && isLocalSessionsLoading),
     createSession,
     updateSession,
     removeSession,

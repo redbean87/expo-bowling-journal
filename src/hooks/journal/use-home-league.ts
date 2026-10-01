@@ -3,6 +3,10 @@ import { useConvexAuth, useQuery } from 'convex/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { convexJournalService } from '@/services/journal';
+import {
+  listLocalLeagueSummaries,
+  type LocalLeagueSummaryView,
+} from '@/services/journal/local-reads';
 
 const HOME_LEAGUE_STORAGE_KEY = '@bowling-journal:home-league-id';
 
@@ -32,9 +36,62 @@ export function useHomeLeague() {
     isAuthenticated ? { cutoffDate } : 'skip'
   );
 
-  const leagues = useMemo(() => leaguesQuery ?? [], [leaguesQuery]);
+  const [localLeagues, setLocalLeagues] = useState<
+    LocalLeagueSummaryView[] | null
+  >(null);
+  const [isLocalLeaguesLoading, setIsLocalLeaguesLoading] = useState(true);
+
+  // Unauthenticated users read the locally persisted journal (local SQLite
+  // is the authoritative source; there is no cloud cache to fall back to).
+  useEffect(() => {
+    if (isAuthenticated) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadLocalLeagues = async () => {
+      try {
+        const localList = await listLocalLeagueSummaries();
+
+        if (isMounted) {
+          setLocalLeagues(localList);
+        }
+      } catch {
+        if (isMounted) {
+          setLocalLeagues([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLocalLeaguesLoading(false);
+        }
+      }
+    };
+
+    void loadLocalLeagues();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
+
+  const leagues = useMemo(() => {
+    if (isAuthenticated) {
+      return leaguesQuery ?? [];
+    }
+
+    // The cloud query applies the 3-month cutoff server-side; apply the
+    // same cutoff to the local read so unauthenticated users see the same
+    // product semantics.
+    return (localLeagues ?? []).filter(
+      (league) =>
+        league.mostRecentSessionDate === null ||
+        league.mostRecentSessionDate >= cutoffDate
+    );
+  }, [isAuthenticated, leaguesQuery, localLeagues, cutoffDate]);
   const isLoading =
-    isAuthLoading || (isAuthenticated && leaguesQuery === undefined);
+    isAuthLoading ||
+    (isAuthenticated ? leaguesQuery === undefined : isLocalLeaguesLoading);
 
   const [savedHomeLeagueId, setSavedHomeLeagueId] = useState<string | null>(
     null

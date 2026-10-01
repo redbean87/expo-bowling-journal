@@ -7,4 +7,5 @@
  */
 export type * from './types';
 export type { LocalJournalService } from './local-journal-service';
+export { getLocalJournalService } from './accessor';
 export { SqliteLocalJournalService } from './sqlite-local-journal-service';
