@@ -1,0 +1,33 @@
+{
+  "$comment": "Pi models.json template for the Mac local OpenAI-compatible Qwen server (llama-server single-model mode, NOT the llama.cpp router). One provider, three selectable profiles; port 8087 serves exactly one profile at a time, so select ONLY the model matching the currently running llama-server. Copy this file to <agent-dir>/models.json inside an isolated PI_CODING_AGENT_DIR and invoke pi with that env var, e.g. PI_CODING_AGENT_DIR=/tmp/pi-qwen-8087. See qwen-profile-selection.md. Selecting a profile does NOT switch llama-server.",
+  "providers": {
+    "qwen-local": {
+      "baseUrl": "http://192.168.68.52:8087/v1",
+      "api": "openai-completions",
+      "apiKey": "sk-local",
+      "models": [
+        {
+          "id": "qwen3.8-27b-unsloth-ud-iq3xxs",
+          "name": "Qwen3.8-27B-Unsloth-UD-IQ3_XXS (8087)",
+          "input": ["text"],
+          "contextWindow": 80896,
+          "maxTokens": 32768
+        },
+        {
+          "id": "qwen3.8-27b-gsq-rco-96k-text",
+          "name": "Qwen3.8-27B-GSQ-RCO 96K text (8087)",
+          "input": ["text"],
+          "contextWindow": 97280,
+          "maxTokens": 32768
+        },
+        {
+          "id": "qwen3.8-27b-gsq-rco-80k-vision",
+          "name": "Qwen3.8-27B-GSQ-RCO 80K vision (8087)",
+          "input": ["text", "image"],
+          "contextWindow": 80896,
+          "maxTokens": 32768
+        }
+      ]
+    }
+  }
+}
