@@ -92,7 +92,10 @@ function installGlobalEventTarget(): GlobalEventTarget & {
 } {
   const handlers = new Map<string, Set<() => void>>();
   const target: GlobalEventTarget & { dispatch(type: string): void } = {
-    addEventListener(type: string, handler: () => void) {
+    addEventListener(this: unknown, type: string, handler: () => void) {
+      if (this !== globalThis) {
+        throw new Error('Illegal invocation');
+      }
       let set = handlers.get(type);
       if (set === undefined) {
         set = new Set<() => void>();
@@ -100,7 +103,10 @@ function installGlobalEventTarget(): GlobalEventTarget & {
       }
       set.add(handler);
     },
-    removeEventListener(type: string, handler: () => void) {
+    removeEventListener(this: unknown, type: string, handler: () => void) {
+      if (this !== globalThis) {
+        throw new Error('Illegal invocation');
+      }
       handlers.get(type)?.delete(handler);
     },
     dispatch(type: string): void {

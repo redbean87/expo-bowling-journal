@@ -79,7 +79,11 @@ function ensureInitialized(): void {
     sourceUnsubscribe = null;
     const fallback = createNavigatorSource();
     if (fallback !== null) {
-      sourceUnsubscribe = fallback.subscribe(applyState);
+      try {
+        sourceUnsubscribe = fallback.subscribe(applyState);
+      } catch {
+        sourceUnsubscribe = null;
+      }
     }
   }
 }
@@ -168,15 +172,14 @@ function resolveEventTarget(): EventTargetLike | null {
     addEventListener?: (type: string, handler: () => void) => void;
     removeEventListener?: (type: string, handler: () => void) => void;
   };
-  if (
-    typeof scope.addEventListener !== 'function' ||
-    typeof scope.removeEventListener !== 'function'
-  ) {
+  const add = scope.addEventListener;
+  const remove = scope.removeEventListener;
+  if (typeof add !== 'function' || typeof remove !== 'function') {
     return null;
   }
   return {
-    addEventListener: scope.addEventListener,
-    removeEventListener: scope.removeEventListener,
+    addEventListener: add.bind(scope),
+    removeEventListener: remove.bind(scope),
   };
 }
 
