@@ -5,13 +5,17 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { removeLocalGameDraft } from '@/screens/game-editor/game-local-draft-storage';
 import { flushQueuedGameSavesWithLock } from '@/screens/game-editor/game-save-queue-sync';
 import { flushJournalCreateQueueWithLock } from '@/screens/journal/journal-create-queue-sync';
-import { isNavigatorOffline } from '@/screens/journal/journal-offline-create';
 import { subscribeQueueSyncState } from '@/screens/journal/queue-sync-events';
 import {
+  didRestoreConnectivity,
   loadQueueSyncPresence,
   shouldRunQueueSyncInterval,
 } from '@/screens/journal/queue-sync-presence';
 import { flushReferenceCreateQueueWithLock } from '@/screens/journal/reference-create-queue-sync';
+import {
+  isConnectivityOffline,
+  subscribeConnectivity,
+} from '@/services/connectivity';
 import { convexJournalService } from '@/services/journal';
 
 export function GameSaveQueueSyncer() {
@@ -33,8 +37,8 @@ export function GameSaveQueueSyncer() {
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === 'active'
   );
-  const [isOnline, _setIsOnline] = useState(!isNavigatorOffline());
-  const isOnlineRef = useRef(isOnline);
+  const [isOnline, setIsOnline] = useState(!isConnectivityOffline());
+  const previousOnlineRef = useRef<boolean | null>(null);
 
   const refreshQueuePresence = useCallback(async () => {
     const presence = await loadQueueSyncPresence();
@@ -43,7 +47,7 @@ export function GameSaveQueueSyncer() {
   }, []);
 
   const flushQueue = useCallback(async () => {
-    if (isNavigatorOffline()) {
+    if (isConnectivityOffline()) {
       await refreshQueuePresence();
       return;
     }
@@ -133,16 +137,35 @@ export function GameSaveQueueSyncer() {
   }, [flushQueue, refreshQueuePresence]);
 
   useEffect(() => {
-    const unsubscribe = subscribeQueueSyncState(() => {
-      void refreshQueuePresence();
+    const unsubscribe = subscribeConnectivity((isOffline) => {
+      const nextOnline = !isOffline;
+      const previousOnline = previousOnlineRef.current;
+      previousOnlineRef.current = nextOnline;
+      setIsOnline(nextOnline);
 
-      if (isAppActive && isOnlineRef.current) {
+      if (
+        previousOnline !== null &&
+        didRestoreConnectivity({ previousOnline, nextOnline })
+      ) {
+        void refreshQueuePresence();
         void flushQueue();
       }
     });
 
     return unsubscribe;
-  }, [flushQueue, isAppActive, refreshQueuePresence]);
+  }, [flushQueue, refreshQueuePresence]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeQueueSyncState(() => {
+      void refreshQueuePresence();
+
+      if (isAppActive && isOnline) {
+        void flushQueue();
+      }
+    });
+
+    return unsubscribe;
+  }, [flushQueue, isAppActive, isOnline, refreshQueuePresence]);
 
   useEffect(() => {
     if (!shouldPoll) {
