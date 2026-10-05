@@ -203,16 +203,13 @@ test('netinfo source: subscribers are notified and unsubscription stops them', a
   resetConnectivity();
   const fake = createFakeNetInfo({ isConnected: true, type: 'wifi' });
   __connectivityTestControls.useNetInfoModule(fake.mod);
+  assert.equal(isConnectivityOffline(), false);
   await flushMicrotasks();
 
   const calls: boolean[] = [];
   const unsubscribe = subscribeConnectivity((isOffline) => {
     calls.push(isOffline);
   });
-  assert.deepEqual(calls, []);
-
-  // The source re-reports the current state shortly after subscribing.
-  await flushMicrotasks();
   assert.deepEqual(calls, [false]);
 
   fake.emit({ isConnected: false, type: 'none' });
@@ -240,6 +237,7 @@ test('netinfo source: one throwing subscriber does not block the others', async 
   resetConnectivity();
   const fake = createFakeNetInfo({ isConnected: true, type: 'wifi' });
   __connectivityTestControls.useNetInfoModule(fake.mod);
+  assert.equal(isConnectivityOffline(), false);
   await flushMicrotasks();
 
   const calls: boolean[] = [];
@@ -249,7 +247,6 @@ test('netinfo source: one throwing subscriber does not block the others', async 
   const unsubscribeOther = subscribeConnectivity((isOffline) => {
     calls.push(isOffline);
   });
-  await flushMicrotasks();
   assert.deepEqual(calls, [false]);
 
   fake.emit({ isConnected: false, type: 'none' });

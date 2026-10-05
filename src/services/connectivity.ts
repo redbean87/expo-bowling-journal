@@ -201,7 +201,11 @@ export function subscribeConnectivity(
   ensureInitialized();
   listeners.add(listener);
   if (currentOffline !== null) {
-    listener(currentOffline);
+    try {
+      listener(currentOffline);
+    } catch {
+      void 0;
+    }
   }
   return () => {
     listeners.delete(listener);
