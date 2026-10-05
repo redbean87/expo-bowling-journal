@@ -1,8 +1,7 @@
+import { isConnectivityOffline } from '../../services/connectivity';
+
 export function isNavigatorOffline() {
-  return (
-    typeof globalThis.navigator !== 'undefined' &&
-    globalThis.navigator.onLine === false
-  );
+  return isConnectivityOffline();
 }
 
 export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
