@@ -209,6 +209,7 @@ test('netinfo source: subscribers are notified and unsubscription stops them', a
   const unsubscribe = subscribeConnectivity((isOffline) => {
     calls.push(isOffline);
   });
+  assert.deepEqual(calls, []);
 
   // The source re-reports the current state shortly after subscribing.
   await flushMicrotasks();
@@ -229,9 +230,33 @@ test('netinfo source: subscribers are notified and unsubscription stops them', a
   const resubscribe = subscribeConnectivity((isOffline) => {
     resubscribeCalls.push(`re:${String(isOffline)}`);
   });
-  fake.emit({ isConnected: false, type: 'none' });
   assert.deepEqual(resubscribeCalls, ['re:true']);
+  fake.emit({ isConnected: true, type: 'wifi' });
+  assert.deepEqual(resubscribeCalls, ['re:true', 're:false']);
   resubscribe();
+});
+
+test('netinfo source: one throwing subscriber does not block the others', async () => {
+  resetConnectivity();
+  const fake = createFakeNetInfo({ isConnected: true, type: 'wifi' });
+  __connectivityTestControls.useNetInfoModule(fake.mod);
+  await flushMicrotasks();
+
+  const calls: boolean[] = [];
+  const unsubscribeThrowing = subscribeConnectivity(() => {
+    throw new Error('subscriber failure');
+  });
+  const unsubscribeOther = subscribeConnectivity((isOffline) => {
+    calls.push(isOffline);
+  });
+  await flushMicrotasks();
+  assert.deepEqual(calls, [false]);
+
+  fake.emit({ isConnected: false, type: 'none' });
+  assert.deepEqual(calls, [false, true]);
+  assert.equal(isConnectivityOffline(), true);
+  unsubscribeThrowing();
+  unsubscribeOther();
 });
 
 test('singleton: the connectivity source is subscribed exactly once', async () => {

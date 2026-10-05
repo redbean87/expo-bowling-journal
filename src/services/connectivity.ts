@@ -51,7 +51,11 @@ const listeners = new Set<ConnectivityListener>();
 function applyState(isOffline: boolean): void {
   currentOffline = isOffline;
   listeners.forEach((listener) => {
-    listener(isOffline);
+    try {
+      listener(isOffline);
+    } catch {
+      void 0;
+    }
   });
 }
 
@@ -196,6 +200,9 @@ export function subscribeConnectivity(
 ): () => void {
   ensureInitialized();
   listeners.add(listener);
+  if (currentOffline !== null) {
+    listener(currentOffline);
+  }
   return () => {
     listeners.delete(listener);
   };
