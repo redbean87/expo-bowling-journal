@@ -190,10 +190,10 @@ export function isConnectivityOffline(): boolean {
 }
 
 /**
- * Subscribe to live connectivity changes. The underlying source
- * re-reports the current state shortly after subscribing, and then
- * reports each live state change. Returns the function that
- * unsubscribes the listener.
+ * Subscribe to live connectivity changes. The known state is replayed
+ * synchronously when already known, with no replay while unknown,
+ * and then each live state change is reported. Returns the function
+ * that unsubscribes the listener.
  */
 export function subscribeConnectivity(
   listener: ConnectivityListener
