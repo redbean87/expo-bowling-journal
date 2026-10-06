@@ -3,6 +3,7 @@ import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { isConnectivityOffline } from '@/services/connectivity';
 import {
   convexJournalService,
   type CreateGameInput,
@@ -111,8 +112,17 @@ export function useGames(sessionId: SessionId | null) {
     };
   }, [isAuthenticated, sessionId]);
 
+  // Offline (Phase 3): game create/remove are explicitly disabled while the
+  // app is offline — no existing queue models a bare game create (the game
+  // save queue belongs to the editor autosave flow) or a game delete. The
+  // callbacks resolve null without invoking Convex, touching UI state, or
+  // throwing.
   const createGame = useCallback(
     async (input: CreateGameInput) => {
+      if (isConnectivityOffline()) {
+        return null;
+      }
+
       setIsCreating(true);
 
       try {
@@ -126,6 +136,10 @@ export function useGames(sessionId: SessionId | null) {
 
   const removeGame = useCallback(
     async (input: RemoveGameInput) => {
+      if (isConnectivityOffline()) {
+        return null;
+      }
+
       return await removeGameMutation(input);
     },
     [removeGameMutation]

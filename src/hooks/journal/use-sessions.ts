@@ -6,14 +6,26 @@ import { Platform } from 'react-native';
 import { resolveReferenceIdForMutation } from './reference-id-resolution';
 
 import {
+  createQueuedSessionCreateEntry,
+  createQueuedSessionDeleteEntry,
+  upsertQueuedJournalCreateEntry,
+} from '@/screens/journal/journal-create-queue';
+import {
+  loadJournalCreateQueue,
+  persistJournalCreateQueue,
+} from '@/screens/journal/journal-create-queue-storage';
+import { isConnectivityOffline } from '@/services/connectivity';
+import {
   convexJournalService,
   type CreateSessionInput,
   type LeagueId,
   type RemoveSessionInput,
   type Session,
+  type SessionId,
   type UpdateSessionInput,
 } from '@/services/journal';
 import { listLocalSessionsByLeague } from '@/services/journal/local-reads';
+import { createClientSyncId } from '@/utils/client-sync-id';
 
 export function useSessions(leagueId: LeagueId | null) {
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
@@ -117,6 +129,31 @@ export function useSessions(leagueId: LeagueId | null) {
 
   const createSession = useCallback(
     async (input: CreateSessionInput) => {
+      if (isConnectivityOffline()) {
+        // Queue for the existing journal-create flusher (same entry type the
+        // session offline path uses) and return the local draft id so the
+        // caller can still navigate to the pending session. The hook cannot
+        // know a draft league's client id, so it stays null; the flusher
+        // falls back to payload.leagueId.
+        const clientSyncId =
+          input.clientSyncId ?? createClientSyncId('session');
+
+        const queuedEntry = createQueuedSessionCreateEntry(
+          input,
+          clientSyncId,
+          null,
+          Date.now()
+        );
+        const currentQueue = await loadJournalCreateQueue();
+        const nextQueue = upsertQueuedJournalCreateEntry(
+          currentQueue,
+          queuedEntry
+        );
+        await persistJournalCreateQueue(nextQueue);
+
+        return `draft-${clientSyncId}` as SessionId;
+      }
+
       setIsCreating(true);
 
       try {
@@ -179,6 +216,24 @@ export function useSessions(leagueId: LeagueId | null) {
 
   const removeSession = useCallback(
     async (input: RemoveSessionInput) => {
+      if (isConnectivityOffline()) {
+        const queuedEntry = createQueuedSessionDeleteEntry(
+          {
+            sessionId: input.sessionId,
+            sessionClientSyncId: null,
+          },
+          Date.now()
+        );
+        const currentQueue = await loadJournalCreateQueue();
+        const nextQueue = upsertQueuedJournalCreateEntry(
+          currentQueue,
+          queuedEntry
+        );
+        await persistJournalCreateQueue(nextQueue);
+
+        return null;
+      }
+
       return await removeSessionMutation(input);
     },
     [removeSessionMutation]

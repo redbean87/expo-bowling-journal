@@ -7,13 +7,25 @@ import { resolveReferenceIdForMutation } from './reference-id-resolution';
 import { useLeagueQueue } from './use-league-queue';
 
 import {
+  createQueuedLeagueCreateEntry,
+  createQueuedLeagueDeleteEntry,
+  upsertQueuedJournalCreateEntry,
+} from '@/screens/journal/journal-create-queue';
+import {
+  loadJournalCreateQueue,
+  persistJournalCreateQueue,
+} from '@/screens/journal/journal-create-queue-storage';
+import { isConnectivityOffline } from '@/services/connectivity';
+import {
   convexJournalService,
   type CreateLeagueInput,
   type League,
+  type LeagueId,
   type RemoveLeagueInput,
   type UpdateLeagueInput,
 } from '@/services/journal';
 import { listLocalLeagues } from '@/services/journal/local-reads';
+import { createClientSyncId } from '@/utils/client-sync-id';
 
 const LEAGUE_CACHE_KEY = 'journal:leagues-cache:v1';
 
@@ -112,6 +124,27 @@ export function useLeagues() {
 
   const createLeague = useCallback(
     async (input: CreateLeagueInput) => {
+      if (isConnectivityOffline()) {
+        // Queue for the existing journal-create flusher (same entry type the
+        // league screen's offline path uses) and return the local draft id so
+        // the caller can still navigate to the pending league.
+        const clientSyncId = input.clientSyncId ?? createClientSyncId('league');
+
+        const queuedEntry = createQueuedLeagueCreateEntry(
+          input,
+          clientSyncId,
+          Date.now()
+        );
+        const currentQueue = await loadJournalCreateQueue();
+        const nextQueue = upsertQueuedJournalCreateEntry(
+          currentQueue,
+          queuedEntry
+        );
+        await persistJournalCreateQueue(nextQueue);
+
+        return `draft-${clientSyncId}` as LeagueId;
+      }
+
       setIsCreating(true);
 
       try {
@@ -167,6 +200,24 @@ export function useLeagues() {
 
   const removeLeague = useCallback(
     async (input: RemoveLeagueInput) => {
+      if (isConnectivityOffline()) {
+        const queuedEntry = createQueuedLeagueDeleteEntry(
+          {
+            leagueId: input.leagueId,
+            leagueClientSyncId: null,
+          },
+          Date.now()
+        );
+        const currentQueue = await loadJournalCreateQueue();
+        const nextQueue = upsertQueuedJournalCreateEntry(
+          currentQueue,
+          queuedEntry
+        );
+        await persistJournalCreateQueue(nextQueue);
+
+        return null;
+      }
+
       return await removeLeagueMutation(input);
     },
     [removeLeagueMutation]
