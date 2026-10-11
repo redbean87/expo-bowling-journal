@@ -324,6 +324,36 @@ test('flushQueuedGameSaves removes non-retryable errors and reports callback', a
   assert.equal(callbackQueueId, dueEntry.queueId);
 });
 
+test('flushQueuedGameSaves keeps entries when the failure has no permanent signal', async () => {
+  const dueEntry = createQueueEntry({ nextRetryAt: BASE_TIME });
+  let queueState: QueuedGameSaveEntry[] = [dueEntry];
+  let nonRetryableFired = false;
+
+  await flushQueuedGameSaves({
+    createGame: async () => {
+      throw new Error('unexpected create');
+    },
+    updateGame: async () => {
+      throw new Error(
+        '[CONVEX M(games.update)] Unknown server error\n  Called by client'
+      );
+    },
+    replaceFramesForGame: async () => undefined,
+    loadQueue: async () => queueState,
+    persistQueue: async (entries) => {
+      queueState = entries;
+    },
+    onEntryFailedNonRetryable: () => {
+      nonRetryableFired = true;
+    },
+  });
+
+  assert.equal(queueState.length, 1);
+  assert.equal(queueState[0]?.queueId, dueEntry.queueId);
+  assert.equal(queueState[0]?.attemptCount, 1);
+  assert.equal(nonRetryableFired, false);
+});
+
 test('flushQueuedGameSaves force option processes backoff entries immediately', async () => {
   const futureEntry = createQueueEntry({ nextRetryAt: BASE_TIME + 60_000 });
   let queueState: QueuedGameSaveEntry[] = [futureEntry];

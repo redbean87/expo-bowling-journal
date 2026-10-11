@@ -182,35 +182,25 @@ export function markQueuedGameSaveEntryRetry(
 }
 
 export function isRetryableSaveError(caught: unknown): boolean {
+  // Only demonstrably permanently-classified failures classify as
+  // non-retryable. Anything else - including offline/transient failures
+  // whose message matches no known signal - stays queued for retry so
+  // user data is never dropped.
   const message = getSaveErrorMessage(caught);
 
   if (!message) {
-    return false;
+    return true;
   }
 
   const normalized = message.toLowerCase();
 
-  if (
+  return !(
     normalized.includes('required') ||
     normalized.includes('invalid') ||
     normalized.includes('not found') ||
     normalized.includes('must ') ||
     normalized.includes('unauthorized') ||
     normalized.includes('forbidden')
-  ) {
-    return false;
-  }
-
-  return (
-    normalized.includes('network') ||
-    normalized.includes('offline') ||
-    normalized.includes('failed to fetch') ||
-    normalized.includes('fetch failed') ||
-    normalized.includes('timed out') ||
-    normalized.includes('timeout') ||
-    normalized.includes('connection') ||
-    normalized.includes('econn') ||
-    normalized.includes('temporarily unavailable')
   );
 }
 
