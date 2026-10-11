@@ -320,7 +320,7 @@ test('removeQueuedGameSaveEntry deletes matching queue id', () => {
   assert.deepEqual(next, []);
 });
 
-test('isRetryableSaveError identifies network failures only', () => {
+test('isRetryableSaveError retries everything except demonstrably permanent failures', () => {
   assert.equal(isRetryableSaveError(new Error('Network request failed')), true);
   assert.equal(isRetryableSaveError(new Error('Failed to fetch')), true);
   assert.equal(
@@ -328,6 +328,11 @@ test('isRetryableSaveError identifies network failures only', () => {
     false
   );
   assert.equal(isRetryableSaveError(new Error('Game not found.')), false);
+  assert.equal(
+    isRetryableSaveError(new Error('Unexpected server response')),
+    true
+  );
+  assert.equal(isRetryableSaveError(new Error('')), true);
 });
 
 test('getActionableSaveErrorMessage hides retryable weak-signal failures', () => {
@@ -351,9 +356,20 @@ test('getActionableSaveErrorMessage keeps validation errors actionable', () => {
   );
 });
 
-test('getActionableSaveErrorMessage uses fallback for unknown failures', () => {
+test('getActionableSaveErrorMessage hides unknown failures that are retried', () => {
   assert.equal(
     getActionableSaveErrorMessage(new Error('Unexpected server response')),
+    null
+  );
+});
+
+test('getActionableSaveErrorMessage uses fallback for empty error values', () => {
+  assert.equal(
+    getActionableSaveErrorMessage(new Error('')),
+    'Unable to save game. Keep editing to retry.'
+  );
+  assert.equal(
+    getActionableSaveErrorMessage(''),
     'Unable to save game. Keep editing to retry.'
   );
 });
