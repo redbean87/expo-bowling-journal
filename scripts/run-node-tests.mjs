@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -24,9 +24,9 @@ function collectTests(directory, result = []) {
 function main() {
   const target = process.argv[2] ?? 'tests';
   const targetDir = resolve(process.cwd(), target);
-  const testFiles = collectTests(targetDir).sort((left, right) =>
-    left.localeCompare(right)
-  );
+  const testFiles = statSync(targetDir).isFile()
+    ? [targetDir]
+    : collectTests(targetDir).sort((left, right) => left.localeCompare(right));
 
   if (testFiles.length === 0) {
     console.error(`No test files found in ${targetDir}`);
