@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { after, test } from 'node:test';
 
@@ -12,6 +11,13 @@ import {
   resetJournalHookStubs,
 } from './stubs/journal-hooks-stubs';
 import { __connectivityTestControls } from '../../src/services/connectivity';
+import {
+  createFakeNetInfo,
+  type FakeNetInfo,
+  type FakeNetInfoState,
+} from '../harness/fake-env';
+import { MiniReact } from '../harness/mini-hook-renderer';
+import { registerStubRemaps } from '../harness/remap';
 
 // Journal hook offline branch tests.
 //
@@ -48,17 +54,7 @@ const stubRewrites: Record<string, string> = {
   './use-league-queue': stubPath,
 };
 
-const hookHandle = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    const rewritten = stubRewrites[specifier];
-
-    if (rewritten) {
-      return nextResolve(rewritten, context);
-    }
-
-    return nextResolve(specifier, context);
-  },
-});
+const hookHandle = registerStubRemaps(() => stubRewrites);
 
 after(() => {
   hookHandle.deregister();
@@ -88,260 +84,6 @@ function getHooksModules(): Promise<HooksModules> {
   return hooksModulesPromise;
 }
 
-// --- Mini hook renderer ---------------------------------------------------
-//
-// Implements the subset of React hooks the three journal hooks use, with
-// the same hook-order, memo, and effect cleanup/dependency semantics the
-// hooks rely on. State updates schedule a re-render pass on the microtask
-// queue, mirroring React's batched passive-effect updates.
-
-type EffectEntry = {
-  fn: (() => unknown) | null;
-  pendingDeps: readonly unknown[] | null;
-  deps: readonly unknown[] | null;
-  hasRun: boolean;
-  cleanup: (() => void) | null;
-};
-
-function shallowDepsEqual(
-  a: readonly unknown[] | null,
-  b: readonly unknown[] | null
-): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (a === null || b === null || a.length !== b.length) {
-    return false;
-  }
-
-  return a.every((value, index) => Object.is(value, b[index]));
-}
-
-class MiniReact {
-  private hookIndex = 0;
-  private states: unknown[] = [];
-  private stateSeeds = new Set<number>();
-  private memoCache: Array<{
-    value: unknown;
-    deps: readonly unknown[] | null;
-  } | null> = [];
-  private effects: EffectEntry[] = [];
-  private effectSlot = 0;
-  private commitScheduled = false;
-  private unmounted = false;
-
-  private readonly componentFn: () => null;
-
-  constructor(componentFn: () => null) {
-    this.componentFn = componentFn;
-  }
-
-  mount(): void {
-    this.commit();
-  }
-
-  unmount(): void {
-    this.unmounted = true;
-
-    for (const effect of this.effects) {
-      if (effect.cleanup !== null) {
-        effect.cleanup();
-      }
-    }
-  }
-
-  private commit(): void {
-    __setActiveRenderer(this);
-
-    try {
-      this.hookIndex = 0;
-      this.effectSlot = 0;
-      this.componentFn();
-      this.runEffects();
-    } finally {
-      __setActiveRenderer(null);
-    }
-  }
-
-  private scheduleCommit(): void {
-    if (this.unmounted || this.commitScheduled) {
-      return;
-    }
-    this.commitScheduled = true;
-    queueMicrotask(() => {
-      this.commitScheduled = false;
-      if (!this.unmounted) {
-        this.commit();
-      }
-    });
-  }
-
-  private runEffects(): void {
-    for (const effect of this.effects) {
-      const changed =
-        !effect.hasRun || !shallowDepsEqual(effect.deps, effect.pendingDeps);
-
-      if (!changed) {
-        continue;
-      }
-
-      if (effect.cleanup !== null) {
-        effect.cleanup();
-      }
-
-      const result = effect.fn === null ? undefined : effect.fn();
-
-      effect.cleanup =
-        typeof result === 'function' ? (result as () => void) : null;
-      effect.deps = effect.pendingDeps;
-      effect.hasRun = true;
-    }
-  }
-
-  private ensureEffect(index: number): EffectEntry {
-    let effect = this.effects[index];
-
-    if (effect === undefined) {
-      effect = {
-        fn: null,
-        pendingDeps: null,
-        deps: null,
-        hasRun: false,
-        cleanup: null,
-      };
-      this.effects[index] = effect;
-    }
-
-    return effect;
-  }
-
-  useState(initial: unknown): [unknown, (next: unknown) => void] {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-
-    if (!this.stateSeeds.has(index)) {
-      this.stateSeeds.add(index);
-      this.states[index] = initial;
-    }
-
-    const value = this.states[index];
-
-    const setState = (next: unknown): void => {
-      const resolved =
-        typeof next === 'function'
-          ? (next as (previous: unknown) => unknown)(this.states[index])
-          : next;
-
-      if (Object.is(this.states[index], resolved)) {
-        return;
-      }
-
-      this.states[index] = resolved;
-      this.scheduleCommit();
-    };
-
-    return [value, setState];
-  }
-
-  useCallback(
-    callback: (...args: unknown[]) => unknown,
-    deps: readonly unknown[] | undefined
-  ): (...args: unknown[]) => unknown {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as (...args: unknown[]) => unknown;
-    }
-
-    this.memoCache[index] = { value: callback, deps: deps ?? null };
-
-    return callback;
-  }
-
-  useMemo<T>(factory: () => T, deps: readonly unknown[] | undefined): T {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as T;
-    }
-
-    const value = factory();
-
-    this.memoCache[index] = { value, deps: deps ?? null };
-
-    return value;
-  }
-
-  useEffect(
-    effect: () => unknown | (() => void),
-    deps: readonly unknown[] | undefined
-  ): void {
-    // Effects are matched by per-render position (like React's hook list);
-    // the slot index resets on every commit so entries persist across
-    // re-renders instead of growing.
-    const index = this.effectSlot;
-    this.effectSlot += 1;
-    this.hookIndex += 1;
-    const entry = this.ensureEffect(index);
-
-    entry.fn = effect;
-    entry.pendingDeps = deps ?? null;
-  }
-}
-
-// --- Simulated netinfo source ----------------------------------------------
-
-type FakeNetInfoState = {
-  isConnected: boolean | null;
-  type: string;
-};
-
-type FakeNetInfoModule = {
-  addEventListener(listener: (state: FakeNetInfoState) => void): () => void;
-};
-
-type FakeNetInfo = {
-  mod: FakeNetInfoModule;
-  emit(state: FakeNetInfoState): void;
-};
-
-// The initial state is delivered synchronously during subscription so the
-// first `isConnectivityOffline()` call inside a hook callback — which is
-// what triggers the singleton's initialization — already sees the intended
-// state. Later `emit()` transitions are delivered synchronously as well.
-function createFakeNetInfo(initial: FakeNetInfoState): FakeNetInfo {
-  let listener: ((state: FakeNetInfoState) => void) | null = null;
-  let latest: FakeNetInfoState = initial;
-
-  const mod: FakeNetInfoModule = {
-    addEventListener(nextListener: (state: FakeNetInfoState) => void) {
-      listener = nextListener;
-      nextListener(latest);
-
-      return () => {
-        if (listener === nextListener) {
-          listener = null;
-        }
-      };
-    },
-  };
-
-  return {
-    mod,
-    emit(state: FakeNetInfoState): void {
-      latest = state;
-
-      if (listener !== null) {
-        listener(state);
-      }
-    },
-  };
-}
-
 // --- Test harness ----------------------------------------------------------
 
 type MountedHooks = {
@@ -356,7 +98,7 @@ async function mountHooks(initial: FakeNetInfoState): Promise<MountedHooks> {
   __connectivityTestControls.reset();
   resetJournalHookStubs();
 
-  const fake = createFakeNetInfo(initial);
+  const fake = createFakeNetInfo(initial, true);
   __connectivityTestControls.useNetInfoModule(fake.mod);
 
   const {
@@ -375,7 +117,7 @@ async function mountHooks(initial: FakeNetInfoState): Promise<MountedHooks> {
     sessionsApi = sessionsModule.useSessions('league-1' as never);
 
     return null;
-  });
+  }, __setActiveRenderer);
   renderer.mount();
 
   // Let the mount-time cache-load effects settle (AsyncStorage stub).
