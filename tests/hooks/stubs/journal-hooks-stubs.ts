@@ -13,7 +13,8 @@
 //   '@react-native-async-storage/async-storage'       -> in-memory
 //                                                          getItem/setItem
 //   '@/services/journal'                              -> convexJournalService
-//   '@/services/journal/local-reads'                  -> empty local lists
+//   '@/services/journal/local-reads'                  -> seeded local lists,
+//                                                          every read recorded
 //   '@/screens/journal/journal-create-queue-storage'  -> observable in-memory
 //                                                          journal-create queue
 //   './use-league-queue'                              -> identity passthrough
@@ -27,6 +28,12 @@
 // `@/hooks/journal/reference-id-resolution`,
 // `@/screens/journal/journal-client-sync-map-storage`,
 // `@/screens/journal/reference-draft-id`, and `@/utils/client-sync-id`.
+
+import type {
+  GameListItem,
+  League,
+  Session,
+} from '../../../src/services/journal/types/core';
 
 // --- Shared observable state ----------------------------------------------
 
@@ -54,6 +61,11 @@ export function resetJournalHookStubs(): void {
   asyncStorageGetKeys.length = 0;
   journalCreateQueue.length = 0;
   journalCreateQueuePersistCalls.length = 0;
+  convexOps.length = 0;
+  localReadCalls.length = 0;
+  localReadSeed.leagues.length = 0;
+  localReadSeed.sessions.length = 0;
+  localReadSeed.games.length = 0;
   __activeRenderer = null;
 }
 
@@ -116,13 +128,18 @@ export function useEffect(
 
 // --- 'convex/react' double ------------------------------------------------
 //
-// The service references are arrow functions inside the object literal
-// below, so `ref.name` is the service key. Each `useMutation` returns a
-// fresh callable that records the input and resolves to a per-mutation
-// sentinel id, so tests can assert both the exact input and the propagated
-// return value. `useQuery` stays pending (undefined) so the hooks fall back
-// to their cache state; `useConvexAuth` reports an authenticated, loaded
-// session so the local-read effects are skipped.
+// The server is sabotaged in this suite: `useQuery` records the attempted
+// query in `convexOps` and throws, so any hook that still binds a Convex
+// read fails the render. A query bound with `'skip'` never executes and
+// records nothing, mirroring the C-0 local-first double. The service
+// references are arrow functions inside the object literal below, so
+// `ref.name` is the service key. Each `useMutation` returns a fresh
+// callable that records the input and resolves to a per-mutation sentinel
+// id, so tests can assert both the exact input and the propagated return
+// value. `useConvexAuth` reports an authenticated, loaded session, so the
+// pre-conversion auth-gated query args are attempted rather than skipped.
+
+export const convexOps: string[] = [];
 
 export function useMutation(mutationRef: {
   name: string;
@@ -134,8 +151,14 @@ export function useMutation(mutationRef: {
   };
 }
 
-export function useQuery(_queryRef: unknown, _args: unknown): undefined {
-  return undefined;
+export function useQuery(queryRef: { name: string }, args: unknown): undefined {
+  if (args === 'skip') {
+    return undefined;
+  }
+
+  convexOps.push(`query:${queryRef.name}`);
+
+  throw new Error(`Convex query attempted in local mode: ${queryRef.name}`);
 }
 
 export function useConvexAuth(): {
@@ -184,21 +207,61 @@ export const convexJournalService = {
 };
 
 // --- '@/services/journal/local-reads' double ------------------------------
+//
+// Seeded local journal state standing in for the real SQLite-backed adapter:
+// every read records itself in `localReadCalls` and reports the seeded
+// documents (filtered the way the real adapter filters), so tests can assert
+// the hooks render from local data and only through the local path.
 
-export async function listLocalGamesBySession(
-  _sessionId: unknown
-): Promise<never[]> {
-  return [];
+export const localReadCalls: string[] = [];
+
+export const localReadSeed: {
+  leagues: League[];
+  sessions: Session[];
+  games: GameListItem[];
+} = {
+  leagues: [],
+  sessions: [],
+  games: [],
+};
+
+export function setLocalReadSeed(seed: {
+  leagues: League[];
+  sessions: Session[];
+  games: GameListItem[];
+}): void {
+  localReadSeed.leagues.length = 0;
+  localReadSeed.leagues.push(...seed.leagues);
+
+  localReadSeed.sessions.length = 0;
+  localReadSeed.sessions.push(...seed.sessions);
+
+  localReadSeed.games.length = 0;
+  localReadSeed.games.push(...seed.games);
 }
 
-export async function listLocalLeagues(): Promise<never[]> {
-  return [];
+export async function listLocalLeagues(): Promise<League[]> {
+  localReadCalls.push('listLocalLeagues');
+
+  return [...localReadSeed.leagues];
 }
 
 export async function listLocalSessionsByLeague(
-  _leagueId: unknown
-): Promise<never[]> {
-  return [];
+  leagueId: unknown
+): Promise<Session[]> {
+  localReadCalls.push('listLocalSessionsByLeague');
+
+  return localReadSeed.sessions.filter(
+    (session) => session.leagueId === leagueId
+  );
+}
+
+export async function listLocalGamesBySession(
+  sessionId: unknown
+): Promise<GameListItem[]> {
+  localReadCalls.push('listLocalGamesBySession');
+
+  return localReadSeed.games.filter((game) => game.sessionId === sessionId);
 }
 
 // --- '@/screens/journal/journal-create-queue-storage' double ---------------

@@ -1,7 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useConvexAuth, useMutation } from 'convex/react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { resolveReferenceIdForMutation } from './reference-id-resolution';
 import { useLeagueQueue } from './use-league-queue';
@@ -27,69 +25,18 @@ import {
 import { listLocalLeagues } from '@/services/journal/local-reads';
 import { createClientSyncId } from '@/utils/client-sync-id';
 
-const LEAGUE_CACHE_KEY = 'journal:leagues-cache:v1';
-
 export function useLeagues() {
-  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const leagues = useQuery(
-    convexJournalService.listLeagues,
-    isAuthenticated ? {} : 'skip'
-  );
-  const [leagueCache, setLeagueCache] = useState<League[] | null>(null);
-  const [isCacheLoading, setIsCacheLoading] = useState(true);
+  // `isAuthenticated` is reported for consumers that still branch on the
+  // session (e.g. the game editor); the league read itself never waits on
+  // it or the network.
+  const { isAuthenticated } = useConvexAuth();
+
   const [localLeagues, setLocalLeagues] = useState<League[] | null>(null);
   const [isLocalLeaguesLoading, setIsLocalLeaguesLoading] = useState(true);
 
+  // Local SQLite is the authoritative league read: always loaded, no Convex
+  // query, no cloud cache, no auth gate.
   useEffect(() => {
-    const loadCache = async () => {
-      try {
-        const stored =
-          Platform.OS === 'web'
-            ? globalThis.localStorage.getItem(LEAGUE_CACHE_KEY)
-            : await AsyncStorage.getItem(LEAGUE_CACHE_KEY);
-
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setLeagueCache(parsed);
-          }
-        }
-      } catch {
-        // Ignore cache errors
-      } finally {
-        setIsCacheLoading(false);
-      }
-    };
-
-    loadCache();
-  }, []);
-
-  useEffect(() => {
-    if (leagues !== undefined) {
-      const persistCache = async () => {
-        try {
-          const cacheData = JSON.stringify(leagues);
-          if (Platform.OS === 'web') {
-            globalThis.localStorage.setItem(LEAGUE_CACHE_KEY, cacheData);
-          } else {
-            await AsyncStorage.setItem(LEAGUE_CACHE_KEY, cacheData);
-          }
-        } catch {
-          // Ignore persistence errors
-        }
-      };
-      persistCache();
-    }
-  }, [leagues]);
-
-  // Unauthenticated users read the locally persisted journal (local SQLite
-  // is the authoritative source; the AsyncStorage cache above is cloud-only
-  // and never used for local reads).
-  useEffect(() => {
-    if (isAuthenticated) {
-      return;
-    }
-
     let isMounted = true;
 
     const loadLocalLeagues = async () => {
@@ -115,7 +62,7 @@ export function useLeagues() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated]);
+  }, []);
 
   const createLeagueMutation = useMutation(convexJournalService.createLeague);
   const updateLeagueMutation = useMutation(convexJournalService.updateLeague);
@@ -224,24 +171,12 @@ export function useLeagues() {
   );
 
   const { displayLeagues } = useLeagueQueue({
-    leagues: leagues ?? leagueCache ?? [],
+    leagues: localLeagues ?? [],
   });
 
-  const mergedLeagues = useMemo(() => {
-    if (!isAuthenticated) {
-      return localLeagues ?? [];
-    }
-
-    return displayLeagues;
-  }, [displayLeagues, isAuthenticated, localLeagues]);
-
   return {
-    leagues: mergedLeagues,
-    isLoading:
-      isAuthLoading ||
-      (isAuthenticated
-        ? leagues === undefined && isCacheLoading
-        : isLocalLeaguesLoading),
+    leagues: displayLeagues,
+    isLoading: isLocalLeaguesLoading,
     isAuthenticated,
     createLeague,
     createOpenBowlingLeague,
