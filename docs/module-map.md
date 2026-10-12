@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 
@@ -97,12 +97,12 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 
 - `src/hooks/journal/use-session-mutations.ts` — 593 lines / 16,921 bytes — exports: `useSessionMutations`
-- `src/hooks/journal/use-sessions.ts` — 258 lines / 7,835 bytes — exports: `useSessions`
+- `src/hooks/journal/use-sessions.ts` — 191 lines / 5,766 bytes — exports: `useSessions`
 - `src/hooks/journal/use-session-queue.ts` — 226 lines / 6,494 bytes — exports: `DisplaySession`, `useSessionQueue`
 - `src/hooks/journal/use-session-route-sync.ts` — 77 lines / 1,848 bytes — exports: `useSessionRouteSync`
 - `src/hooks/journal/index.ts` — 20 lines / 981 bytes — exports: `useGameEditor`, `useGames`, `useExportSqliteBackup`, `useHomeLeague`, `useImportBackup`, `useLeagues`, `useLeagueAnalytics`, `useSpareConversionAnalytics`, `SpareConversionData`, `useLeagueGames`, `useLeagueQueue`, `DisplayLeague`, `useQueueSyncStatus`, `useReferenceData`, `useSessions`, `useSessionMutations`, `useSessionQueue`, `DisplaySession`, `useStartTonight`, `useSessionRouteSync`
@@ -125,10 +125,10 @@ Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 **Colocated tests**
 
-- `tests/hooks/journal-hooks-offline.test.ts` — 510 lines / 16,803 bytes
-- `tests/hooks/stubs/journal-hooks-stubs.ts` — 232 lines / 7,981 bytes
+- `tests/hooks/journal-hooks-offline.test.ts` — 664 lines / 20,980 bytes
+- `tests/hooks/stubs/journal-hooks-stubs.ts` — 295 lines / 9,956 bytes
 
-**Totals** — files: 1,174 lines / 34,079 bytes; colocated tests: 742 lines / 24,784 bytes
+**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 959 lines / 30,936 bytes
 
 <!-- MODULE-MAP:GENERATED:B:END -->
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 
@@ -282,7 +282,7 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=b4ddb7190a00242dfa9c08318ea8616ccddfa55c date=2026-10-12 -->
+<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
 
 **Files**
 

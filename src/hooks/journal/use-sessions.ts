@@ -1,7 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 import { resolveReferenceIdForMutation } from './reference-id-resolution';
 
@@ -28,13 +26,6 @@ import { listLocalSessionsByLeague } from '@/services/journal/local-reads';
 import { createClientSyncId } from '@/utils/client-sync-id';
 
 export function useSessions(leagueId: LeagueId | null) {
-  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const sessions = useQuery(
-    convexJournalService.listSessionsByLeague,
-    isAuthenticated && leagueId ? { leagueId } : 'skip'
-  );
-  const [sessionCache, setSessionCache] = useState<Session[] | null>(null);
-  const [isCacheLoading, setIsCacheLoading] = useState(true);
   const [localSessions, setLocalSessions] = useState<Session[] | null>(null);
   const [isLocalSessionsLoading, setIsLocalSessionsLoading] = useState(true);
   const createSessionMutation = useMutation(convexJournalService.createSession);
@@ -42,60 +33,10 @@ export function useSessions(leagueId: LeagueId | null) {
   const removeSessionMutation = useMutation(convexJournalService.removeSession);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Local SQLite is the authoritative session read: always loaded (when a
+  // league is selected), no Convex query, no cloud cache, no auth gate.
   useEffect(() => {
-    const loadCache = async () => {
-      if (!leagueId) {
-        setIsCacheLoading(false);
-        return;
-      }
-
-      try {
-        const cacheKey = `journal:sessions-cache:v1:${leagueId}`;
-        const stored =
-          Platform.OS === 'web'
-            ? globalThis.localStorage.getItem(cacheKey)
-            : await AsyncStorage.getItem(cacheKey);
-
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setSessionCache(parsed);
-          }
-        }
-      } catch {
-        // Ignore cache errors
-      } finally {
-        setIsCacheLoading(false);
-      }
-    };
-
-    loadCache();
-  }, [leagueId]);
-
-  useEffect(() => {
-    if (sessions !== undefined && leagueId) {
-      const persistCache = async () => {
-        try {
-          const cacheKey = `journal:sessions-cache:v1:${leagueId}`;
-          const cacheData = JSON.stringify(sessions);
-          if (Platform.OS === 'web') {
-            globalThis.localStorage.setItem(cacheKey, cacheData);
-          } else {
-            await AsyncStorage.setItem(cacheKey, cacheData);
-          }
-        } catch {
-          // Ignore persistence errors
-        }
-      };
-      persistCache();
-    }
-  }, [sessions, leagueId]);
-
-  // Unauthenticated users read the locally persisted journal (local SQLite
-  // is the authoritative source; the AsyncStorage cache above is cloud-only
-  // and never used for local reads).
-  useEffect(() => {
-    if (isAuthenticated || !leagueId) {
+    if (!leagueId) {
       setIsLocalSessionsLoading(false);
       return;
     }
@@ -125,7 +66,7 @@ export function useSessions(leagueId: LeagueId | null) {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, leagueId]);
+  }, [leagueId]);
 
   const createSession = useCallback(
     async (input: CreateSessionInput) => {
@@ -240,16 +181,8 @@ export function useSessions(leagueId: LeagueId | null) {
   );
 
   return {
-    sessions: !isAuthenticated
-      ? (localSessions ?? [])
-      : sessions === undefined
-        ? (sessionCache ?? [])
-        : sessions,
-    isLoading:
-      isAuthLoading ||
-      (isAuthenticated
-        ? leagueId !== null && sessions === undefined && isCacheLoading
-        : leagueId !== null && isLocalSessionsLoading),
+    sessions: localSessions ?? [],
+    isLoading: leagueId !== null && isLocalSessionsLoading,
     createSession,
     updateSession,
     removeSession,

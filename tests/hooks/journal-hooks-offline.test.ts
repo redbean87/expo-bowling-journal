@@ -5,10 +5,13 @@ import { after, test } from 'node:test';
 import {
   __setActiveRenderer,
   asyncStorageGetKeys,
+  convexOps,
   journalCreateQueue,
   journalCreateQueuePersistCalls,
+  localReadCalls,
   mutationCalls,
   resetJournalHookStubs,
+  setLocalReadSeed,
 } from './stubs/journal-hooks-stubs';
 import { __connectivityTestControls } from '../../src/services/connectivity';
 import {
@@ -18,6 +21,15 @@ import {
 } from '../harness/fake-env';
 import { MiniReact } from '../harness/mini-hook-renderer';
 import { registerStubRemaps } from '../harness/remap';
+
+import type {
+  GameId,
+  GameListItem,
+  League,
+  LeagueId,
+  Session,
+  SessionId,
+} from '../../src/services/journal/types/core';
 
 // Journal hook offline branch tests.
 //
@@ -40,6 +52,12 @@ import { registerStubRemaps } from '../harness/remap';
 // safe queue representation); online → behavior-identical mutation input
 // and propagated return value; plus online→offline and offline→online
 // transitions without remounting.
+//
+// The server is sabotaged in this suite: the `convex/react` double records
+// and throws on any bound query, and the `local-reads` double serves
+// seeded local documents while recording every read. The final test mounts
+// all three hooks in a signed-in but unreachable state and asserts they
+// render their seeded local data with zero Convex operations.
 
 const stubDir = path.join(__dirname, 'stubs');
 const stubPath = path.join(stubDir, 'journal-hooks-stubs.ts');
@@ -94,9 +112,22 @@ type MountedHooks = {
   sessions: ReturnType<SessionsModule['useSessions']>;
 };
 
-async function mountHooks(initial: FakeNetInfoState): Promise<MountedHooks> {
+type LocalReadSeed = {
+  leagues: League[];
+  sessions: Session[];
+  games: GameListItem[];
+};
+
+async function mountHooks(
+  initial: FakeNetInfoState,
+  seed?: LocalReadSeed
+): Promise<MountedHooks> {
   __connectivityTestControls.reset();
   resetJournalHookStubs();
+
+  if (seed) {
+    setLocalReadSeed(seed);
+  }
 
   const fake = createFakeNetInfo(initial, true);
   __connectivityTestControls.useNetInfoModule(fake.mod);
@@ -504,6 +535,129 @@ test('offline to online: recovery restores mutation calls with the same behavior
     // The queued offline entry is still waiting for the flusher.
     assert.equal(journalCreateQueue.length, 1);
     assert.equal(entryAt(0).entityType, 'session-create');
+  } finally {
+    harness.unmount();
+  }
+});
+
+// Seeded local journal documents for the sabotaged-server proof test. The
+// shapes mirror what the real SQLite-backed adapter reports: one league
+// ('league-1') with two sessions, the first with two games, plus one
+// off-league session and one off-session game that must be filtered out.
+const LEAGUE_ID = 'league-1' as LeagueId;
+const SESSION_ID = 'session-1' as SessionId;
+
+const localLeague: League = {
+  _id: LEAGUE_ID,
+  _creationTime: 1736054400000,
+  userId: 'local-user' as League['userId'],
+  name: 'Alpha League',
+  createdAt: 1736054400000,
+  gamesPerSession: 5,
+};
+
+const localSessionOne: Session = {
+  _id: SESSION_ID,
+  _creationTime: 1736079600000,
+  userId: 'local-user' as Session['userId'],
+  leagueId: LEAGUE_ID,
+  date: '2025-01-05',
+  weekNumber: 2,
+};
+
+const localSessionTwo: Session = {
+  _id: 'session-2' as SessionId,
+  _creationTime: 1736166000000,
+  userId: 'local-user' as Session['userId'],
+  leagueId: LEAGUE_ID,
+  date: '2025-01-06',
+  weekNumber: 2,
+};
+
+const offLeagueSession: Session = {
+  _id: 'session-9' as SessionId,
+  _creationTime: 1738414800000,
+  userId: 'local-user' as Session['userId'],
+  leagueId: 'other-league' as LeagueId,
+  date: '2025-02-01',
+};
+
+const localGameOne: GameListItem = {
+  _id: 'game-1' as GameId,
+  _creationTime: 1736079600000,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: SESSION_ID,
+  leagueId: LEAGUE_ID,
+  date: '2025-01-05',
+  totalScore: 300,
+  strikes: 12,
+  spares: 0,
+  opens: 0,
+};
+
+const localGameTwo: GameListItem = {
+  _id: 'game-2' as GameId,
+  _creationTime: 1736079601000,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: SESSION_ID,
+  leagueId: LEAGUE_ID,
+  date: '2025-01-05',
+  totalScore: 120,
+  strikes: 2,
+  spares: 2,
+  opens: 6,
+};
+
+const offSessionGame: GameListItem = {
+  _id: 'game-9' as GameId,
+  _creationTime: 1736166000000,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'session-2' as SessionId,
+  leagueId: LEAGUE_ID,
+  date: '2025-01-06',
+  totalScore: 90,
+  strikes: 0,
+  spares: 3,
+  opens: 7,
+};
+
+test('sabotaged server: the three hooks render from local data', async () => {
+  const harness = await mountHooks(
+    { isConnected: false, type: 'none' },
+    {
+      leagues: [localLeague],
+      sessions: [localSessionOne, localSessionTwo, offLeagueSession],
+      games: [localGameOne, localGameTwo, offSessionGame],
+    }
+  );
+
+  try {
+    // Zero server attempts: the sabotaged double records and throws on any
+    // bound query, so the completed render above proves no Convex read was
+    // bound.
+    assert.deepEqual(convexOps, []);
+
+    // Every read went through the local adapter, in the component's hook
+    // order (use-games, use-leagues, use-sessions).
+    assert.deepEqual(localReadCalls, [
+      'listLocalGamesBySession',
+      'listLocalLeagues',
+      'listLocalSessionsByLeague',
+    ]);
+
+    // The rendered data is the seeded local data: the off-league session and
+    // the off-session game are filtered out, as the real adapter does.
+    assert.equal(harness.leagues.isLoading, false);
+    assert.deepEqual(harness.leagues.leagues, [localLeague]);
+
+    assert.equal(harness.sessions.isLoading, false);
+    assert.deepEqual(harness.sessions.sessions, [
+      localSessionOne,
+      localSessionTwo,
+    ]);
+
+    assert.equal(harness.games.isLoading, false);
+    assert.deepEqual(harness.games.games, [localGameOne, localGameTwo]);
   } finally {
     harness.unmount();
   }
