@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { ErrorBoundary } from '@/components/error-boundary';
-import { AppProvider } from '@/providers/app-provider';
+import { AppProvider, useLocalMode } from '@/providers/app-provider';
 import { useAppTheme } from '@/theme/use-app-theme';
 
 if (Platform.OS !== 'web') {
@@ -29,19 +29,30 @@ export default function RootLayout() {
 }
 
 function RootStack() {
+  const localMode = useLocalMode();
   const { isLoading } = useConvexAuth();
   const { mode, colors } = useAppTheme();
 
+  // Local-first: the session check is not a gate between launch and the
+  // journal. While local mode is on the root renders the journal
+  // immediately and the session state may settle in the background; the
+  // gate below only applies when local mode is off.
+  const sessionGateActive = !localMode && isLoading;
+
   useEffect(() => {
-    if (Platform.OS === 'web' || isLoading) {
+    if (Platform.OS === 'web' || sessionGateActive) {
       return;
     }
 
     void SplashScreen.hideAsync();
-  }, [isLoading]);
+  }, [sessionGateActive]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || isLoading || typeof document === 'undefined') {
+    if (
+      Platform.OS !== 'web' ||
+      sessionGateActive ||
+      typeof document === 'undefined'
+    ) {
       return;
     }
 
@@ -61,9 +72,9 @@ function RootStack() {
     return () => {
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [isLoading]);
+  }, [sessionGateActive]);
 
-  if (isLoading) {
+  if (sessionGateActive) {
     return null;
   }
 

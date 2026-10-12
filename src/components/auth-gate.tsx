@@ -11,6 +11,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Input } from '@/components/ui';
 import { viewerQuery } from '@/convex/functions';
+import { useLocalMode } from '@/providers/app-provider';
 import {
   lineHeight,
   radius,
@@ -21,10 +22,18 @@ import {
 import { useAppTheme } from '@/theme/use-app-theme';
 
 export function AuthGate() {
+  const localMode = useLocalMode();
   const { isAuthenticated } = useConvexAuth();
   const viewer = useQuery(viewerQuery, isAuthenticated ? {} : 'skip');
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Local-first: the journal on this device needs no account. While local
+  // mode is on there is no session-check gate and no sign-in form, so the
+  // gate renders nothing.
+  if (localMode) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
