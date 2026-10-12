@@ -1,4 +1,4 @@
-import { isRetryableSaveError } from '../game-editor/game-save-queue';
+import { isRetryableSaveError } from '../../utils/retryable-save-error';
 
 import type { ReferenceType } from './reference-draft-id';
 

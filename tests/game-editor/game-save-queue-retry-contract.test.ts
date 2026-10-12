@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isRetryableSaveError } from '../../src/screens/game-editor/game-save-queue';
+import { isRetryableSaveError } from '../../src/utils/retryable-save-error';
 
 // The hybrid rejection shape below is the only mutation-rejection shape the
 // installed Convex SDK (1.32.0) produces. It is established from source
