@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -17,6 +16,14 @@ import {
 } from './stubs/syncer-stubs';
 import { notifyQueueSyncStateChanged } from '../../src/screens/journal/queue-sync-events';
 import { __connectivityTestControls } from '../../src/services/connectivity';
+import {
+  createFakeNetInfo,
+  FakeTimers,
+  type FakeNetInfo,
+  type FakeNetInfoState,
+} from '../harness/fake-env';
+import { MiniReact } from '../harness/mini-hook-renderer';
+import { registerStubRemaps } from '../harness/remap';
 
 // The syncer component runs under the plain Node/tsx runner with every
 // un-Node-able import remapped to a local test double: 'react' (a mini hook
@@ -75,21 +82,11 @@ const presenceStorageRewrites: Record<string, string> = {
   './reference-create-queue-storage': stubPath,
 };
 
-const hookHandle = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    const rewrites =
-      context.parentURL === presenceModuleUrl
-        ? { ...stubRewrites, ...presenceStorageRewrites }
-        : stubRewrites;
-    const rewritten = rewrites[specifier];
-
-    if (rewritten) {
-      return nextResolve(rewritten, context);
-    }
-
-    return nextResolve(specifier, context);
-  },
-});
+const hookHandle = registerStubRemaps((parentURL) =>
+  parentURL === presenceModuleUrl
+    ? { ...stubRewrites, ...presenceStorageRewrites }
+    : stubRewrites
+);
 
 after(() => {
   hookHandle.deregister();
@@ -105,389 +102,6 @@ function getSyncerModule(): Promise<SyncerModule> {
   syncerModulePromise ??= import('../../src/providers/game-save-queue-syncer');
 
   return syncerModulePromise;
-}
-
-// --- Mini hook renderer ---------------------------------------------------
-//
-// Implements the subset of React hooks the syncer uses, with the same
-// hook-order, memo, and effect cleanup/dependency semantics the component
-// relies on. State updates schedule a re-render pass on the microtask queue,
-// mirroring React's batched passive-effect updates.
-
-type EffectEntry = {
-  fn: (() => unknown) | null;
-  pendingDeps: readonly unknown[] | null;
-  deps: readonly unknown[] | null;
-  hasRun: boolean;
-  cleanup: (() => void) | null;
-};
-
-function shallowDepsEqual(
-  a: readonly unknown[] | null,
-  b: readonly unknown[] | null
-): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (a === null || b === null || a.length !== b.length) {
-    return false;
-  }
-
-  return a.every((value, index) => Object.is(value, b[index]));
-}
-
-class MiniReact {
-  private hookIndex = 0;
-  private states: unknown[] = [];
-  private stateSeeds = new Set<number>();
-  private memoCache: Array<{
-    value: unknown;
-    deps: readonly unknown[] | null;
-  } | null> = [];
-  private refs: Array<{ current: unknown } | undefined> = [];
-  private effects: EffectEntry[] = [];
-  private effectSlot = 0;
-  private commitScheduled = false;
-  private unmounted = false;
-
-  private readonly componentFn: () => null;
-
-  constructor(componentFn: () => null) {
-    this.componentFn = componentFn;
-  }
-
-  mount(): void {
-    this.commit();
-  }
-
-  unmount(): void {
-    this.unmounted = true;
-
-    for (const effect of this.effects) {
-      if (effect.cleanup !== null) {
-        effect.cleanup();
-      }
-    }
-  }
-
-  private commit(): void {
-    __setActiveRenderer(this);
-
-    try {
-      this.hookIndex = 0;
-      this.effectSlot = 0;
-      this.componentFn();
-      this.runEffects();
-    } finally {
-      __setActiveRenderer(null);
-    }
-  }
-
-  private scheduleCommit(): void {
-    if (this.unmounted || this.commitScheduled) {
-      return;
-    }
-    this.commitScheduled = true;
-    queueMicrotask(() => {
-      this.commitScheduled = false;
-      if (!this.unmounted) {
-        this.commit();
-      }
-    });
-  }
-
-  private runEffects(): void {
-    for (const effect of this.effects) {
-      const changed =
-        !effect.hasRun || !shallowDepsEqual(effect.deps, effect.pendingDeps);
-
-      if (!changed) {
-        continue;
-      }
-
-      if (effect.cleanup !== null) {
-        effect.cleanup();
-      }
-
-      const result = effect.fn === null ? undefined : effect.fn();
-
-      effect.cleanup =
-        typeof result === 'function' ? (result as () => void) : null;
-      effect.deps = effect.pendingDeps;
-      effect.hasRun = true;
-    }
-  }
-
-  private ensureEffect(index: number): EffectEntry {
-    let effect = this.effects[index];
-
-    if (effect === undefined) {
-      effect = {
-        fn: null,
-        pendingDeps: null,
-        deps: null,
-        hasRun: false,
-        cleanup: null,
-      };
-      this.effects[index] = effect;
-    }
-
-    return effect;
-  }
-
-  useState(initial: unknown): [unknown, (next: unknown) => void] {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-
-    if (!this.stateSeeds.has(index)) {
-      this.stateSeeds.add(index);
-      this.states[index] = initial;
-    }
-
-    const value = this.states[index];
-
-    const setState = (next: unknown): void => {
-      const resolved =
-        typeof next === 'function'
-          ? (next as (previous: unknown) => unknown)(this.states[index])
-          : next;
-
-      if (Object.is(this.states[index], resolved)) {
-        return;
-      }
-
-      this.states[index] = resolved;
-      this.scheduleCommit();
-    };
-
-    return [value, setState];
-  }
-
-  useCallback(
-    callback: (...args: unknown[]) => unknown,
-    deps: readonly unknown[] | undefined
-  ): (...args: unknown[]) => unknown {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as (...args: unknown[]) => unknown;
-    }
-
-    this.memoCache[index] = { value: callback, deps: deps ?? null };
-
-    return callback;
-  }
-
-  useMemo<T>(factory: () => T, deps: readonly unknown[] | undefined): T {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as T;
-    }
-
-    const value = factory();
-
-    this.memoCache[index] = { value, deps: deps ?? null };
-
-    return value;
-  }
-
-  useRef<T>(initial: T): { current: T } {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    let ref = this.refs[index];
-
-    if (ref === undefined) {
-      ref = { current: initial };
-      this.refs[index] = ref;
-    }
-
-    return ref as { current: T };
-  }
-
-  useEffect(
-    effect: () => unknown | (() => void),
-    deps: readonly unknown[] | undefined
-  ): void {
-    // Effects are matched by per-render position (like React's hook list);
-    // the slot index resets on every commit so entries persist across
-    // re-renders instead of growing.
-    const index = this.effectSlot;
-    this.effectSlot += 1;
-    this.hookIndex += 1;
-    const entry = this.ensureEffect(index);
-
-    entry.fn = effect;
-    entry.pendingDeps = deps ?? null;
-  }
-}
-
-// --- Faked timers ---------------------------------------------------------
-//
-// Captures the syncer's `setTimeout`/`setInterval` calls so cadence (5000ms)
-// and teardown (offline / no pending entries) can be asserted without
-// waiting on real time. Timers only fire when the test fires them.
-
-type TimerEntry = {
-  id: number;
-  type: 'timeout' | 'interval';
-  delay: number;
-  fn: () => void;
-};
-
-class FakeTimers {
-  private timers = new Map<number, TimerEntry>();
-  private nextId = 1;
-  private originals: {
-    setTimeout: typeof globalThis.setTimeout;
-    setInterval: typeof globalThis.setInterval;
-    clearTimeout: typeof globalThis.clearTimeout;
-    clearInterval: typeof globalThis.clearInterval;
-  } | null = null;
-
-  install(): void {
-    this.originals = {
-      setTimeout: globalThis.setTimeout,
-      setInterval: globalThis.setInterval,
-      clearTimeout: globalThis.clearTimeout,
-      clearInterval: globalThis.clearInterval,
-    };
-    (globalThis as { setTimeout: unknown }).setTimeout = (
-      fn: () => void,
-      delay?: number
-    ) => this.schedule('timeout', fn, delay ?? 0);
-    (globalThis as { setInterval: unknown }).setInterval = (
-      fn: () => void,
-      delay?: number
-    ) => this.schedule('interval', fn, delay ?? 0);
-    (globalThis as { clearTimeout: unknown }).clearTimeout = (id: number) => {
-      this.timers.delete(id);
-    };
-    (globalThis as { clearInterval: unknown }).clearInterval = (id: number) => {
-      this.timers.delete(id);
-    };
-  }
-
-  restore(): void {
-    if (this.originals === null) {
-      return;
-    }
-
-    globalThis.setTimeout = this.originals.setTimeout;
-    globalThis.setInterval = this.originals.setInterval;
-    globalThis.clearTimeout = this.originals.clearTimeout;
-    globalThis.clearInterval = this.originals.clearInterval;
-    this.originals = null;
-    this.timers.clear();
-  }
-
-  private schedule(
-    type: 'timeout' | 'interval',
-    fn: () => void,
-    delay: number
-  ): number {
-    const id = this.nextId;
-    this.nextId += 1;
-    this.timers.set(id, { id, type, delay, fn });
-
-    return id;
-  }
-
-  activeTimers(): TimerEntry[] {
-    return [...this.timers.values()];
-  }
-
-  activeIntervals(): TimerEntry[] {
-    return this.activeTimers().filter((timer) => timer.type === 'interval');
-  }
-
-  pendingTimeouts(): TimerEntry[] {
-    return this.activeTimers().filter((timer) => timer.type === 'timeout');
-  }
-
-  fireTimeout(id: number): void {
-    const timer = this.timers.get(id);
-
-    if (timer === undefined) {
-      throw new Error(`no pending timeout ${id}`);
-    }
-
-    this.timers.delete(id);
-    timer.fn();
-  }
-
-  fireIntervalTick(intervalId: number): void {
-    const timer = this.timers.get(intervalId);
-
-    if (timer === undefined || timer.type !== 'interval') {
-      throw new Error(`no active interval ${intervalId}`);
-    }
-
-    timer.fn();
-  }
-}
-
-// --- Simulated netinfo source ----------------------------------------------
-
-type FakeNetInfoState = {
-  isConnected: boolean | null;
-  type: string;
-};
-
-type FakeNetInfoModule = {
-  addEventListener(listener: (state: FakeNetInfoState) => void): () => void;
-};
-
-type FakeNetInfo = {
-  mod: FakeNetInfoModule;
-  emit(state: FakeNetInfoState): void;
-};
-
-// Mirrors the netinfo fake in `tests/connectivity.test.ts`: the initial
-// state is delivered right after the source is subscribed (synchronously
-// when `sync` is true, which exercises the singleton's known-state replay).
-function createFakeNetInfo(
-  initial: FakeNetInfoState,
-  sync: boolean
-): FakeNetInfo {
-  let listener: ((state: FakeNetInfoState) => void) | null = null;
-  let latest: FakeNetInfoState = initial;
-
-  const mod: FakeNetInfoModule = {
-    addEventListener(nextListener: (state: FakeNetInfoState) => void) {
-      listener = nextListener;
-      const state = latest;
-
-      if (sync) {
-        nextListener(state);
-      } else {
-        queueMicrotask(() => {
-          nextListener(state);
-        });
-      }
-
-      return () => {
-        if (listener === nextListener) {
-          listener = null;
-        }
-      };
-    },
-  };
-
-  return {
-    mod,
-    emit(state: FakeNetInfoState): void {
-      latest = state;
-
-      if (listener !== null) {
-        listener(state);
-      }
-    },
-  };
 }
 
 // --- Test harness ----------------------------------------------------------
@@ -516,7 +130,10 @@ async function mountSyncer(
   timers.install();
 
   const syncerModule = await getSyncerModule();
-  const renderer = new MiniReact(syncerModule.GameSaveQueueSyncer);
+  const renderer = new MiniReact(
+    syncerModule.GameSaveQueueSyncer,
+    __setActiveRenderer
+  );
   renderer.mount();
 
   return {
