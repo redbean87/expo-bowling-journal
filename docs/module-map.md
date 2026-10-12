@@ -30,32 +30,32 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
-- `src/screens/journal/journal-create-queue.ts` — 564 lines / 14,617 bytes — exports: `QueuedLeagueCreateEntry`, `QueuedLeagueUpdateEntry`, `QueuedLeagueDeleteEntry`, `QueuedSessionCreateEntry`, `QueuedSessionUpdateEntry`, `QueuedSessionDeleteEntry`, `QueuedJournalCreateEntry`, `buildLeagueCreateQueueId`, `buildLeagueUpdateQueueId`, `buildLeagueDeleteQueueId`, `buildSessionCreateQueueId`, `buildSessionUpdateQueueId`, `buildSessionDeleteQueueId`, `createQueuedLeagueCreateEntry`, `createQueuedLeagueUpdateEntry`, `createQueuedLeagueDeleteEntry`, `createQueuedSessionCreateEntry`, `createQueuedSessionUpdateEntry`, `createQueuedSessionDeleteEntry`, `upsertQueuedJournalCreateEntry`, `removeQueuedJournalCreateEntry`, `markQueuedJournalCreateEntryRetry`, `getDueQueuedJournalCreateEntries`, `isRetryableCreateError`
+- `src/screens/journal/journal-create-queue.ts` — 564 lines / 14,619 bytes — exports: `QueuedLeagueCreateEntry`, `QueuedLeagueUpdateEntry`, `QueuedLeagueDeleteEntry`, `QueuedSessionCreateEntry`, `QueuedSessionUpdateEntry`, `QueuedSessionDeleteEntry`, `QueuedJournalCreateEntry`, `buildLeagueCreateQueueId`, `buildLeagueUpdateQueueId`, `buildLeagueDeleteQueueId`, `buildSessionCreateQueueId`, `buildSessionUpdateQueueId`, `buildSessionDeleteQueueId`, `createQueuedLeagueCreateEntry`, `createQueuedLeagueUpdateEntry`, `createQueuedLeagueDeleteEntry`, `createQueuedSessionCreateEntry`, `createQueuedSessionUpdateEntry`, `createQueuedSessionDeleteEntry`, `upsertQueuedJournalCreateEntry`, `removeQueuedJournalCreateEntry`, `markQueuedJournalCreateEntryRetry`, `getDueQueuedJournalCreateEntries`, `isRetryableCreateError`
 - `src/screens/journal/journal-create-queue-sync.ts` — 474 lines / 14,823 bytes — exports: `flushJournalCreateQueue`, `flushJournalCreateQueueWithLock`
 - `src/screens/journal/journal-create-queue-storage.ts` — 84 lines / 2,388 bytes — exports: `loadJournalCreateQueue`, `persistJournalCreateQueue`
 - `src/screens/journal/journal-offline-create.ts` — 23 lines / 617 bytes — exports: `isNavigatorOffline`, `withTimeout`
 - `src/screens/journal/queue-sync-events.ts` — 17 lines / 351 bytes — exports: `subscribeQueueSyncState`, `notifyQueueSyncStateChanged`
 - `src/screens/journal/queue-sync-presence.ts` — 76 lines / 2,047 bytes — exports: `QueueSyncPresence`, `loadQueueSyncPresence`, `shouldRunQueueSyncInterval`, `didRestoreConnectivity`
 - `src/screens/journal/journal-client-sync-map-storage.ts` — 122 lines / 3,315 bytes — exports: `JournalClientSyncMap`, `loadJournalClientSyncMap`, `persistJournalClientSyncMap`, `upsertLeagueClientSyncMapping`, `upsertSessionClientSyncMapping`, `upsertHouseClientSyncMapping`, `upsertPatternClientSyncMapping`, `upsertBallClientSyncMapping`
-- `src/screens/journal/reference-create-queue.ts` — 126 lines / 2,925 bytes — exports: `QueuedReferenceCreateEntry`, `buildReferenceCreateQueueId`, `createQueuedReferenceCreateEntry`, `upsertQueuedReferenceCreateEntry`, `removeQueuedReferenceCreateEntry`, `markQueuedReferenceCreateEntryRetry`, `getDueQueuedReferenceCreateEntries`, `isRetryableReferenceCreateError`
+- `src/screens/journal/reference-create-queue.ts` — 126 lines / 2,927 bytes — exports: `QueuedReferenceCreateEntry`, `buildReferenceCreateQueueId`, `createQueuedReferenceCreateEntry`, `upsertQueuedReferenceCreateEntry`, `removeQueuedReferenceCreateEntry`, `markQueuedReferenceCreateEntryRetry`, `getDueQueuedReferenceCreateEntries`, `isRetryableReferenceCreateError`
 - `src/screens/journal/reference-create-queue-sync.ts` — 159 lines / 4,541 bytes — exports: `flushReferenceCreateQueue`, `flushReferenceCreateQueueWithLock`
 - `src/screens/journal/reference-create-queue-storage.ts` — 84 lines / 2,429 bytes — exports: `loadReferenceCreateQueue`, `persistReferenceCreateQueue`
 - `src/screens/journal/reference-draft-id.ts` — 91 lines / 2,020 bytes — exports: `ReferenceType`, `buildDraftReferenceId`, `parseDraftReferenceId`, `resolveReferenceIdFromSyncMap`
 
 **Depends on** (in-repo imports; external packages omitted)
 
-- `journal-create-queue.ts` → `src/screens/game-editor/game-save-queue.ts` (`isRetryableSaveError`); `src/services/journal/index.ts` (`CreateLeagueInput`, `CreateSessionInput`, `LeagueId`, `RemoveLeagueInput`, `RemoveSessionInput`, `SessionId`, `UpdateLeagueInput`, `UpdateSessionInput`)
+- `journal-create-queue.ts` → `src/services/journal/index.ts` (`CreateLeagueInput`, `CreateSessionInput`, `LeagueId`, `RemoveLeagueInput`, `RemoveSessionInput`, `SessionId`, `UpdateLeagueInput`, `UpdateSessionInput`); `src/utils/retryable-save-error.ts` (`isRetryableSaveError`)
 - `journal-create-queue-sync.ts` → `src/screens/journal/journal-client-sync-map-storage.ts` (`loadJournalClientSyncMap`, `upsertLeagueClientSyncMapping`, `upsertSessionClientSyncMapping`); `src/screens/journal/journal-create-queue-storage.ts` (`loadJournalCreateQueue`, `persistJournalCreateQueue`); `src/screens/journal/journal-create-queue.ts` (`QueuedJournalCreateEntry`, `getDueQueuedJournalCreateEntries`, `isRetryableCreateError`, `markQueuedJournalCreateEntryRetry`, `removeQueuedJournalCreateEntry`); `src/screens/journal/reference-draft-id.ts` (`resolveReferenceIdFromSyncMap`); `src/services/journal/index.ts` (`CreateLeagueInput`, `CreateSessionInput`, `LeagueId`, `RemoveLeagueInput`, `RemoveSessionInput`, `SessionId`, `UpdateLeagueInput`, `UpdateSessionInput`)
 - `journal-create-queue-storage.ts` → `src/screens/journal/journal-create-queue.ts` (`QueuedJournalCreateEntry`); `src/screens/journal/queue-sync-events.ts` (`notifyQueueSyncStateChanged`)
 - `journal-offline-create.ts` → `src/services/connectivity.ts` (`isConnectivityOffline`)
 - `queue-sync-events.ts` — none
 - `queue-sync-presence.ts` → `src/screens/game-editor/game-save-queue-storage.ts`; `src/screens/journal/journal-create-queue-storage.ts`; `src/screens/journal/reference-create-queue-storage.ts`
 - `journal-client-sync-map-storage.ts` — none
-- `reference-create-queue.ts` → `src/screens/game-editor/game-save-queue.ts` (`isRetryableSaveError`); `src/screens/journal/reference-draft-id.ts` (`ReferenceType`)
+- `reference-create-queue.ts` → `src/screens/journal/reference-draft-id.ts` (`ReferenceType`); `src/utils/retryable-save-error.ts` (`isRetryableSaveError`)
 - `reference-create-queue-sync.ts` → `src/screens/journal/journal-client-sync-map-storage.ts` (`upsertBallClientSyncMapping`, `upsertHouseClientSyncMapping`, `upsertPatternClientSyncMapping`); `src/screens/journal/reference-create-queue-storage.ts` (`loadReferenceCreateQueue`, `persistReferenceCreateQueue`); `src/screens/journal/reference-create-queue.ts` (`QueuedReferenceCreateEntry`, `getDueQueuedReferenceCreateEntries`, `isRetryableReferenceCreateError`, `markQueuedReferenceCreateEntryRetry`, `removeQueuedReferenceCreateEntry`)
 - `reference-create-queue-storage.ts` → `src/screens/journal/queue-sync-events.ts` (`notifyQueueSyncStateChanged`); `src/screens/journal/reference-create-queue.ts` (`QueuedReferenceCreateEntry`); `src/screens/journal/reference-draft-id.ts` (`ReferenceType`)
 - `reference-draft-id.ts` → `src/screens/journal/journal-client-sync-map-storage.ts` (`JournalClientSyncMap`)
@@ -81,7 +81,7 @@ Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- te
 - `tests/journal/reference-create-queue.test.ts` — 79 lines / 2,291 bytes
 - `tests/journal/reference-draft-id.test.ts` — 68 lines / 1,894 bytes
 
-**Totals** — files: 1,820 lines / 50,073 bytes; colocated tests: 331 lines / 8,963 bytes
+**Totals** — files: 1,820 lines / 50,077 bytes; colocated tests: 331 lines / 8,963 bytes
 
 <!-- MODULE-MAP:GENERATED:A:END -->
 
@@ -97,7 +97,7 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
@@ -125,10 +125,10 @@ Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 **Colocated tests**
 
-- `tests/hooks/journal-hooks-offline.test.ts` — 768 lines / 23,047 bytes
+- `tests/hooks/journal-hooks-offline.test.ts` — 510 lines / 16,803 bytes
 - `tests/hooks/stubs/journal-hooks-stubs.ts` — 232 lines / 7,981 bytes
 
-**Totals** — files: 1,174 lines / 34,079 bytes; colocated tests: 1,000 lines / 31,028 bytes
+**Totals** — files: 1,174 lines / 34,079 bytes; colocated tests: 742 lines / 24,784 bytes
 
 <!-- MODULE-MAP:GENERATED:B:END -->
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
@@ -191,12 +191,12 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
 - `src/providers/game-save-queue-syncer.tsx` — 185 lines / 5,778 bytes — exports: `GameSaveQueueSyncer`
-- `src/screens/game-editor/game-save-queue.ts` — 253 lines / 6,268 bytes — exports: `QueuedGameSaveEntry`, `buildGameSaveQueueId`, `createQueuedGameSaveEntry`, `upsertQueuedGameSaveEntry`, `replaceQueuedGameSaveEntry`, `removeQueuedGameSaveEntry`, `getDueQueuedGameSaveEntries`, `getQueuedGameSaveEntry`, `migrateQueuedEntryToGameId`, `markQueuedGameSaveEntryRetry`, `isRetryableSaveError`, `getActionableSaveErrorMessage`
+- `src/screens/game-editor/game-save-queue.ts` — 225 lines / 5,550 bytes — exports: `isRetryableSaveError`, `QueuedGameSaveEntry`, `buildGameSaveQueueId`, `createQueuedGameSaveEntry`, `upsertQueuedGameSaveEntry`, `replaceQueuedGameSaveEntry`, `removeQueuedGameSaveEntry`, `getDueQueuedGameSaveEntries`, `getQueuedGameSaveEntry`, `migrateQueuedEntryToGameId`, `markQueuedGameSaveEntryRetry`, `getActionableSaveErrorMessage`
 - `src/screens/game-editor/game-save-queue-sync.ts` — 55 lines / 1,354 bytes — exports: `flushQueuedGameSaves`, `isQueuedGameSaveFlushInFlight`, `flushQueuedGameSavesWithLock`
 - `src/screens/game-editor/game-save-queue-sync-core.ts` — 339 lines / 9,447 bytes — exports: `FlushQueuedGameSavesOptions`, `FlushQueuedGameSavesResult`, `flushQueuedGameSavesCore`
 - `src/screens/game-editor/game-save-queue-sync-storage.ts` — 52 lines / 1,507 bytes — exports: `loadDefaultQueue`, `persistDefaultQueue`, `loadJournalSyncMapDefault`, `getErrorMessage`, `getEntryByQueueId`, `removeQueuedEntryIfSignatureMatches`, `applyQueueMutation`
@@ -206,7 +206,7 @@ Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game
 **Depends on** (in-repo imports; external packages omitted)
 
 - `game-save-queue-syncer.tsx` → `src/screens/game-editor/game-local-draft-storage.ts` (`removeLocalGameDraft`); `src/screens/game-editor/game-save-queue-sync.ts` (`flushQueuedGameSavesWithLock`); `src/screens/journal/journal-create-queue-sync.ts` (`flushJournalCreateQueueWithLock`); `src/screens/journal/queue-sync-events.ts` (`subscribeQueueSyncState`); `src/screens/journal/queue-sync-presence.ts` (`didRestoreConnectivity`, `loadQueueSyncPresence`, `shouldRunQueueSyncInterval`); `src/screens/journal/reference-create-queue-sync.ts` (`flushReferenceCreateQueueWithLock`); `src/services/connectivity.ts` (`isConnectivityOffline`, `subscribeConnectivity`); `src/services/journal/index.ts` (`convexJournalService`)
-- `game-save-queue.ts` → `src/services/journal/index.ts` (`EditableFrameInput`)
+- `game-save-queue.ts` → `src/services/journal/index.ts` (`EditableFrameInput`); `src/utils/retryable-save-error.ts` (`getSaveErrorMessage`, `isRetryableSaveError`)
 - `game-save-queue-sync.ts` → `src/screens/game-editor/game-save-queue-sync-core.ts` (`FlushQueuedGameSavesOptions`, `FlushQueuedGameSavesResult`, `flushQueuedGameSavesCore`); `src/screens/game-editor/game-save-queue-sync-storage.ts` (`loadDefaultQueue`, `persistDefaultQueue`)
 - `game-save-queue-sync-core.ts` → `src/screens/game-editor/game-save-queue-sync-storage.ts` (`applyQueueMutation`, `getEntryByQueueId`, `getErrorMessage`, `loadJournalSyncMapDefault`, `removeQueuedEntryIfSignatureMatches`); `src/screens/game-editor/game-save-queue.ts` (`QueuedGameSaveEntry`, `isRetryableSaveError`, `markQueuedGameSaveEntryRetry`, `migrateQueuedEntryToGameId`, `replaceQueuedGameSaveEntry`); `src/screens/journal/reference-draft-id.ts` (`parseDraftReferenceId`, `resolveReferenceIdFromSyncMap`); `src/services/journal/index.ts` (`CreateGameInput`, `GameId`, `ReplaceFramesInput`, `SessionId`, `UpdateGameInput`)
 - `game-save-queue-sync-storage.ts` → `src/screens/game-editor/game-save-queue-storage.ts`; `src/screens/game-editor/game-save-queue.ts` (`QueuedGameSaveEntry`); `src/screens/journal/journal-client-sync-map-storage.ts`
@@ -216,7 +216,7 @@ Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
 - `game-save-queue-syncer.tsx` ← `app/(app)/_layout.tsx`, `tests/providers/game-save-queue-syncer.test.ts`
-- `game-save-queue.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/game-save-queue-status.ts`, `src/screens/game-editor/game-save-queue-storage.ts`, `src/screens/game-editor/game-save-queue-sync-core.ts`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/journal-create-queue.ts`, `src/screens/journal/journal-games-display.ts`, `src/screens/journal/reference-create-queue.ts`, `tests/game-editor/game-save-queue-retry-contract.test.ts`, `tests/game-editor/game-save-queue-status.test.ts`, `tests/game-editor/game-save-queue-sync.test.ts`, `tests/game-editor/game-save-queue.test.ts`
+- `game-save-queue.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/game-save-queue-status.ts`, `src/screens/game-editor/game-save-queue-storage.ts`, `src/screens/game-editor/game-save-queue-sync-core.ts`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/journal-games-display.ts`, `tests/game-editor/game-save-queue-status.test.ts`, `tests/game-editor/game-save-queue-sync.test.ts`, `tests/game-editor/game-save-queue.test.ts`
 - `game-save-queue-sync.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `tests/game-editor/game-save-queue-sync.test.ts`
 - `game-save-queue-sync-core.ts` ← `src/screens/game-editor/game-save-queue-sync.ts`
 - `game-save-queue-sync-storage.ts` ← `src/screens/game-editor/game-save-queue-sync-core.ts`, `src/screens/game-editor/game-save-queue-sync.ts`
@@ -225,15 +225,15 @@ Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game
 
 **Colocated tests**
 
-- `tests/providers/game-save-queue-syncer.test.ts` — 814 lines / 23,783 bytes
+- `tests/providers/game-save-queue-syncer.test.ts` — 431 lines / 14,235 bytes
 - `tests/providers/stubs/syncer-stubs.ts` — 244 lines / 8,001 bytes
 - `tests/game-editor/game-save-queue-sync.test.ts` — 452 lines / 13,023 bytes
 - `tests/game-editor/game-save-queue.test.ts` — 375 lines / 9,166 bytes
 - `tests/game-editor/game-save-queue-status.test.ts` — 87 lines / 2,166 bytes
-- `tests/game-editor/game-save-queue-retry-contract.test.ts` — 76 lines / 2,565 bytes
+- `tests/game-editor/game-save-queue-retry-contract.test.ts` — 76 lines / 2,556 bytes
 - `tests/navigation/stubs/game-save-queue-syncer.mjs` — 10 lines / 359 bytes
 
-**Totals** — files: 1,072 lines / 29,632 bytes; colocated tests: 2,058 lines / 59,063 bytes
+**Totals** — files: 1,044 lines / 28,914 bytes; colocated tests: 1,675 lines / 49,506 bytes
 
 <!-- MODULE-MAP:GENERATED:D:END -->
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
@@ -282,7 +282,7 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=3058d85b2e6ab1df3693508b21ea4c67e76af9df date=2026-10-12 -->
+<!-- generated: head=28fc5908bb39e8a0b9dc7a1da687f994067fa3e6 date=2026-10-12 -->
 
 **Files**
 
@@ -325,10 +325,10 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 **Colocated tests**
 
-- `tests/hooks/import-backup-offline.test.ts` — 451 lines / 12,959 bytes
+- `tests/hooks/import-backup-offline.test.ts` — 265 lines / 8,449 bytes
 - `tests/hooks/stubs/import-backup-stubs.ts` — 192 lines / 6,635 bytes
 - `tests/import/` — 18 test files, 1,788 lines / 50,973 bytes (directory totals)
 
-**Totals** — files: 2,879 lines / 78,896 bytes; colocated tests: 2,431 lines / 70,567 bytes
+**Totals** — files: 2,879 lines / 78,896 bytes; colocated tests: 2,245 lines / 66,057 bytes
 
 <!-- MODULE-MAP:GENERATED:F:END -->
