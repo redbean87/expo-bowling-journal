@@ -11,6 +11,7 @@ import {
 
 import type { Id } from '../../../convex/_generated/dataModel';
 
+import { isConnectivityOffline } from '@/services/connectivity';
 import { convexJournalService } from '@/services/journal';
 
 function formatBytes(value: number) {
@@ -116,6 +117,15 @@ export function useImportBackup() {
   const startBackupImport = useCallback(
     async (workerBaseUrl: string | null, userId: Id<'users'> | null) => {
       setError(null);
+
+      // Offline guard: the backup import is a worker upload plus a Convex
+      // mutation, so it cannot complete while the device is known to be
+      // offline. Surface a clear message through the existing error state
+      // instead of letting the raw platform network error surface.
+      if (isConnectivityOffline()) {
+        setError('You appear to be offline. Reconnect to import this backup.');
+        return;
+      }
 
       if (!selectedFile) {
         setError('Pick a backup file first.');
