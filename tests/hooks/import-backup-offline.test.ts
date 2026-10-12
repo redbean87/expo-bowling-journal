@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
 import path from 'node:path';
 import { after, test } from 'node:test';
 
@@ -12,6 +11,13 @@ import {
   uploadCalls,
 } from './stubs/import-backup-stubs';
 import { __connectivityTestControls } from '../../src/services/connectivity';
+import {
+  createFakeNetInfo,
+  type FakeNetInfo,
+  type FakeNetInfoState,
+} from '../harness/fake-env';
+import { MiniReact } from '../harness/mini-hook-renderer';
+import { registerStubRemaps } from '../harness/remap';
 
 // Backup-import hook offline tests.
 //
@@ -44,17 +50,7 @@ const stubRewrites: Record<string, string> = {
   './import-backup/import-upload-client': stubPath,
 };
 
-const hookHandle = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    const rewritten = stubRewrites[specifier];
-
-    if (rewritten) {
-      return nextResolve(rewritten, context);
-    }
-
-    return nextResolve(specifier, context);
-  },
-});
+const hookHandle = registerStubRemaps(() => stubRewrites);
 
 after(() => {
   hookHandle.deregister();
@@ -75,188 +71,6 @@ function getImportBackupModule(): Promise<ImportBackupModule> {
   return importBackupModulePromise;
 }
 
-// --- Mini hook renderer ---------------------------------------------------
-//
-// Implements the subset of React hooks `useImportBackup` uses, with the
-// same hook-order and memo semantics the hook relies on. State updates
-// schedule a re-render pass on the microtask queue, mirroring React's
-// batched updates, so a picked file is visible to the next
-// `startBackupImport` call after settling.
-
-function shallowDepsEqual(
-  a: readonly unknown[] | null,
-  b: readonly unknown[] | null
-): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (a === null || b === null || a.length !== b.length) {
-    return false;
-  }
-
-  return a.every((value, index) => Object.is(value, b[index]));
-}
-
-class MiniReact {
-  private hookIndex = 0;
-  private states: unknown[] = [];
-  private stateSeeds = new Set<number>();
-  private memoCache: Array<{
-    value: unknown;
-    deps: readonly unknown[] | null;
-  } | null> = [];
-  private commitScheduled = false;
-  private unmounted = false;
-
-  private readonly componentFn: () => null;
-
-  constructor(componentFn: () => null) {
-    this.componentFn = componentFn;
-  }
-
-  mount(): void {
-    this.commit();
-  }
-
-  unmount(): void {
-    this.unmounted = true;
-  }
-
-  private commit(): void {
-    __setActiveRenderer(this);
-
-    try {
-      this.hookIndex = 0;
-      this.componentFn();
-    } finally {
-      __setActiveRenderer(null);
-    }
-  }
-
-  private scheduleCommit(): void {
-    if (this.unmounted || this.commitScheduled) {
-      return;
-    }
-    this.commitScheduled = true;
-    queueMicrotask(() => {
-      this.commitScheduled = false;
-      if (!this.unmounted) {
-        this.commit();
-      }
-    });
-  }
-
-  useState(initial: unknown): [unknown, (next: unknown) => void] {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-
-    if (!this.stateSeeds.has(index)) {
-      this.stateSeeds.add(index);
-      this.states[index] = initial;
-    }
-
-    const value = this.states[index];
-
-    const setState = (next: unknown): void => {
-      const resolved =
-        typeof next === 'function'
-          ? (next as (previous: unknown) => unknown)(this.states[index])
-          : next;
-
-      if (Object.is(this.states[index], resolved)) {
-        return;
-      }
-
-      this.states[index] = resolved;
-      this.scheduleCommit();
-    };
-
-    return [value, setState];
-  }
-
-  useCallback(
-    callback: (...args: unknown[]) => unknown,
-    deps: readonly unknown[] | undefined
-  ): (...args: unknown[]) => unknown {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as (...args: unknown[]) => unknown;
-    }
-
-    this.memoCache[index] = { value: callback, deps: deps ?? null };
-
-    return callback;
-  }
-
-  useMemo<T>(factory: () => T, deps: readonly unknown[] | undefined): T {
-    const index = this.hookIndex;
-    this.hookIndex += 1;
-    const cached = this.memoCache[index] ?? null;
-
-    if (cached !== null && shallowDepsEqual(cached.deps, deps ?? null)) {
-      return cached.value as T;
-    }
-
-    const value = factory();
-
-    this.memoCache[index] = { value, deps: deps ?? null };
-
-    return value;
-  }
-}
-
-// --- Simulated netinfo source ----------------------------------------------
-
-type FakeNetInfoState = {
-  isConnected: boolean | null;
-  type: string;
-};
-
-type FakeNetInfoModule = {
-  addEventListener(listener: (state: FakeNetInfoState) => void): () => void;
-};
-
-type FakeNetInfo = {
-  mod: FakeNetInfoModule;
-  emit(state: FakeNetInfoState): void;
-};
-
-// The initial state is delivered synchronously during subscription so the
-// first `isConnectivityOffline()` call inside a hook callback — which is
-// what triggers the singleton's initialization — already sees the intended
-// state. Later `emit()` transitions are delivered synchronously as well.
-function createFakeNetInfo(initial: FakeNetInfoState): FakeNetInfo {
-  let listener: ((state: FakeNetInfoState) => void) | null = null;
-  let latest: FakeNetInfoState = initial;
-
-  const mod: FakeNetInfoModule = {
-    addEventListener(nextListener: (state: FakeNetInfoState) => void) {
-      listener = nextListener;
-      nextListener(latest);
-
-      return () => {
-        if (listener === nextListener) {
-          listener = null;
-        }
-      };
-    },
-  };
-
-  return {
-    mod,
-    emit(state: FakeNetInfoState): void {
-      latest = state;
-
-      if (listener !== null) {
-        listener(state);
-      }
-    },
-  };
-}
-
 // --- Test harness ----------------------------------------------------------
 
 type MountedImportBackup = {
@@ -271,7 +85,7 @@ async function mountImportBackup(
   __connectivityTestControls.reset();
   resetImportBackupStubs();
 
-  const fake = createFakeNetInfo(initial);
+  const fake = createFakeNetInfo(initial, true);
   __connectivityTestControls.useNetInfoModule(fake.mod);
 
   const { useImportBackup } = await getImportBackupModule();
@@ -282,7 +96,7 @@ async function mountImportBackup(
     apiRef.current = useImportBackup();
 
     return null;
-  });
+  }, __setActiveRenderer);
   renderer.mount();
 
   if (apiRef.current === null) {
