@@ -1,5 +1,7 @@
 # Codebase Breakdown Plan (Junior-Friendly)
 
+> Superseded by `docs/module-map.md` for subsystem file sets, dependencies, and verification commands.
+
 ## Why this exists
 
 This document tracks where we should split large files into smaller, focused modules so the project is easier to understand, test, and maintain.

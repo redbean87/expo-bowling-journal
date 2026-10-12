@@ -152,6 +152,7 @@ Import security controls include:
 
 ## State and Sync Model
 
+- **Module map**: per-subsystem file sets, dependency edges, and exact verification commands live in `docs/module-map.md` (regenerate: `node scripts/module-map.mjs`; verify: `node scripts/module-map.mjs --check`)
 - **Server/data state**: Convex queries and mutations with real-time updates
 - **UI state**: React component/hook state in screen-level orchestration
 - **Auth-aware query behavior**: hooks skip Convex queries when unauthenticated
