@@ -1,4 +1,11 @@
+import {
+  getSaveErrorMessage,
+  isRetryableSaveError,
+} from '../../utils/retryable-save-error';
+
 import type { EditableFrameInput } from '@/services/journal';
+
+export { isRetryableSaveError } from '../../utils/retryable-save-error';
 
 const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000] as const;
 
@@ -179,41 +186,6 @@ export function markQueuedGameSaveEntryRetry(
       updatedAt: now,
     };
   });
-}
-
-export function isRetryableSaveError(caught: unknown): boolean {
-  // Only demonstrably permanently-classified failures classify as
-  // non-retryable. Anything else - including offline/transient failures
-  // whose message matches no known signal - stays queued for retry so
-  // user data is never dropped.
-  const message = getSaveErrorMessage(caught);
-
-  if (!message) {
-    return true;
-  }
-
-  const normalized = message.toLowerCase();
-
-  return !(
-    normalized.includes('required') ||
-    normalized.includes('invalid') ||
-    normalized.includes('not found') ||
-    normalized.includes('must ') ||
-    normalized.includes('unauthorized') ||
-    normalized.includes('forbidden')
-  );
-}
-
-function getSaveErrorMessage(caught: unknown): string {
-  if (caught instanceof Error) {
-    return caught.message;
-  }
-
-  if (typeof caught === 'string') {
-    return caught;
-  }
-
-  return '';
 }
 
 export function getActionableSaveErrorMessage(caught: unknown): string | null {
