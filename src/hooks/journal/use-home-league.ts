@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useConvexAuth, useQuery } from 'convex/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { convexJournalService } from '@/services/journal';
 import {
   listLocalLeagueSummaries,
   type LocalLeagueSummaryView,
@@ -10,6 +8,8 @@ import {
 
 const HOME_LEAGUE_STORAGE_KEY = '@bowling-journal:home-league-id';
 
+// The cloud leagues list applies a 3-month recency cutoff; the local read
+// keeps the same product semantics by filtering client-side.
 function getThreeMonthsAgo(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 3);
@@ -28,26 +28,16 @@ type DisplayLeague = {
 };
 
 export function useHomeLeague() {
-  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const cutoffDate = getThreeMonthsAgo();
-
-  const leaguesQuery = useQuery(
-    convexJournalService.listLeagues,
-    isAuthenticated ? { cutoffDate } : 'skip'
-  );
 
   const [localLeagues, setLocalLeagues] = useState<
     LocalLeagueSummaryView[] | null
   >(null);
   const [isLocalLeaguesLoading, setIsLocalLeaguesLoading] = useState(true);
 
-  // Unauthenticated users read the locally persisted journal (local SQLite
-  // is the authoritative source; there is no cloud cache to fall back to).
+  // Local SQLite is the authoritative league read: always loaded, no Convex
+  // query, no cloud cache, no auth gate.
   useEffect(() => {
-    if (isAuthenticated) {
-      return;
-    }
-
     let isMounted = true;
 
     const loadLocalLeagues = async () => {
@@ -73,25 +63,15 @@ export function useHomeLeague() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated]);
+  }, []);
 
   const leagues = useMemo(() => {
-    if (isAuthenticated) {
-      return leaguesQuery ?? [];
-    }
-
-    // The cloud query applies the 3-month cutoff server-side; apply the
-    // same cutoff to the local read so unauthenticated users see the same
-    // product semantics.
     return (localLeagues ?? []).filter(
       (league) =>
         league.mostRecentSessionDate === null ||
         league.mostRecentSessionDate >= cutoffDate
     );
-  }, [isAuthenticated, leaguesQuery, localLeagues, cutoffDate]);
-  const isLoading =
-    isAuthLoading ||
-    (isAuthenticated ? leaguesQuery === undefined : isLocalLeaguesLoading);
+  }, [localLeagues, cutoffDate]);
 
   const [savedHomeLeagueId, setSavedHomeLeagueId] = useState<string | null>(
     null
@@ -134,7 +114,7 @@ export function useHomeLeague() {
   return {
     leagues: displayLeagues,
     activeLeague,
-    isLoading: isLoading || !isHydrated,
+    isLoading: isLocalLeaguesLoading || !isHydrated,
     setHomeLeague,
     hasLeagues: leagues.length > 0,
   };
