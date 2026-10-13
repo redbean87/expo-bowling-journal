@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -13,6 +13,52 @@ import type { Id } from '../../../convex/_generated/dataModel';
 
 import { isConnectivityOffline } from '@/services/connectivity';
 import { convexJournalService } from '@/services/journal';
+
+/**
+ * Local-first import job state (C-1d).
+ *
+ * The profile's import status renders from this job state instead of a
+ * Convex read: a started import enters the transition rules in their
+ * first state, `queued`; the transition rules (`queued -> parsing ->
+ * importing -> completed|failed`) and the snapshot transport live in the
+ * import pipeline and are unchanged.
+ */
+type LocalImportStatus = {
+  batchId: Id<'importBatches'>;
+  status: 'queued' | 'parsing' | 'importing' | 'completed' | 'failed';
+  sourceFileName: string;
+  fileSize: number;
+  importedAt: number;
+  completedAt: number | null;
+  errorMessage: string | null;
+  counts: {
+    houses: number;
+    leagues: number;
+    weeks: number;
+    sessions: number;
+    balls: number;
+    games: number;
+    frames: number;
+    patterns: number;
+    gamesRefined: number;
+    gamesPatched: number;
+    warnings: number;
+  };
+};
+
+const EMPTY_IMPORT_COUNTS: LocalImportStatus['counts'] = {
+  houses: 0,
+  leagues: 0,
+  weeks: 0,
+  sessions: 0,
+  balls: 0,
+  games: 0,
+  frames: 0,
+  patterns: 0,
+  gamesRefined: 0,
+  gamesPatched: 0,
+  warnings: 0,
+};
 
 function formatBytes(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -59,14 +105,13 @@ export function useImportBackup() {
   );
   const [activeBatchId, setActiveBatchId] =
     useState<Id<'importBatches'> | null>(null);
+  const [importStatus, setImportStatus] = useState<LocalImportStatus | null>(
+    null
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const startImportMutation = useMutation(convexJournalService.startImport);
-  const importStatus = useQuery(
-    convexJournalService.getImportStatus,
-    activeBatchId ? { batchId: activeBatchId } : 'skip'
-  );
 
   const pickBackupFile = useCallback(async () => {
     setError(null);
@@ -166,6 +211,19 @@ export function useImportBackup() {
         });
 
         setActiveBatchId(startResult.batchId);
+
+        // Local-first: track the import job from local state. A started
+        // import is in the first state of the transition rules, `queued`.
+        setImportStatus({
+          batchId: startResult.batchId,
+          status: 'queued',
+          sourceFileName: selectedFile.name,
+          fileSize,
+          importedAt: Date.now(),
+          completedAt: null,
+          errorMessage: null,
+          counts: { ...EMPTY_IMPORT_COUNTS },
+        });
       } catch (caught) {
         setError(
           caught instanceof Error ? caught.message : 'Import failed to start.'
@@ -191,7 +249,7 @@ export function useImportBackup() {
     selectedFile,
     selectedFileLabel,
     activeBatchId,
-    importStatus: importStatus ?? null,
+    importStatus,
     isUploading,
     error,
   };
