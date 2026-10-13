@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 
@@ -97,7 +97,7 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 
@@ -125,10 +125,10 @@ Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 **Colocated tests**
 
-- `tests/hooks/journal-hooks-offline.test.ts` — 952 lines / 29,977 bytes
-- `tests/hooks/stubs/journal-hooks-stubs.ts` — 316 lines / 10,776 bytes
+- `tests/hooks/journal-hooks-offline.test.ts` — 1,226 lines / 38,365 bytes
+- `tests/hooks/stubs/journal-hooks-stubs.ts` — 358 lines / 12,258 bytes
 
-**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 1,268 lines / 40,753 bytes
+**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 1,584 lines / 50,623 bytes
 
 <!-- MODULE-MAP:GENERATED:B:END -->
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 
@@ -282,7 +282,7 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
+<!-- generated: head=18b17ba3d8bfa13319f7a60e5f1d0fb72d0a7e7d date=2026-10-13 -->
 
 **Files**
 

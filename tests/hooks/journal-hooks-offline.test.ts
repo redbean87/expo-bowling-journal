@@ -950,3 +950,277 @@ test('sabotaged server: use-reference-data renders reference lists from local SQ
     renderer?.unmount();
   }
 });
+
+// --- C-1c: home league + league games render from local SQLite -------------
+//
+// The last two derived reads (use-home-league's league summary list and
+// use-league-games' per-league game stats) are proven to come from the
+// local SQLite journal with the server sabotaged: the seeded local-read
+// double serves league summaries derived from the seeded sessions (like
+// the real adapter) and the hooks must render them with zero Convex
+// queries. The fixture dates are relative to now because use-home-league
+// applies the product's 3-month recency cutoff against the wall clock.
+
+type HomeLeagueModule =
+  typeof import('../../src/hooks/journal/use-home-league');
+type LeagueGamesModule =
+  typeof import('../../src/hooks/journal/use-league-games');
+
+type C1cModules = {
+  homeLeague: HomeLeagueModule;
+  leagueGames: LeagueGamesModule;
+};
+
+let c1cModulesPromise: Promise<C1cModules> | null = null;
+
+// Dynamic imports are required so the stub remaps (registered above) are in
+// effect when the hooks resolve their imports.
+function getC1cModules(): Promise<C1cModules> {
+  c1cModulesPromise ??= Promise.all([
+    import('../../src/hooks/journal/use-home-league'),
+    import('../../src/hooks/journal/use-league-games'),
+  ]).then(([homeLeague, leagueGames]) => ({ homeLeague, leagueGames }));
+
+  return c1cModulesPromise;
+}
+
+function c1cDaysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+}
+
+const C1C_LEAGUE_ID = 'c1c-league' as LeagueId;
+
+const c1cLeague: League = {
+  _id: C1C_LEAGUE_ID,
+  _creationTime: 1736054400000,
+  userId: 'local-user' as League['userId'],
+  name: 'Home League',
+  createdAt: 1736054400000,
+  gamesPerSession: 3,
+};
+
+const c1cStaleLeague: League = {
+  _id: 'c1c-stale-league' as LeagueId,
+  _creationTime: 1736054400001,
+  userId: 'local-user' as League['userId'],
+  name: 'Stale League',
+  createdAt: 1736054400001,
+};
+
+const c1cSessionOne: Session = {
+  _id: 'c1c-session-1' as SessionId,
+  _creationTime: 1736079600000,
+  userId: 'local-user' as Session['userId'],
+  leagueId: C1C_LEAGUE_ID,
+  date: c1cDaysAgo(2),
+};
+
+const c1cSessionTwo: Session = {
+  _id: 'c1c-session-2' as SessionId,
+  _creationTime: 1736079600001,
+  userId: 'local-user' as Session['userId'],
+  leagueId: C1C_LEAGUE_ID,
+  date: c1cDaysAgo(1),
+};
+
+// A session in a league whose last activity is older than the 3-month
+// cutoff: it must keep that league out of the home league list.
+const c1cStaleSession: Session = {
+  _id: 'c1c-session-stale' as SessionId,
+  _creationTime: 1736079600002,
+  userId: 'local-user' as Session['userId'],
+  leagueId: 'c1c-stale-league' as LeagueId,
+  date: c1cDaysAgo(120),
+};
+
+// A session in a league that is not in the seeded league list: its game
+// must stay out of the per-league game stats.
+const c1cOtherSession: Session = {
+  _id: 'c1c-session-other' as SessionId,
+  _creationTime: 1736079600003,
+  userId: 'local-user' as Session['userId'],
+  leagueId: 'c1c-other-league' as LeagueId,
+  date: c1cDaysAgo(3),
+};
+
+const c1cGameOne: GameListItem = {
+  _id: 'c1c-game-1' as GameId,
+  _creationTime: 1736079600010,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'c1c-session-1' as SessionId,
+  leagueId: C1C_LEAGUE_ID,
+  date: c1cDaysAgo(2),
+  totalScore: 200,
+  strikes: 4,
+  spares: 1,
+  opens: 4,
+};
+
+const c1cGameTwo: GameListItem = {
+  _id: 'c1c-game-2' as GameId,
+  _creationTime: 1736079600011,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'c1c-session-1' as SessionId,
+  leagueId: C1C_LEAGUE_ID,
+  date: c1cDaysAgo(2),
+  totalScore: 150,
+  strikes: 0,
+  spares: 5,
+  opens: 3,
+};
+
+const c1cGameThree: GameListItem = {
+  _id: 'c1c-game-3' as GameId,
+  _creationTime: 1736079600012,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'c1c-session-2' as SessionId,
+  leagueId: C1C_LEAGUE_ID,
+  date: c1cDaysAgo(1),
+  totalScore: 175,
+  strikes: 1,
+  spares: 2,
+  opens: 6,
+};
+
+const c1cOtherGame: GameListItem = {
+  _id: 'c1c-game-other' as GameId,
+  _creationTime: 1736079600013,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'c1c-session-other' as SessionId,
+  leagueId: 'c1c-other-league' as LeagueId,
+  date: c1cDaysAgo(3),
+  totalScore: 999,
+  strikes: 9,
+  spares: 9,
+  opens: 9,
+};
+
+const c1cStaleGame: GameListItem = {
+  _id: 'c1c-game-stale' as GameId,
+  _creationTime: 1736079600014,
+  userId: 'local-user' as GameListItem['userId'],
+  sessionId: 'c1c-session-stale' as SessionId,
+  leagueId: 'c1c-stale-league' as LeagueId,
+  date: c1cDaysAgo(120),
+  totalScore: 10,
+  strikes: 0,
+  spares: 0,
+  opens: 10,
+};
+
+test('sabotaged server: use-home-league and use-league-games render from local SQLite', async () => {
+  const { homeLeague, leagueGames } = await getC1cModules();
+
+  resetJournalHookStubs();
+  setLocalReadSeed({
+    leagues: [c1cLeague, c1cStaleLeague],
+    sessions: [c1cSessionOne, c1cSessionTwo, c1cStaleSession, c1cOtherSession],
+    games: [c1cGameOne, c1cGameTwo, c1cGameThree, c1cOtherGame, c1cStaleGame],
+  });
+
+  let renderer: MiniReact | null = null;
+  let homeApi: ReturnType<HomeLeagueModule['useHomeLeague']> | null = null;
+  let leagueGamesApi: ReturnType<LeagueGamesModule['useLeagueGames']> | null =
+    null;
+  let emptyLeagueGamesApi: ReturnType<
+    LeagueGamesModule['useLeagueGames']
+  > | null = null;
+
+  try {
+    renderer = new MiniReact(() => {
+      homeApi = homeLeague.useHomeLeague();
+      leagueGamesApi = leagueGames.useLeagueGames(C1C_LEAGUE_ID);
+      emptyLeagueGamesApi = leagueGames.useLeagueGames(null);
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+    await settle();
+
+    if (
+      homeApi === null ||
+      leagueGamesApi === null ||
+      emptyLeagueGamesApi === null
+    ) {
+      throw new Error('C-1c hooks did not mount');
+    }
+
+    // Rebind through the declared return types: TS collapses the
+    // null-narrowed deferred `ReturnType<...>` union to `never`.
+    const home = homeApi as ReturnType<HomeLeagueModule['useHomeLeague']>;
+    const games = leagueGamesApi as ReturnType<
+      LeagueGamesModule['useLeagueGames']
+    >;
+    const emptyGames = emptyLeagueGamesApi as ReturnType<
+      LeagueGamesModule['useLeagueGames']
+    >;
+
+    // Zero server attempts: the sabotaged double records and throws on any
+    // bound query, so the completed render proves no Convex read was bound.
+    assert.deepEqual(convexOps, []);
+
+    // Every read went through the local adapter, in the component's hook
+    // order (use-home-league, then use-league-games: the league's sessions,
+    // then each session's games).
+    assert.deepEqual(localReadCalls, [
+      'listLocalLeagueSummaries',
+      'listLocalSessionsByLeague',
+      'listLocalGamesBySession',
+      'listLocalGamesBySession',
+    ]);
+
+    // Home league: the seeded league summary (derived from the seeded
+    // sessions) renders, and the league whose last activity is older than
+    // the 3-month cutoff is cut off client-side.
+    assert.equal(home.isLoading, false);
+    assert.equal(home.hasLeagues, true);
+    const expectedHomeLeague = {
+      _id: 'c1c-league',
+      name: 'Home League',
+      houseName: null,
+      gamesPerSession: 3,
+      mostRecentSessionDate: c1cDaysAgo(1),
+    };
+    assert.deepStrictEqual(home.leagues, [expectedHomeLeague]);
+
+    // With no saved preference the first displayed league is active.
+    assert.deepStrictEqual(home.activeLeague, expectedHomeLeague);
+
+    // League games: the off-league and stale-league games stay out; the
+    // stats mirror the seeded games in local-read order.
+    assert.equal(games.isLoading, false);
+    assert.deepStrictEqual(games.games, [
+      {
+        _id: 'c1c-game-1',
+        sessionId: 'c1c-session-1',
+        totalScore: 200,
+        strikes: 4,
+        spares: 1,
+        opens: 4,
+      },
+      {
+        _id: 'c1c-game-2',
+        sessionId: 'c1c-session-1',
+        totalScore: 150,
+        strikes: 0,
+        spares: 5,
+        opens: 3,
+      },
+      {
+        _id: 'c1c-game-3',
+        sessionId: 'c1c-session-2',
+        totalScore: 175,
+        strikes: 1,
+        spares: 2,
+        opens: 6,
+      },
+    ]);
+
+    // A league-games read with no league selected renders nothing and is
+    // not loading.
+    assert.equal(emptyGames.isLoading, false);
+    assert.deepStrictEqual(emptyGames.games, []);
+  } finally {
+    renderer?.unmount();
+  }
+});

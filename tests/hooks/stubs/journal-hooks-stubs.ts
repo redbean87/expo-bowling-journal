@@ -29,6 +29,7 @@
 // `@/screens/journal/journal-client-sync-map-storage`,
 // `@/screens/journal/reference-draft-id`, and `@/utils/client-sync-id`.
 
+import type { LocalLeagueSummaryView } from '../../../src/services/journal/local-reads';
 import type {
   GameListItem,
   League,
@@ -197,6 +198,7 @@ export const convexJournalService = {
   getGameById: () => undefined,
   listFramesByGame: () => undefined,
   listLeagues: () => undefined,
+  listGameStatsByLeague: () => undefined,
   listSessionsByLeague: () => undefined,
   listBalls: () => undefined,
   listRecentBalls: () => undefined,
@@ -283,6 +285,46 @@ export async function listLocalGamesBySession(
   localReadCalls.push('listLocalGamesBySession');
 
   return localReadSeed.games.filter((game) => game.sessionId === sessionId);
+}
+
+export async function listLocalLeagueSummaries(): Promise<
+  LocalLeagueSummaryView[]
+> {
+  localReadCalls.push('listLocalLeagueSummaries');
+
+  // Derive the view the real adapter derives: the most recent seeded session
+  // date per league (null when the league has no sessions), ordered like the
+  // real read (mostRecentSessionDate descending, nulls last).
+  const summaries = localReadSeed.leagues.map((league) => {
+    const sessionDates = localReadSeed.sessions
+      .filter((session) => session.leagueId === league._id)
+      .map((session) => session.date)
+      .sort();
+
+    return {
+      _id: league._id,
+      name: league.name,
+      houseName: league.houseName ?? null,
+      gamesPerSession: league.gamesPerSession ?? null,
+      mostRecentSessionDate:
+        sessionDates.length > 0 ? sessionDates[sessionDates.length - 1] : null,
+    };
+  });
+
+  // Ordered like the real read: mostRecentSessionDate descending, nulls
+  // last, ties keep the local service (seed) order.
+  return [...summaries].sort((a, b) => {
+    if (a.mostRecentSessionDate === null && b.mostRecentSessionDate === null) {
+      return 0;
+    }
+    if (a.mostRecentSessionDate === null) {
+      return 1;
+    }
+    if (b.mostRecentSessionDate === null) {
+      return -1;
+    }
+    return b.mostRecentSessionDate.localeCompare(a.mostRecentSessionDate);
+  });
 }
 
 // --- '@/screens/journal/journal-create-queue-storage' double ---------------
