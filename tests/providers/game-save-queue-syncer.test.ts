@@ -13,6 +13,7 @@ import {
   referenceFlushCalls,
   resetSyncerStubs,
   storageQueueEntries,
+  waitForPresenceReads,
 } from './stubs/syncer-stubs';
 import { notifyQueueSyncStateChanged } from '../../src/screens/journal/queue-sync-events';
 import { __connectivityTestControls } from '../../src/services/connectivity';
@@ -181,8 +182,12 @@ test('offline at mount: initial flush is gated, and offline-to-online restores w
     assert.equal(harness.timers.activeIntervals().length, 0);
 
     // Connectivity restored on the same mount invokes the existing flush
-    // path (no remount, no foreground change).
+    // path (no remount, no foreground change). The initial flush and the
+    // restore each ran fire-and-forget refreshes (three storage doubles
+    // each; the offline initial flushQueue also refreshes on its bail),
+    // so wait for all six loader calls before asserting the arming.
     harness.fake.emit({ isConnected: true, type: 'wifi' });
+    await waitForPresenceReads(12);
     await settle();
 
     assert.deepEqual(flushEventLog, [
@@ -241,6 +246,10 @@ test('online mount polls on the 5 second cadence; offline clears the poller and 
 
     const [initialTimeout] = harness.timers.pendingTimeouts();
     harness.timers.fireTimeout(initialTimeout.id);
+    // The initial refresh and the online flush's tail refresh are
+    // fire-and-forget (three storage doubles each): wait for both before
+    // asserting the poller came up.
+    await waitForPresenceReads(6);
     await settle();
 
     // Online initial flush ran and the poller came up at 5000ms.
@@ -362,7 +371,11 @@ test('known offline state replayed at mount still gates flushes, then restores',
     assert.equal(flushEventLog.length, 0);
     assert.equal(harness.timers.activeIntervals().length, 0);
 
+    // Same fire-and-forget refreshes as the first test (the offline
+    // initial flush, then the restore flush): wait for all six loader
+    // calls before asserting.
     harness.fake.emit({ isConnected: true, type: 'wifi' });
+    await waitForPresenceReads(12);
     await settle();
 
     assert.deepEqual(flushEventLog, [
@@ -418,6 +431,10 @@ test('no pending entries means no poll interval; queued work re-arms the 5 secon
 
     storageQueueEntries.journal.push({ id: 'journal-1' });
     notifyQueueSyncStateChanged();
+    // The notify refresh and its flush's tail refresh are fire-and-forget
+    // (three storage doubles each; the mount-time initial flush already
+    // accounted for the first six): wait for both before asserting.
+    await waitForPresenceReads(12);
     await settle();
 
     // Queued work appeared: notify flushed and the poller came up at 5000ms.

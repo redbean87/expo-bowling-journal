@@ -55,6 +55,8 @@ export function resetSyncerStubs(): void {
   storageQueueEntries.game.length = 0;
   storageQueueEntries.journal.length = 0;
   storageQueueEntries.reference.length = 0;
+  presenceReadCompletions = 0;
+  presenceReadWaiters.length = 0;
   __activeRenderer = null;
   appStateListeners.clear();
   appState.current = 'active';
@@ -222,23 +224,60 @@ export function removeLocalGameDraft(originalQueueId: string): Promise<void> {
   return Promise.resolve();
 }
 
+// --- Presence-read completion tracking -----------------------------------
+//
+// The real `queue-sync-presence` module dynamically imports the storage
+// doubles below and awaits them, so the syncer's fire-and-forget
+// refreshQueuePresence() only completes once those dynamic imports have
+// landed. Each loader call records one completion, and the test awaits
+// waitForPresenceReads() where it needs the refresh result instead of
+// racing it with a fixed settle window.
+
+let presenceReadCompletions = 0;
+const presenceReadWaiters: Array<{ min: number; resolve: () => void }> = [];
+
+function recordPresenceReadCompletion(): void {
+  presenceReadCompletions += 1;
+
+  for (let index = 0; index < presenceReadWaiters.length; index += 1) {
+    if (presenceReadCompletions >= presenceReadWaiters[index].min) {
+      const [waiter] = presenceReadWaiters.splice(index, 1);
+      index -= 1;
+      waiter.resolve();
+    }
+  }
+}
+
+export function waitForPresenceReads(minCompletions: number): Promise<void> {
+  if (presenceReadCompletions >= minCompletions) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    presenceReadWaiters.push({ min: minCompletions, resolve });
+  });
+}
+
 // --- Queue storage doubles -------------------------------------------------
 //
 // Dynamically imported by the real `queue-sync-presence` module, which
 // only reads entry counts.
 
 export function loadGameSaveQueue(): Promise<Array<Record<string, unknown>>> {
+  recordPresenceReadCompletion();
   return Promise.resolve(storageQueueEntries.game);
 }
 
 export function loadJournalCreateQueue(): Promise<
   Array<Record<string, unknown>>
 > {
+  recordPresenceReadCompletion();
   return Promise.resolve(storageQueueEntries.journal);
 }
 
 export function loadReferenceCreateQueue(): Promise<
   Array<Record<string, unknown>>
 > {
+  recordPresenceReadCompletion();
   return Promise.resolve(storageQueueEntries.reference);
 }

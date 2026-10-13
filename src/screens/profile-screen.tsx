@@ -1,5 +1,3 @@
-import { useAuthActions } from '@convex-dev/auth/react';
-import { useConvexAuth, useQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,14 +5,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { Card } from '@/components/ui';
 import { env } from '@/config/env';
-import { viewerQuery } from '@/convex/functions';
 import { useExportSqliteBackup, useImportBackup } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
-import { ProfileAccountCard } from '@/screens/profile/profile-account-card';
 import { ProfileBuildInfoCard } from '@/screens/profile/profile-build-info-card';
 import { ProfileDataExportSection } from '@/screens/profile/profile-data-export-section';
 import { ProfileDataImportSection } from '@/screens/profile/profile-data-import-section';
 import { ProfilePreferencesCard } from '@/screens/profile/profile-preferences-card';
+import { LOCAL_JOURNAL_USER_ID } from '@/services/journal/local-reads';
 import { spacing, type ThemeColors, typeScale } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/use-app-theme';
 
@@ -22,9 +19,6 @@ export default function ProfileScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
-  const viewer = useQuery(viewerQuery, isAuthenticated ? {} : 'skip');
   const {
     pickBackupFile,
     startBackupImport,
@@ -61,11 +55,6 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <ProfileAccountCard
-          email={viewer?.email ?? undefined}
-          onSignOut={() => void signOut()}
-        />
-
         <ProfilePreferencesCard
           colorModePreference={colorModePreference}
           isHydrated={isHydrated}
@@ -82,7 +71,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Data</Text>
 
           <ProfileDataExportSection
-            disabled={!isAuthenticated || !env.importWorkerUrl}
+            disabled={!env.importWorkerUrl}
             exportError={exportError}
             isExporting={isExporting}
             lastExportFileName={lastExportFileName}
@@ -97,15 +86,10 @@ export default function ProfileScreen() {
             isUploading={isUploading}
             onPickFile={() => void pickBackupFile()}
             onStartImport={() =>
-              void startBackupImport(
-                env.importWorkerUrl,
-                viewer?.userId ?? null
-              )
+              void startBackupImport(env.importWorkerUrl, LOCAL_JOURNAL_USER_ID)
             }
             selectedFileLabel={selectedFileLabel}
-            uploadDisabled={
-              !isAuthenticated || !env.importWorkerUrl || !selectedFileLabel
-            }
+            uploadDisabled={!env.importWorkerUrl || !selectedFileLabel}
           />
         </Card>
 
