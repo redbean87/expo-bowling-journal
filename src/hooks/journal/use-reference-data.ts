@@ -1,4 +1,4 @@
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useConvexAuth, useMutation } from 'convex/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -24,6 +24,12 @@ import {
   type ReferenceType,
 } from '@/screens/journal/reference-draft-id';
 import { convexJournalService } from '@/services/journal';
+import {
+  getLocalJournalService,
+  type Ball as LocalBall,
+  type House as LocalHouse,
+  type Pattern as LocalPattern,
+} from '@/services/local-journal';
 import { createClientSyncId } from '@/utils/client-sync-id';
 import { buildRankedReferenceSuggestions } from '@/utils/reference-combobox-utils';
 
@@ -132,7 +138,6 @@ export function useReferenceData(options?: {
   const enabled = options?.enabled ?? true;
   const includeRecent = options?.includeRecent ?? true;
   const { isAuthenticated } = useConvexAuth();
-  const shouldQuery = isAuthenticated && enabled;
   const [queuedReferenceCreates, setQueuedReferenceCreates] = useState<
     QueuedReferenceCreateEntry[]
   >([]);
@@ -143,30 +148,190 @@ export function useReferenceData(options?: {
     patterns: {},
     balls: {},
   });
-  const balls = useQuery(
-    convexJournalService.listBalls,
-    shouldQuery ? {} : 'skip'
+  const [ballList, setBallList] = useState<LocalBall[] | null>(null);
+  const [recentBallList, setRecentBallList] = useState<LocalBall[] | null>(
+    null
   );
-  const recentBalls = useQuery(
-    convexJournalService.listRecentBalls,
-    shouldQuery && includeRecent ? {} : 'skip'
+  const [patternList, setPatternList] = useState<LocalPattern[] | null>(null);
+  const [recentPatternList, setRecentPatternList] = useState<
+    LocalPattern[] | null
+  >(null);
+  const [houseList, setHouseList] = useState<LocalHouse[] | null>(null);
+  const [recentHouseList, setRecentHouseList] = useState<LocalHouse[] | null>(
+    null
   );
-  const patterns = useQuery(
-    convexJournalService.listPatterns,
-    shouldQuery ? {} : 'skip'
-  );
-  const recentPatterns = useQuery(
-    convexJournalService.listRecentPatterns,
-    shouldQuery && includeRecent ? {} : 'skip'
-  );
-  const houses = useQuery(
-    convexJournalService.listHouses,
-    shouldQuery ? {} : 'skip'
-  );
-  const recentHouses = useQuery(
-    convexJournalService.listRecentHouses,
-    shouldQuery && includeRecent ? {} : 'skip'
-  );
+
+  // Local SQLite is the authoritative reference read: no Convex query, no
+  // cloud cache, no auth gate. The skip conditions (enabled/includeRecent)
+  // are enforced on the derived option lists below, matching the original
+  // skipped-query behavior (options fall back to empty).
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadBalls = async () => {
+      try {
+        const balls = await getLocalJournalService().listBalls();
+
+        if (isMounted) {
+          setBallList(balls);
+        }
+      } catch {
+        if (isMounted) {
+          setBallList([]);
+        }
+      }
+    };
+
+    void loadBalls();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !includeRecent) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRecentBalls = async () => {
+      try {
+        const balls = await getLocalJournalService().listRecentBalls();
+
+        if (isMounted) {
+          setRecentBallList(balls);
+        }
+      } catch {
+        if (isMounted) {
+          setRecentBallList([]);
+        }
+      }
+    };
+
+    void loadRecentBalls();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, includeRecent]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadPatterns = async () => {
+      try {
+        const patterns = await getLocalJournalService().listPatterns();
+
+        if (isMounted) {
+          setPatternList(patterns);
+        }
+      } catch {
+        if (isMounted) {
+          setPatternList([]);
+        }
+      }
+    };
+
+    void loadPatterns();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !includeRecent) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRecentPatterns = async () => {
+      try {
+        const patterns = await getLocalJournalService().listRecentPatterns();
+
+        if (isMounted) {
+          setRecentPatternList(patterns);
+        }
+      } catch {
+        if (isMounted) {
+          setRecentPatternList([]);
+        }
+      }
+    };
+
+    void loadRecentPatterns();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, includeRecent]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadHouses = async () => {
+      try {
+        const houses = await getLocalJournalService().listHouses();
+
+        if (isMounted) {
+          setHouseList(houses);
+        }
+      } catch {
+        if (isMounted) {
+          setHouseList([]);
+        }
+      }
+    };
+
+    void loadHouses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !includeRecent) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRecentHouses = async () => {
+      try {
+        const houses = await getLocalJournalService().listRecentHouses();
+
+        if (isMounted) {
+          setRecentHouseList(houses);
+        }
+      } catch {
+        if (isMounted) {
+          setRecentHouseList([]);
+        }
+      }
+    };
+
+    void loadRecentHouses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, includeRecent]);
 
   const createBallMutation = useMutation(convexJournalService.createBall);
   const createPatternMutation = useMutation(convexJournalService.createPattern);
@@ -185,26 +350,33 @@ export function useReferenceData(options?: {
   const serverBallOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (balls ?? []).map((ball) => ({ ...ball, _id: String(ball._id) }))
+        (enabled ? (ballList ?? []) : []).map((ball) => ({
+          _id: ball.id,
+          name: ball.name,
+          brand: ball.brand,
+        }))
       ),
-    [balls]
+    [ballList, enabled]
   );
   const serverPatternOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (patterns ?? []).map((pattern) => ({
-          ...pattern,
-          _id: String(pattern._id),
+        (enabled ? (patternList ?? []) : []).map((pattern) => ({
+          _id: pattern.id,
+          name: pattern.name,
         }))
       ),
-    [patterns]
+    [enabled, patternList]
   );
   const serverHouseOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (houses ?? []).map((house) => ({ ...house, _id: String(house._id) }))
+        (enabled ? (houseList ?? []) : []).map((house) => ({
+          _id: house.id,
+          name: house.name,
+        }))
       ),
-    [houses]
+    [enabled, houseList]
   );
 
   const draftBallOptions = useMemo(
@@ -236,29 +408,33 @@ export function useReferenceData(options?: {
   const recentBallOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (recentBalls ?? []).map((ball) => ({ ...ball, _id: String(ball._id) }))
+        (includeRecent ? (recentBallList ?? []) : []).map((ball) => ({
+          _id: ball.id,
+          name: ball.name,
+          brand: ball.brand,
+        }))
       ),
-    [recentBalls]
+    [includeRecent, recentBallList]
   );
   const recentPatternOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (recentPatterns ?? []).map((pattern) => ({
-          ...pattern,
-          _id: String(pattern._id),
+        (includeRecent ? (recentPatternList ?? []) : []).map((pattern) => ({
+          _id: pattern.id,
+          name: pattern.name,
         }))
       ),
-    [recentPatterns]
+    [includeRecent, recentPatternList]
   );
   const recentHouseOptions = useMemo(
     () =>
       toNameSortedOptions(
-        (recentHouses ?? []).map((house) => ({
-          ...house,
-          _id: String(house._id),
+        (includeRecent ? (recentHouseList ?? []) : []).map((house) => ({
+          _id: house.id,
+          name: house.name,
         }))
       ),
-    [recentHouses]
+    [includeRecent, recentHouseList]
   );
 
   const queueReferenceCreate = useCallback(

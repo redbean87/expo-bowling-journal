@@ -8,11 +8,16 @@ import {
   convexOps,
   journalCreateQueue,
   journalCreateQueuePersistCalls,
+  LOCAL_JOURNAL_USER_ID,
   localReadCalls,
   mutationCalls,
   resetJournalHookStubs,
   setLocalReadSeed,
 } from './stubs/journal-hooks-stubs';
+import {
+  FULL_PIN_MASK,
+  packManualPins,
+} from '../../src/screens/game-editor/frame-mask-utils';
 import { __connectivityTestControls } from '../../src/services/connectivity';
 import {
   createFakeNetInfo,
@@ -23,6 +28,7 @@ import { MiniReact } from '../harness/mini-hook-renderer';
 import { registerStubRemaps } from '../harness/remap';
 
 import type {
+  Frame,
   GameId,
   GameListItem,
   League,
@@ -70,6 +76,7 @@ const stubRewrites: Record<string, string> = {
   '@/services/journal/local-reads': stubPath,
   '@/screens/journal/journal-create-queue-storage': stubPath,
   './use-league-queue': stubPath,
+  'expo-sqlite': path.join(__dirname, '..', 'db', 'expo-sqlite-stub.mjs'),
 };
 
 const hookHandle = registerStubRemaps(() => stubRewrites);
@@ -660,5 +667,286 @@ test('sabotaged server: the three hooks render from local data', async () => {
     assert.deepEqual(harness.games.games, [localGameOne, localGameTwo]);
   } finally {
     harness.unmount();
+  }
+});
+
+// --- C-1b: game editor + reference data render from local SQLite -----------
+//
+// The two remaining read paths (use-game-editor's game/frames reads and
+// use-reference-data's six reference reads) are proven to come from the
+// local SQLite journal with the server sabotaged: the seeded journal is
+// written through the real `LocalJournalService` (backed by the in-memory
+// expo-sqlite stub) and the hooks must render it with zero Convex queries.
+
+type EditorModule = typeof import('../../src/hooks/journal/use-game-editor');
+type ReferenceDataModule =
+  typeof import('../../src/hooks/journal/use-reference-data');
+type LocalJournalModule = typeof import('../../src/services/local-journal');
+type DatabaseModule = typeof import('../../src/db/database');
+
+type LocalReadModules = {
+  editor: EditorModule;
+  referenceData: ReferenceDataModule;
+  localJournal: LocalJournalModule;
+  database: DatabaseModule;
+};
+
+let localReadModulesPromise: Promise<LocalReadModules> | null = null;
+
+// Dynamic imports are required so the stub remaps (registered above) are in
+// effect when these modules resolve their imports: the hooks reach
+// `expo-sqlite` through `@/services/local-journal` -> `@/db/database`.
+function getLocalReadModules(): Promise<LocalReadModules> {
+  localReadModulesPromise ??= Promise.all([
+    import('../../src/hooks/journal/use-game-editor'),
+    import('../../src/hooks/journal/use-reference-data'),
+    import('../../src/services/local-journal'),
+    import('../../src/db/database'),
+  ]).then(([editor, referenceData, localJournal, database]) => ({
+    editor,
+    referenceData,
+    localJournal,
+    database,
+  }));
+
+  return localReadModulesPromise;
+}
+
+const PROOF_DATE = '2025-01-05';
+const PROOF_CREATION_TIME = Date.parse(`${PROOF_DATE}T00:00Z`);
+
+type ProofSeed = {
+  ballId: string;
+  patternId: string;
+  houseId: string;
+  leagueId: string;
+  sessionId: string;
+  gameId: string;
+};
+
+// Writes one league -> session -> game (with three frames: a strike, an
+// open frame, and an unstarted all-null frame) plus one ball, one pattern,
+// and one house into a fresh in-memory local journal.
+async function seedProofJournal(): Promise<ProofSeed> {
+  const { localJournal, database } = await getLocalReadModules();
+
+  await database.closeDatabase();
+
+  const service = localJournal.getLocalJournalService();
+
+  const ball = await service.createBall({ name: 'Storm Red', brand: 'Storm' });
+  const pattern = await service.createPattern({ name: 'Classic' });
+  const house = await service.createHouse({ name: 'Main Lanes' });
+  const league = await service.createLeague({ name: 'Proof League' });
+  const session = await service.createSession({
+    leagueId: league.id,
+    date: PROOF_DATE,
+    weekNumber: 3,
+    houseId: house.id,
+  });
+  const game = await service.createGame({
+    sessionId: session.id,
+    date: PROOF_DATE,
+    houseId: house.id,
+    ballId: ball.id,
+    patternId: pattern.id,
+    handicap: 0.2,
+    notes: 'proof game',
+    laneContext: { startingLane: 4 },
+    ballSwitches: [{ frameNumber: 5, ballName: 'Storm Red' }],
+  });
+  await service.replaceGameFrames(game.id, [
+    {
+      frameNumber: 1,
+      roll1Mask: FULL_PIN_MASK,
+      roll2Mask: null,
+      roll3Mask: null,
+      pocket: 7,
+    },
+    { frameNumber: 2, roll1Mask: 0b101, roll2Mask: 0b010, footBoard: 2 },
+    { frameNumber: 3, roll1Mask: null, roll2Mask: null, roll3Mask: null },
+  ]);
+
+  return {
+    ballId: ball.id,
+    patternId: pattern.id,
+    houseId: house.id,
+    leagueId: league.id,
+    sessionId: session.id,
+    gameId: game.id,
+  };
+}
+
+test('sabotaged server: use-game-editor renders the game and frames from local SQLite', async () => {
+  resetJournalHookStubs();
+
+  let renderer: MiniReact | null = null;
+  let editorApi: ReturnType<EditorModule['useGameEditor']> | null = null;
+
+  try {
+    const seed = await seedProofJournal();
+    const { editor } = await getLocalReadModules();
+
+    renderer = new MiniReact(() => {
+      editorApi = editor.useGameEditor(seed.gameId as GameId);
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+    await settle();
+
+    if (editorApi === null) {
+      throw new Error('use-game-editor did not mount');
+    }
+
+    // Rebind through the declared return type: TS collapses a null-narrowed
+    // deferred `ReturnType<...>` union to `never`.
+    const api = editorApi as ReturnType<EditorModule['useGameEditor']>;
+
+    // Zero server attempts: the sabotaged double records and throws on any
+    // bound query, so the completed render proves no Convex read was bound.
+    assert.deepEqual(convexOps, []);
+
+    assert.equal(api.isSaving, false);
+    assert.equal(api.isAuthenticated, true);
+    assert.equal(api.isLoading, false);
+
+    // The rendered game document mirrors the local row (with the session's
+    // league and the derived provisional score) in the Convex document
+    // shape the editor screen consumes.
+    assert.ok(api.game !== null, 'game must render from the local read');
+    assert.deepStrictEqual(api.game, {
+      _id: seed.gameId,
+      _creationTime: PROOF_CREATION_TIME,
+      userId: LOCAL_JOURNAL_USER_ID,
+      sessionId: seed.sessionId,
+      leagueId: seed.leagueId,
+      date: PROOF_DATE,
+      totalScore: 16,
+      strikes: 1,
+      spares: 0,
+      opens: 1,
+      clientSyncId: null,
+      ballId: seed.ballId,
+      patternId: seed.patternId,
+      handicap: 0.2,
+      notes: 'proof game',
+      laneContext: { leftLane: 0, rightLane: 0, lanePair: '', startingLane: 4 },
+      ballSwitches: [{ frameNumber: 5, ballName: 'Storm Red' }],
+      framePreview: null,
+    });
+
+    // Frames round-trip the authoritative pin masks (packed into `pins`) and
+    // drop the unstarted all-null frame, exactly like the Convex list does.
+    const frames: Frame[] | undefined = api.frames;
+    assert.ok(Array.isArray(frames), 'frames must render from the local read');
+    assert.equal(frames.length, 2);
+
+    const [frameOne, frameTwo] = frames;
+    assert.deepStrictEqual(frameOne, {
+      _id: frameOne._id,
+      _creationTime: PROOF_CREATION_TIME,
+      userId: LOCAL_JOURNAL_USER_ID,
+      gameId: seed.gameId,
+      frameNumber: 1,
+      roll1: 10,
+      roll2: null,
+      roll3: null,
+      ballId: null,
+      pins: packManualPins({
+        roll1Mask: FULL_PIN_MASK,
+        roll2Mask: null,
+        roll3Mask: null,
+      }),
+      scores: null,
+      score: null,
+      flags: null,
+      pocket: 7,
+      footBoard: null,
+      targetBoard: null,
+    });
+    assert.deepStrictEqual(frameTwo, {
+      _id: frameTwo._id,
+      _creationTime: PROOF_CREATION_TIME,
+      userId: LOCAL_JOURNAL_USER_ID,
+      gameId: seed.gameId,
+      frameNumber: 2,
+      roll1: 2,
+      roll2: 1,
+      roll3: null,
+      ballId: null,
+      pins: packManualPins({
+        roll1Mask: 0b101,
+        roll2Mask: 0b010,
+        roll3Mask: null,
+      }),
+      scores: null,
+      score: null,
+      flags: null,
+      pocket: null,
+      footBoard: 2,
+      targetBoard: null,
+    });
+  } finally {
+    renderer?.unmount();
+  }
+});
+
+test('sabotaged server: use-reference-data renders reference lists from local SQLite', async () => {
+  resetJournalHookStubs();
+
+  let renderer: MiniReact | null = null;
+  let referenceApi: ReturnType<ReferenceDataModule['useReferenceData']> | null =
+    null;
+
+  try {
+    const seed = await seedProofJournal();
+    const { referenceData } = await getLocalReadModules();
+
+    renderer = new MiniReact(() => {
+      referenceApi = referenceData.useReferenceData();
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+    await settle();
+
+    if (referenceApi === null) {
+      throw new Error('use-reference-data did not mount');
+    }
+
+    // Rebind through the declared return type: TS collapses a null-narrowed
+    // deferred `ReturnType<...>` union to `never`.
+    const api = referenceApi as ReturnType<
+      ReferenceDataModule['useReferenceData']
+    >;
+
+    // Zero server attempts for all six reference reads.
+    assert.deepEqual(convexOps, []);
+
+    const expectedBall = {
+      id: seed.ballId,
+      label: 'Storm Red',
+      secondaryLabel: 'Storm',
+    };
+    const expectedPattern = {
+      id: seed.patternId,
+      label: 'Classic',
+      secondaryLabel: null,
+    };
+    const expectedHouse = {
+      id: seed.houseId,
+      label: 'Main Lanes',
+      secondaryLabel: null,
+    };
+
+    assert.deepEqual(api.ballOptions, [expectedBall]);
+    assert.deepEqual(api.patternOptions, [expectedPattern]);
+    assert.deepEqual(api.houseOptions, [expectedHouse]);
+    assert.deepEqual(api.recentBallOptions, [expectedBall]);
+    assert.deepEqual(api.recentPatternOptions, [expectedPattern]);
+    assert.deepEqual(api.recentHouseOptions, [expectedHouse]);
+  } finally {
+    renderer?.unmount();
   }
 });

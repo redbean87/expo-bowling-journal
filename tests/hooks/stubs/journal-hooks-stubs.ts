@@ -194,8 +194,16 @@ export default asyncStorage;
 
 export const convexJournalService = {
   listGamesBySession: () => undefined,
+  getGameById: () => undefined,
+  listFramesByGame: () => undefined,
   listLeagues: () => undefined,
   listSessionsByLeague: () => undefined,
+  listBalls: () => undefined,
+  listRecentBalls: () => undefined,
+  listPatterns: () => undefined,
+  listRecentPatterns: () => undefined,
+  listHouses: () => undefined,
+  listRecentHouses: () => undefined,
   createGame: () => undefined,
   removeGame: () => undefined,
   createLeague: () => undefined,
@@ -204,7 +212,20 @@ export const convexJournalService = {
   createSession: () => undefined,
   updateSession: () => undefined,
   removeSession: () => undefined,
+  createBall: () => undefined,
+  createPattern: () => undefined,
+  createHouse: () => undefined,
+  updateGame: () => undefined,
+  replaceFramesForGame: () => undefined,
 };
+
+// The documented local-journal sentinels (mirroring the real `local-reads`
+// exports) so converted hooks that map local documents with them keep the
+// same observable values under the remap.
+export const LOCAL_JOURNAL_USER_ID: string =
+  '00000000-0000-0000-0000-000000000000';
+export const LOCAL_JOURNAL_OPEN_LEAGUE_ID: string =
+  '00000000-0000-0000-0000-000000000000';
 
 // --- '@/services/journal/local-reads' double ------------------------------
 //

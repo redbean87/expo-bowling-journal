@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
@@ -97,7 +97,7 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
@@ -125,10 +125,10 @@ Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 **Colocated tests**
 
-- `tests/hooks/journal-hooks-offline.test.ts` — 664 lines / 20,980 bytes
-- `tests/hooks/stubs/journal-hooks-stubs.ts` — 295 lines / 9,956 bytes
+- `tests/hooks/journal-hooks-offline.test.ts` — 952 lines / 29,977 bytes
+- `tests/hooks/stubs/journal-hooks-stubs.ts` — 316 lines / 10,776 bytes
 
-**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 959 lines / 30,936 bytes
+**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 1,268 lines / 40,753 bytes
 
 <!-- MODULE-MAP:GENERATED:B:END -->
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
@@ -150,7 +150,7 @@ Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and g
 - `src/screens/game-editor/game-editor-autosave-utils.ts` — 109 lines / 2,212 bytes — exports: `AutosaveGuardResult`, `hasAnyFrameValue`, `buildAutosaveGuardResult`
 - `src/screens/game-editor/game-editor-frame-utils.ts` — 38 lines / 841 bytes — exports: `EMPTY_FRAME_DRAFT`, `EMPTY_FRAMES`, `FULL_PIN_MASK`, `getFirstParam`, `getRollValue`, `getStandingMaskForField`, `normalizeDateValue`, `packManualPins`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`, `FrameDraft`, `RollField`, `findSuggestedFrameIndex`, `getNextCursorAfterEntry`, `getPreferredRollField`, `getProvisionalTotalScore`, `getSettledRunningTotals`, `getFrameSplitFlags`, `isSplitLeaveMask`, `isOpenFrame`, `FrameSplitFlags`, `getFrameSymbolParts`, `getFrameSymbolSummary`, `buildFramesPayload`, `findFirstFrameError`, `getFrameInlineError`, `getFrameStatus`, `getVisibleRollFields`, `FrameStatus`
 - `src/screens/game-editor/game-editor-screen-utils.ts` — 137 lines / 2,568 bytes — exports: `createDraftNonce`, `togglePinInMask`, `setPinState`, `maskHasPin`, `buildSyncSignature`, `buildPersistedSignature`, `hasAnyFrameDraftValue`, `isOfflineLikely`, `getDefaultMaskForField`, `clearDownstreamRolls`
-- `src/hooks/journal/use-game-editor.ts` — 116 lines / 3,107 bytes — exports: `useGameEditor`
+- `src/hooks/journal/use-game-editor.ts` — 315 lines / 8,674 bytes — exports: `useGameEditor`
 - `src/screens/game-editor/use-game-editor-hydration.ts` — 473 lines / 13,515 bytes — exports: `useGameEditorHydration`
 
 **Depends on** (in-repo imports; external packages omitted)
@@ -159,7 +159,7 @@ Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and g
 - `game-editor-autosave-utils.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `buildFramesPayload`, `findFirstFrameError`); `src/services/journal/index.ts` (`EditableFrameInput`)
 - `game-editor-frame-utils.ts` → `src/screens/game-editor/frame-cursor.ts` (`findSuggestedFrameIndex`, `getNextCursorAfterEntry`, `getPreferredRollField`); `src/screens/game-editor/frame-mask-utils.ts` (`EMPTY_FRAMES`, `EMPTY_FRAME_DRAFT`, `FULL_PIN_MASK`, `FrameDraft`, `RollField`, `getFirstParam`, `getRollValue`, `getStandingMaskForField`, `normalizeDateValue`, `packManualPins`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`); `src/screens/game-editor/frame-scoring.ts` (`getProvisionalTotalScore`, `getSettledRunningTotals`); `src/screens/game-editor/frame-splits.ts` (`FrameSplitFlags`, `getFrameSplitFlags`, `isOpenFrame`, `isSplitLeaveMask`); `src/screens/game-editor/frame-symbols.ts` (`getFrameSymbolParts`, `getFrameSymbolSummary`); `src/screens/game-editor/frame-validation.ts` (`FrameStatus`, `buildFramesPayload`, `findFirstFrameError`, `getFrameInlineError`, `getFrameStatus`, `getVisibleRollFields`)
 - `game-editor-screen-utils.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `RollField`, `buildFramesPayload`); `src/services/journal/index.ts` (`GameId`); `src/utils/draft-nonce.ts` (`createDraftNonce`)
-- `use-game-editor.ts` → `src/hooks/journal/reference-id-resolution.ts` (`resolveReferenceIdForMutation`); `src/services/journal/index.ts` (`CreateGameInput`, `GameId`, `ReplaceFramesInput`, `UpdateGameInput`, `convexJournalService`)
+- `use-game-editor.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/hooks/journal/reference-id-resolution.ts` (`resolveReferenceIdForMutation`); `src/screens/game-editor/frame-mask-utils.ts` (`getRollValue`, `packManualPins`); `src/services/journal/index.ts` (`CreateGameInput`, `Frame`, `Game`, `GameId`, `LeagueId`, `ReplaceFramesInput`, `UpdateGameInput`, `convexJournalService`); `src/services/journal/local-reads.ts` (`LOCAL_JOURNAL_OPEN_LEAGUE_ID`, `LOCAL_JOURNAL_USER_ID`); `src/services/local-journal/index.ts` (`GameScore`, `LocalFrame`, `LocalGame`, `LocalSession`, `getLocalJournalService`)
 - `use-game-editor-hydration.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`EMPTY_FRAMES`, `FrameDraft`, `RollField`, `findSuggestedFrameIndex`, `getPreferredRollField`, `normalizeDateValue`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`); `src/screens/game-editor/game-editor-screen-utils.ts` (`buildPersistedSignature`, `buildSyncSignature`, `hasAnyFrameDraftValue`, `isOfflineLikely`); `src/screens/game-editor/game-local-draft-storage.ts` (`loadLocalGameDraft`, `removeLocalGameDraft`, `upsertLocalGameDraft`); `src/screens/game-editor/game-local-draft-utils.ts` (`shouldRestoreLocalDraft`); `src/screens/game-editor/game-save-queue-storage.ts` (`loadGameSaveQueue`); `src/screens/game-editor/game-save-queue.ts` (`QueuedGameSaveEntry`); `src/services/journal/index.ts` (`Frame`, `Game`, `GameId`)
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
@@ -168,7 +168,7 @@ Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and g
 - `game-editor-autosave-utils.ts` ← `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `tests/game-editor/game-editor-autosave-utils.test.ts`
 - `game-editor-frame-utils.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/frame-progress-strip.tsx`, `src/screens/game-editor/game-editor-autosave-utils.ts`, `src/screens/game-editor/game-editor-screen-utils.ts`, `src/screens/game-editor/game-local-draft-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal/journal-games-display.ts`, `tests/game-editor/game-editor-autosave-utils.test.ts`, `tests/game-editor/game-editor-frame-utils.test.ts`, `tests/import/frame-preview-parity.test.ts`
 - `game-editor-screen-utils.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`
-- `use-game-editor.ts` ← `src/hooks/journal/index.ts`
+- `use-game-editor.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/journal-hooks-offline.test.ts`
 - `use-game-editor-hydration.ts` ← `src/screens/game-editor-screen.tsx`
 
 **Colocated tests**
@@ -176,7 +176,7 @@ Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and g
 - `tests/game-editor/game-editor-autosave-utils.test.ts` — 202 lines / 4,547 bytes
 - `tests/game-editor/game-editor-frame-utils.test.ts` — 589 lines / 14,389 bytes
 
-**Totals** — files: 1,502 lines / 38,678 bytes; colocated tests: 791 lines / 18,936 bytes
+**Totals** — files: 1,701 lines / 44,245 bytes; colocated tests: 791 lines / 18,936 bytes
 
 <!-- MODULE-MAP:GENERATED:C:END -->
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
@@ -282,7 +282,7 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=e86ab3ef6cf8800a3b773fc8cab029869f6318c5 date=2026-10-12 -->
+<!-- generated: head=d426f9be3e720c71da5ce0dccb2c1d6cf2f9a211 date=2026-10-13 -->
 
 **Files**
 
