@@ -468,11 +468,20 @@ def run_case(cfg: dict, case: dict, model: str, out_dir: Path,
     warm_n = case["warm"]
     calib = cfg["calibration"]
     base_url, timeout = cfg["base_url"], cfg["timeout"]
+    # Unique prompt text per repeat unless disabled: prompt caching is meant to
+    # be OFF, and an engine may ignore the cache_prompt flag (Strata does - its
+    # conversation cache served identical repeats: cached_tokens>0 despite
+    # cache_prompt:false). A per-repeat seed makes any prefix cache unable to
+    # serve the repeat, enforcing caching-off identically on every engine.
+    unique = cfg.get("unique_prompts", True)
+
+    def prompt_for(i: int) -> str:
+        return build_text(words, SEED + i * 7919 if unique else SEED)
 
     print(f"[case {name}] building prompt for ~{target} tokens "
-          f"(calib a={calib['a']} b={calib['b']})", flush=True)
+          f"(calib a={calib['a']} b={calib['b']}, unique_prompts={unique})", flush=True)
     words = words_for(target, calib)
-    text = build_text(words)
+    text = prompt_for(0)
 
     before_mem = memory_snapshot(cfg.get("ssh_memory"))
     before_metrics = metrics_snapshot(base_url, min(timeout, 30))
@@ -487,6 +496,7 @@ def run_case(cfg: dict, case: dict, model: str, out_dir: Path,
         total = 1 + warm_n
         for i in range(total):
             kind = "cold" if i == 0 else "warm"
+            text = prompt_for(i)  # per-repeat text; occupancy verified per request
             print(f"[case {name}] {kind} {i + 1}/{total} (words={words})", flush=True)
             req = stream_request(base_url, model, text, gen, timeout, cfg.get("headers"),
                                  cfg.get("extra_body"))
@@ -537,7 +547,7 @@ def run_case(cfg: dict, case: dict, model: str, out_dir: Path,
                   f"({drift:.2%}) -- adjusting prompt and re-running case", flush=True)
             words = words_for(target, {"a": calib["a"],
                                        "b": calib["b"] * achieved["mean"] / target})
-            text = build_text(words)
+            text = prompt_for(0)
         else:
             break
 
@@ -556,6 +566,7 @@ def run_case(cfg: dict, case: dict, model: str, out_dir: Path,
         "occupancy_note": "engine-reported token count of the actual prompt; "
                           "configured n_ctx is never read as exercised context",
         "cache_off_sent": True,
+        "unique_prompts_per_repeat": unique,
         "cache_hits": [r["metrics"].get("cached_tokens") for r in records],
         "cache_verification": (
             "engine reported cached_tokens/cache_n per request" if
@@ -680,6 +691,10 @@ def main() -> int:
                      help="JSON merged into every measured request body")
     run.add_argument("--ssh-memory", default=None,
                      help="ssh host for host memory snapshots (optional)")
+    run.add_argument("--no-unique-prompts", action="store_true",
+                     help="repeat the identical prompt text on every request "
+                          "(default: unique per repeat, enforcing caching-off "
+                          "even on engines that ignore cache_prompt)")
 
     cmp_ = sub.add_parser("compare", help="two summary.json -> comparison markdown")
     cmp_.add_argument("--a", required=True)
@@ -715,7 +730,8 @@ def main() -> int:
 
     cfg = {"base_url": args.base_url, "timeout": args.timeout,
            "headers": headers, "extra_body": extra_body,
-           "calibration": calib, "ssh_memory": args.ssh_memory}
+           "calibration": calib, "ssh_memory": args.ssh_memory,
+           "unique_prompts": not args.no_unique_prompts}
 
     case_names = [c.strip() for c in args.cases.split(",") if c.strip()]
     unknown = [c for c in case_names if c not in CASE_DEFS]
