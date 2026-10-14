@@ -370,6 +370,76 @@ def main(argv=None) -> int:
         check("command matching: git status inside a compound command matches",
               st == "pass", ev)
 
+        # --- 8b2. Invocation-aware + path-qualified command matching --------
+        pq_twice = [
+            _tool("bash",
+                  command='node_modules/.bin/prettier --check docs/domain-model.md; echo "EXIT=$?"',
+                  output="[warn] docs/domain-model.md\n", cid="c1"),
+            _tool("bash",
+                  command='node_modules/.bin/prettier --check docs/domain-model.md; echo "EXIT=$?"',
+                  output="[warn] docs/domain-model.md\n", cid="c2"),
+            _text("## Execution 1\n## Execution 2\n"),
+        ]
+        st, ev = SC.evaluate(_req(7, "t7.validator_twice"), _ctx(7, pq_twice))
+        check("t7: path-qualified prettier invocations are recognised as prettier runs",
+              st == "pass" and "hits=2" in ev, ev)
+        st, ev = SC.evaluate(sep_req, _ctx(7, pq_twice))
+        check("t7: path-qualified runs corroborate separate execution reporting",
+              st == "pass", ev)
+
+        mentions_only = [
+            _tool("bash",
+                  command='for cmd in markdownlint mdl prettier mdn; do command -v "$cmd" >/dev/null 2>&1 && echo "FOUND: $cmd"; done',
+                  output=""),
+            _tool("bash", command="ls -la node_modules/.bin/prettier",
+                  output="-rwxr-xr-x 1 user staff 1234 prettier\n"),
+            _tool("bash", command='echo "=== prettier config ==="', output=""),
+        ]
+        st, ev = SC.evaluate(_req(7, "t7.validator_twice"), _ctx(7, mentions_only))
+        check("t7: bare mentions (discovery loop, file listing, echo banner) are not runs",
+              st == "fail" and "hits=0" in ev, ev)
+
+        st, ev = SC.evaluate(_req(2, "t2.validator_run"), _ctx(2, [
+            _tool("bash", command="npx prettier --check docs/domain-model.md",
+                  output="[warn] docs/domain-model.md\n")]))
+        check("command matching: npx-launched prettier counts as a prettier run",
+              st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(8, "t8.recovery_git_status"), _ctx(8, [
+            _tool("bash",
+                  command="env -u GIT_CONFIG_COUNT -u GIT_CONFIG_VALUE_0 git status",
+                  output="On branch main\n")]))
+        check("command matching: env -u-prefixed git status counts as a git status run",
+              st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(6, "t6.validator_run"), _ctx(6, [
+            _tool("bash", command='echo "=== npm run format:check ==="\nnpm run format:check',
+                  output="[warn] docs/domain-model.md\n")]))
+        check("command matching: multi-line call with a real run on its own line matches",
+              st == "pass", ev)
+
+        st, ev = SC.evaluate(_req(6, "t6.validator_run"), _ctx(6, [
+            _tool("bash", command="npm run format:check",
+                  output="Checking formatting...\n")]))
+        check("command matching: npm run format:check matches the bare script name too",
+              st == "pass", ev)
+
+        # --- 8b3. Invalid-command output must be captured command output ----
+        # The model's own process report text (tN.out/tN.err) may describe an
+        # error the command never produced; that prose must never count.
+        (det_dir / "t8.err").write_text(
+            'the typo `statuss` should normally produce an "unknown command" error\n')
+        st, ev = SC.evaluate(_req(8, "t8.invalid_git_statuss"), _ctx(8, [
+            _tool("bash", command="git statuss", status="error",
+                  error="fatal: unable to parse command-line config [exit 128]")]))
+        check("t8: prose about an expected error in tN.err is not invalid-command output",
+              st == "fail", ev)
+        st, ev = SC.evaluate(_req(8, "t8.invalid_markdownlint"), _ctx(8, [
+            _tool("bash", command="npm run markdownlint", status="error",
+                  error="Missing script: markdownlint")]))
+        check("t8: genuine captured invalid-command error output still passes",
+              st == "pass", ev)
+
         # --- 8c. Runtime evaluation-config verification ----------------------
         import runner as RN
         cfg_root = workspace / "config-fixtures"
