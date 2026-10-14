@@ -298,7 +298,7 @@ Requirement detectors are evidence-based, not prose-based:
   Execution 2" narration does not pass.
 - **Invalid-command output** (`invalid_command_reported`) is matched only against
   the captured output/error of the invocations of the invalid command itself. The
-  process report text (`tN.out`/`tN.err`) is model-authored, so prose *about* an
+  process report text (`tN.out`/`tN.err`) is model-authored, so prose _about_ an
   error the command never produced can never satisfy the requirement.
 - **Nested npm scripts** (`command_ran`) resolve `npm run <script>` bodies transitively
   from the clone's `package.json` (e.g. `npm run check` →
