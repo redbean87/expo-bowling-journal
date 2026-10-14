@@ -41,7 +41,8 @@ def strip_markdown_emphasis(text: str) -> str:
 
 
 # Shell operators that separate independent commands inside one Bash call.
-_SHELL_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+# Newlines count: a multi-line Bash script runs one command per line.
+_SHELL_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;|\||\n)\s*")
 
 
 def command_segments(text) -> list:
@@ -56,18 +57,120 @@ def command_tokens(text) -> list:
     return tokens
 
 
-def command_has(pattern, command) -> bool:
+# Utilities that sit in front of the real command in a shell segment. They are
+# skipped (together with their flags) when deciding where an actually-invoked
+# command begins, so ``env -u FOO git status`` and ``npx prettier`` count as
+# real runs of ``git status`` / ``prettier``.
+_PREFIX_CMDS = {"env", "npx", "bunx", "pnpx", "sudo"}
+
+# Prefix flags that consume a separate value argument (``env -u FOO``,
+# ``npx --prefix /path``). Attached-value forms (``--prefix=/path``) do not
+# consume a separate token.
+_PREFIX_VALUE_FLAGS = {
+    "-u", "-i", "-S", "-C", "--unset", "--unset-all", "--chdir",
+    "--prefix", "--package", "-p", "--call", "-c",
+}
+
+# Package-runner pairs whose second token names the real entry point:
+# ``npm run format:check`` also invokes ``format:check``.
+_SCRIPT_RUNNERS = {"npm", "yarn", "pnpm", "bun"}
+_SCRIPT_SUBCMDS = {"run", "exec", "dlx"}
+
+
+def _is_assignment(tok: str) -> bool:
+    return "=" in tok and not tok.startswith("-")
+
+
+def _token_matches(pattern_token: str, command_token: str) -> bool:
+    """Whole-token equality, extended with path-qualified invocation.
+
+    ``node_modules/.bin/prettier`` (or ``/usr/bin/git``) is a real run of
+    ``prettier`` (``git``), so the final path segment of an absolute or
+    relative command path is compared. Only the basename is compared, and
+    only when the token actually contains a path separator, so filenames or
+    paths in argument position such as ``notes/prettier.md`` never match a
+    bare ``prettier`` token.
+    """
+    if command_token == pattern_token:
+        return True
+    return ("/" in command_token
+            and command_token.rsplit("/", 1)[-1] == pattern_token)
+
+
+def _window_matches(pat: list, toks: list, start: int) -> bool:
+    if start < 0 or start + len(pat) > len(toks):
+        return False
+    return all(_token_matches(p, t) for p, t in zip(pat, toks[start:start + len(pat)]))
+
+
+def invocation_starts(toks: list) -> list:
+    """Indices in ``toks`` where an actually-invoked command may begin.
+
+    Leading ``VAR=value`` assignments and prefix utilities (``env -u FOO``,
+    ``npx --prefix /path``, ``sudo``) are skipped, and ``npm run <script>``
+    additionally yields the script-name position (``npm run format:check``
+    also invokes ``format:check``). A token further along that is none of
+    these — a ``for``-list item, an ``echo`` payload, a filename argument —
+    is not an invocation start, so merely mentioning a command is never
+    credited as running it.
+    """
+    starts = []
+    i = 0
+    while i < len(toks) and _is_assignment(toks[i]):
+        i += 1
+    while i < len(toks):
+        if i not in starts:
+            starts.append(i)
+        tok = toks[i]
+        if tok in _PREFIX_CMDS:
+            i += 1
+            while i < len(toks) and (toks[i].startswith("-") or _is_assignment(toks[i])):
+                takes_value = (
+                    toks[i] in _PREFIX_VALUE_FLAGS
+                    and not _is_assignment(toks[i])
+                    and i + 1 < len(toks)
+                    and not toks[i + 1].startswith("-")
+                    and not _is_assignment(toks[i + 1]))
+                i += 2 if takes_value else 1
+            continue
+        if (tok in _SCRIPT_RUNNERS and i + 1 < len(toks)
+                and toks[i + 1] in _SCRIPT_SUBCMDS):
+            i += 2
+            continue
+        break
+    return starts
+
+
+def command_has(pattern, command, at_invocation=False) -> bool:
     """Token-aware contiguous match of ``pattern`` within ``command``.
 
     Matching is on whole tokens, so ``git status`` does not match ``git statuss``
-    the way a naive substring test would.
+    the way a naive substring test would, and a command token may be a
+    path-qualified form of the expected command (``node_modules/.bin/prettier``
+    matches ``prettier``).
+
+    With ``at_invocation=True`` the pattern must start at a position where a
+    command is actually invoked (see :func:`invocation_starts`), so a real run
+    of the expected command is recognised however it is invoked while a bare
+    mention of the command inside another command (a discovery ``for``-list, an
+    ``echo`` banner, a filename argument) is not credited as a run. The
+    default (anywhere) mode is kept for ``command_forbidden``-style checks,
+    where any occurrence is the conservative direction.
     """
     pat = command_tokens(pattern)
     if not pat:
         return False
-    toks = command_tokens(command)
-    n = len(pat)
-    return any(toks[i:i + n] == pat for i in range(len(toks) - n + 1))
+    for segment in command_segments(command):
+        toks = segment.split()
+        if not toks:
+            continue
+        if at_invocation:
+            starts = invocation_starts(toks)
+        else:
+            starts = range(len(toks) - len(pat) + 1)
+        if any(_window_matches(pat, toks, i) for i in starts):
+            return True
+    return False
 
 
 def search_command_ran(commands) -> bool:
@@ -218,9 +321,10 @@ class Ctx:
             for item in chain:
                 body = self.scripts.get(item, "")
                 for a in any_of:
-                    if command_has(a, f"npm run {item}") and f"npm run {item}" in out:
+                    if (command_has(a, f"npm run {item}", at_invocation=True)
+                            and f"npm run {item}" in out):
                         return True
-                    if body and command_has(a, body):
+                    if body and command_has(a, body, at_invocation=True):
                         first = body.split()[0]
                         if first in out:
                             return True
@@ -234,7 +338,7 @@ class Ctx:
                 cmd = call.get("command")
                 if not isinstance(cmd, str):
                     continue
-                if any(command_has(a, cmd) for a in any_of):
+                if any(command_has(a, cmd, at_invocation=True) for a in any_of):
                     hits += 1
                 elif call.get("status") != "error" and self._nested_npm_match(call, any_of):
                     hits += 1
@@ -426,16 +530,26 @@ def evaluate(req, ctx: Ctx):
 
     if t == "invalid_command_reported":
         cmd = req["params"]["command"]
-        ran = ctx.command_ran([cmd])
-        if ran[0] is None:
+        ran, _hits, _source = ctx.command_ran([cmd])
+        if ran is None:
             return "unknown", "no command trace available"
-        if not ran[0]:
+        if not ran:
             return "fail", f"invalid command not run: {cmd!r}"
-        if not ctx.output.strip():
+        # Only captured output from the invocations of the invalid command
+        # itself counts as that command's output. The process report text
+        # (tN.out/tN.err) is model-authored: prose *about* an error the command
+        # never produced must never satisfy this requirement.
+        pool = "\n".join(
+            (call.get("output") or "") + "\n" + (call.get("error") or "")
+            for call in ctx.tool_calls
+            if isinstance(call.get("command"), str)
+            and command_has(cmd, call["command"], at_invocation=True))
+        if not pool.strip():
             return "unknown", "command ran but no output captured"
-        m = re.search(req["params"]["output_regex"], ctx.output)
+        m = re.search(req["params"]["output_regex"], pool)
         return ("pass" if m else "fail",
-                f"output match={m.group(0)!r}" if m else "no invalid-command output found")
+                f"captured output match={m.group(0)!r}" if m
+                else "no invalid-command output in captured command output")
 
     return "unknown", f"unsupported requirement type: {t}"
 

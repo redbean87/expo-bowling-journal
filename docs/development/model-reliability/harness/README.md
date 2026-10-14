@@ -277,9 +277,17 @@ separately from the per-session DB denials rather than silently merged.
 
 Requirement detectors are evidence-based, not prose-based:
 
-- **Token-aware command matching** (`command_has`) matches whole shell tokens, so
-  `git status` matches a real `git status` (including inside `a && git status`) but
-  **not** `git statuss`. This also guards `command_forbidden`.
+- **Invocation-aware command matching** (`command_has`) matches whole shell
+  tokens, so `git status` matches a real `git status` (including inside
+  `a && git status`, on its own line of a multi-line Bash call, or behind
+  `env -u VAR` / `npx`-style prefixes) but **not** `git statuss`. A
+  path-qualified invocation is recognised as a run of the expected command
+  (`node_modules/.bin/prettier` counts as `prettier`), while a bare mention of
+  the command inside another command — a discovery `for`-list, an `echo`
+  banner, a filename argument — is never credited as a run. This also guards
+  `command_forbidden`, which deliberately keeps anywhere-in-command
+  semantics (any occurrence is the conservative direction for a forbidden
+  command).
 - **Content search** (`content_search`) credits a native `grep` tool call or an `rg` /
   `grep` / `git grep` command actually executed through Bash; a search merely mentioned
   in the final prose is not credited.
@@ -288,6 +296,10 @@ Requirement detectors are evidence-based, not prose-based:
   corroborating the run. The process report text (`tN.out`/`tN.err`) and incidental
   tool output are never used as execution evidence, so fabricated "Execution 1 /
   Execution 2" narration does not pass.
+- **Invalid-command output** (`invalid_command_reported`) is matched only against
+  the captured output/error of the invocations of the invalid command itself. The
+  process report text (`tN.out`/`tN.err`) is model-authored, so prose _about_ an
+  error the command never produced can never satisfy the requirement.
 - **Nested npm scripts** (`command_ran`) resolve `npm run <script>` bodies transitively
   from the clone's `package.json` (e.g. `npm run check` →
   `npm run typecheck && npm run lint && npm run format:check` → `prettier . --check`),
@@ -442,3 +454,49 @@ runs made under this harness are not valid.
 - The expected baseline HEAD is deterministic for the current toolchain/platform;
   cross-platform line-ending or tar-mode differences would trip the HEAD assertion
   by design.
+
+---
+
+## 14. Comparison protocol: repeats and cross-controls
+
+A single harness run of a model+engine stack is a **sample, not a measurement**.
+The suite's discriminating prompts (today: t0, t5, t8 — plus any prompt on which
+two candidates differ) can and do vary non-deterministically run to run. Any
+evidence used for a keep-or-switch or sidegrade decision must therefore follow
+this protocol. It changes **nothing** frozen: the prompt manifest, `ground_truth.json`,
+the sanitized baseline, and the permission policy stay exactly as documented in
+§1, §5, and §8 — the protocol only governs how many runs are made and how
+contrasts are arranged.
+
+### Repeat policy
+
+- **Three repeats per candidate** of the discriminating prompts (minimum set
+  t0, t5, t8; extend to any prompt that differed between candidates), on the
+  same frozen artifacts, same vehicle version, same environment for every
+  candidate.
+- **Decision threshold:** a behavioural difference counts toward a conclusion
+  only if it appears in **≥2 of 3 runs on one side and ≤1 of 3 on the other**.
+  Anything less is reported as a provisional signal or noise, never as a
+  ranking.
+- **Environment-contaminated runs are void, not ties.** If a launcher/env
+  defect (for example a `GIT_CONFIG_*` leak that masks a git error both sides
+  were supposed to produce) shapes an outcome, that prompt-half is void for
+  that run and must be repeated with the environment fixed.
+- A run that needs hand adjudication on a discriminating prompt triggers a
+  repeat, not a ruling; any adjudication must cite trace excerpts.
+
+### Same-model-cross-engine control
+
+- Before any "engine X is better" or "model Y is better" conclusion, run **one
+  same-model-cross-engine control**: the **same model file** (same hash) on both
+  engines, at minimum over the discriminating prompt subset. A model change and
+  an engine change compared only against each other is confounded by design and
+  can never attribute a difference to either.
+- Every comparison report must record, per run: model file + hash, engine +
+  version, context window, quantization, vehicle (runner) version, and scorer
+  version (commit). A material mismatch in any of these is a separate contrast
+  and must be declared, not folded into the headline.
+- Scorer fixes may be re-applied to **stored traces** without new model runs
+  (`score.py --workspace <stored> --variant <v> --out <new>`); when a report's
+  scores come from a re-score, it must say so and name the scorer version. Any
+  verdict produced by a pre-fix scorer is provisional until re-scored.
