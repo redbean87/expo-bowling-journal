@@ -10,7 +10,7 @@ Prometheus `/metrics`, and its lifecycle scripts require a harness-launched
 `llama-server` process; see the suite audit
 `data/ai-server-suite-c1/report.md`, findings F1-F3).
 
-**Relationship to the existing suite:** this runner is built *beside* the
+**Relationship to the existing suite:** this runner is built _beside_ the
 existing suite, not instead of it, and no file of that suite is modified. The
 audit's confirmed defects are not worked around by weakening anything:
 
@@ -33,10 +33,10 @@ One code path (`perf_runner.py`) drives every engine over streaming
 `POST /v1/chat/completions` (`stream_options.include_usage`, temperature 0,
 `cache_prompt: false` on every request). Per measured request it records:
 
-- **TTFT** - client-side time from request send to the *first generated token*
+- **TTFT** - client-side time from request send to the _first generated token_
   (reasoning or content). This closes the known N/A-by-design TTFT gap in the
   non-streaming legacy harness. `ttft_content_s` additionally times the first
-  *visible* (non-reasoning) token.
+  _visible_ (non-reasoning) token.
 - **Prefill tok/s** - `prompt_tokens / TTFT` client-side; the engine-reported
   `timings.prompt_per_second` is recorded alongside when the engine sends it
   (llama.cpp does; recorded absent otherwise).
@@ -49,7 +49,7 @@ One code path (`perf_runner.py`) drives every engine over streaming
 ### Verified occupancy (never configured context)
 
 The prompt is a deterministic, prefix-stable word stream (fixed seed). The
-target token count is translated to words through a two-probe *calibration*
+target token count is translated to words through a two-probe _calibration_
 against the engine itself (`max_tokens=1` requests whose
 `usage.prompt_tokens` the engine reports). Every measured request then
 re-reports its achieved occupancy from its own `usage.prompt_tokens`; a case
@@ -59,11 +59,20 @@ existing suite rightly enforces.
 
 ### Prompt caching off
 
-Every request sends `cache_prompt: false`. Cache-hit state is verified from
-the engine's own counters (`usage.prompt_tokens_details.cached_tokens`,
-`timings.cache_n`) and recorded per request; if an engine reports no counter,
-the summary says so explicitly (`cache_verification: ABSENT: ...`) rather than
-assuming zero.
+Every request sends `cache_prompt: false`. Found by the first side-by-side
+draft run: **Strata ignores that flag** - its conversation cache served warm
+repeats of an identical prompt (`cached_tokens == prompt_tokens`), so the
+identical-prompt protocol would have silently measured cached prefill on one
+engine and uncached prefill on the other. The runner therefore defaults to a
+**unique prompt per repeat** (per-repeat corpus seed from the same
+deterministic word stream): no prefix cache can serve a repeat, so
+"caching off" is an engine-independent property of the protocol rather than
+of engine cooperation. Cache-hit state is still verified per request from the
+engine's own counters (`usage.prompt_tokens_details.cached_tokens`,
+`timings.cache_n`) and recorded; if an engine reports no counter, the summary
+says so explicitly (`cache_verification: ABSENT: ...`) rather than assuming
+zero. `--no-unique-prompts` restores identical-prompt repeats (llama.cpp
+honors `cache_prompt: false` and was verified hit-free that way).
 
 ### Cold and warm, repeats, and spread
 
@@ -81,11 +90,11 @@ at this repeat count and are reported as such by `perf_runner.py compare`.
 
 ### Cases
 
-| Case | Target occupancy | Generation | Warm repeats | Comparable across engines? |
-|---|---|---|---|---|
-| `short` | ~600 tokens | 256 | 9 | Yes - the short-task latency question (TTFT) |
-| `long60` | ~60,000 tokens | 400 | 5 | Yes - both engines' context windows cover it |
-| `long80` | ~80,000 tokens | 400 | 5 | **No** - Strata's max_context is 65,536; baseline-only |
+| Case     | Target occupancy | Generation | Warm repeats | Comparable across engines?                             |
+| -------- | ---------------- | ---------- | ------------ | ------------------------------------------------------ |
+| `short`  | ~600 tokens      | 256        | 9            | Yes - the short-task latency question (TTFT)           |
+| `long60` | ~60,000 tokens   | 400        | 5            | Yes - both engines' context windows cover it           |
+| `long80` | ~80,000 tokens   | 400        | 5            | **No** - Strata's max_context is 65,536; baseline-only |
 
 ### Optional per-engine introspection
 
@@ -148,16 +157,21 @@ python3 docs/development/ai-server-perf/perf_runner.py compare \
 
 ## What these numbers do and do not establish
 
-- A warm spread at a *verified occupancy* establishes engine throughput /
+- A warm spread at a _verified occupancy_ establishes engine throughput /
   latency **at that occupancy on that production config on that box**, with the
   stated variance. It does not transfer to other occupancies (context-scaling
   is nonlinear), other quants, or other hardware.
 - Both engines are measured through the identical client path, so client-side
-  metrics are directly comparable. Engine-*reported* metrics
+  metrics are directly comparable. Engine-_reported_ metrics
   (`timings.prompt_per_second` etc.) are NOT comparable across engines - the
   two engines compute them differently (e.g. llama.cpp excludes cached tokens;
   definitions of "predicted" differ with speculative decoding) - they are
   reported per engine, never differenced across engines by `compare`.
+- The _client-side_ prefill/TTFT numbers assume the first streamed token
+  arrives after prefill, which holds on both engines tested (llama.cpp and
+  Strata both emit reasoning tokens first). On an engine that streams a
+  role-only chunk first, TTFT is still measured from request send, so the
+  metric remains time-to-first-generated-token.
 - TTFT includes the chat template + prefill of the whole prompt; at 60K
   occupancy it is dominated by prefill, which is exactly the production
   behavior of a one-shot request. The short case answers the short-task
@@ -165,6 +179,6 @@ python3 docs/development/ai-server-perf/perf_runner.py compare \
 - Cold (n=1) numbers are indicative only; the repeat policy deliberately buys
   warm variance instead, since production traffic on these engines is
   continuous (the server stays loaded between requests).
-- Output *quality* is out of scope here (workload/behaviour scorer is the
+- Output _quality_ is out of scope here (workload/behaviour scorer is the
   separate ai-eval-scorer-fix-c1 task); these numbers say nothing about
   correctness.
