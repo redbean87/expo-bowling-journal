@@ -1,7 +1,5 @@
-import { useConvexAuth, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
-
-import { resolveReferenceIdForMutation } from './reference-id-resolution';
 
 import type { Id } from '../../../convex/_generated/dataModel';
 import type {
@@ -16,7 +14,6 @@ import {
   packManualPins,
 } from '@/screens/game-editor/frame-mask-utils';
 import {
-  convexJournalService,
   type CreateGameInput,
   type Frame,
   type Game,
@@ -29,6 +26,11 @@ import {
   LOCAL_JOURNAL_OPEN_LEAGUE_ID,
   LOCAL_JOURNAL_USER_ID,
 } from '@/services/journal/local-reads';
+import {
+  createGame as localCreateGame,
+  replaceFramesForGame as localReplaceFramesForGame,
+  updateGame as localUpdateGame,
+} from '@/services/journal/local-writes';
 import { getLocalJournalService } from '@/services/local-journal';
 
 function toLocalCreationTime(date: string): number {
@@ -225,81 +227,65 @@ export function useGameEditor(gameId: GameId | null) {
     };
   }, [gameId]);
 
-  const createGameMutation = useMutation(convexJournalService.createGame);
-  const updateGameMutation = useMutation(convexJournalService.updateGame);
-  const replaceFramesMutation = useMutation(
-    convexJournalService.replaceFramesForGame
-  );
-
+  // Local-first C-2 editor writes (game create/update + frame replacement).
+  // The editor's three write bindings no longer go to the server: they call
+  // the app-boundary write adapter (`src/services/journal/local-writes.ts`),
+  // the write-side counterpart of the `local-reads.ts` adapter this hook
+  // already uses for its read, so the hook crosses the app boundary in one
+  // place on each side. There is no `useMutation` binding, no connectivity
+  // branch, and no game-save-queue enqueue: local mode is the only mode
+  // (docs/local-first-architecture.md §1 and §3, UI → local service →
+  // SQLite), so an editor save persists whether or not the device has a
+  // network, and the legacy JSON game-save queue stays a cloud-only
+  // implementation artifact (§2.7) that nothing here reads or writes.
+  //
+  // The Convex reference-id mapping step is gone: the ids the editor already
+  // holds (`selectedPatternId`/`selectedBallId`) are local UUIDs, so they go
+  // to the service unchanged and no client-sync-map lookup is attempted.
+  // `clientSyncId` (the editor's draft nonce) stays transport-only — the
+  // adapter drops it and never stores it — and `createGame` returns the
+  // persisted local UUID, so the autosave's `setDraftGameId` and route
+  // replacement navigate on a real local id instead of a `draft-…` phantom.
+  //
+  // Frame replacement keeps the service's all-or-nothing transaction:
+  // `replaceFramesForGame` delegates to `replaceGameFrames`. Validation,
+  // foreign-key integrity, and error propagation belong to the service and
+  // are passed through unchanged, so the autosave's existing error handling
+  // still sees the service's error; only the `isSaving` bookkeeping is this
+  // hook's own.
   const [isSaving, setIsSaving] = useState(false);
 
-  const createGame = useCallback(
-    async (input: CreateGameInput) => {
-      setIsSaving(true);
+  const createGame = useCallback(async (input: CreateGameInput) => {
+    setIsSaving(true);
 
-      try {
-        const [resolvedPatternId, resolvedBallId] = await Promise.all([
-          resolveReferenceIdForMutation(
-            'pattern',
-            input.patternId ? String(input.patternId) : null
-          ),
-          resolveReferenceIdForMutation(
-            'ball',
-            input.ballId ? String(input.ballId) : null
-          ),
-        ]);
+    try {
+      return await localCreateGame(input);
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
-        return await createGameMutation({
-          ...input,
-          patternId: (resolvedPatternId as never) ?? null,
-          ballId: (resolvedBallId as never) ?? null,
-        });
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [createGameMutation]
-  );
+  const updateGame = useCallback(async (input: UpdateGameInput) => {
+    setIsSaving(true);
 
-  const updateGame = useCallback(
-    async (input: UpdateGameInput) => {
-      setIsSaving(true);
-
-      try {
-        const [resolvedPatternId, resolvedBallId] = await Promise.all([
-          resolveReferenceIdForMutation(
-            'pattern',
-            input.patternId ? String(input.patternId) : null
-          ),
-          resolveReferenceIdForMutation(
-            'ball',
-            input.ballId ? String(input.ballId) : null
-          ),
-        ]);
-
-        return await updateGameMutation({
-          ...input,
-          patternId: (resolvedPatternId as never) ?? null,
-          ballId: (resolvedBallId as never) ?? null,
-        });
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [updateGameMutation]
-  );
+    try {
+      return await localUpdateGame(input);
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
   const replaceFramesForGame = useCallback(
     async (input: ReplaceFramesInput) => {
       setIsSaving(true);
 
       try {
-        return await replaceFramesMutation(input);
+        return await localReplaceFramesForGame(input);
       } finally {
         setIsSaving(false);
       }
     },
-    [replaceFramesMutation]
+    []
   );
 
   return {
