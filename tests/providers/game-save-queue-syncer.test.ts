@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import {
   __setActiveRenderer,
   __setAppState,
+  __setTestAuthState,
   convexJournalService,
   flushEventLog,
   gameSaveFlushCalls,
@@ -42,6 +43,10 @@ import { registerStubRemaps } from '../harness/remap';
 // - In-flight locking, entry ordering, dedup, and retry backoff live in the
 //   real flush modules (`*-queue-sync*`), which this change does not touch
 //   and which are covered by their own tests.
+// - The local-mode retry gate is asserted below against the same doubles:
+//   `retryNow` (`src/hooks/journal/use-queue-sync-status.ts`) returns before
+//   any pipeline runs while there is no session, and the cloud-mode case
+//   still flushes all three with `force: true`.
 
 const stubDir = path.join(__dirname, 'stubs');
 const presenceModuleUrl = pathToFileURL(
@@ -74,6 +79,11 @@ const stubRewrites: Record<string, string> = {
   '@/screens/game-editor/game-save-queue-sync': stubPath,
   '@/screens/journal/journal-create-queue-sync': stubPath,
   '@/screens/journal/reference-create-queue-sync': stubPath,
+  // Specifiers as `useQueueSyncStatus` sees them (the presence module above
+  // reaches the same doubles through the relative specifiers below).
+  '@/screens/game-editor/game-save-queue-storage': stubPath,
+  '@/screens/journal/journal-create-queue-storage': stubPath,
+  '@/screens/journal/reference-create-queue-storage': stubPath,
 };
 
 // Storage specifiers as seen from the real `queue-sync-presence` module.
@@ -103,6 +113,36 @@ function getSyncerModule(): Promise<SyncerModule> {
   syncerModulePromise ??= import('../../src/providers/game-save-queue-syncer');
 
   return syncerModulePromise;
+}
+
+type QueueSyncStatusModule =
+  typeof import('../../src/hooks/journal/use-queue-sync-status');
+
+type QueueSyncStatusRender = ReturnType<
+  QueueSyncStatusModule['useQueueSyncStatus']
+>;
+
+let queueSyncStatusModulePromise: Promise<QueueSyncStatusModule> | null = null;
+
+// Dynamic import, same reason as the syncer: the stub remaps must already be
+// registered when the hook resolves its own imports.
+function getQueueSyncStatusModule(): Promise<QueueSyncStatusModule> {
+  queueSyncStatusModulePromise ??=
+    import('../../src/hooks/journal/use-queue-sync-status');
+
+  return queueSyncStatusModulePromise;
+}
+
+// The hook object is captured by the render closure, so the test reads it
+// through this seam rather than narrowing the closure variable itself.
+function requireRenderedHook(
+  rendered: QueueSyncStatusRender | null
+): QueueSyncStatusRender {
+  if (rendered === null) {
+    throw new Error('useQueueSyncStatus did not render');
+  }
+
+  return rendered;
 }
 
 // --- Test harness ----------------------------------------------------------
@@ -444,5 +484,114 @@ test('no pending entries means no poll interval; queued work re-arms the 5 secon
     assert.equal(intervals[0].delay, 5000);
   } finally {
     harness.unmount();
+  }
+});
+
+// --- The retry affordance (`retryNow`) -------------------------------------
+//
+// `retryNow` is the user-facing retry: `src/screens/journal-leagues-screen.tsx`
+// wires it to the league sync-status modal, and it flushes all three
+// server-bound pipelines with `force: true`. In the approved local-mode
+// configuration it stays a cloud affordance, so the gate must keep it from
+// reaching any of those pipelines. The hook is mounted through the same stub
+// remaps this suite already uses, so the assertions below observe the same
+// flush doubles the syncer tests record.
+
+test('local mode: retryNow is a no-op and cannot reach the server-bound pipelines', async () => {
+  resetSyncerStubs();
+  __setTestAuthState({ isAuthenticated: false, isLoading: false });
+
+  // Pending work in all three legacy queues, so any flush attempt would be
+  // recorded: an empty log then proves the gate, not an empty queue.
+  storageQueueEntries.game.push({ id: 'game-1' });
+  storageQueueEntries.journal.push({ id: 'journal-1' });
+  storageQueueEntries.reference.push({ id: 'reference-1' });
+
+  const queueSyncStatusModule = await getQueueSyncStatusModule();
+  let rendered: QueueSyncStatusRender | null = null;
+
+  const renderer = new MiniReact(() => {
+    rendered = queueSyncStatusModule.useQueueSyncStatus();
+
+    return null;
+  }, __setActiveRenderer);
+
+  try {
+    renderer.mount();
+    await settle();
+
+    // The status hook still reports the pending entries, and nothing has
+    // flushed on its own.
+    assert.equal(requireRenderedHook(rendered).status.queuedCount, 3);
+    assert.equal(flushEventLog.length, 0);
+
+    await requireRenderedHook(rendered).retryNow();
+    await settle();
+
+    // Asking for a retry in local mode changes nothing: the auth gate returns
+    // before the reference, journal, or game-save pipeline can run.
+    assert.deepEqual(flushEventLog, []);
+    assert.equal(referenceFlushCalls.length, 0);
+    assert.equal(journalFlushCalls.length, 0);
+    assert.equal(gameSaveFlushCalls.length, 0);
+
+    const afterRetry = requireRenderedHook(rendered);
+    assert.equal(afterRetry.isRetryingNow, false);
+    assert.equal(afterRetry.status.state, 'queued');
+    assert.equal(afterRetry.status.queuedCount, 3);
+  } finally {
+    renderer.unmount();
+  }
+});
+
+test('cloud mode: retryNow still flushes all three server-bound pipelines', async () => {
+  resetSyncerStubs();
+  __setTestAuthState({ isAuthenticated: true, isLoading: false });
+
+  storageQueueEntries.game.push({ id: 'game-1' });
+  storageQueueEntries.journal.push({ id: 'journal-1' });
+  storageQueueEntries.reference.push({ id: 'reference-1' });
+
+  const queueSyncStatusModule = await getQueueSyncStatusModule();
+  let rendered: QueueSyncStatusRender | null = null;
+
+  const renderer = new MiniReact(() => {
+    rendered = queueSyncStatusModule.useQueueSyncStatus();
+
+    return null;
+  }, __setActiveRenderer);
+
+  try {
+    renderer.mount();
+    await settle();
+
+    // Mounting the status hook never flushes; only an explicit retry does.
+    assert.equal(flushEventLog.length, 0);
+
+    await requireRenderedHook(rendered).retryNow();
+    await settle();
+
+    // Signed in, the existing retry behavior is unchanged: reference, journal,
+    // then game saves, each forced.
+    assert.deepEqual(flushEventLog, [
+      'reference-create',
+      'journal-create',
+      'game-save',
+    ]);
+    assert.equal(referenceFlushCalls.length, 1);
+    assert.equal(journalFlushCalls.length, 1);
+    assert.equal(gameSaveFlushCalls.length, 1);
+
+    for (const options of [
+      ...referenceFlushCalls,
+      ...journalFlushCalls,
+      ...gameSaveFlushCalls,
+    ]) {
+      assert.equal(options.force, true);
+    }
+
+    assert.equal(requireRenderedHook(rendered).isRetryingNow, false);
+  } finally {
+    renderer.unmount();
   }
 });
