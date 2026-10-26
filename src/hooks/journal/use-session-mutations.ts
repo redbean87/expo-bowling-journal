@@ -7,22 +7,8 @@ import type { Router } from 'expo-router';
 
 import { openJournalNativeActionSheet } from '@/screens/journal/journal-action-sheet';
 import { loadJournalClientSyncMap } from '@/screens/journal/journal-client-sync-map-storage';
-import {
-  createQueuedSessionCreateEntry,
-  createQueuedSessionDeleteEntry,
-  createQueuedSessionUpdateEntry,
-  isRetryableCreateError,
-  upsertQueuedJournalCreateEntry,
-  type QueuedSessionCreateEntry,
-} from '@/screens/journal/journal-create-queue';
-import {
-  loadJournalCreateQueue,
-  persistJournalCreateQueue,
-} from '@/screens/journal/journal-create-queue-storage';
-import {
-  isNavigatorOffline,
-  withTimeout,
-} from '@/screens/journal/journal-offline-create';
+import { type QueuedSessionCreateEntry } from '@/screens/journal/journal-create-queue';
+import { loadJournalCreateQueue } from '@/screens/journal/journal-create-queue-storage';
 import { buildJournalGamesRouteParams } from '@/screens/journal/journal-route-params';
 import { formatIsoDateForToday } from '@/screens/journal-fast-lane-utils';
 import { createClientSyncId } from '@/utils/client-sync-id';
@@ -69,11 +55,11 @@ export function useSessionMutations({
   createSession,
   updateSession,
   removeSession,
-  refreshQueuedSessionCreates,
+  refreshQueuedSessionCreates: _refreshQueuedSessionCreates,
   getNextSessionWeekNumber,
   suggestedSessionWeekNumber,
   defaultSessionHouseId,
-  setQueuedSessionCreates,
+  setQueuedSessionCreates: _setQueuedSessionCreates,
   router,
 }: UseSessionMutationsParams) {
   // Create form state
@@ -214,73 +200,38 @@ export function useSessionMutations({
       weekNumber = parsed;
     }
 
-    const queueSessionCreate = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedSessionCreateEntry(
-        {
-          leagueId: targetLeagueId as never,
-          date,
-          weekNumber,
-          houseId: sessionHouseId as never,
-          ballId: sessionBallId as never,
-          patternId: sessionPatternId as never,
-        },
-        clientSyncId,
-        targetLeagueClientSyncId,
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      setQueuedSessionCreates(
-        nextQueue.filter(
-          (entry): entry is QueuedSessionCreateEntry =>
-            entry.entityType === 'session-create'
-        )
-      );
-      setSessionError(null);
-      setIsCreateModalVisible(false);
-      setSessionWeekNumber('');
-      setSessionHouseId(null);
-      setSessionBallId(null);
-      setSessionPatternId(null);
-      setPendingCreateClientSyncId(null);
-      router.push({
-        pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-        params: buildJournalGamesRouteParams({
-          leagueId: targetLeagueId ?? `draft-${targetLeagueClientSyncId}`,
-          sessionId: `draft-${clientSyncId}`,
-          leagueClientSyncId,
-          sessionClientSyncId: clientSyncId,
-          sessionDate: date,
-          sessionWeekNumber: weekNumber ?? null,
-        }) as never,
-      } as never);
-    };
-
+    // Local-first session writes (C-2): the create goes straight to the
+    // SQLite-backed local journal through the converted session hook
+    // (`use-sessions.ts` → the app-boundary write adapter). The offline
+    // enqueue branch, the `isNavigatorOffline()` guard, the
+    // `isRetryableCreateError` re-queue fallback, and the `withTimeout` wrap
+    // around the server round-trip are gone: they existed only because the
+    // server writes were flaky, and a local write either persisted or threw a
+    // domain error that the form reports below. Connectivity is not a mode
+    // switch, so an offline device still writes locally. The route pushes the
+    // real local session id the create returned, never a `draft-<clientSyncId>`
+    // phantom the games screen could not resolve. Validation (league, date,
+    // week number) and the UI state transitions are unchanged.
     setIsCreatingSessionRequest(true);
 
     try {
-      if (!targetLeagueId || isNavigatorOffline()) {
-        await queueSessionCreate();
+      if (!targetLeagueId) {
+        // The league is known only through a legacy queued draft, so it has no
+        // local id to attach a local session to. Already-queued entries stay
+        // untouched and no new one is written.
+        setSessionError('League is required before creating a session.');
         return;
       }
 
-      const sessionId = await withTimeout(
-        createSession({
-          leagueId: targetLeagueId,
-          clientSyncId,
-          date,
-          weekNumber,
-          houseId: sessionHouseId as never,
-          ballId: sessionBallId as never,
-          patternId: sessionPatternId as never,
-        }),
-        4500
-      );
+      const sessionId = await createSession({
+        leagueId: targetLeagueId,
+        clientSyncId,
+        date,
+        weekNumber,
+        houseId: sessionHouseId as never,
+        ballId: sessionBallId as never,
+        patternId: sessionPatternId as never,
+      });
       setSessionError(null);
       setIsCreateModalVisible(false);
       setSessionWeekNumber('');
@@ -299,11 +250,6 @@ export function useSessionMutations({
         }) as never,
       } as never);
     } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueSessionCreate();
-        return;
-      }
-
       setPendingCreateClientSyncId(clientSyncId);
       setSessionError(
         caught instanceof Error ? caught.message : 'Unable to create session.'
@@ -326,38 +272,22 @@ export function useSessionMutations({
       return;
     }
 
+    // Local-first session writes (C-2): the edit persists straight to SQLite
+    // through the converted hook, so there is no queue entry to write and no
+    // retryable-server-error fallback. A rejected local update propagates to
+    // the form error exactly as the server mutation's rejection did.
+    if (!editingSessionServerId) {
+      // The session is known only through a legacy queued draft: no local row
+      // exists to update. Already-queued entries stay untouched.
+      setSessionActionError(
+        'Session is required before saving a session edit.'
+      );
+      return;
+    }
+
     setIsSavingSessionEdit(true);
 
-    const queueSessionUpdate = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedSessionUpdateEntry(
-        {
-          sessionId: editingSessionServerId as never,
-          sessionClientSyncId: editingSessionClientSyncId,
-          date,
-          weekNumber: null,
-          houseId: editingSessionHouseId as never,
-          patternId: editingSessionPatternId as never,
-          ballId: editingSessionBallId as never,
-        },
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      await refreshQueuedSessionCreates();
-      cancelEditingSession();
-    };
-
     try {
-      if (!editingSessionServerId || isNavigatorOffline()) {
-        await queueSessionUpdate();
-        return;
-      }
-
       await updateSession({
         sessionId: editingSessionServerId as SessionId,
         date,
@@ -368,11 +298,6 @@ export function useSessionMutations({
       });
       cancelEditingSession();
     } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueSessionUpdate();
-        return;
-      }
-
       setSessionActionError(
         caught instanceof Error ? caught.message : 'Unable to update session.'
       );
@@ -389,47 +314,30 @@ export function useSessionMutations({
       return;
     }
 
+    // Local-first session deletes (C-2): the delete is a real local delete
+    // through the converted hook (adapter → `removeSession` on the SQLite
+    // service), so there is no offline enqueue and no retryable-server-error
+    // re-queue. The service's foreign-key integrity (NO ACTION) rejects a
+    // session that still has games — that rejection surfaces as the form error
+    // below instead of queueing an entry that could never drain. The approved
+    // scope is the session alone: neither its league nor its games are deleted
+    // by this call.
+    if (!target.sessionId) {
+      // The session is known only through a legacy queued draft: there is no
+      // local row to delete. Already-queued entries stay untouched.
+      setSessionActionError('Session is required before deleting a session.');
+      return;
+    }
+
     setDeletingSessionRowId(target.rowId);
 
-    const queueSessionDelete = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedSessionDeleteEntry(
-        {
-          sessionId: target.sessionId as never,
-          sessionClientSyncId: target.sessionClientSyncId,
-        },
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      await refreshQueuedSessionCreates();
-
-      if (isEditModalVisible) {
-        cancelEditingSession();
-      }
-    };
-
     try {
-      if (!target.sessionId || isNavigatorOffline()) {
-        await queueSessionDelete();
-        return;
-      }
-
       await removeSession({ sessionId: target.sessionId as SessionId });
 
       if (isEditModalVisible) {
         cancelEditingSession();
       }
     } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueSessionDelete();
-        return;
-      }
-
       setSessionActionError(
         caught instanceof Error ? caught.message : 'Unable to delete session.'
       );
