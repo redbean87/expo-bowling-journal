@@ -24,8 +24,9 @@ function withFrame(
   return next;
 }
 
-test('blocks autosave when user has never signed in', () => {
+test('blocks autosave in cloud mode when the user has never signed in', () => {
   const result = buildAutosaveGuardResult({
+    localMode: false,
     isAuthenticated: false,
     hasSignedInBefore: false,
     date: '2026-02-12',
@@ -40,12 +41,47 @@ test('blocks autosave when user has never signed in', () => {
   });
 });
 
+test('local mode does not block a never-signed-in bowler', () => {
+  const result = buildAutosaveGuardResult({
+    localMode: true,
+    isAuthenticated: false,
+    hasSignedInBefore: false,
+    date: '2026-02-12',
+    frameDrafts: EMPTY_FRAMES,
+    isCreateMode: true,
+    currentGameId: null,
+  });
+
+  assert.deepEqual(result, {
+    status: 'idle',
+  });
+});
+
+test('local mode saves a never-signed-in bowler once ready', () => {
+  const frameDrafts = withFrame(0, {
+    roll1Mask: 0x3ff,
+  });
+
+  const result = buildAutosaveGuardResult({
+    localMode: true,
+    isAuthenticated: false,
+    hasSignedInBefore: false,
+    date: '2026-02-12',
+    frameDrafts,
+    isCreateMode: true,
+    currentGameId: null,
+  });
+
+  assert.equal(result.status, 'ready');
+});
+
 test('allows autosave when user signed in previously but is currently offline', () => {
   const frameDrafts = withFrame(0, {
     roll1Mask: 0x3ff,
   });
 
   const result = buildAutosaveGuardResult({
+    localMode: false,
     isAuthenticated: false,
     hasSignedInBefore: true,
     date: '2026-02-12',
@@ -59,6 +95,7 @@ test('allows autosave when user signed in previously but is currently offline', 
 
 test('blocks autosave when date is empty', () => {
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '   ',
     frameDrafts: EMPTY_FRAMES,
@@ -79,6 +116,7 @@ test('blocks autosave for invalid frame sums', () => {
   });
 
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '2026-02-12',
     frameDrafts,
@@ -94,6 +132,7 @@ test('blocks autosave for invalid frame sums', () => {
 
 test('stays idle in create mode with no game and no frame values', () => {
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '2026-02-12',
     frameDrafts: EMPTY_FRAMES,
@@ -112,6 +151,7 @@ test('becomes ready in create mode after first valid score input', () => {
   });
 
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '2026-02-12',
     frameDrafts,
@@ -148,6 +188,7 @@ test('becomes ready in create mode after first valid score input', () => {
 
 test('remains ready in edit mode with existing game when frames are cleared', () => {
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '2026-02-12',
     frameDrafts: EMPTY_FRAMES,
@@ -178,6 +219,7 @@ test('blocks autosave when frame order has gaps', () => {
   });
 
   const result = buildAutosaveGuardResult({
+    localMode: true,
     isAuthenticated: true,
     date: '2026-02-12',
     frameDrafts,
