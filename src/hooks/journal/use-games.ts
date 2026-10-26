@@ -1,21 +1,20 @@
-import { useMutation } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { isConnectivityOffline } from '@/services/connectivity';
 import {
-  convexJournalService,
   type CreateGameInput,
   type GameListItem,
   type RemoveGameInput,
   type SessionId,
 } from '@/services/journal';
 import { listLocalGamesBySession } from '@/services/journal/local-reads';
+import {
+  createGame as localCreateGame,
+  removeGame as localRemoveGame,
+} from '@/services/journal/local-writes';
 
 export function useGames(sessionId: SessionId | null) {
   const [localGames, setLocalGames] = useState<GameListItem[] | null>(null);
   const [isLocalGamesLoading, setIsLocalGamesLoading] = useState(true);
-  const createGameMutation = useMutation(convexJournalService.createGame);
-  const removeGameMutation = useMutation(convexJournalService.removeGame);
   const [isCreating, setIsCreating] = useState(false);
 
   // Local SQLite is the authoritative game read: always loaded (when a
@@ -53,37 +52,46 @@ export function useGames(sessionId: SessionId | null) {
     };
   }, [sessionId]);
 
-  // Offline (Phase 3): game create/remove are explicitly disabled while the
-  // app is offline — no existing queue models a bare game create (the game
-  // save queue belongs to the editor autosave flow) or a game delete. The
-  // callbacks resolve null without invoking Convex, touching UI state, or
-  // throwing.
-  const createGame = useCallback(
-    async (input: CreateGameInput) => {
-      if (isConnectivityOffline()) {
-        return null;
-      }
+  // Local-first game writes (C-2): every game mutation goes straight to the
+  // SQLite-backed local journal through the app-boundary write adapter
+  // (`src/services/journal/local-writes.ts`), the write-side counterpart of
+  // the `local-reads.ts` adapter this hook already uses for its read. There
+  // is no Convex mutation, no offline-queue enqueue, and no connectivity
+  // branch: local mode is the only mode (docs/local-first-architecture.md §1
+  // and §3, UI → local service → SQLite), so a game create persists whether
+  // or not the device has a network, and the legacy journal-create queue is
+  // an implementation artifact that stays cloud-only (§2.7). Nothing here
+  // reads or writes that queue storage, so entries already persisted in it
+  // stay untouched.
+  //
+  // Create returns the persisted local UUID (no `draft-<clientSyncId>`
+  // identifier exists in local mode), so callers route on the real id.
+  // `clientSyncId` stays transport-only: the adapter drops it and never
+  // stores it. The Convex reference-id mapping step is dropped too — local
+  // ids need no server-side resolution, so the ids the caller supplies are
+  // already the local ones.
+  //
+  // Delete is a real local delete, not the legacy silent null: it returns the
+  // id it deleted, and its scope is the approved game scope — the game plus
+  // its frames, never its session and never its league (the game's frames are
+  // cleared first because the canonical foreign keys are enforced with NO
+  // ACTION). An unknown game id stays a no-op, matching the local service.
+  // Service validation, foreign-key integrity, transactions, and error
+  // propagation are the service's and are passed through unchanged, so the
+  // screen's existing delete error handling still sees the service's error.
+  const createGame = useCallback(async (input: CreateGameInput) => {
+    setIsCreating(true);
 
-      setIsCreating(true);
-
-      try {
-        return await createGameMutation(input);
-      } finally {
-        setIsCreating(false);
-      }
-    },
-    [createGameMutation]
-  );
+    try {
+      return await localCreateGame(input);
+    } finally {
+      setIsCreating(false);
+    }
+  }, []);
 
   const removeGame = useCallback(
-    async (input: RemoveGameInput) => {
-      if (isConnectivityOffline()) {
-        return null;
-      }
-
-      return await removeGameMutation(input);
-    },
-    [removeGameMutation]
+    async (input: RemoveGameInput) => await localRemoveGame(input),
+    []
   );
 
   return {

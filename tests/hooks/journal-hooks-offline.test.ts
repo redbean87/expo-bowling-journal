@@ -51,19 +51,19 @@ import type {
 // journal-create-queue entry factories and upsert engine, the reference
 // resolver (`reference-id-resolution`), the client-sync-map storage,
 // `reference-draft-id`, and `client-sync-id`. `@/services/journal/local-writes`
-// is deliberately NOT remapped: the converted league and session hooks (C-2)
-// write through the real SQLite-backed local journal service, so the league
-// and session write tests read the persisted entity back from that same
-// service.
+// is deliberately NOT remapped: the converted league, session, and game hooks
+// (C-2) write through the real SQLite-backed local journal service, so the
+// league, session, and game write tests read the persisted entity back from
+// that same service.
 //
-// Covered per callback: offline → no Convex mutation, no throw, no UI
-// state touched, and an explicit no-op (game create/remove, which have no
-// safe queue representation); online → behavior-identical mutation input and
-// propagated return value; plus online→offline and offline→online
-// transitions without remounting. League and session callbacks are converted
-// (C-2): in every connectivity state they write straight to the SQLite-backed
-// local journal, return the persisted local UUID, and never enqueue a
-// journal-create entry.
+// Covered per callback: the legacy offline branch (no Convex mutation, no
+// throw, no UI state touched, and an explicit no-op) and the online branch
+// (behavior-identical mutation input and propagated return value) survive only
+// for callbacks that have not been converted; plus online→offline and
+// offline→online transitions without remounting. League, session, and game
+// callbacks are converted (C-2): in every connectivity state they write
+// straight to the SQLite-backed local journal, return the persisted local
+// UUID, and never enqueue a journal-create entry.
 //
 // The server is sabotaged in this suite: the `convex/react` double records
 // and throws on any bound query, and the `local-reads` double serves
@@ -203,38 +203,184 @@ const CLIENT_SYNC_MAP_KEY = 'journal:client-sync-map:v1';
 
 // --- Tests -----------------------------------------------------------------
 
-test('offline: createGame is disabled (null, no mutation, no queue, no UI state)', async () => {
+// The local UUID the SQLite-backed service mints for every canonical entity.
+const LOCAL_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// --- C-2: game writes go straight to local SQLite -------------------------
+//
+// The game hook no longer binds a Convex mutation and no longer returns the
+// legacy silent null while "offline": `createGame`/`removeGame` call the
+// app-boundary write adapter (`src/services/journal/local-writes.ts`), which
+// writes through the real SQLite-backed local journal service. These tests
+// drive the real hook and read the game back from that same service, so a
+// queue-based or server-based game write fails the suite. The service's
+// foreign-key integrity (NO ACTION) and its delete-by-id behavior are the
+// service's own and stay unchanged; the hook only propagates them.
+
+test('local mode: createGame persists the game locally and returns the local id', async () => {
   const harness = await mountHooks({ isConnected: false, type: 'none' });
 
   try {
+    const { localJournal, database } = await getLocalReadModules();
+    await database.closeDatabase();
+    const journal = localJournal.getLocalJournalService();
+
+    const league = await journal.createLeague({ name: 'Fall League' });
+    const session = await journal.createSession({
+      leagueId: league.id,
+      date: '2025-01-05',
+    });
+
     const result = await harness.games.createGame({
-      sessionId: 'session-1' as never,
+      sessionId: session.id as SessionId,
       date: '2025-01-05',
       clientSyncId: 'cs-game-1',
     });
 
-    assert.equal(result, null);
-    assert.equal(harness.games.isCreating, false);
+    // No server mutation, no queue entry, no queue persist, and no
+    // reference-resolver (client-sync-map) load: the write is local, and it
+    // stays local while the device reports no network at all.
     assert.equal(mutationCalls.length, 0);
     assert.equal(journalCreateQueue.length, 0);
     assert.equal(journalCreateQueuePersistCalls.length, 0);
+    assert.ok(
+      !asyncStorageGetKeys.includes(CLIENT_SYNC_MAP_KEY),
+      'local createGame must not load the client-sync-map'
+    );
+    assert.equal(harness.games.isCreating, false);
+
+    // The returned id is the persisted local UUID, never a draft id.
+    assert.ok(
+      !String(result).startsWith('draft-'),
+      'local createGame must not return a draft id'
+    );
+    assert.ok(
+      LOCAL_UUID_PATTERN.test(String(result)),
+      'local createGame must return a local UUID'
+    );
+
+    // Read-back through the real SQLite-backed service proves the write
+    // landed there, with the transport artifact (`clientSyncId`) dropped and
+    // the game → session foreign key kept as the local session's id.
+    const persisted = await journal.getGame(result);
+    assert.ok(persisted !== null, 'the created game must persist locally');
+    assert.equal(persisted.id, result);
+    assert.equal(persisted.sessionId, session.id);
+    assert.equal(persisted.date, '2025-01-05');
+    assert.equal(persisted.ballId, null);
+    assert.equal(persisted.patternId, null);
+
+    // A second create with the same clientSyncId is a second local game:
+    // local ids are per-entity, so nothing upserts onto the first.
+    const second = await harness.games.createGame({
+      sessionId: session.id as SessionId,
+      date: '2025-01-06',
+      clientSyncId: 'cs-game-1',
+    });
+    assert.notEqual(second, result);
+    assert.ok(LOCAL_UUID_PATTERN.test(String(second)));
+    assert.equal(journalCreateQueue.length, 0);
+    assert.equal(journalCreateQueuePersistCalls.length, 0);
+    assert.deepEqual(
+      (await journal.listGames({ sessionId: session.id })).map(
+        (game) => game.date
+      ),
+      ['2025-01-05', '2025-01-06']
+    );
   } finally {
     harness.unmount();
   }
 });
 
-test('offline: removeGame is disabled (null, no mutation, no queue)', async () => {
+test('local mode: removeGame deletes the game and its frames and returns its local id', async () => {
   const harness = await mountHooks({ isConnected: false, type: 'none' });
 
   try {
+    const { localJournal, database } = await getLocalReadModules();
+    await database.closeDatabase();
+    const journal = localJournal.getLocalJournalService();
+
+    const league = await journal.createLeague({ name: 'Fall League' });
+    const session = await journal.createSession({
+      leagueId: league.id,
+      date: '2025-01-05',
+    });
+    const game = await journal.createGame({
+      sessionId: session.id,
+      date: '2025-01-05',
+    });
+    await journal.replaceGameFrames(game.id, [
+      { frameNumber: 1, roll1Mask: 1023 },
+      { frameNumber: 2, roll1Mask: 31 },
+    ]);
+
     const result = await harness.games.removeGame({
-      gameId: 'game-1' as never,
+      gameId: game.id as GameId,
     });
 
-    assert.equal(result, null);
+    // The delete returns the local id it deleted, not the legacy silent null:
+    // the screen's delete confirmation can no longer report success over a
+    // game that is still there.
+    assert.equal(result, game.id);
+
+    // No server mutation, no queue entry, no queue persist.
     assert.equal(mutationCalls.length, 0);
     assert.equal(journalCreateQueue.length, 0);
     assert.equal(journalCreateQueuePersistCalls.length, 0);
+
+    // The game and its frames are gone: the frames are cleared first because
+    // the canonical foreign keys are enforced with NO ACTION, so a game that
+    // still has referencing frames cannot be deleted.
+    assert.equal(await journal.getGame(game.id), null);
+    assert.deepEqual(await journal.getGameFrames(game.id), []);
+    assert.deepEqual(await journal.listGames(), []);
+
+    // The approved scope is the game and its frames only: neither its session
+    // nor its league is swept in.
+    assert.notEqual(await journal.getSession(session.id), null);
+    assert.notEqual(await journal.getLeague(league.id), null);
+  } finally {
+    harness.unmount();
+  }
+});
+
+test('local mode: removeGame on an unknown id is a no-op and returns the id', async () => {
+  const harness = await mountHooks({ isConnected: false, type: 'none' });
+
+  try {
+    const { localJournal, database } = await getLocalReadModules();
+    await database.closeDatabase();
+    const journal = localJournal.getLocalJournalService();
+
+    const league = await journal.createLeague({ name: 'Fall League' });
+    const session = await journal.createSession({
+      leagueId: league.id,
+      date: '2025-01-05',
+    });
+    const game = await journal.createGame({
+      sessionId: session.id,
+      date: '2025-01-05',
+    });
+    await journal.replaceGameFrames(game.id, [
+      { frameNumber: 1, roll1Mask: 3 },
+    ]);
+
+    const unknownId = '00000000-0000-0000-0000-000000000000' as GameId;
+    const result = await harness.games.removeGame({ gameId: unknownId });
+
+    // An unknown id stays a no-op, matching the local service: it returns the
+    // id it was asked about, and nothing else in the journal is disturbed.
+    assert.equal(result, unknownId);
+    assert.equal(mutationCalls.length, 0);
+    assert.equal(journalCreateQueue.length, 0);
+    assert.equal(journalCreateQueuePersistCalls.length, 0);
+    assert.equal(await journal.getGame(unknownId), null);
+    assert.notEqual(await journal.getGame(game.id), null);
+    assert.deepEqual(
+      (await journal.getGameFrames(game.id)).map((frame) => frame.frameNumber),
+      [1]
+    );
   } finally {
     harness.unmount();
   }
@@ -250,9 +396,6 @@ test('offline: removeGame is disabled (null, no mutation, no queue)', async () =
 // queue-based or server-based league write fails the suite. The service's
 // foreign-key integrity (NO ACTION) and its delete-by-id behavior are the
 // service's own and stay unchanged; the hook only propagates them.
-
-const LOCAL_UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 test('local mode: createLeague persists the league locally and returns the local id', async () => {
   const harness = await mountHooks({ isConnected: false, type: 'none' });
@@ -571,7 +714,7 @@ test('local mode: removeSession keeps foreign-key integrity (a session with game
   }
 });
 
-test('online: the two unchanged callbacks stay behavior-identical; league and session callbacks write locally', async () => {
+test('online: every journal callback writes locally; connectivity is not a mode switch', async () => {
   const harness = await mountHooks({ isConnected: true, type: 'wifi' });
 
   try {
@@ -579,17 +722,34 @@ test('online: the two unchanged callbacks stay behavior-identical; league and se
     await database.closeDatabase();
     const journal = localJournal.getLocalJournalService();
 
+    // Connectivity is not a mode switch: an "online" game write still goes
+    // straight to the local SQLite journal, returns the persisted local id, and
+    // deletes locally rather than sending a mutation to the server.
+    const gameLeague = await journal.createLeague({ name: 'Game League' });
+    const gameSession = await journal.createSession({
+      leagueId: gameLeague.id,
+      date: '2025-01-05',
+    });
+
     const createdGame = await harness.games.createGame({
-      sessionId: 'session-1' as never,
+      sessionId: gameSession.id as SessionId,
       date: '2025-01-05',
       clientSyncId: 'cs-game-1',
     });
-    assert.equal(createdGame, 'server-createGame');
+    assert.ok(
+      LOCAL_UUID_PATTERN.test(String(createdGame)),
+      'an online game write must return a local UUID'
+    );
+    assert.ok(
+      (await journal.getGame(createdGame)) !== null,
+      'the online game write must persist locally'
+    );
 
     const removedGame = await harness.games.removeGame({
-      gameId: 'game-1' as never,
+      gameId: createdGame as GameId,
     });
-    assert.equal(removedGame, 'server-removeGame');
+    assert.equal(removedGame, createdGame);
+    assert.equal(await journal.getGame(createdGame), null);
 
     // Connectivity is not a mode switch: an "online" league write still goes
     // straight to the local SQLite journal and returns the persisted local id.
@@ -641,21 +801,13 @@ test('online: the two unchanged callbacks stay behavior-identical; league and se
     assert.equal(removedSession, createdSession);
     assert.equal(await journal.getSession(createdSession), null);
 
-    // Neither the league nor the session callbacks bind a Convex mutation: the
-    // recorded calls are exactly the two unchanged server callbacks.
-    assert.deepEqual(
-      mutationCalls.map((call) => call.name),
-      ['createGame', 'removeGame']
-    );
-    assert.deepStrictEqual(mutationCalls[0].input, {
-      sessionId: 'session-1',
-      date: '2025-01-05',
-      clientSyncId: 'cs-game-1',
-    });
-    assert.deepStrictEqual(mutationCalls[1].input, { gameId: 'game-1' });
+    // No journal callback binds a Convex mutation any more: the game, league,
+    // and session callbacks all write locally, so nothing at all is recorded
+    // against the sabotaged server even in the "online" state.
+    assert.deepEqual(mutationCalls, []);
 
-    // Ordinary online mutations never touch the journal-create queue, and
-    // neither does a local league or session write.
+    // Ordinary online writes never touch the journal-create queue, and
+    // neither does a local game, league, or session write.
     assert.equal(journalCreateQueue.length, 0);
     assert.equal(journalCreateQueuePersistCalls.length, 0);
 
