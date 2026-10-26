@@ -1,34 +1,25 @@
-import { useConvexAuth, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { resolveReferenceIdForMutation } from './reference-id-resolution';
 import { useLeagueQueue } from './use-league-queue';
 
 import {
-  createQueuedLeagueCreateEntry,
-  createQueuedLeagueDeleteEntry,
-  upsertQueuedJournalCreateEntry,
-} from '@/screens/journal/journal-create-queue';
-import {
-  loadJournalCreateQueue,
-  persistJournalCreateQueue,
-} from '@/screens/journal/journal-create-queue-storage';
-import { isConnectivityOffline } from '@/services/connectivity';
-import {
-  convexJournalService,
   type CreateLeagueInput,
   type League,
-  type LeagueId,
   type RemoveLeagueInput,
   type UpdateLeagueInput,
 } from '@/services/journal';
 import { listLocalLeagues } from '@/services/journal/local-reads';
-import { createClientSyncId } from '@/utils/client-sync-id';
+import {
+  createLeague as localCreateLeague,
+  removeLeague as localRemoveLeague,
+  updateLeague as localUpdateLeague,
+} from '@/services/journal/local-writes';
 
 export function useLeagues() {
   // `isAuthenticated` is reported for consumers that still branch on the
-  // session (e.g. the game editor); the league read itself never waits on
-  // it or the network.
+  // session (e.g. the game editor); the league reads and writes never wait
+  // on it or the network.
   const { isAuthenticated } = useConvexAuth();
 
   const [localLeagues, setLocalLeagues] = useState<League[] | null>(null);
@@ -64,110 +55,54 @@ export function useLeagues() {
     };
   }, []);
 
-  const createLeagueMutation = useMutation(convexJournalService.createLeague);
-  const updateLeagueMutation = useMutation(convexJournalService.updateLeague);
-  const removeLeagueMutation = useMutation(convexJournalService.removeLeague);
   const [isCreating, setIsCreating] = useState(false);
 
-  const createLeague = useCallback(
-    async (input: CreateLeagueInput) => {
-      if (isConnectivityOffline()) {
-        // Queue for the existing journal-create flusher (same entry type the
-        // league screen's offline path uses) and return the local draft id so
-        // the caller can still navigate to the pending league.
-        const clientSyncId = input.clientSyncId ?? createClientSyncId('league');
+  // Local-first league writes (C-2): every league mutation goes straight to
+  // the SQLite-backed local journal through the app-boundary write adapter
+  // (`src/services/journal/local-writes.ts`), which mirrors the read-side
+  // `local-reads.ts` adapters this hook already uses. There is no Convex
+  // mutation, no offline-queue enqueue, and no connectivity branch: local
+  // mode is the only mode (docs/local-first-architecture.md §1 and §3, UI →
+  // local service → SQLite), and the legacy journal-create queue is an
+  // implementation artifact that stays cloud-only (§2.7). Nothing here reads
+  // or writes that queue storage, so entries already persisted in it stay
+  // untouched.
+  //
+  // Create returns the persisted local UUID (no `draft-<clientSyncId>`
+  // identifier exists in local mode), so callers route on the real id.
+  // `clientSyncId` and `leagueType` stay transport-only: the adapter drops
+  // them and never stores them. Service validation, foreign-key behavior
+  // (a league that still has sessions rejects on delete — nothing cascades),
+  // and error propagation are the service's and are passed through
+  // unchanged.
+  const createLeague = useCallback(async (input: CreateLeagueInput) => {
+    setIsCreating(true);
 
-        const queuedEntry = createQueuedLeagueCreateEntry(
-          input,
-          clientSyncId,
-          Date.now()
-        );
-        const currentQueue = await loadJournalCreateQueue();
-        const nextQueue = upsertQueuedJournalCreateEntry(
-          currentQueue,
-          queuedEntry
-        );
-        await persistJournalCreateQueue(nextQueue);
-
-        return `draft-${clientSyncId}` as LeagueId;
-      }
-
-      setIsCreating(true);
-
-      try {
-        const resolvedHouseId = await resolveReferenceIdForMutation(
-          'house',
-          input.houseId ? String(input.houseId) : null
-        );
-
-        const { leagueType, ...rest } = input;
-
-        return await createLeagueMutation({
-          ...rest,
-          houseId: (resolvedHouseId as never) ?? null,
-          ...(leagueType !== undefined ? { type: leagueType } : {}),
-        });
-      } finally {
-        setIsCreating(false);
-      }
-    },
-    [createLeagueMutation]
-  );
+    try {
+      return await localCreateLeague(input);
+    } finally {
+      setIsCreating(false);
+    }
+  }, []);
 
   const createOpenBowlingLeague = useCallback(async () => {
     setIsCreating(true);
 
     try {
-      return await createLeagueMutation({
-        name: 'Open Bowling',
-        type: 'open',
-      });
+      return await localCreateLeague({ name: 'Open Bowling' });
     } finally {
       setIsCreating(false);
     }
-  }, [createLeagueMutation]);
+  }, []);
 
   const updateLeague = useCallback(
-    async (input: UpdateLeagueInput) => {
-      const resolvedHouseId = await resolveReferenceIdForMutation(
-        'house',
-        input.houseId ? String(input.houseId) : null
-      );
-
-      const { leagueType, ...rest } = input;
-
-      return await updateLeagueMutation({
-        ...rest,
-        houseId: (resolvedHouseId as never) ?? null,
-        ...(leagueType !== undefined ? { type: leagueType } : {}),
-      });
-    },
-    [updateLeagueMutation]
+    async (input: UpdateLeagueInput) => await localUpdateLeague(input),
+    []
   );
 
   const removeLeague = useCallback(
-    async (input: RemoveLeagueInput) => {
-      if (isConnectivityOffline()) {
-        const queuedEntry = createQueuedLeagueDeleteEntry(
-          {
-            leagueId: input.leagueId,
-            leagueClientSyncId: null,
-          },
-          Date.now()
-        );
-        const currentQueue = await loadJournalCreateQueue();
-        const nextQueue = upsertQueuedJournalCreateEntry(
-          currentQueue,
-          queuedEntry
-        );
-        await persistJournalCreateQueue(nextQueue);
-
-        return null;
-      }
-
-      return await removeLeagueMutation(input);
-    },
-    [removeLeagueMutation]
+    async (input: RemoveLeagueInput) => await localRemoveLeague(input),
+    []
   );
 
   const { displayLeagues } = useLeagueQueue({
