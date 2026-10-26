@@ -11,6 +11,9 @@
 //   '@/screens/game-editor/game-save-queue-sync'
 //   '@/screens/journal/journal-create-queue-sync'
 //   '@/screens/journal/reference-create-queue-sync'
+//   '@/screens/game-editor/game-save-queue-storage'   (direct, from
+//   '@/screens/journal/journal-create-queue-storage'    useQueueSyncStatus)
+//   '@/screens/journal/reference-create-queue-storage'
 //   '../game-editor/game-save-queue-storage'   (dynamic, from
 //   './journal-create-queue-storage'              queue-sync-presence)
 //   './reference-create-queue-storage'
@@ -60,6 +63,8 @@ export function resetSyncerStubs(): void {
   __activeRenderer = null;
   appStateListeners.clear();
   appState.current = 'active';
+  authState.isAuthenticated = false;
+  authState.isLoading = false;
 }
 
 // --- 'react' double: mini hook dispatcher ------------------------------
@@ -137,6 +142,27 @@ export function useMutation<T>(mutationRef: T): T {
   return mutationRef;
 }
 
+// `useConvexAuth` reports the auth state the test asks for. Local mode is the
+// never-signed-in state (`src/providers/app-provider.tsx` forces the local
+// switch on and the app never opens a sign-in form), and the cloud-mode tests
+// flip it so the assertions prove the retry gate is the auth check rather
+// than an empty queue.
+type AuthState = {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+};
+
+const authState: AuthState = { isAuthenticated: false, isLoading: false };
+
+export function useConvexAuth(): AuthState {
+  return authState;
+}
+
+export function __setTestAuthState(next: AuthState): void {
+  authState.isAuthenticated = next.isAuthenticated;
+  authState.isLoading = next.isLoading;
+}
+
 // --- 'react-native' double (AppState only) ------------------------------
 
 const appState: { current: string } = { current: 'active' };
@@ -185,7 +211,7 @@ export const convexJournalService = {
 
 // --- Queue flush doubles -------------------------------------------------
 //
-// Record the options the syncer passes; the in-flight lock, entry ordering,
+// Record the options the syncer (or `retryNow`) passes; the in-flight lock, entry ordering,
 // dedup, and backoff live in the real flush modules and are covered by
 // their own tests, which this change does not touch. The doubles never
 // mutate storageQueueEntries: draining is the real flush modules' job, and
@@ -199,6 +225,13 @@ export function flushQueuedGameSavesWithLock(
   gameSaveFlushCalls.push(options);
   flushEventLog.push('game-save');
   return Promise.resolve({ remainingEntries: [] });
+}
+
+// `useQueueSyncStatus` reads this to decide whether the queue status is
+// already mid-flush. These doubles resolve synchronously and never hold a
+// real flush open, so nothing is ever in flight here.
+export function isQueuedGameSaveFlushInFlight(): boolean {
+  return false;
 }
 
 export function flushJournalCreateQueueWithLock(
