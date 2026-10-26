@@ -2000,3 +2000,248 @@ test('local mode: the editor autosave creates a new game under a local id and ro
     renderer?.unmount();
   }
 });
+
+// --- C-2 T6: reference-data writes go straight to local SQLite ------------
+//
+// The reference hook's three write callbacks (ball, pattern, and house
+// create) no longer bind a Convex mutation, no longer branch on
+// connectivity, and no longer re-queue a retryable server error: each one
+// resolves to the app-boundary write adapter
+// (`src/services/journal/local-writes.ts`), which writes through the real
+// SQLite-backed local journal service, so the proof is the created entity
+// read back from that same service. `@/screens/journal/reference-create-queue-storage`
+// is deliberately NOT remapped either: it runs as the real module on top of
+// the AsyncStorage double, which is what lets these tests prove that a local
+// create writes no new `journal:reference-create-queue:v1` entry while an
+// entry that was already persisted there survives untouched and keeps
+// rendering as a `Queued offline` draft option.
+
+const REFERENCE_CREATE_QUEUE_KEY = 'journal:reference-create-queue:v1';
+
+test('local mode: use-reference-data creates a ball, a pattern, and a house in SQLite', async () => {
+  resetJournalHookStubs();
+
+  let renderer: MiniReact | null = null;
+  let referenceApi: ReturnType<ReferenceDataModule['useReferenceData']> | null =
+    null;
+
+  try {
+    // Seed a fresh local journal (one ball, one pattern, one house) so the
+    // created entities read back alongside an existing local entity.
+    await seedProofJournal();
+    const { referenceData, localJournal } = await getLocalReadModules();
+    const journal = localJournal.getLocalJournalService();
+
+    renderer = new MiniReact(() => {
+      referenceApi = referenceData.useReferenceData();
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+    await settle();
+
+    if (referenceApi === null) {
+      throw new Error('use-reference-data did not mount');
+    }
+
+    // Rebind through the declared return type: TS collapses a null-narrowed
+    // deferred `ReturnType<...>` union to `never`.
+    const api = referenceApi as ReturnType<
+      ReferenceDataModule['useReferenceData']
+    >;
+
+    // Create: the trimmed name is what the local service stores, and the
+    // returned id is the persisted local UUID — never a `draft-…` phantom
+    // carrying a client-sync nonce.
+    const createdBall = await api.createBall('  Storm Blue  ');
+    assert.ok(
+      !createdBall.id.startsWith('draft-'),
+      'a local ball create must not return a draft id'
+    );
+    assert.match(createdBall.id, LOCAL_UUID_PATTERN);
+    assert.equal(createdBall.label, 'Storm Blue');
+
+    const createdPattern = await api.createPattern('Cheetah');
+    assert.match(createdPattern.id, LOCAL_UUID_PATTERN);
+    assert.equal(createdPattern.label, 'Cheetah');
+
+    const createdHouse = await api.createHouse('  Bowl  ');
+    assert.match(createdHouse.id, LOCAL_UUID_PATTERN);
+    assert.equal(createdHouse.label, 'Bowl');
+
+    // The writes landed in SQLite: each new entity reads back from the same
+    // service alongside the seeded one, with the transport-only name kept and
+    // the optional fields the hook does not send stored as null.
+    const persistedBall =
+      (await journal.listBalls()).find((ball) => ball.id === createdBall.id) ??
+      null;
+    assert.ok(persistedBall !== null, 'the created ball must persist locally');
+    assert.equal(persistedBall.name, 'Storm Blue');
+    assert.equal(persistedBall.brand, null);
+
+    const persistedPattern =
+      (await journal.listPatterns()).find(
+        (pattern) => pattern.id === createdPattern.id
+      ) ?? null;
+    assert.ok(
+      persistedPattern !== null,
+      'the created pattern must persist locally'
+    );
+    assert.equal(persistedPattern.name, 'Cheetah');
+
+    const persistedHouse =
+      (await journal.listHouses()).find(
+        (house) => house.id === createdHouse.id
+      ) ?? null;
+    assert.ok(
+      persistedHouse !== null,
+      'the created house must persist locally'
+    );
+    assert.equal(persistedHouse.name, 'Bowl');
+
+    // A second create of the same name is a second local entity: local ids
+    // are per-entity, so nothing upserts onto the first (the legacy queue
+    // used to collapse repeats onto one clientSyncId).
+    const repeatBall = await api.createBall('Storm Blue');
+    assert.notEqual(repeatBall.id, createdBall.id);
+    assert.match(repeatBall.id, LOCAL_UUID_PATTERN);
+    assert.equal(
+      (await journal.listBalls()).filter((ball) => ball.name === 'Storm Blue')
+        .length,
+      2,
+      'both creates must persist as separate local balls'
+    );
+
+    // The hook's own validation still rejects, and the error propagates
+    // unchanged: nothing is swallowed into a queue entry.
+    let blankNameError: unknown = null;
+    try {
+      await api.createBall('   ');
+    } catch (error) {
+      blankNameError = error;
+    }
+    assert.ok(
+      blankNameError !== null,
+      'a blank ball name must still reject in local mode'
+    );
+    assert.match(String(blankNameError), /Ball name is required/);
+
+    // Zero server attempts: no mutation was bound, no Convex query ran, and
+    // the reference-create queue storage was never written, so no new entry
+    // can sit undrained in local mode.
+    assert.deepEqual(convexOps, []);
+    assert.equal(mutationCalls.length, 0);
+    assert.ok(
+      !asyncStorageStore.has(REFERENCE_CREATE_QUEUE_KEY),
+      'a local reference-data create must not write the reference-create queue'
+    );
+    assert.ok(
+      !asyncStorageStore.has('journal:client-sync-map:v1'),
+      'a local reference-data create must not write the client-sync map'
+    );
+  } finally {
+    renderer?.unmount();
+  }
+});
+
+test('local mode: a reference-data create leaves an already-queued entry untouched and still displays it', async () => {
+  resetJournalHookStubs();
+
+  // A reference-create entry that a pre-C-2 run already persisted. The
+  // approved C-2 decision leaves historical queue entries untouched, so this
+  // entry must survive the local write byte-for-byte and keep rendering as a
+  // draft option.
+  const historicalEntry = {
+    queueId: 'reference-create::ball::cs-historical-ball',
+    entityType: 'reference-create',
+    referenceType: 'ball',
+    clientSyncId: 'cs-historical-ball',
+    name: 'Retired Offline Ball',
+    attemptCount: 0,
+    lastAttemptAt: null,
+    nextRetryAt: 1_700_000_000_000,
+    lastError: null,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  };
+  const seededQueue = JSON.stringify([historicalEntry]);
+  asyncStorageStore.set(REFERENCE_CREATE_QUEUE_KEY, seededQueue);
+
+  let renderer: MiniReact | null = null;
+  let referenceApi: ReturnType<ReferenceDataModule['useReferenceData']> | null =
+    null;
+
+  try {
+    // Seed a fresh local journal (one ball, one pattern, one house) so the
+    // created entities read back alongside an existing local entity.
+    await seedProofJournal();
+    const { referenceData, localJournal } = await getLocalReadModules();
+    const journal = localJournal.getLocalJournalService();
+
+    renderer = new MiniReact(() => {
+      referenceApi = referenceData.useReferenceData();
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+
+    // The queued-entry display refreshes on a real timer, so let it fire
+    // before draining the SQLite promise chains the create starts below.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await settle();
+
+    if (referenceApi === null) {
+      throw new Error('use-reference-data did not mount');
+    }
+
+    const api = referenceApi as ReturnType<
+      ReferenceDataModule['useReferenceData']
+    >;
+
+    const createdBall = await api.createBall('Storm Blue');
+    assert.match(createdBall.id, LOCAL_UUID_PATTERN);
+
+    // The historical entry survives untouched: the storage still holds
+    // exactly the seeded queue, so the local write neither appended to it,
+    // drained it, nor re-parented it.
+    assert.equal(
+      asyncStorageStore.get(REFERENCE_CREATE_QUEUE_KEY),
+      seededQueue,
+      'a local reference-data create must leave historical queue entries untouched'
+    );
+
+    // The historical entry still renders as a `Queued offline` draft option,
+    // and the created ball is a separate local entity — its own UUID, not an
+    // upsert onto the queued clientSyncId and not a `draft-…` id.
+    assert.deepEqual(
+      api.ballOptions.filter(
+        (option) => option.secondaryLabel === 'Queued offline'
+      ),
+      [
+        {
+          id: 'draft-ball-cs-historical-ball',
+          label: 'Retired Offline Ball',
+          secondaryLabel: 'Queued offline',
+        },
+      ],
+      'the historical queued entry must still render as a draft option'
+    );
+    assert.notEqual(
+      createdBall.id,
+      'draft-ball-cs-historical-ball',
+      'a local create must not reuse a draft reference id'
+    );
+
+    // The created ball went to SQLite, not to the queue.
+    assert.deepEqual(
+      (await journal.listBalls()).map((ball) => ball.name),
+      ['Storm Blue', 'Storm Red'],
+      'the created ball must persist in the local journal'
+    );
+
+    assert.deepEqual(convexOps, []);
+    assert.equal(mutationCalls.length, 0);
+  } finally {
+    renderer?.unmount();
+  }
+});

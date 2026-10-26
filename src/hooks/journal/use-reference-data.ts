@@ -1,36 +1,27 @@
-import { useConvexAuth, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   loadJournalClientSyncMap,
   type JournalClientSyncMap,
 } from '@/screens/journal/journal-client-sync-map-storage';
-import {
-  isNavigatorOffline,
-  withTimeout,
-} from '@/screens/journal/journal-offline-create';
-import {
-  createQueuedReferenceCreateEntry,
-  isRetryableReferenceCreateError,
-  upsertQueuedReferenceCreateEntry,
-  type QueuedReferenceCreateEntry,
-} from '@/screens/journal/reference-create-queue';
-import {
-  loadReferenceCreateQueue,
-  persistReferenceCreateQueue,
-} from '@/screens/journal/reference-create-queue-storage';
+import { type QueuedReferenceCreateEntry } from '@/screens/journal/reference-create-queue';
+import { loadReferenceCreateQueue } from '@/screens/journal/reference-create-queue-storage';
 import {
   buildDraftReferenceId,
   type ReferenceType,
 } from '@/screens/journal/reference-draft-id';
-import { convexJournalService } from '@/services/journal';
+import {
+  createBall as localCreateBall,
+  createHouse as localCreateHouse,
+  createPattern as localCreatePattern,
+} from '@/services/journal/local-writes';
 import {
   getLocalJournalService,
   type Ball as LocalBall,
   type House as LocalHouse,
   type Pattern as LocalPattern,
 } from '@/services/local-journal';
-import { createClientSyncId } from '@/utils/client-sync-id';
 import { buildRankedReferenceSuggestions } from '@/utils/reference-combobox-utils';
 
 export type ReferenceOption<TId extends string> = {
@@ -333,10 +324,25 @@ export function useReferenceData(options?: {
     };
   }, [enabled, includeRecent]);
 
-  const createBallMutation = useMutation(convexJournalService.createBall);
-  const createPatternMutation = useMutation(convexJournalService.createPattern);
-  const createHouseMutation = useMutation(convexJournalService.createHouse);
-
+  // Local-first reference-data writes (C-2): ball, pattern, and house
+  // creation goes straight to the SQLite-backed local journal through the
+  // app-boundary write adapter (`src/services/journal/local-writes.ts`), the
+  // write-side counterpart of the `local-reads.ts` adapters this hook already
+  // uses for its six reference reads. There is no Convex mutation, no
+  // connectivity branch, no offline-queue enqueue, and no retryable-error
+  // re-queue fallback: local mode is the only mode, per
+  // docs/local-first-architecture.md §1 and §3 (UI → local service →
+  // SQLite), so a reference create persists whether or not the device has
+  // a network and whether or not anyone has signed in. The legacy
+  // reference-create queue is an implementation artifact that stays
+  // cloud-only (§2.7): nothing here writes that queue storage, so entries
+  // already persisted in it stay untouched and still render below as
+  // `Queued offline` draft options.
+  //
+  // Create returns the persisted local UUID (no `draft-<clientSyncId>`
+  // identifier is produced for a new entity), so the screens that consume
+  // these ids keep routing on a real local id. Service validation and error
+  // propagation belong to the local service and are passed through unchanged.
   const refreshQueuedReferenceCreates = useCallback(async () => {
     const [entries, nextSyncMap] = await Promise.all([
       loadReferenceCreateQueue(),
@@ -437,30 +443,6 @@ export function useReferenceData(options?: {
     [includeRecent, recentHouseList]
   );
 
-  const queueReferenceCreate = useCallback(
-    async (referenceType: ReferenceType, trimmedName: string) => {
-      const clientSyncId = createClientSyncId(referenceType);
-      const queuedEntry = createQueuedReferenceCreateEntry({
-        referenceType,
-        clientSyncId,
-        name: trimmedName,
-        now: Date.now(),
-      });
-      const nextQueue = upsertQueuedReferenceCreateEntry(
-        await loadReferenceCreateQueue(),
-        queuedEntry
-      );
-      await persistReferenceCreateQueue(nextQueue);
-      await refreshQueuedReferenceCreates();
-
-      return {
-        id: buildDraftReferenceId(referenceType, clientSyncId),
-        label: trimmedName,
-      };
-    },
-    [refreshQueuedReferenceCreates]
-  );
-
   const createBall = useCallback(
     async (name: string) => {
       const trimmedName = name.trim();
@@ -469,35 +451,15 @@ export function useReferenceData(options?: {
         throw new Error('Ball name is required');
       }
 
-      if (isNavigatorOffline()) {
-        return queueReferenceCreate('ball', trimmedName);
-      }
+      const createdId = await localCreateBall({ name: trimmedName });
+      const id = String(createdId);
 
-      try {
-        const createdId = await withTimeout(
-          createBallMutation({ name: trimmedName }),
-          4500
-        );
-        void refreshQueuedReferenceCreates();
-        const id = String(createdId) as string;
-        return {
-          id,
-          label: findNameById(ballOptions, id) ?? trimmedName,
-        };
-      } catch (caught) {
-        if (isRetryableReferenceCreateError(caught)) {
-          return queueReferenceCreate('ball', trimmedName);
-        }
-
-        throw caught;
-      }
+      return {
+        id,
+        label: findNameById(ballOptions, id) ?? trimmedName,
+      };
     },
-    [
-      ballOptions,
-      createBallMutation,
-      queueReferenceCreate,
-      refreshQueuedReferenceCreates,
-    ]
+    [ballOptions]
   );
 
   const createPattern = useCallback(
@@ -508,35 +470,15 @@ export function useReferenceData(options?: {
         throw new Error('Pattern name is required');
       }
 
-      if (isNavigatorOffline()) {
-        return queueReferenceCreate('pattern', trimmedName);
-      }
+      const createdId = await localCreatePattern({ name: trimmedName });
+      const id = String(createdId);
 
-      try {
-        const createdId = await withTimeout(
-          createPatternMutation({ name: trimmedName }),
-          4500
-        );
-        void refreshQueuedReferenceCreates();
-        const id = String(createdId) as string;
-        return {
-          id,
-          label: findNameById(patternOptions, id) ?? trimmedName,
-        };
-      } catch (caught) {
-        if (isRetryableReferenceCreateError(caught)) {
-          return queueReferenceCreate('pattern', trimmedName);
-        }
-
-        throw caught;
-      }
+      return {
+        id,
+        label: findNameById(patternOptions, id) ?? trimmedName,
+      };
     },
-    [
-      createPatternMutation,
-      patternOptions,
-      queueReferenceCreate,
-      refreshQueuedReferenceCreates,
-    ]
+    [patternOptions]
   );
 
   const createHouse = useCallback(
@@ -547,35 +489,15 @@ export function useReferenceData(options?: {
         throw new Error('House name is required');
       }
 
-      if (isNavigatorOffline()) {
-        return queueReferenceCreate('house', trimmedName);
-      }
+      const createdId = await localCreateHouse({ name: trimmedName });
+      const id = String(createdId);
 
-      try {
-        const createdId = await withTimeout(
-          createHouseMutation({ name: trimmedName }),
-          4500
-        );
-        void refreshQueuedReferenceCreates();
-        const id = String(createdId) as string;
-        return {
-          id,
-          label: findNameById(houseOptions, id) ?? trimmedName,
-        };
-      } catch (caught) {
-        if (isRetryableReferenceCreateError(caught)) {
-          return queueReferenceCreate('house', trimmedName);
-        }
-
-        throw caught;
-      }
+      return {
+        id,
+        label: findNameById(houseOptions, id) ?? trimmedName,
+      };
     },
-    [
-      createHouseMutation,
-      houseOptions,
-      queueReferenceCreate,
-      refreshQueuedReferenceCreates,
-    ]
+    [houseOptions]
   );
 
   const buildSuggestions = useCallback(
