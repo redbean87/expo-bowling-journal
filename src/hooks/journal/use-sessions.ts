@@ -1,20 +1,6 @@
-import { useMutation } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { resolveReferenceIdForMutation } from './reference-id-resolution';
-
 import {
-  createQueuedSessionCreateEntry,
-  createQueuedSessionDeleteEntry,
-  upsertQueuedJournalCreateEntry,
-} from '@/screens/journal/journal-create-queue';
-import {
-  loadJournalCreateQueue,
-  persistJournalCreateQueue,
-} from '@/screens/journal/journal-create-queue-storage';
-import { isConnectivityOffline } from '@/services/connectivity';
-import {
-  convexJournalService,
   type CreateSessionInput,
   type LeagueId,
   type RemoveSessionInput,
@@ -23,14 +9,15 @@ import {
   type UpdateSessionInput,
 } from '@/services/journal';
 import { listLocalSessionsByLeague } from '@/services/journal/local-reads';
-import { createClientSyncId } from '@/utils/client-sync-id';
+import {
+  createSession as localCreateSession,
+  removeSession as localRemoveSession,
+  updateSession as localUpdateSession,
+} from '@/services/journal/local-writes';
 
 export function useSessions(leagueId: LeagueId | null) {
   const [localSessions, setLocalSessions] = useState<Session[] | null>(null);
   const [isLocalSessionsLoading, setIsLocalSessionsLoading] = useState(true);
-  const createSessionMutation = useMutation(convexJournalService.createSession);
-  const updateSessionMutation = useMutation(convexJournalService.updateSession);
-  const removeSessionMutation = useMutation(convexJournalService.removeSession);
   const [isCreating, setIsCreating] = useState(false);
 
   // Local SQLite is the authoritative session read: always loaded (when a
@@ -68,116 +55,48 @@ export function useSessions(leagueId: LeagueId | null) {
     };
   }, [leagueId]);
 
+  // Local-first session writes (C-2): every session mutation goes straight to
+  // the SQLite-backed local journal through the app-boundary write adapter
+  // (`src/services/journal/local-writes.ts`), the write-side counterpart of
+  // the `local-reads.ts` adapter this hook already uses for its read. There
+  // is no Convex mutation, no offline-queue enqueue, and no connectivity
+  // branch: local mode is the only mode (docs/local-first-architecture.md §1
+  // and §3, UI → local service → SQLite), and the legacy journal-create queue
+  // is an implementation artifact that stays cloud-only (§2.7). Nothing here
+  // reads or writes that queue storage, so entries already persisted in it
+  // stay untouched.
+  //
+  // Create returns the persisted local UUID (no `draft-<clientSyncId>`
+  // identifier exists in local mode), so callers route on the real id.
+  // `clientSyncId` stays transport-only: the adapter drops it and never
+  // stores it. The Convex reference-id mapping step is dropped too — local
+  // ids need no server-side resolution, so the ids the caller supplies are
+  // already the local ones. Service validation, the session → league
+  // foreign key (the documented open-session sentinel resolves to `null`),
+  // foreign-key integrity on delete (NO ACTION: a session that still has
+  // games rejects, nothing cascades to its games or its league), and error
+  // propagation are the service's and are passed through unchanged.
   const createSession = useCallback(
-    async (input: CreateSessionInput) => {
-      if (isConnectivityOffline()) {
-        // Queue for the existing journal-create flusher (same entry type the
-        // session offline path uses) and return the local draft id so the
-        // caller can still navigate to the pending session. The hook cannot
-        // know a draft league's client id, so it stays null; the flusher
-        // falls back to payload.leagueId.
-        const clientSyncId =
-          input.clientSyncId ?? createClientSyncId('session');
-
-        const queuedEntry = createQueuedSessionCreateEntry(
-          input,
-          clientSyncId,
-          null,
-          Date.now()
-        );
-        const currentQueue = await loadJournalCreateQueue();
-        const nextQueue = upsertQueuedJournalCreateEntry(
-          currentQueue,
-          queuedEntry
-        );
-        await persistJournalCreateQueue(nextQueue);
-
-        return `draft-${clientSyncId}` as SessionId;
-      }
-
+    async (input: CreateSessionInput): Promise<SessionId> => {
       setIsCreating(true);
 
       try {
-        const [resolvedHouseId, resolvedPatternId, resolvedBallId] =
-          await Promise.all([
-            resolveReferenceIdForMutation(
-              'house',
-              input.houseId ? String(input.houseId) : null
-            ),
-            resolveReferenceIdForMutation(
-              'pattern',
-              input.patternId ? String(input.patternId) : null
-            ),
-            resolveReferenceIdForMutation(
-              'ball',
-              input.ballId ? String(input.ballId) : null
-            ),
-          ]);
-
-        return await createSessionMutation({
-          ...input,
-          houseId: (resolvedHouseId as never) ?? null,
-          patternId: (resolvedPatternId as never) ?? null,
-          ballId: (resolvedBallId as never) ?? null,
-        });
+        return await localCreateSession(input);
       } finally {
         setIsCreating(false);
       }
     },
-    [createSessionMutation]
+    []
   );
 
   const updateSession = useCallback(
-    async (input: UpdateSessionInput) => {
-      const [resolvedHouseId, resolvedPatternId, resolvedBallId] =
-        await Promise.all([
-          resolveReferenceIdForMutation(
-            'house',
-            input.houseId ? String(input.houseId) : null
-          ),
-          resolveReferenceIdForMutation(
-            'pattern',
-            input.patternId ? String(input.patternId) : null
-          ),
-          resolveReferenceIdForMutation(
-            'ball',
-            input.ballId ? String(input.ballId) : null
-          ),
-        ]);
-
-      return await updateSessionMutation({
-        ...input,
-        houseId: (resolvedHouseId as never) ?? null,
-        patternId: (resolvedPatternId as never) ?? null,
-        ballId: (resolvedBallId as never) ?? null,
-      });
-    },
-    [updateSessionMutation]
+    async (input: UpdateSessionInput) => await localUpdateSession(input),
+    []
   );
 
   const removeSession = useCallback(
-    async (input: RemoveSessionInput) => {
-      if (isConnectivityOffline()) {
-        const queuedEntry = createQueuedSessionDeleteEntry(
-          {
-            sessionId: input.sessionId,
-            sessionClientSyncId: null,
-          },
-          Date.now()
-        );
-        const currentQueue = await loadJournalCreateQueue();
-        const nextQueue = upsertQueuedJournalCreateEntry(
-          currentQueue,
-          queuedEntry
-        );
-        await persistJournalCreateQueue(nextQueue);
-
-        return null;
-      }
-
-      return await removeSessionMutation(input);
-    },
-    [removeSessionMutation]
+    async (input: RemoveSessionInput) => await localRemoveSession(input),
+    []
   );
 
   return {
