@@ -7,6 +7,7 @@ import {
 import type { EditableFrameInput } from '@/services/journal';
 
 type AutosaveGuardInput = {
+  localMode: boolean;
   isAuthenticated: boolean;
   hasSignedInBefore?: boolean;
   date: string;
@@ -46,6 +47,7 @@ export function hasAnyFrameValue(frameDrafts: FrameDraft[]): boolean {
 }
 
 export function buildAutosaveGuardResult({
+  localMode,
   isAuthenticated,
   hasSignedInBefore = false,
   date,
@@ -53,7 +55,16 @@ export function buildAutosaveGuardResult({
   isCreateMode,
   currentGameId,
 }: AutosaveGuardInput): AutosaveGuardResult {
-  if (!isAuthenticated && !hasSignedInBefore) {
+  // Local-first C-2 (T7): "sign in once online before using offline capture" was
+  // a cloud-sync precondition — an unsent save had to be parked in the game-save
+  // queue and could only drain after an account existed. Local mode has no such
+  // dependency: a save is a SQLite write that needs no account and no network
+  // (docs/local-first-architecture.md §1 "Normal bowling requires no sign-in"),
+  // so a never-signed-in local bowler is not blocked here. The condition stays
+  // for the non-local path, which still requires a session before it can sync;
+  // nothing about authentication itself is touched — this guard only decides
+  // whether the editor may autosave.
+  if (!localMode && !isAuthenticated && !hasSignedInBefore) {
     return {
       status: 'blocked',
       message: 'Sign in once online before using offline capture.',

@@ -132,7 +132,16 @@ export function useGameEditorAutosaveSync({
       const { drafts: sanitizedDrafts, changed } =
         sanitizeFrameDraftsForEntry(frameDrafts);
 
+      // Local-first C-2 (T7): this autosave is a local journal write, so the
+      // guard runs in local mode and a never-signed-in bowler is not blocked
+      // from saving. `localMode` is true here because T5 bound the three
+      // editor callbacks below to the SQLite-backed write adapters and removed
+      // the queue/enqueue and connectivity branches in front of them — there is
+      // no cloud editor path left for this hook to take. A caller that did
+      // have one would pass `localMode: false` and keep the "sign in once
+      // online" precondition; authentication itself is untouched either way.
       const autosavePlan = buildAutosaveGuardResult({
+        localMode: true,
         isAuthenticated,
         hasSignedInBefore,
         date,
