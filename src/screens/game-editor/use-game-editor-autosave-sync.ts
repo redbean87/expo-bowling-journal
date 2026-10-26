@@ -1,38 +1,18 @@
 import {
   useEffect,
-  useCallback,
   useState,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from 'react';
-import { AppState } from 'react-native';
 
 import { buildAutosaveGuardResult } from './game-editor-autosave-utils';
 import {
   sanitizeFrameDraftsForEntry,
   type FrameDraft,
 } from './game-editor-frame-utils';
-import {
-  buildPersistedSignature,
-  isOfflineLikely,
-} from './game-editor-screen-utils';
-import {
-  buildGameSaveQueueId,
-  createQueuedGameSaveEntry,
-  getActionableSaveErrorMessage,
-  getQueuedGameSaveEntry,
-  isRetryableSaveError,
-  upsertQueuedGameSaveEntry,
-} from './game-save-queue';
-import {
-  persistGameSaveQueue,
-  loadGameSaveQueue,
-} from './game-save-queue-storage';
-import {
-  flushQueuedGameSavesWithLock,
-  isQueuedGameSaveFlushInFlight,
-} from './game-save-queue-sync';
+import { buildPersistedSignature } from './game-editor-screen-utils';
+import { getActionableSaveErrorMessage } from './game-save-queue';
 
 import type {
   CreateGameInput,
@@ -88,7 +68,7 @@ export function useGameEditorAutosaveSync({
   isAuthenticated,
   hasSignedInBefore,
   isCreateMode,
-  isDraftSessionContext,
+  isDraftSessionContext: _isDraftSessionContext,
   date,
   frameDrafts,
   setFrameDrafts,
@@ -96,12 +76,12 @@ export function useGameEditorAutosaveSync({
   selectedBallId,
   draftGameId,
   setDraftGameId,
-  gameId,
-  rawSessionId,
+  gameId: _gameId,
+  rawSessionId: _rawSessionId,
   sessionId,
-  gameSessionId,
-  sessionClientSyncId,
-  activeDraftNonce,
+  gameSessionId: _gameSessionId,
+  sessionClientSyncId: _sessionClientSyncId,
+  activeDraftNonce: _activeDraftNonce,
   createGame,
   updateGame,
   replaceFramesForGame,
@@ -117,240 +97,25 @@ export function useGameEditorAutosaveSync({
 }: UseGameEditorAutosaveSyncInput) {
   const [autosaveRetryTick, setAutosaveRetryTick] = useState(0);
 
-  const promoteDraftToQueue = useCallback(
-    async ({ updateUi, force }: { updateUi: boolean; force?: boolean }) => {
-      const shouldQueueLocally =
-        force === true ||
-        (hasSignedInBefore && (!isAuthenticated || isOfflineLikely()));
-
-      if (!didHydrate || !shouldQueueLocally) {
-        return false;
-      }
-
-      const activeGameId = draftGameId;
-      const { drafts: sanitizedDrafts } =
-        sanitizeFrameDraftsForEntry(frameDrafts);
-      const autosavePlan = buildAutosaveGuardResult({
-        isAuthenticated,
-        hasSignedInBefore,
-        date,
-        frameDrafts: sanitizedDrafts,
-        isCreateMode,
-        currentGameId: activeGameId,
-      });
-
-      if (autosavePlan.status !== 'ready') {
-        return false;
-      }
-
-      const queueSessionId = rawSessionId ?? gameSessionId;
-
-      if (!queueSessionId) {
-        return false;
-      }
-
-      const saveSignature = JSON.stringify({
-        gameId: activeGameId ?? 'new',
-        date: autosavePlan.trimmedDate,
-        frames: autosavePlan.payloadFrames,
-        patternId: selectedPatternId,
-        ballId: selectedBallId,
-      });
-
-      const now = Date.now();
-      const queueEntry = createQueuedGameSaveEntry(
-        {
-          sessionId: String(queueSessionId),
-          sessionClientSyncId,
-          gameId: activeGameId ? String(activeGameId) : null,
-          draftNonce: activeGameId ? null : activeDraftNonce,
-          date: autosavePlan.trimmedDate,
-          patternId: selectedPatternId,
-          ballId: selectedBallId,
-          frames: autosavePlan.payloadFrames,
-          signature: saveSignature,
-        },
-        now
-      );
-      const queueEntries = upsertQueuedGameSaveEntry(
-        await loadGameSaveQueue(),
-        queueEntry
-      );
-
-      await persistGameSaveQueue(queueEntries);
-
-      if (updateUi) {
-        setAutosaveState('queued');
-        setAutosaveError(null);
-      }
-
-      return true;
-    },
-    [
-      activeDraftNonce,
-      date,
-      didHydrate,
-      draftGameId,
-      frameDrafts,
-      gameSessionId,
-      rawSessionId,
-      hasSignedInBefore,
-      isAuthenticated,
-      isCreateMode,
-      selectedBallId,
-      selectedPatternId,
-      sessionClientSyncId,
-      setAutosaveError,
-      setAutosaveState,
-    ]
-  );
-
-  const flushQueuedSaves = useCallback(async () => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    if (isOfflineLikely()) {
-      return;
-    }
-
-    if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
-      return;
-    }
-
-    isQueuedFlushInFlightRef.current = true;
-
-    try {
-      const queueEntries = await loadGameSaveQueue();
-      const dueEntries = queueEntries
-        .filter((entry) => entry.nextRetryAt <= Date.now())
-        .sort((left, right) => left.updatedAt - right.updatedAt);
-
-      if (dueEntries.length === 0) {
-        return;
-      }
-
-      setAutosaveState((currentState) =>
-        currentState === 'saving' ? currentState : 'syncingQueued'
-      );
-
-      const activeQueueIds = new Set<string>();
-
-      if (sessionId) {
-        const activeSessionId = String(sessionId);
-        activeQueueIds.add(
-          buildGameSaveQueueId(
-            activeSessionId,
-            draftGameId ?? gameId,
-            activeDraftNonce
-          )
-        );
-        activeQueueIds.add(
-          buildGameSaveQueueId(activeSessionId, null, activeDraftNonce)
-        );
-        activeQueueIds.add(buildGameSaveQueueId(activeSessionId, null));
-      }
-
-      const { remainingEntries } = await flushQueuedGameSavesWithLock({
-        createGame,
-        updateGame,
-        replaceFramesForGame,
-        onEntrySynced: ({
-          entry,
-          originalQueueId,
-          targetGameId,
-          wasCreated,
-        }) => {
-          if (wasCreated) {
-            setDraftGameId(targetGameId);
-            replaceNewRouteWithGameId(targetGameId);
-          }
-
-          lastSavedSignatureRef.current = entry.signature;
-
-          if (
-            sessionId &&
-            (activeQueueIds.has(entry.queueId) ||
-              activeQueueIds.has(originalQueueId))
-          ) {
-            setAutosaveError(null);
-            setAutosaveState('saved');
-            void clearLocalDraft();
-          }
-        },
-        onEntryFailedNonRetryable: ({ entry, originalQueueId, error }) => {
-          const actionableMessage = getActionableSaveErrorMessage(error);
-
-          if (
-            actionableMessage &&
-            (activeQueueIds.has(entry.queueId) ||
-              activeQueueIds.has(originalQueueId))
-          ) {
-            setAutosaveState('error');
-            setAutosaveError(actionableMessage);
-          }
-        },
-      });
-
-      if (remainingEntries.length > 0) {
-        setAutosaveState('queued');
-      } else {
-        setAutosaveState((currentState) =>
-          currentState === 'syncingQueued' ? 'saved' : currentState
-        );
-      }
-    } finally {
-      isQueuedFlushInFlightRef.current = false;
-    }
-  }, [
-    activeDraftNonce,
-    clearLocalDraft,
-    createGame,
-    draftGameId,
-    gameId,
-    isAuthenticated,
-    isAutosaveInFlightRef,
-    isQueuedFlushInFlightRef,
-    replaceFramesForGame,
-    replaceNewRouteWithGameId,
-    sessionId,
-    setAutosaveError,
-    setAutosaveState,
-    setDraftGameId,
-    updateGame,
-    lastSavedSignatureRef,
-  ]);
-
-  useEffect(() => {
-    if (!didHydrate) {
-      return;
-    }
-
-    void flushQueuedSaves();
-  }, [didHydrate, flushQueuedSaves]);
-
-  useEffect(() => {
-    const onAppStateChange = (nextState: string) => {
-      if (nextState === 'active') {
-        void flushQueuedSaves();
-        return;
-      }
-
-      void promoteDraftToQueue({ updateUi: false });
-    };
-
-    const subscription = AppState.addEventListener('change', onAppStateChange);
-
-    return () => {
-      subscription.remove();
-    };
-  }, [flushQueuedSaves, promoteDraftToQueue]);
-
-  useEffect(() => {
-    return () => {
-      void promoteDraftToQueue({ updateUi: false, force: true });
-    };
-  }, [promoteDraftToQueue]);
+  // Local-first C-2 (C-2 T5): the autosave no longer has a queue side.
+  //
+  // The three legacy queue affordances that used to live here — the
+  // `promoteDraftToQueue` enqueue (the "local save" branch that wrote a
+  // JSON entry to journal:game-save-queue:v1 instead of persisting), the
+  // `flushQueuedSaves` drain, and the AppState/unmount hooks that drove
+  // them — are gone. Approved C-2 decisions: local mode skips the legacy
+  // offline queue and writes straight to SQLite, and the syncer/`retryNow`
+  // flush machinery stays off in local mode. The queue is an
+  // implementation artifact (§2.7), not canonical data, so nothing here
+  // reads or writes that storage any more; entries already persisted in it
+  // are left untouched and are not drained.
+  //
+  // The editor's in-progress edit still survives a restart through the
+  // local draft storage (`journal:game-local-draft:v1`, written by
+  // `use-game-editor-hydration.ts`), which this file does not touch, and
+  // every completed save below goes through the injected editor callbacks
+  // — the local adapters `use-game-editor.ts` now binds — so a save is a
+  // SQLite write the moment it is taken.
 
   useEffect(() => {
     if (!didHydrate) {
@@ -359,11 +124,6 @@ export function useGameEditorAutosaveSync({
 
     const persist = async () => {
       if (isAutosaveInFlightRef.current || isQueuedFlushInFlightRef.current) {
-        hasQueuedAutosaveRef.current = true;
-        return;
-      }
-
-      if (isQueuedGameSaveFlushInFlight()) {
         hasQueuedAutosaveRef.current = true;
         return;
       }
@@ -439,87 +199,30 @@ export function useGameEditorAutosaveSync({
       setAutosaveError(null);
       const saveSequence = saveSequenceRef.current + 1;
       saveSequenceRef.current = saveSequence;
-      let attemptedGameId = activeGameId;
 
-      const queueEntryForLocalSave = async () => {
-        const queueSessionId = rawSessionId ?? sessionId ?? gameSessionId;
-
-        if (!queueSessionId) {
-          return false;
-        }
-
-        const now = Date.now();
-        const queueEntry = createQueuedGameSaveEntry(
-          {
-            sessionId: String(queueSessionId),
-            sessionClientSyncId,
-            gameId: attemptedGameId ? String(attemptedGameId) : null,
-            draftNonce: attemptedGameId ? null : activeDraftNonce,
-            date: trimmedDate,
-            patternId: selectedPatternId,
-            ballId: selectedBallId,
-            frames: payloadFrames,
-            signature: saveSignature,
-          },
-          now
-        );
-        const queueEntries = upsertQueuedGameSaveEntry(
-          await loadGameSaveQueue(),
-          queueEntry
-        );
-
-        await persistGameSaveQueue(queueEntries);
-
-        if (saveSequenceRef.current === saveSequence) {
-          setAutosaveState('queued');
-          setAutosaveError(null);
-        }
-
-        return true;
-      };
-
+      // The save below is a local write: `createGame`, `updateGame`, and
+      // `replaceFramesForGame` are the editor hook's callbacks, which now
+      // resolve to the app-boundary write adapter, so every branch — create,
+      // update, and frame replacement — goes straight to SQLite. There is no
+      // connectivity or sign-in branch in front of it: a local write needs
+      // neither, and the legacy "queue it instead" fallback would have
+      // written an entry that can never drain in local mode. A failed local
+      // save keeps the existing error transition (the signature is not
+      // recorded, so the next edit retries the save) and the editor's local
+      // draft keeps the edit meanwhile.
       try {
-        if (
-          hasSignedInBefore &&
-          (!isAuthenticated || isOfflineLikely() || isDraftSessionContext)
-        ) {
-          if (await queueEntryForLocalSave()) {
-            return;
-          }
-        }
-
         let nextGameId = activeGameId;
 
         if (isCreateMode) {
           if (!sessionId) {
-            if (isDraftSessionContext && (await queueEntryForLocalSave())) {
-              return;
-            }
-
             throw new Error('Session is required when creating a game.');
-          }
-
-          if (!nextGameId) {
-            const queueEntries = await loadGameSaveQueue();
-            const pendingNewGameEntry = getQueuedGameSaveEntry(
-              queueEntries,
-              String(rawSessionId ?? sessionId),
-              null,
-              activeDraftNonce
-            );
-
-            if (pendingNewGameEntry) {
-              if (await queueEntryForLocalSave()) {
-                return;
-              }
-            }
           }
 
           if (!nextGameId) {
             nextGameId = await createGame({
               sessionId,
               date: trimmedDate,
-              clientSyncId: activeDraftNonce,
+              clientSyncId: _activeDraftNonce,
               patternId: selectedPatternId as never,
               ballId: selectedBallId as never,
             });
@@ -550,8 +253,6 @@ export function useGameEditorAutosaveSync({
           throw new Error('Game not found.');
         }
 
-        attemptedGameId = nextGameId;
-
         await replaceFramesForGame({
           gameId: nextGameId,
           frames: payloadFrames,
@@ -566,12 +267,6 @@ export function useGameEditorAutosaveSync({
         }
       } catch (caught) {
         const actionableMessage = getActionableSaveErrorMessage(caught);
-
-        if (isRetryableSaveError(caught)) {
-          if (await queueEntryForLocalSave()) {
-            return;
-          }
-        }
 
         if (saveSequenceRef.current === saveSequence) {
           setAutosaveState('error');
@@ -595,29 +290,25 @@ export function useGameEditorAutosaveSync({
 
     return () => clearTimeout(timer);
   }, [
-    activeDraftNonce,
+    _activeDraftNonce,
     clearLocalDraft,
     createGame,
     date,
     didHydrate,
     draftGameId,
     frameDrafts,
-    gameSessionId,
     hasQueuedAutosaveRef,
     hasSignedInBefore,
     isAuthenticated,
     isAutosaveInFlightRef,
     isCreateMode,
-    isDraftSessionContext,
     isQueuedFlushInFlightRef,
     lastSavedSignatureRef,
-    rawSessionId,
     replaceFramesForGame,
     replaceNewRouteWithGameId,
     saveSequenceRef,
     selectedBallId,
     selectedPatternId,
-    sessionClientSyncId,
     sessionId,
     setAutosaveError,
     setAutosaveState,

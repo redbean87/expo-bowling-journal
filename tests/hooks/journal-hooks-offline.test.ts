@@ -5,6 +5,7 @@ import { after, test } from 'node:test';
 import {
   __setActiveRenderer,
   asyncStorageGetKeys,
+  asyncStorageStore,
   convexOps,
   journalCreateQueue,
   journalCreateQueuePersistCalls,
@@ -15,7 +16,9 @@ import {
   setLocalReadSeed,
 } from './stubs/journal-hooks-stubs';
 import {
+  EMPTY_FRAME_DRAFT,
   FULL_PIN_MASK,
+  getRollValue,
   packManualPins,
 } from '../../src/screens/game-editor/frame-mask-utils';
 import { __connectivityTestControls } from '../../src/services/connectivity';
@@ -1090,10 +1093,13 @@ type ReferenceDataModule =
   typeof import('../../src/hooks/journal/use-reference-data');
 type LocalJournalModule = typeof import('../../src/services/local-journal');
 type DatabaseModule = typeof import('../../src/db/database');
+type AutosaveModule =
+  typeof import('../../src/screens/game-editor/use-game-editor-autosave-sync');
 
 type LocalReadModules = {
   editor: EditorModule;
   referenceData: ReferenceDataModule;
+  autosave: AutosaveModule;
   localJournal: LocalJournalModule;
   database: DatabaseModule;
 };
@@ -1109,9 +1115,11 @@ function getLocalReadModules(): Promise<LocalReadModules> {
     import('../../src/hooks/journal/use-reference-data'),
     import('../../src/services/local-journal'),
     import('../../src/db/database'),
-  ]).then(([editor, referenceData, localJournal, database]) => ({
+    import('../../src/screens/game-editor/use-game-editor-autosave-sync'),
+  ]).then(([editor, referenceData, localJournal, database, autosave]) => ({
     editor,
     referenceData,
+    autosave,
     localJournal,
     database,
   }));
@@ -1627,6 +1635,367 @@ test('sabotaged server: use-home-league and use-league-games render from local S
     // not loading.
     assert.equal(emptyGames.isLoading, false);
     assert.deepStrictEqual(emptyGames.games, []);
+  } finally {
+    renderer?.unmount();
+  }
+});
+
+// --- C-2 T5: the editor's own writes go to SQLite --------------------------
+//
+// The editor hook's three write callbacks (create, update, frame replacement)
+// and the autosave that drives them no longer have a server branch or a
+// queue branch: each one resolves to the app-boundary write adapter, so the
+// proof is the entity read back from the same SQLite-backed service, plus
+// zero Convex mutations, zero Convex reads, and zero
+// journal:game-save-queue:v1 entries.
+
+test('local mode: the game editor writes its game and frames through the local write adapters', async () => {
+  resetJournalHookStubs();
+
+  let renderer: MiniReact | null = null;
+  let editorApi: ReturnType<EditorModule['useGameEditor']> | null = null;
+
+  try {
+    const seed = await seedProofJournal();
+    const { editor, localJournal } = await getLocalReadModules();
+    const journal = localJournal.getLocalJournalService();
+
+    renderer = new MiniReact(() => {
+      editorApi = editor.useGameEditor(seed.gameId as GameId);
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+    await settle();
+
+    if (editorApi === null) {
+      throw new Error('use-game-editor did not mount');
+    }
+
+    const api = editorApi as ReturnType<EditorModule['useGameEditor']>;
+
+    // Update: the header change lands in the SQLite row, the session
+    // foreign key is untouched, and the returned id is the same local id
+    // the caller passed (no id mapping step).
+    const updatedGameId = await api.updateGame({
+      gameId: seed.gameId as GameId,
+      date: '2025-01-06',
+      patternId: seed.patternId as never,
+      ballId: seed.ballId as never,
+    });
+    assert.equal(updatedGameId, seed.gameId);
+    assert.equal(api.isSaving, false);
+
+    const updatedGame = await journal.getGame(seed.gameId);
+    assert.ok(updatedGame !== null, 'the updated game must persist locally');
+    assert.equal(updatedGame.date, '2025-01-06');
+    assert.equal(updatedGame.sessionId, seed.sessionId);
+
+    // Frame replacement: the service's transaction deletes the seeded
+    // three-frame set and inserts the replacement set, so the read-back is
+    // exactly the two supplied frames, with the authoritative pin masks the
+    // editor packs (`pins`) surviving the transport unchanged.
+    await api.replaceFramesForGame({
+      gameId: seed.gameId as GameId,
+      frames: [
+        {
+          frameNumber: 1,
+          roll1: 9,
+          roll2: 1,
+          roll3: null,
+          pins: packManualPins({
+            roll1Mask: 0b111111111,
+            roll2Mask: 0b1000000000,
+            roll3Mask: null,
+          }),
+        },
+        {
+          frameNumber: 2,
+          roll1: 10,
+          roll2: null,
+          roll3: null,
+          pins: packManualPins({
+            roll1Mask: FULL_PIN_MASK,
+            roll2Mask: null,
+            roll3Mask: null,
+          }),
+        },
+      ],
+    });
+
+    const frames = await journal.getGameFrames(seed.gameId);
+    assert.equal(frames.length, 2);
+    assert.equal(frames[0].frameNumber, 1);
+    assert.equal(getRollValue(frames[0].roll1Mask ?? null), 9);
+    assert.equal(getRollValue(frames[0].roll2Mask ?? null), 1);
+    assert.equal(frames[1].frameNumber, 2);
+    assert.equal(getRollValue(frames[1].roll1Mask ?? null), 10);
+
+    // Create: the new game gets a local UUID (not a `draft-…` phantom),
+    // keeps the session foreign key, and the draft nonce it was handed is
+    // dropped — the adapter never stores a transport-only id.
+    const createdGameId = await api.createGame({
+      sessionId: seed.sessionId as SessionId,
+      date: '2025-01-07',
+      clientSyncId: 'proof-draft-nonce',
+      patternId: seed.patternId as never,
+      ballId: seed.ballId as never,
+    });
+    assert.match(createdGameId, LOCAL_UUID_PATTERN);
+
+    const createdGame = await journal.getGame(createdGameId);
+    assert.ok(createdGame !== null, 'the created game must persist locally');
+    assert.equal(createdGame.sessionId, seed.sessionId);
+    assert.equal(createdGame.date, '2025-01-07');
+
+    // Zero server attempts: no mutation was bound, no Convex query ran,
+    // the client-sync map (the reference-id mapping step) was never loaded,
+    // and no game-save-queue entry was created or persisted.
+    assert.deepEqual(convexOps, []);
+    assert.equal(mutationCalls.length, 0);
+    assert.ok(
+      !asyncStorageGetKeys.includes(CLIENT_SYNC_MAP_KEY),
+      'the editor write path must not load the client-sync map'
+    );
+    assert.ok(
+      !asyncStorageGetKeys.includes('journal:game-save-queue:v1'),
+      'the editor write path must not touch the game-save queue'
+    );
+  } finally {
+    renderer?.unmount();
+  }
+});
+
+test('local mode: the editor autosave persists game and frames in SQLite without queueing a save', async () => {
+  resetJournalHookStubs();
+
+  const queueKey = 'journal:game-save-queue:v1';
+  const autosaveStates: string[] = [];
+  const autosaveErrors: (string | null)[] = [];
+  const draftGameIds: (string | null)[] = [];
+
+  let renderer: MiniReact | null = null;
+
+  try {
+    const seed = await seedProofJournal();
+    const { editor, localJournal, autosave } = await getLocalReadModules();
+    const journal = localJournal.getLocalJournalService();
+
+    const frameDrafts = Array.from({ length: 10 }, () => ({
+      ...EMPTY_FRAME_DRAFT,
+    }));
+    frameDrafts[0] = {
+      ...EMPTY_FRAME_DRAFT,
+      roll1Mask: 0b111111111,
+      roll2Mask: 0b1000000000,
+    };
+    frameDrafts[1] = { ...EMPTY_FRAME_DRAFT, roll1Mask: FULL_PIN_MASK };
+
+    renderer = new MiniReact(() => {
+      const api = editor.useGameEditor(seed.gameId as GameId);
+
+      autosave.useGameEditorAutosaveSync({
+        didHydrate: true,
+        isAuthenticated: true,
+        hasSignedInBefore: false,
+        isCreateMode: false,
+        isDraftSessionContext: false,
+        date: '2025-01-06',
+        frameDrafts,
+        setFrameDrafts: (() => {}) as never,
+        selectedPatternId: seed.patternId,
+        selectedBallId: seed.ballId,
+        draftGameId: seed.gameId as GameId,
+        setDraftGameId: ((next: GameId | null) => {
+          draftGameIds.push(next);
+        }) as never,
+        gameId: seed.gameId as GameId,
+        rawSessionId: null,
+        sessionId: seed.sessionId as SessionId,
+        gameSessionId: null,
+        sessionClientSyncId: null,
+        activeDraftNonce: null,
+        createGame: api.createGame,
+        updateGame: api.updateGame,
+        replaceFramesForGame: api.replaceFramesForGame,
+        replaceNewRouteWithGameId: (() => {}) as never,
+        clearLocalDraft: async () => {},
+        setAutosaveState: ((next: string) => {
+          autosaveStates.push(next);
+        }) as never,
+        setAutosaveError: ((next: string | null) => {
+          autosaveErrors.push(next);
+        }) as never,
+        isAutosaveInFlightRef: { current: false },
+        isQueuedFlushInFlightRef: { current: false },
+        hasQueuedAutosaveRef: { current: false },
+        saveSequenceRef: { current: 0 },
+        lastSavedSignatureRef: { current: null },
+      });
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+
+    // The autosave schedules its save on a real timer, so let it fire
+    // before draining the SQLite promise chains it started.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await settle();
+
+    // The save is in SQLite: the header update and the frame replacement
+    // both went through the local adapters.
+    const game = await journal.getGame(seed.gameId);
+    assert.ok(game !== null, 'the autosaved game must persist locally');
+    assert.equal(game.date, '2025-01-06');
+
+    const frames = await journal.getGameFrames(seed.gameId);
+    assert.equal(frames.length, 2);
+    assert.equal(getRollValue(frames[0].roll1Mask ?? null), 9);
+    assert.equal(getRollValue(frames[0].roll2Mask ?? null), 1);
+    assert.equal(getRollValue(frames[1].roll1Mask ?? null), 10);
+
+    // Nothing was queued: the legacy queue storage was neither written nor
+    // read, so there is no entry that could sit undrained in local mode.
+    assert.ok(
+      !asyncStorageStore.has(queueKey),
+      'the autosave must not write a game-save-queue entry'
+    );
+    assert.ok(
+      !asyncStorageGetKeys.includes(queueKey),
+      'the autosave must not read the game-save-queue storage'
+    );
+
+    // The autosave reported a completed save, never a queued or failed one.
+    assert.deepEqual(autosaveStates, ['saving', 'saved']);
+    assert.deepEqual(autosaveErrors, [null, null]);
+    assert.deepEqual(draftGameIds, []);
+
+    assert.deepEqual(convexOps, []);
+    assert.equal(mutationCalls.length, 0);
+  } finally {
+    renderer?.unmount();
+  }
+});
+
+test('local mode: the editor autosave creates a new game under a local id and routes on it', async () => {
+  resetJournalHookStubs();
+
+  const queueKey = 'journal:game-save-queue:v1';
+  const autosaveStates: string[] = [];
+  const autosaveErrors: (string | null)[] = [];
+  const draftGameIds: (string | null)[] = [];
+  const routedGameIds: string[] = [];
+
+  let renderer: MiniReact | null = null;
+
+  try {
+    const seed = await seedProofJournal();
+    const { editor, localJournal, autosave } = await getLocalReadModules();
+    const journal = localJournal.getLocalJournalService();
+
+    const frameDrafts = Array.from({ length: 10 }, () => ({
+      ...EMPTY_FRAME_DRAFT,
+    }));
+    frameDrafts[0] = {
+      ...EMPTY_FRAME_DRAFT,
+      roll1Mask: 0b111111111,
+      roll2Mask: 0b1000000000,
+    };
+    frameDrafts[1] = { ...EMPTY_FRAME_DRAFT, roll1Mask: FULL_PIN_MASK };
+
+    renderer = new MiniReact(() => {
+      const api = editor.useGameEditor(null);
+
+      autosave.useGameEditorAutosaveSync({
+        didHydrate: true,
+        isAuthenticated: true,
+        hasSignedInBefore: false,
+        isCreateMode: true,
+        isDraftSessionContext: false,
+        date: '2025-01-08',
+        frameDrafts,
+        setFrameDrafts: (() => {}) as never,
+        selectedPatternId: seed.patternId,
+        selectedBallId: seed.ballId,
+        draftGameId: null,
+        setDraftGameId: ((next: GameId | null) => {
+          draftGameIds.push(next);
+        }) as never,
+        gameId: null,
+        rawSessionId: null,
+        sessionId: seed.sessionId as SessionId,
+        gameSessionId: null,
+        sessionClientSyncId: null,
+        activeDraftNonce: 'proof-draft-nonce',
+        createGame: api.createGame,
+        updateGame: api.updateGame,
+        replaceFramesForGame: api.replaceFramesForGame,
+        replaceNewRouteWithGameId: ((nextGameId: GameId) => {
+          routedGameIds.push(nextGameId);
+        }) as never,
+        clearLocalDraft: async () => {},
+        setAutosaveState: ((next: string) => {
+          autosaveStates.push(next);
+        }) as never,
+        setAutosaveError: ((next: string | null) => {
+          autosaveErrors.push(next);
+        }) as never,
+        isAutosaveInFlightRef: { current: false },
+        isQueuedFlushInFlightRef: { current: false },
+        hasQueuedAutosaveRef: { current: false },
+        saveSequenceRef: { current: 0 },
+        lastSavedSignatureRef: { current: null },
+      });
+
+      return null;
+    }, __setActiveRenderer);
+    renderer.mount();
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await settle();
+
+    // The created game is in SQLite under a local UUID, with its session
+    // foreign key and its frames.
+    assert.equal(draftGameIds.length, 1);
+    const [createdGameId] = draftGameIds;
+    assert.ok(
+      typeof createdGameId === 'string',
+      'the autosave must record the created local game id'
+    );
+    assert.match(createdGameId, LOCAL_UUID_PATTERN);
+
+    const createdGame = await journal.getGame(createdGameId as GameId);
+    assert.ok(createdGame !== null, 'the created game must persist locally');
+    assert.equal(createdGame.sessionId, seed.sessionId);
+    assert.equal(createdGame.date, '2025-01-08');
+
+    const createdFrames = await journal.getGameFrames(createdGameId as GameId);
+    assert.equal(createdFrames.length, 2);
+    assert.equal(getRollValue(createdFrames[0].roll1Mask ?? null), 9);
+    assert.equal(getRollValue(createdFrames[1].roll1Mask ?? null), 10);
+
+    // The route replacement navigates on that same local id — the editor
+    // no longer routes on a `draft-…` phantom resolved through the client
+    // sync map.
+    assert.deepEqual(routedGameIds, [createdGameId]);
+
+    assert.deepEqual(autosaveStates, ['saving', 'saved']);
+    assert.deepEqual(autosaveErrors, [null, null]);
+    assert.ok(
+      !asyncStorageStore.has(queueKey),
+      'the autosave must not write a game-save-queue entry'
+    );
+    assert.ok(
+      !asyncStorageGetKeys.includes(queueKey),
+      'the autosave must not read the game-save-queue storage'
+    );
+    assert.ok(
+      !asyncStorageGetKeys.includes(CLIENT_SYNC_MAP_KEY),
+      'the editor write path must not load the client-sync map'
+    );
+
+    assert.deepEqual(convexOps, []);
+    assert.equal(mutationCalls.length, 0);
   } finally {
     renderer?.unmount();
   }
