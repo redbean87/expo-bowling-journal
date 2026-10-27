@@ -17,22 +17,13 @@ import { LeagueRowCard } from './journal/components/league-row-card';
 import { LeagueSyncStatusModal } from './journal/components/league-sync-status-modal';
 import { OpenBowlingCard } from './journal/components/open-bowling-card';
 import { openJournalNativeActionSheet } from './journal/journal-action-sheet';
+import { type QueuedLeagueCreateEntry } from './journal/journal-create-queue';
+import { loadJournalCreateQueue } from './journal/journal-create-queue-storage';
 import {
-  createQueuedLeagueDeleteEntry,
-  createQueuedLeagueCreateEntry,
-  createQueuedLeagueUpdateEntry,
-  isRetryableCreateError,
-  upsertQueuedJournalCreateEntry,
-  type QueuedLeagueCreateEntry,
-} from './journal/journal-create-queue';
-import {
-  loadJournalCreateQueue,
-  persistJournalCreateQueue,
-} from './journal/journal-create-queue-storage';
-import {
-  isNavigatorOffline,
-  withTimeout,
-} from './journal/journal-offline-create';
+  createLeagueLocally,
+  deleteLeagueLocally,
+  updateLeagueLocally,
+} from './journal/journal-leagues-write-policy';
 import { getFirstParam } from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
 
@@ -298,66 +289,36 @@ export default function JournalLeaguesScreen() {
       gamesPerSession = parsed;
     }
 
-    const queueLeagueCreate = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedLeagueCreateEntry(
-        {
-          name,
-          gamesPerSession,
-          houseId: leagueHouseId as never,
-          leagueType,
-        },
-        clientSyncId,
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      setQueuedLeagueCreates(
-        nextQueue.filter(
-          (entry): entry is QueuedLeagueCreateEntry =>
-            entry.entityType === 'league-create'
-        )
-      );
-      resetCreateForm();
-      setIsCreateModalVisible(false);
-      navigateToLeagueSessions({
-        id: `draft-${clientSyncId}`,
-        leagueId: null,
-        clientSyncId,
-        name,
-        houseName:
-          houseOptions.find((option) => option.id === leagueHouseId)?.label ??
-          null,
-        houseId: leagueHouseId,
-        gamesPerSession: gamesPerSession ?? null,
-        isDraft: true,
-        leagueType,
-        mostRecentSessionDate: null,
-      });
-    };
-
+    // Local-first league writes (C-2 follow-up): the create goes straight to
+    // the converted SQLite-backed league operation (`use-leagues` →
+    // `src/services/journal/local-writes.ts`). The `isNavigatorOffline()`
+    // enqueue branch, the `withTimeout(…, 4500)` wrap around the server
+    // round-trip, and the `isRetryableCreateError` re-queue fallback are
+    // gone: they existed only because the server writes were flaky, and a
+    // local write either persisted or threw a domain error that the form
+    // reports below. Connectivity is not a mode switch, so an offline device
+    // still writes, and nothing here reads or writes the legacy queue
+    // storage, so entries already persisted in it stay untouched. The route
+    // pushes the real local league id the create returned, never a
+    // `draft-<clientSyncId>` phantom. Form validation and the UI state
+    // transitions are unchanged.
     setIsCreatingLeagueRequest(true);
 
     try {
-      if (isNavigatorOffline()) {
-        await queueLeagueCreate();
+      const { leagueId, error } = await createLeagueLocally(createLeague, {
+        name,
+        clientSyncId,
+        gamesPerSession,
+        houseId: leagueHouseId,
+        leagueType,
+      });
+
+      if (error !== null || leagueId === null) {
+        setPendingCreateClientSyncId(clientSyncId);
+        setLeagueError(error ?? 'Unable to create league.');
         return;
       }
 
-      const leagueId = await withTimeout(
-        createLeague({
-          name,
-          clientSyncId,
-          gamesPerSession,
-          houseId: leagueHouseId as never,
-          leagueType,
-        }),
-        4500
-      );
       resetCreateForm();
       setPendingCreateClientSyncId(null);
       setIsCreateModalVisible(false);
@@ -365,16 +326,6 @@ export default function JournalLeaguesScreen() {
         pathname: '/journal/[leagueId]/sessions' as never,
         params: { leagueId } as never,
       } as never);
-    } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueLeagueCreate();
-        return;
-      }
-
-      setPendingCreateClientSyncId(clientSyncId);
-      setLeagueError(
-        caught instanceof Error ? caught.message : 'Unable to create league.'
-      );
     } finally {
       setIsCreatingLeagueRequest(false);
     }
@@ -481,51 +432,29 @@ export default function JournalLeaguesScreen() {
 
     setIsSavingLeagueEdit(true);
 
-    const queueLeagueUpdate = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedLeagueUpdateEntry(
-        {
-          leagueId: editingLeagueServerId as never,
-          leagueClientSyncId: editingLeagueClientSyncId,
-          name,
-          gamesPerSession,
-          houseId: editingLeagueHouseId as never,
-        },
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      await refreshQueuedLeagueCreates();
-      cancelEditingLeague();
-    };
-
+    // Local-first league edits (C-2 follow-up): the update goes straight to
+    // the converted SQLite-backed league operation. The offline enqueue
+    // branch and the `isRetryableCreateError` re-queue fallback are gone, so
+    // a service rejection (including an unknown id) is reported to the bowler
+    // instead of queued, and an already-persisted queue entry is never
+    // extended. A row that has no local league id — one that only exists as
+    // an already-persisted legacy queue draft — has nothing to address
+    // locally, so it reports instead of enqueueing a new entry.
     try {
-      if (!editingLeagueServerId || isNavigatorOffline()) {
-        await queueLeagueUpdate();
-        return;
-      }
-
-      await updateLeague({
-        leagueId: editingLeagueServerId as never,
+      const { error } = await updateLeagueLocally(updateLeague, {
+        leagueId: editingLeagueServerId,
         name,
         gamesPerSession,
-        houseId: editingLeagueHouseId as never,
+        houseId: editingLeagueHouseId,
         leagueType: editingLeagueType,
       });
-      cancelEditingLeague();
-    } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueLeagueUpdate();
+
+      if (error !== null) {
+        setLeagueActionError(error);
         return;
       }
 
-      setLeagueActionError(
-        caught instanceof Error ? caught.message : 'Unable to update league.'
-      );
+      cancelEditingLeague();
     } finally {
       setIsSavingLeagueEdit(false);
     }
@@ -544,48 +473,28 @@ export default function JournalLeaguesScreen() {
 
     setDeletingLeagueRowId(target.rowId);
 
-    const queueLeagueDelete = async () => {
-      const now = Date.now();
-      const queuedEntry = createQueuedLeagueDeleteEntry(
-        {
-          leagueId: target.leagueId as never,
-          leagueClientSyncId: target.leagueClientSyncId,
-        },
-        now
-      );
-      const currentQueue = await loadJournalCreateQueue();
-      const nextQueue = upsertQueuedJournalCreateEntry(
-        currentQueue,
-        queuedEntry
-      );
-      await persistJournalCreateQueue(nextQueue);
-      await refreshQueuedLeagueCreates();
-
-      if (isEditModalVisible) {
-        cancelEditingLeague();
-      }
-    };
-
+    // Local-first league deletes (C-2 follow-up): the delete goes straight to
+    // the converted SQLite-backed league operation. The offline enqueue
+    // branch and the `isRetryableCreateError` re-queue fallback are gone, so
+    // a rejected delete — a league that still has sessions, which the
+    // canonical foreign keys enforce with NO ACTION — is surfaced to the
+    // bowler instead of queued, and a row with no local league id reports
+    // instead of enqueueing a new entry. Already-persisted queue entries
+    // stay untouched.
     try {
-      if (!target.leagueId || isNavigatorOffline()) {
-        await queueLeagueDelete();
+      const { error } = await deleteLeagueLocally(
+        removeLeague,
+        target.leagueId
+      );
+
+      if (error !== null) {
+        setLeagueActionError(error);
         return;
       }
-
-      await removeLeague({ leagueId: target.leagueId as never });
 
       if (isEditModalVisible) {
         cancelEditingLeague();
       }
-    } catch (caught) {
-      if (isRetryableCreateError(caught)) {
-        await queueLeagueDelete();
-        return;
-      }
-
-      setLeagueActionError(
-        caught instanceof Error ? caught.message : 'Unable to delete league.'
-      );
     } finally {
       setDeletingLeagueRowId(null);
     }
