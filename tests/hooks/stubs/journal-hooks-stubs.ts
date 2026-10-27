@@ -82,6 +82,7 @@ type RendererHandle = {
     deps: readonly unknown[] | undefined
   ) => (...args: unknown[]) => unknown;
   useMemo: <T>(factory: () => T, deps: readonly unknown[] | undefined) => T;
+  useRef: <T>(initial: T) => { current: T };
   useEffect: (
     effect: () => unknown | (() => void),
     deps: readonly unknown[] | undefined
@@ -125,6 +126,12 @@ export function useEffect(
   deps: readonly unknown[] | undefined
 ): void {
   requireRenderer().useEffect(effect, deps);
+}
+
+// `useStartTonight` keeps its one-shot guard in a ref, so the double delegates
+// `useRef` to the renderer the same way it delegates the other hooks.
+export function useRef<T>(initial: T): { current: T } {
+  return requireRenderer().useRef(initial);
 }
 
 // --- 'convex/react' double ------------------------------------------------
