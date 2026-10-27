@@ -4,17 +4,8 @@ import type { DisplaySession } from '@/hooks/journal/use-session-queue';
 import type { LeagueId, SessionId } from '@/services/journal';
 import type { Router } from 'expo-router';
 
-import {
-  createQueuedSessionCreateEntry,
-  upsertQueuedJournalCreateEntry,
-} from '@/screens/journal/journal-create-queue';
-import {
-  loadJournalCreateQueue,
-  persistJournalCreateQueue,
-} from '@/screens/journal/journal-create-queue-storage';
 import { buildJournalGamesRouteParams } from '@/screens/journal/journal-route-params';
 import { formatIsoDateForToday } from '@/screens/journal-fast-lane-utils';
-import { createClientSyncId } from '@/utils/client-sync-id';
 
 type UseStartTonightParams = {
   isFocused: boolean;
@@ -29,7 +20,10 @@ type UseStartTonightParams = {
     leagueId: LeagueId;
     date: string;
   }) => Promise<SessionId>;
-  refreshQueuedSessionCreates: () => Promise<void>;
+  // The sessions screen still passes this callback (it keeps it for its own
+  // queued-draft rows), but the local-first start-tonight path no longer
+  // refreshes a legacy queue, so this hook accepts and ignores it.
+  refreshQueuedSessionCreates?: () => Promise<void>;
   router: Router;
   onError: (message: string) => void;
 };
@@ -44,7 +38,6 @@ export function useStartTonight({
   isCreatingSession,
   displaySessions,
   createSession,
-  refreshQueuedSessionCreates,
   router,
   onError,
 }: UseStartTonightParams) {
@@ -72,9 +65,17 @@ export function useStartTonight({
     );
 
     if (existingDisplaySession) {
-      const targetSessionRouteId =
-        existingDisplaySession.sessionId ??
-        `draft-${existingDisplaySession.clientSyncId ?? 'session'}`;
+      // Local-first routing: the games route needs the persisted local
+      // session id. A display row that has none — one that only exists as an
+      // already-persisted legacy queue draft — has nothing to address locally,
+      // so it reports instead of minting a `draft-<clientSyncId>` phantom the
+      // journal has no data behind.
+      const targetSessionRouteId = existingDisplaySession.sessionId;
+
+      if (targetSessionRouteId === null) {
+        onError('The session for today has no local journal id to open.');
+        return;
+      }
 
       router.replace({
         pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
@@ -91,49 +92,26 @@ export function useStartTonight({
       return;
     }
 
-    if (!leagueId && leagueClientSyncId) {
-      void (async () => {
-        const clientSyncId = createClientSyncId('session');
-        const queuedEntry = createQueuedSessionCreateEntry(
-          {
-            leagueId: null as never,
-            date: today,
-          },
-          clientSyncId,
-          leagueClientSyncId,
-          Date.now()
-        );
-        const currentQueue = await loadJournalCreateQueue();
-        const nextQueue = upsertQueuedJournalCreateEntry(
-          currentQueue,
-          queuedEntry
-        );
-        await persistJournalCreateQueue(nextQueue);
-        await refreshQueuedSessionCreates();
-
-        router.replace({
-          pathname: '/journal/[leagueId]/sessions/[sessionId]/games' as never,
-          params: buildJournalGamesRouteParams({
-            leagueId: targetLeagueRouteId,
-            sessionId: `draft-${clientSyncId}`,
-            leagueClientSyncId,
-            sessionClientSyncId: clientSyncId,
-            sessionDate: today,
-          }) as never,
-        } as never);
-      })();
-
-      return;
-    }
-
-    if (!leagueId) {
-      return;
-    }
-
+    // Local-first session create (C-2 follow-up T2): the league row this
+    // screen is showing has no local journal id of its own — it came from a
+    // route, and in local mode that route carries the local league id the
+    // converted leagues screen wrote (C-2 follow-up T1 removed the `draft-`
+    // league routes). So the session goes straight to the converted,
+    // SQLite-backed `createSession` the app boundary already exposes
+    // (`use-sessions` → `src/services/journal/local-writes.ts`), awaited
+    // rather than wrapped: no `isNavigatorOffline()` enqueue branch, no
+    // `withTimeout` around a server round-trip, no `isRetryableCreateError`
+    // re-queue fallback, and no `refreshQueuedSessionCreates()` pass. Nothing
+    // here reads, writes, or drains the legacy journal-create queue, so an
+    // entry a pre-C-2 run already persisted stays untouched, and background
+    // sync and retry stay off in local mode. A row whose route carries only
+    // a legacy `draft-` league id has no local league to hang a session on:
+    // the service's foreign key rejects it and that rejection is reported
+    // below, never turned into a phantom `draft-<clientSyncId>` session.
     void (async () => {
       try {
         const sessionId = await createSession({
-          leagueId,
+          leagueId: targetLeagueRouteId as LeagueId,
           date: today,
         });
         router.replace({
@@ -163,7 +141,6 @@ export function useStartTonight({
     leagueId,
     onError,
     rawLeagueId,
-    refreshQueuedSessionCreates,
     router,
     startTonight,
   ]);
