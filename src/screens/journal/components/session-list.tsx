@@ -13,6 +13,7 @@ import type { LeagueId } from '@/services/journal';
 import type { SessionAggregate } from '@/utils/analytics-stats';
 import type { Router } from 'expo-router';
 
+import { LOCAL_JOURNAL_OPEN_LEAGUE_ID } from '@/services/journal/local-reads';
 import {
   lineHeight,
   spacing,
@@ -38,6 +39,18 @@ type SessionListProps = {
   sessionAggregates: SessionAggregate[];
 };
 
+/**
+ * The documented open-session sentinel {@link LOCAL_JOURNAL_OPEN_LEAGUE_ID} is
+ * the route token C-3 gives a session that belongs to no league (its SQLite
+ * `leagueId` foreign key is `null`). It is a route token, not a league: the
+ * league-scoped aggregate hooks must not be asked for it, and the session
+ * list must not render league-scoped aggregates for it. Every other
+ * identifier — a real league UUID or no league at all — is not the open route.
+ */
+export function isOpenLeagueRoute(leagueId: LeagueId | null): boolean {
+  return leagueId === LOCAL_JOURNAL_OPEN_LEAGUE_ID;
+}
+
 export function SessionList({
   leagueId,
   leagueClientSyncId,
@@ -55,6 +68,8 @@ export function SessionList({
 }: SessionListProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const isOpenRoute = isOpenLeagueRoute(leagueId);
 
   const aggregatesBySessionId = useMemo(() => {
     const map = new Map<string, SessionAggregate>();
@@ -74,7 +89,7 @@ export function SessionList({
         <Text style={styles.errorText}>{sessionActionError}</Text>
       ) : null}
 
-      {leagueId && (
+      {leagueId && !isOpenRoute && (
         <SeasonStatsCard
           isLoading={isLeagueGamesLoading}
           seasonSummary={seasonSummary}
@@ -97,9 +112,13 @@ export function SessionList({
       {displaySessions.map((session) => {
         const formattedDate = formatIsoDateLabel(session.date);
         const sessionTitle = sessionLabel(formattedDate);
-        const aggregate = session.sessionId
-          ? aggregatesBySessionId.get(session.sessionId)
-          : undefined;
+        // C-3.4: an open session has no league, so its league-scoped
+        // per-session statistics (game count, series total, average, high
+        // game) are not looked up and the row card renders without them.
+        const aggregate =
+          isOpenRoute || !session.sessionId
+            ? undefined
+            : aggregatesBySessionId.get(session.sessionId);
 
         return (
           <SessionRowCard
