@@ -28,7 +28,17 @@
 // documented open-league sentinel, and asserts the open session persists
 // with a `null` SQLite leagueId, that no `leagues` row is written, that
 // the sentinel route read surfaces the session, and that the leagues
-// hook exposes no open-bowling league creator any more.
+// hook exposes no open-bowling league creator any more. C-3.5 then removes
+// the now-dead synthetic-league display logic on the leagues screen (the
+// `openBowlingLeague` memo, the `leagueType !== 'open'` filter term in
+// `sortedLeagues`, and the inert `!openBowlingLeague` term in
+// `hasNoContent`), which this suite pins from the same seam: the app-boundary
+// league read the screen builds its rows from still lists every persisted
+// row - including a historical `Open Bowling` row a pre-C-3 run left on the
+// device (captain decision D2: untouched) - in the same recency order, no
+// row ever resolves to the synthetic `'open'` type the removed filter could
+// have matched, an empty journal still lists nothing, and the entry card's
+// flow still creates one open session with no league and adds no row.
 //
 // Shared fixtures are reused unchanged: `tests/hooks/stubs/journal-hooks-
 // stubs.ts` (the react / convex / AsyncStorage / local-reads / journal-
@@ -49,6 +59,7 @@ import {
   updateLeagueLocally,
 } from '../../src/screens/journal/journal-leagues-write-policy';
 import { __connectivityTestControls } from '../../src/services/connectivity';
+import { resolveLeagueType } from '../../src/utils/league-type-utils';
 import { createFakeNetInfo, type FakeNetInfoState } from '../harness/fake-env';
 import { MiniReact } from '../harness/mini-hook-renderer';
 import { registerStubRemaps } from '../harness/remap';
@@ -603,6 +614,101 @@ test('local mode: open bowling creates an open session, no league, and routes on
       ),
       [leagueSession.id],
       'a real league route must list only its own sessions'
+    );
+
+    assert.equal(
+      journalCreateQueue.length,
+      0,
+      'open bowling must not enqueue a legacy entry'
+    );
+
+    assertNoNewQueueEntry();
+  } finally {
+    harness.unmount();
+  }
+});
+
+test('local mode: the C-3.5 leagues-screen cleanup keeps the listed rows and the empty state', async () => {
+  const harness = await mountLeagueHook({ isConnected: false, type: 'none' });
+
+  try {
+    const { journal } = await openJournal();
+    const { writes, reads } = await getLocalAdapters();
+
+    // The screen builds `displayLeagues` from the app-boundary league read
+    // the `use-leagues` hook serves it, and `sortedLeagues` from that list.
+    // An empty journal still yields nothing, so the `!openBowlingLeague`
+    // term the cleanup removed from `hasNoContent` cannot have changed the
+    // "Tap + to add a league or tournament." hint.
+    assert.deepEqual(
+      await reads.listLocalLeagues(),
+      [],
+      'an empty journal must still list no league row'
+    );
+
+    // D2: a pre-C-3 run left an `Open Bowling` row on the device and C-3
+    // leaves it untouched. It is the only row the removed `leagueType !==
+    // 'open'` filter term could ever have matched.
+    const legacy = await journal.createLeague({ name: 'Open Bowling' });
+    const real = await journal.createLeague({
+      name: 'Real League',
+      gamesPerSession: 3,
+    });
+    await journal.createSession({ leagueId: real.id, date: '2026-01-05' });
+
+    // Both rows are still listed, in the same recency order (the row with
+    // the recent session first): the filter term the cleanup dropped
+    // excluded nothing, so ordinary league rows render as before.
+    assert.deepEqual(
+      (await reads.listLocalLeagues()).map((document) => document.name),
+      ['Real League', 'Open Bowling'],
+      'the leagues screen must list every persisted row, recency-ordered'
+    );
+
+    // The invariant the removal rests on: `resolveLeagueType` is the
+    // screen's own `leagueType` source, and the local read adapter omits
+    // `type`/`isOpenBowling`, so no display row resolves to the synthetic
+    // `'open'` type - even the historical row.
+    assert.deepEqual(
+      (await reads.listLocalLeagues()).map((document) =>
+        resolveLeagueType(document)
+      ),
+      ['league', 'league'],
+      'no display row may resolve to the synthetic open league type'
+    );
+
+    assert.equal(
+      (await journal.getLeague(legacy.id))?.name,
+      'Open Bowling',
+      'the historical row must stay on disk unchanged'
+    );
+
+    // The entry card's flow after the cleanup: tapping it still creates
+    // exactly one open session with no league, and adds no row to the
+    // list the screen renders.
+    const sessionId = await writes.createSession({
+      leagueId: reads.LOCAL_JOURNAL_OPEN_LEAGUE_ID,
+      date: '2026-01-06',
+    });
+    const persisted = await journal.getSession(sessionId);
+    assert.ok(persisted !== null, 'the open session must persist locally');
+    assert.equal(
+      persisted.leagueId,
+      null,
+      'the open session must still carry no league'
+    );
+    assert.deepEqual(
+      (await reads.listLocalLeagues()).map((document) => document.name),
+      ['Real League', 'Open Bowling'],
+      'the open-bowling entry point must add no league row to the screen'
+    );
+
+    // The card is unconditional and its `onPress` still routes through the
+    // session write seam; the hook offers no league creator to fall back
+    // to.
+    assert.ok(
+      !('createOpenBowlingLeague' in harness.leagues),
+      'the leagues hook must not expose an open-bowling league creator'
     );
 
     assert.equal(
