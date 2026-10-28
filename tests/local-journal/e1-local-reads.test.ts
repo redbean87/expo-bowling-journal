@@ -331,10 +331,46 @@ test('listLocalSessionsByLeague returns Convex-shaped session docs ordered newes
   assert.ok(!('clientSyncId' in a2Doc));
 
   // Unknown league: empty list, no throw.
-  assert.deepEqual(
-    await reads.listLocalSessionsByLeague(OPEN_SESSION_LEAGUE_ID),
-    []
+  assert.deepEqual(await reads.listLocalSessionsByLeague('some-league'), []);
+});
+
+test('listLocalSessionsByLeague routes the open-league sentinel to open sessions', async () => {
+  const fixture = await seedFixture();
+  const reads = await loadLocalReads();
+
+  // The test-local literal is the sentinel the adapter exports.
+  assert.equal(OPEN_SESSION_LEAGUE_ID, reads.LOCAL_JOURNAL_OPEN_LEAGUE_ID);
+
+  // Sentinel -> the local null league foreign key: open sessions only.
+  const openSessions: Session[] = await reads.listLocalSessionsByLeague(
+    OPEN_SESSION_LEAGUE_ID
   );
+  assert.deepEqual(
+    openSessions.map((session) => session._id),
+    [fixture.open.id]
+  );
+  const openDoc = openSessions[0];
+  assert.ok(openDoc);
+  assert.equal(openDoc.leagueId, reads.LOCAL_JOURNAL_OPEN_LEAGUE_ID);
+  assert.equal(openDoc.userId, reads.LOCAL_JOURNAL_USER_ID);
+  assert.equal(openDoc._creationTime, Date.parse('2024-06-30T00:00:00Z'));
+  assert.equal(openDoc.date, '2024-06-30');
+  assert.equal(openDoc.weekNumber, null);
+  assert.equal(openDoc.houseId, null);
+  assert.ok(!('clientSyncId' in openDoc));
+
+  // A real league identifier still queries only its own sessions: the open
+  // session never leaks into a league's list.
+  const alphaSessions = await reads.listLocalSessionsByLeague(fixture.alpha.id);
+  assert.deepEqual(
+    alphaSessions.map((session) => session._id),
+    [fixture.a3.id, fixture.a2.id, fixture.a1.id]
+  );
+  assert.ok(!alphaSessions.some((session) => session._id === fixture.open.id));
+  assert.ok(!openSessions.some((session) => session._id === fixture.a1.id));
+
+  // An unknown league identifier is not the sentinel: empty list, no throw.
+  assert.deepEqual(await reads.listLocalSessionsByLeague('some-league'), []);
 });
 
 test('listLocalGamesBySession returns Convex-shaped game docs with C5-derived stats, ordered newest-first', async () => {
