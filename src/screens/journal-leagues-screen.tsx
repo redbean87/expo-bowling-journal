@@ -665,27 +665,23 @@ export default function JournalLeaguesScreen() {
     return [...queuedDrafts, ...serverLeagues];
   }, [houseOptions, leagues, queuedLeagueCreates]);
 
-  const openBowlingLeague = useMemo(
-    () => displayLeagues.find((l) => l.leagueType === 'open') ?? null,
-    [displayLeagues]
-  );
-
+  // C-3.5: no display row ever resolves to `leagueType === 'open'` — the
+  // local read adapter omits `type`/`isOpenBowling`, so `resolveLeagueType`
+  // falls back to `'league'` even for a historical `Open Bowling` row, and
+  // the league write policy only accepts `'league' | 'tournament'`. The
+  // synthetic-league memo and the filter term that excluded it are dead.
   const sortedLeagues = useMemo(
     () =>
-      displayLeagues
-        .filter((l) => l.leagueType !== 'open')
-        .sort((a, b) => {
-          if (a.isDraft && !b.isDraft) return -1;
-          if (!a.isDraft && b.isDraft) return 1;
-          if (a.mostRecentSessionDate && b.mostRecentSessionDate) {
-            return b.mostRecentSessionDate.localeCompare(
-              a.mostRecentSessionDate
-            );
-          }
-          if (a.mostRecentSessionDate) return -1;
-          if (b.mostRecentSessionDate) return 1;
-          return 0;
-        }),
+      [...displayLeagues].sort((a, b) => {
+        if (a.isDraft && !b.isDraft) return -1;
+        if (!a.isDraft && b.isDraft) return 1;
+        if (a.mostRecentSessionDate && b.mostRecentSessionDate) {
+          return b.mostRecentSessionDate.localeCompare(a.mostRecentSessionDate);
+        }
+        if (a.mostRecentSessionDate) return -1;
+        if (b.mostRecentSessionDate) return 1;
+        return 0;
+      }),
     [displayLeagues]
   );
 
@@ -697,8 +693,7 @@ export default function JournalLeaguesScreen() {
     [filterType, sortedLeagues]
   );
 
-  const hasNoContent =
-    !isLeaguesLoading && sortedLeagues.length === 0 && !openBowlingLeague;
+  const hasNoContent = !isLeaguesLoading && sortedLeagues.length === 0;
 
   return (
     <ScreenLayout
@@ -740,10 +735,11 @@ export default function JournalLeaguesScreen() {
             </Text>
           )}
 
+          {/* C-3.5: the card is unconditional and its "Last session:" line
+              was already inert locally — `toLocalLeagueDocument` drops
+              `mostRecentSessionDate` — so the memo it read is gone. */}
           <OpenBowlingCard
-            mostRecentSessionDate={
-              openBowlingLeague?.mostRecentSessionDate ?? null
-            }
+            mostRecentSessionDate={null}
             onPress={() => {
               void onOpenBowlingPress();
             }}
