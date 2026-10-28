@@ -1,14 +1,49 @@
-import { useConvex, useConvexAuth } from 'convex/react';
+/**
+ * C-4 G3 — the export hook: local SQLite -> versioned JSON artifact -> file.
+ *
+ * The hook is the consumer half of the §4 adapter pipeline. The producer half
+ * (`src/services/local-journal/journal-backup-format.ts`, C-4 G1/G2) reads the
+ * canonical model out of the local SQLite journal and emits the version-1
+ * envelope; this hook asks that serializer for the document and hands the
+ * resulting bytes to the platform delivery boundary
+ * (`./export-backup/native-export-file`, which owns the native cache-directory
+ * write plus the share sheet, and the browser download below, which owns web/
+ * PWA).
+ *
+ * What this replaced (audit A1, A2, A14, A18): the hook used to query the
+ * Convex cloud journal (`convex.query(getSqliteBackupSnapshot)`) and POST the
+ * snapshot to the worker's `/exports/sqlite` endpoint, and it refused to run
+ * unless `useConvexAuth()` reported a session and a worker base URL was
+ * configured. In local mode that produced either no file at all, or a file
+ * holding the *cloud* journal of a sign-in-era user rather than what the app
+ * shows. There is now no Convex, authentication, network, or worker reference
+ * anywhere on the export path: the data source is `getLocalJournalService()`,
+ * and the artifact is the serializer's `.json` document.
+ *
+ * The worker service and the import pipeline are deliberately untouched here
+ * (A14: the worker is shared with the Convex cloud import scheduler, so it
+ * cannot be disabled from the export side).
+ *
+ * Snapshot consistency is stated, not assumed — see the serializer's own
+ * note (A17): the tables are read one query per table with no cross-table
+ * freeze, so a reader must validate relationships rather than assume a frozen
+ * database.
+ */
 import { useCallback, useState } from 'react';
 import { Platform } from 'react-native';
 
-import {
-  parseDownloadFileName,
-  sanitizeBackupFileName,
-} from './export-backup/export-filename';
+import { sanitizeBackupFileName } from './export-backup/export-filename';
 import { saveAndShareNativeBackupFile } from './export-backup/native-export-file';
 
-import { convexJournalService } from '@/services/journal';
+import { getLocalJournalService } from '@/services/local-journal';
+import {
+  JOURNAL_BACKUP_FILE_EXTENSION,
+  buildJournalBackupDocument,
+  serializeJournalBackupJson,
+} from '@/services/local-journal/journal-backup-format';
+
+/** The media type of the artifact this hook writes or downloads. */
+const JOURNAL_BACKUP_MIME_TYPE = 'application/json';
 
 function getDefaultExportFileName() {
   const d = new Date();
@@ -16,132 +51,60 @@ function getDefaultExportFileName() {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   const dateLabel = `${year}-${month}-${day}`;
-  return `bowling-journal-${dateLabel}.db`;
+
+  return `bowling-journal-${dateLabel}${JOURNAL_BACKUP_FILE_EXTENSION}`;
 }
 
 export function useExportSqliteBackup() {
-  const convex = useConvex();
-  const { isAuthenticated } = useConvexAuth();
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [lastExportFileName, setLastExportFileName] = useState<string | null>(
     null
   );
 
-  const exportSqliteBackup = useCallback(
-    async (workerBaseUrl: string | null) => {
-      setExportError(null);
+  const exportSqliteBackup = useCallback(async () => {
+    setExportError(null);
+    setIsExporting(true);
 
-      if (!isAuthenticated) {
-        setExportError('Sign in before exporting a backup.');
-        return;
-      }
+    try {
+      const backupDocument = await buildJournalBackupDocument(
+        getLocalJournalService(),
+        new Date().toISOString()
+      );
+      const backupBlob = new Blob(
+        [serializeJournalBackupJson(backupDocument)],
+        { type: JOURNAL_BACKUP_MIME_TYPE }
+      );
+      const defaultFileName = getDefaultExportFileName();
+      const fileName = sanitizeBackupFileName(defaultFileName, defaultFileName);
 
-      if (!workerBaseUrl) {
-        setExportError(
-          'Import worker URL is missing. Set EXPO_PUBLIC_IMPORT_WORKER_URL.'
-        );
-        return;
-      }
+      if (Platform.OS === 'web') {
+        const objectUrl = URL.createObjectURL(backupBlob);
 
-      setIsExporting(true);
+        try {
+          const anchor = document.createElement('a');
 
-      try {
-        const raw = await convex.query(
-          convexJournalService.getSqliteBackupSnapshot,
-          {}
-        );
-        // framesJson is a serialized string to avoid Convex's 8192-element
-        // array limit. Reconstruct the full snapshot with frames as an array
-        // before sending to the worker, which expects the standard shape.
-        const { framesJson, ...snapshotWithoutFrames } = raw;
-        // Pre-convert week dates from YYYY-MM-DD strings to local midnight
-        // timestamps before sending to the worker. Using `new Date(date +
-        // 'T00:00:00').getTime()` applies the device's historical DST rules for
-        // that specific date, so CST-season dates get 06:00 UTC and CDT-season
-        // dates get 05:00 UTC — matching what PinPal originally stored.
-        const weeksWithTimestamps = (
-          snapshotWithoutFrames.weeks as Array<{
-            date?: string | null;
-            [key: string]: unknown;
-          }>
-        ).map((week) => ({
-          ...week,
-          date:
-            typeof week.date === 'string'
-              ? new Date(week.date + 'T00:00:00').getTime()
-              : week.date,
-        }));
-        const snapshot = {
-          ...snapshotWithoutFrames,
-          weeks: weeksWithTimestamps,
-          frames: JSON.parse(framesJson),
-        };
-        const defaultFileName = getDefaultExportFileName();
-        const requestedFileName = sanitizeBackupFileName(
-          defaultFileName,
-          defaultFileName
-        );
-        const normalizedBaseUrl = workerBaseUrl.replace(/\/+$/, '');
-        const exportResponse = await fetch(
-          `${normalizedBaseUrl}/exports/sqlite`,
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              fileName: requestedFileName,
-              snapshot,
-              timezoneOffsetMinutes: new Date().getTimezoneOffset(),
-            }),
-          }
-        );
-
-        if (!exportResponse.ok) {
-          const responseText = await exportResponse.text();
-          throw new Error(
-            responseText || 'Failed to generate SQLite backup file.'
-          );
+          anchor.href = objectUrl;
+          anchor.download = fileName;
+          document.body.append(anchor);
+          anchor.click();
+          anchor.remove();
+        } finally {
+          URL.revokeObjectURL(objectUrl);
         }
-
-        const backupBlob = await exportResponse.blob();
-        const downloadFileName = parseDownloadFileName(
-          exportResponse.headers.get('content-disposition')
-        );
-        const fileName = sanitizeBackupFileName(
-          downloadFileName,
-          requestedFileName
-        );
-
-        if (Platform.OS === 'web') {
-          const objectUrl = URL.createObjectURL(backupBlob);
-
-          try {
-            const anchor = document.createElement('a');
-            anchor.href = objectUrl;
-            anchor.download = fileName;
-            document.body.append(anchor);
-            anchor.click();
-            anchor.remove();
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          }
-        } else {
-          await saveAndShareNativeBackupFile(backupBlob, fileName);
-        }
-
-        setLastExportFileName(fileName);
-      } catch (caught) {
-        setExportError(
-          caught instanceof Error ? caught.message : 'SQLite export failed.'
-        );
-      } finally {
-        setIsExporting(false);
+      } else {
+        await saveAndShareNativeBackupFile(backupBlob, fileName);
       }
-    },
-    [convex, isAuthenticated]
-  );
+
+      setLastExportFileName(fileName);
+    } catch (caught) {
+      setExportError(
+        caught instanceof Error ? caught.message : 'Journal export failed.'
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
 
   return {
     exportSqliteBackup,

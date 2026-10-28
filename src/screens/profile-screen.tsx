@@ -70,12 +70,14 @@ export default function ProfileScreen() {
         <Card muted style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Data</Text>
 
+          {/* Local export needs no worker URL and no sign-in, so nothing
+              about configuration can take this control away. */}
           <ProfileDataExportSection
-            disabled={!env.importWorkerUrl}
+            disabled={false}
             exportError={exportError}
             isExporting={isExporting}
             lastExportFileName={lastExportFileName}
-            onExport={() => void exportSqliteBackup(env.importWorkerUrl)}
+            onExport={() => void exportSqliteBackup()}
           />
 
           <View style={styles.divider} />
