@@ -32,11 +32,11 @@ export function ProfileDataExportSection({
     <View style={styles.section}>
       <Text style={styles.subLabel}>Export</Text>
       <Text style={styles.meta}>
-        Download a full SQLite backup of your data.
+        Export your journal as a versioned .json backup file.
       </Text>
       <Button
         disabled={disabled || isExporting}
-        label={isExporting ? 'Exporting...' : 'Export SQLite backup (.db)'}
+        label={isExporting ? 'Exporting...' : 'Export journal backup (.json)'}
         onPress={onExport}
         variant="secondary"
       />
