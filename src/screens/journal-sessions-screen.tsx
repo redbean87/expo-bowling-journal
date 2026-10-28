@@ -3,7 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { SessionList } from './journal/components/session-list';
+import {
+  isOpenLeagueRoute,
+  SessionList,
+} from './journal/components/session-list';
 import { SessionModalsPanel } from './journal/components/session-modals-panel';
 import {
   getFirstParam,
@@ -66,9 +69,16 @@ export default function JournalSessionsScreen() {
     removeSession,
     isCreating: isCreatingSession,
   } = useSessions(leagueId);
+  // C-3.4: the open (no-league) route reuses the documented
+  // LOCAL_JOURNAL_OPEN_LEAGUE_ID sentinel as its route token, but the league-
+  // scoped aggregate hooks are league-by-construction: asked for the sentinel
+  // they query a league that has no games and return empty. The screen asks
+  // them for no league at all on that route, so no misleading empty
+  // aggregates are requested or rendered; real league routes are unchanged.
+  const aggregateLeagueId = isOpenLeagueRoute(leagueId) ? null : leagueId;
   const { games: leagueGames, isLoading: isLeagueGamesLoading } =
-    useLeagueGames(leagueId);
-  const { sessionAggregates } = useLeagueAnalytics(leagueId);
+    useLeagueGames(aggregateLeagueId);
+  const { sessionAggregates } = useLeagueAnalytics(aggregateLeagueId);
 
   const {
     setQueuedSessionCreates,
