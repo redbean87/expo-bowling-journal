@@ -23,7 +23,10 @@
  * - `leagueId` for a game whose session is an open session
  *   (`sessions.leagueId = null`, a local-only concept) is
  *   {@link LOCAL_JOURNAL_OPEN_LEAGUE_ID}; no game read/display path reads
- *   `game.leagueId`, the value only satisfies the document type.
+ *   `game.leagueId`, the value only satisfies the document type. The same
+ *   sentinel is the app-boundary route token for open sessions:
+ *   {@link listLocalSessionsByLeague} maps it back to the local `null`
+ *   league foreign key, so the read returns the open sessions.
  * - `clientSyncId` and `framePreview` are omitted: local entities have no
  *   sync identity and frame previews are not derivable from local data.
  *   Both fields are optional in the document types and every consumer
@@ -297,12 +300,18 @@ export async function listLocalLeagues(): Promise<League[]> {
 /**
  * List the sessions of one league in the Convex `sessions` document shape,
  * ordered like the Convex `sessions.listByLeague` query (`date` descending).
+ * The documented open-session sentinel {@link LOCAL_JOURNAL_OPEN_LEAGUE_ID}
+ * is the app-boundary route token for open (non-league) sessions: it maps to
+ * the local `null` league foreign key, so the read returns the open sessions;
+ * every other identifier is forwarded unchanged.
  */
 export async function listLocalSessionsByLeague(
   leagueId: Uuid
 ): Promise<Session[]> {
   const service = getLocalJournalService();
-  const sessions = await service.listSessions({ leagueId });
+  const sessions = await service.listSessions({
+    leagueId: leagueId === LOCAL_JOURNAL_OPEN_LEAGUE_ID ? null : leagueId,
+  });
   return [...sessions]
     .sort(compareLocalDateDescendingThenId)
     .map(toLocalSessionDocument);
