@@ -85,16 +85,10 @@ export function useLeagues() {
     }
   }, []);
 
-  const createOpenBowlingLeague = useCallback(async () => {
-    setIsCreating(true);
-
-    try {
-      return await localCreateLeague({ name: 'Open Bowling' });
-    } finally {
-      setIsCreating(false);
-    }
-  }, []);
-
+  // Open bowling no longer creates a league (C-3): the leagues screen's
+  // open-bowling handler creates an open session through the session write
+  // adapter instead, so nothing here mints an `Open Bowling` row. There is
+  // no open-bowling key in the returned hook object.
   const updateLeague = useCallback(
     async (input: UpdateLeagueInput) => await localUpdateLeague(input),
     []
@@ -114,7 +108,6 @@ export function useLeagues() {
     isLoading: isLocalLeaguesLoading,
     isAuthenticated,
     createLeague,
-    createOpenBowlingLeague,
     updateLeague,
     removeLeague,
     isCreating,

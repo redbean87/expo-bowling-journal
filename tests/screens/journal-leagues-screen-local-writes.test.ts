@@ -21,6 +21,15 @@
 // local league id reports instead of enqueueing, while an entry a pre-C-2
 // run already persisted in the queue stays byte-for-byte untouched.
 //
+// C-3 adds the open-bowling regression at the same seam: the leagues
+// screen's `onOpenBowlingPress` no longer creates a league, so the suite
+// drives the session write adapter the handler now calls
+// (`src/services/journal/local-writes.ts` → `createSession`) with the
+// documented open-league sentinel, and asserts the open session persists
+// with a `null` SQLite leagueId, that no `leagues` row is written, that
+// the sentinel route read surfaces the session, and that the leagues
+// hook exposes no open-bowling league creator any more.
+//
 // Shared fixtures are reused unchanged: `tests/hooks/stubs/journal-hooks-
 // stubs.ts` (the react / convex / AsyncStorage / local-reads / journal-
 // create-queue doubles) and `tests/db/expo-sqlite-stub.mjs`. `@/services/
@@ -75,6 +84,9 @@ after(() => {
 type LeaguesModule = typeof import('../../src/hooks/journal/use-leagues');
 type LocalJournalModule = typeof import('../../src/services/local-journal');
 type DatabaseModule = typeof import('../../src/db/database');
+type LocalWritesModule =
+  typeof import('../../src/services/journal/local-writes');
+type LocalReadsModule = typeof import('../../src/services/journal/local-reads');
 
 let leaguesModulePromise: Promise<LeaguesModule> | null = null;
 let journalModulesPromise: Promise<{
@@ -99,9 +111,35 @@ function getJournalModules() {
   return journalModulesPromise;
 }
 
+// The app-boundary adapters the open-bowling handler calls at runtime: the
+// session write seam (`createSession`) and the route read the handler
+// pushes (`listLocalSessionsByLeague`). Imported by relative path, so the
+// REAL adapters load — the local-reads double the hook resolves is a
+// separate module, and these must reach the real SQLite-backed service.
+type LocalAdapters = {
+  writes: LocalWritesModule;
+  reads: LocalReadsModule;
+};
+
+let localAdaptersPromise: Promise<LocalAdapters> | null = null;
+
+function getLocalAdapters(): Promise<LocalAdapters> {
+  localAdaptersPromise ??= Promise.all([
+    import('../../src/services/journal/local-writes'),
+    import('../../src/services/journal/local-reads'),
+  ]).then(([writes, reads]) => ({ writes, reads }));
+
+  return localAdaptersPromise;
+}
+
 // The local UUID the SQLite-backed service mints for every canonical entity.
 const LOCAL_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// The documented open-session sentinel (D1: it is the route token for a
+// session that has no league). Pinned literally, then asserted against the
+// real adapter export below.
+const OPEN_LEAGUE_ROUTE_TOKEN = '00000000-0000-0000-0000-000000000000';
 
 // --- Test harness ----------------------------------------------------------
 
@@ -473,6 +511,104 @@ test('local mode: connectivity recovery keeps league writes local', async () => 
       journalCreateQueue.length,
       0,
       'recovery must not enqueue a legacy entry'
+    );
+
+    assertNoNewQueueEntry();
+  } finally {
+    harness.unmount();
+  }
+});
+
+test('local mode: open bowling creates an open session, no league, and routes on the sentinel', async () => {
+  const harness = await mountLeagueHook({ isConnected: false, type: 'none' });
+
+  try {
+    // C-3.1: the leagues hook no longer hands out an open-bowling league
+    // creator, so no caller can mint an `Open Bowling` row.
+    assert.ok(
+      !('createOpenBowlingLeague' in harness.leagues),
+      'the leagues hook must not expose an open-bowling league creator'
+    );
+
+    const { journal } = await openJournal();
+    const { writes, reads } = await getLocalAdapters();
+
+    assert.equal(
+      reads.LOCAL_JOURNAL_OPEN_LEAGUE_ID,
+      OPEN_LEAGUE_ROUTE_TOKEN,
+      'the open route token is the documented sentinel'
+    );
+
+    // C-3.2: the handler's session-write seam, called with the sentinel as
+    // its app-boundary league identifier.
+    const sessionId = await writes.createSession({
+      leagueId: reads.LOCAL_JOURNAL_OPEN_LEAGUE_ID,
+      date: '2026-01-04',
+    });
+
+    assert.ok(
+      LOCAL_UUID_PATTERN.test(sessionId),
+      'the open session must carry a real local session UUID'
+    );
+    assert.ok(
+      !sessionId.startsWith('draft-'),
+      'the open session must not carry a draft id'
+    );
+
+    // The write adapter resolves the sentinel to the local `null` league
+    // foreign key: the persisted session has no league.
+    const persisted = await journal.getSession(sessionId);
+    assert.ok(persisted !== null, 'the open session must persist locally');
+    assert.equal(persisted.id, sessionId);
+    assert.equal(
+      persisted.leagueId,
+      null,
+      'the persisted session must have a null SQLite leagueId'
+    );
+
+    // No `leagues` row was written for the tap: the sentinel names no
+    // league, and the journal still holds none.
+    assert.equal(
+      await journal.getLeague(OPEN_LEAGUE_ROUTE_TOKEN),
+      null,
+      'the sentinel must not name a league'
+    );
+    assert.deepEqual(
+      (await journal.listLeagues()).map((league) => league.name),
+      [],
+      'open bowling must create no league row'
+    );
+
+    // The route the handler pushes: the sessions screen reads the open
+    // sessions through the sentinel-aware list read, so the created
+    // session is discoverable there.
+    assert.deepEqual(
+      (await reads.listLocalSessionsByLeague(OPEN_LEAGUE_ROUTE_TOKEN)).map(
+        (session) => session._id
+      ),
+      [sessionId],
+      'the open route must list the created session'
+    );
+
+    // A real league identifier keeps its own sessions: the open session
+    // never leaks into a league-scoped read.
+    const league = await journal.createLeague({ name: 'Real League' });
+    const leagueSession = await journal.createSession({
+      leagueId: league.id,
+      date: '2026-01-05',
+    });
+    assert.deepEqual(
+      (await reads.listLocalSessionsByLeague(league.id)).map(
+        (session) => session._id
+      ),
+      [leagueSession.id],
+      'a real league route must list only its own sessions'
+    );
+
+    assert.equal(
+      journalCreateQueue.length,
+      0,
+      'open bowling must not enqueue a legacy entry'
     );
 
     assertNoNewQueueEntry();

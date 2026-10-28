@@ -26,6 +26,7 @@ import {
 } from './journal/journal-leagues-write-policy';
 import { getFirstParam } from './journal/journal-route-params';
 import { getCreateModalTranslateY } from './journal/modal-layout-utils';
+import { formatIsoDateForToday } from './journal-fast-lane-utils';
 
 import { ScreenLayout } from '@/components/layout/screen-layout';
 import { SyncStatusChip } from '@/components/sync-status-chip';
@@ -36,6 +37,8 @@ import {
   useReferenceData,
 } from '@/hooks/journal';
 import { usePreferences } from '@/providers/preferences-provider';
+import { LOCAL_JOURNAL_OPEN_LEAGUE_ID } from '@/services/journal/local-reads';
+import { createSession as localCreateSession } from '@/services/journal/local-writes';
 import { useBreakpoint } from '@/theme/breakpoints';
 import {
   lineHeight,
@@ -137,7 +140,6 @@ export default function JournalLeaguesScreen() {
     leagues,
     isLoading: isLeaguesLoading,
     createLeague,
-    createOpenBowlingLeague,
     updateLeague,
     removeLeague,
   } = useLeagues();
@@ -348,11 +350,22 @@ export default function JournalLeaguesScreen() {
       return;
     }
 
+    // C-3: open bowling has no synthetic league. The tap creates one open
+    // session straight through the app-boundary session write adapter
+    // (`src/services/journal/local-writes.ts`), which resolves the
+    // documented sentinel to the local `null` league foreign key, and
+    // routes on that same sentinel: `listLocalSessionsByLeague` maps it
+    // back to `null`, so the sessions screen lists the open sessions. No
+    // `leagues` row is written, no legacy journal-create queue entry is
+    // enqueued, and no server mutation runs.
     setIsCreatingLeagueRequest(true);
 
     try {
-      const leagueId = await createOpenBowlingLeague();
-      navigateToLeagueSessionsById(String(leagueId));
+      await localCreateSession({
+        leagueId: LOCAL_JOURNAL_OPEN_LEAGUE_ID,
+        date: formatIsoDateForToday(),
+      });
+      navigateToLeagueSessionsById(LOCAL_JOURNAL_OPEN_LEAGUE_ID);
     } finally {
       setIsCreatingLeagueRequest(false);
     }
