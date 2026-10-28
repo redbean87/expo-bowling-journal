@@ -1,12 +1,49 @@
+import {
+  JOURNAL_BACKUP_FORMAT,
+  JOURNAL_BACKUP_VERSION,
+} from '../../../services/local-journal/journal-backup-format';
+
 const SQLITE_HEADER = 'SQLite format 3\u0000';
 
 // PinPal Lite iOS uses compound format: XML plist + padding + SQLite at offset 4096
 const PINPAL_LITE_SQLITE_OFFSET = 4096;
 
+/**
+ * The backup formats this app can read, in the order they are sniffed.
+ *
+ * Detection is content-based: the bytes of the file decide the format, and a
+ * file name (or its extension) is never taken as proof of what the file
+ * contains. A `.json` file that holds a SQLite image is a SQLite image, and a
+ * `.pinpal` file that holds this app's JSON envelope is this app's envelope.
+ *
+ * - `journal-json` — this app's own versioned JSON backup document
+ *   (`src/services/local-journal/journal-backup-format.ts`), written with the
+ *   `.json` extension.
+ * - `pinpal-sqlite` — a raw SQLite image: the legacy PinPal backup, and the
+ *   legacy `.db` image the worker used to produce.
+ * - `pinpal-lite-compound` — PinPal Lite iOS compound file: XML plist, padding,
+ *   then a SQLite image at offset 4096.
+ * - `null` — not a backup this app can read.
+ */
 export type DetectedImportFormat =
+  | 'journal-json'
   | 'pinpal-sqlite'
   | 'pinpal-lite-compound'
   | null;
+
+/**
+ * The outcome of validating a selected backup file.
+ *
+ * `format` is the supported format, or `null` when the file cannot be read.
+ * `errors` carries one actionable, user-facing message per reason the file was
+ * rejected — an unsupported format tag, an unsupported envelope version,
+ * malformed JSON, or a file that is not a backup at all — and is empty when
+ * `format` is not `null`.
+ */
+export interface BackupFileValidation {
+  errors: string[];
+  format: DetectedImportFormat;
+}
 
 type BlobWithArrayBuffer = Blob & {
   arrayBuffer?: () => Promise<ArrayBuffer>;
@@ -46,9 +83,181 @@ async function readBlobSliceArrayBuffer(
   });
 }
 
-export async function detectBackupFormat(
+function decodeArrayBufferText(buffer: ArrayBuffer): string {
+  return new TextDecoder().decode(buffer);
+}
+
+async function readBlobText(fileBlob: Blob): Promise<string> {
+  return decodeArrayBufferText(
+    await readBlobSliceArrayBuffer(fileBlob, fileBlob.size)
+  );
+}
+
+/**
+ * True when the first non-whitespace byte opens a JSON object.
+ *
+ * Only the header slice is inspected, so a SQLite image (which opens with the
+ * `SQLite format 3` magic) and a PinPal Lite compound file (which opens with an
+ * XML plist declaration) are never parsed as JSON.
+ */
+function looksLikeJsonObject(buffer: ArrayBuffer): boolean {
+  for (const character of decodeArrayBufferText(buffer)) {
+    if (
+      character === ' ' ||
+      character === '\t' ||
+      character === '\n' ||
+      character === '\r' ||
+      character === '\uFEFF'
+    ) {
+      continue;
+    }
+
+    return character === '{';
+  }
+
+  return false;
+}
+
+function describeBackupValue(value: unknown): string {
+  return typeof value === 'string' ? `"${value}"` : String(value);
+}
+
+/**
+ * Validate this app's own JSON envelope before anything is imported.
+ *
+ * The envelope is self-describing, so the reader checks the header fields —
+ * `format`, `version`, `exportedAt`, `data` — and stops with a specific
+ * message when they are missing or name something this app does not write.
+ * Payload validation (tables, ids, relationships, dates) belongs to the local
+ * restore path, which is the one that applies the payload.
+ *
+ * @returns `journal-json` with no errors, or `null` with the reason.
+ */
+async function validateJournalBackupEnvelope(
   fileBlob: Blob
-): Promise<DetectedImportFormat> {
+): Promise<BackupFileValidation> {
+  const documentText = await readBlobText(fileBlob);
+
+  let document: unknown;
+
+  try {
+    document = JSON.parse(documentText);
+  } catch (parseError) {
+    const parseMessage =
+      parseError instanceof Error ? parseError.message : String(parseError);
+
+    console.log(
+      '[Import Debug] JSON document could not be parsed:',
+      parseMessage
+    );
+
+    return {
+      errors: [
+        `The selected file opens like JSON but is not readable: ${parseMessage}. Choose the backup file this app exported.`,
+      ],
+      format: null,
+    };
+  }
+
+  if (
+    document === null ||
+    typeof document !== 'object' ||
+    Array.isArray(document)
+  ) {
+    return {
+      errors: [
+        'The selected JSON file is not a bowling journal backup document: its top level is not an object.',
+      ],
+      format: null,
+    };
+  }
+
+  const envelope = document as Record<string, unknown>;
+
+  console.log('[Import Debug] JSON envelope header:', {
+    format: envelope.format ?? 'missing',
+    version: envelope.version ?? 'missing',
+  });
+
+  if (!('format' in envelope)) {
+    return {
+      errors: [
+        'The selected JSON file has no "format" field, so this app cannot tell which backup format it is. Choose the backup file this app exported.',
+      ],
+      format: null,
+    };
+  }
+
+  if (envelope.format !== JOURNAL_BACKUP_FORMAT) {
+    return {
+      errors: [
+        `The selected file declares the format ${describeBackupValue(envelope.format)}, which is not the bowling journal backup format "${JOURNAL_BACKUP_FORMAT}". A PinPal backup is selected as its own file, not as a .json document.`,
+      ],
+      format: null,
+    };
+  }
+
+  if (!('version' in envelope)) {
+    return {
+      errors: [
+        `The selected bowling journal file has no "version", so this app cannot tell which backup layout it holds. This app writes version ${JOURNAL_BACKUP_VERSION}.`,
+      ],
+      format: null,
+    };
+  }
+
+  if (envelope.version !== JOURNAL_BACKUP_VERSION) {
+    return {
+      errors: [
+        `The selected bowling journal backup uses version ${describeBackupValue(envelope.version)}; this app reads version ${JOURNAL_BACKUP_VERSION}.`,
+      ],
+      format: null,
+    };
+  }
+
+  if (
+    !('exportedAt' in envelope) ||
+    typeof envelope.exportedAt !== 'string' ||
+    envelope.exportedAt.length === 0
+  ) {
+    return {
+      errors: [
+        'The selected bowling journal backup has no "exportedAt" export timestamp, so it was not written by this app.',
+      ],
+      format: null,
+    };
+  }
+
+  if (
+    !('data' in envelope) ||
+    envelope.data === null ||
+    typeof envelope.data !== 'object' ||
+    Array.isArray(envelope.data)
+  ) {
+    return {
+      errors: [
+        'The selected bowling journal backup has no "data" payload, so there is nothing to import.',
+      ],
+      format: null,
+    };
+  }
+
+  console.log('[Import Debug] Detected: journal-json');
+
+  return { errors: [], format: 'journal-json' };
+}
+
+/**
+ * Decide what a selected backup file is, and say why when it is not one.
+ *
+ * Reads the file's bytes in a fixed order — SQLite magic at offset 0, then the
+ * PinPal Lite compound magic at offset 4096, then a JSON envelope — so the
+ * legacy PinPal formats are identified before the JSON path is considered and
+ * can never be mistaken for this app's `.json` document.
+ */
+export async function validateBackupBlob(
+  fileBlob: Blob
+): Promise<BackupFileValidation> {
   console.log('[Import Debug] File validation started:', {
     fileName: (fileBlob as File).name ?? 'unknown',
     fileSize: fileBlob.size,
@@ -57,7 +266,13 @@ export async function detectBackupFormat(
 
   if (fileBlob.size <= 0) {
     console.log('[Import Debug] File size is 0 or negative');
-    return null;
+
+    return {
+      errors: [
+        'The selected file is empty. Choose the backup file you exported.',
+      ],
+      format: null,
+    };
   }
 
   if (fileBlob.size < SQLITE_HEADER.length) {
@@ -68,19 +283,24 @@ export async function detectBackupFormat(
       SQLITE_HEADER.length,
       ')'
     );
-    return null;
+
+    return {
+      errors: [
+        'The selected file is too small to be a backup file. Choose the backup file you exported.',
+      ],
+      format: null,
+    };
   }
 
-  // First, check for direct SQLite format
   const headerBuffer = await readBlobSliceArrayBuffer(
     fileBlob,
     SQLITE_HEADER.length
   );
-  const headerText = new TextDecoder().decode(headerBuffer);
+  const headerText = decodeArrayBufferText(headerBuffer);
 
   const headerBytes = new Uint8Array(headerBuffer);
   const headerHex = Array.from(headerBytes.slice(0, 16))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join(' ');
 
   console.log('[Import Debug] Header at offset 0:', {
@@ -91,10 +311,10 @@ export async function detectBackupFormat(
 
   if (headerText === SQLITE_HEADER) {
     console.log('[Import Debug] Detected: standard-sqlite');
-    return 'pinpal-sqlite';
+
+    return { errors: [], format: 'pinpal-sqlite' };
   }
 
-  // Check for compound format (SQLite at offset 4096)
   if (fileBlob.size >= PINPAL_LITE_SQLITE_OFFSET + SQLITE_HEADER.length) {
     try {
       const offsetBuffer = await readBlobSliceArrayBuffer(
@@ -102,11 +322,11 @@ export async function detectBackupFormat(
         SQLITE_HEADER.length,
         PINPAL_LITE_SQLITE_OFFSET
       );
-      const offsetHeader = new TextDecoder().decode(offsetBuffer);
+      const offsetHeader = decodeArrayBufferText(offsetBuffer);
 
       const offsetBytes = new Uint8Array(offsetBuffer);
       const offsetHex = Array.from(offsetBytes.slice(0, 16))
-        .map((b) => b.toString(16).padStart(2, '0'))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
         .join(' ');
 
       console.log('[Import Debug] Header at offset 4096:', {
@@ -117,10 +337,11 @@ export async function detectBackupFormat(
 
       if (offsetHeader === SQLITE_HEADER) {
         console.log('[Import Debug] Detected: compound-sqlite');
-        return 'pinpal-lite-compound';
+
+        return { errors: [], format: 'pinpal-lite-compound' };
       }
-    } catch (error) {
-      console.log('[Import Debug] Error reading offset 4096:', error);
+    } catch (offsetError) {
+      console.log('[Import Debug] Error reading offset 4096:', offsetError);
     }
   } else {
     console.log(
@@ -132,11 +353,39 @@ export async function detectBackupFormat(
     );
   }
 
-  console.log('[Import Debug] Detection failed: not a supported SQLite backup');
-  return null;
+  if (looksLikeJsonObject(headerBuffer)) {
+    return await validateJournalBackupEnvelope(fileBlob);
+  }
+
+  console.log(
+    '[Import Debug] Detection failed: not a supported journal or PinPal backup'
+  );
+
+  return {
+    errors: [
+      'The selected file is not a backup this app can read: it is neither a bowling journal .json document nor a PinPal SQLite database backup.',
+    ],
+    format: null,
+  };
 }
 
+export async function detectBackupFormat(
+  fileBlob: Blob
+): Promise<DetectedImportFormat> {
+  return (await validateBackupBlob(fileBlob)).format;
+}
+
+/**
+ * Whether the file can go through the current backup upload path.
+ *
+ * That path is the worker pipeline, and the worker reads a SQLite image only,
+ * so this app's own `.json` document is deliberately not accepted here: it is a
+ * supported *format*, but restoring it is the local import path. Callers that
+ * reject the file should surface {@link validateBackupBlob}'s `errors` rather
+ * than a generic "invalid backup" message.
+ */
 export async function isSupportedBackupBlob(fileBlob: Blob): Promise<boolean> {
-  const format = await detectBackupFormat(fileBlob);
-  return format !== null;
+  const format = (await validateBackupBlob(fileBlob)).format;
+
+  return format === 'pinpal-sqlite' || format === 'pinpal-lite-compound';
 }
