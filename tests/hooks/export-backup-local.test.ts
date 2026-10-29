@@ -1,6 +1,6 @@
 /**
- * C-4 T3 (Packet G3) — the local export hook and its platform file delivery
- * (`src/hooks/journal/use-export-sqlite-backup.ts`).
+ * C-4 T4 (Packet G3, rewritten) — the local export hook and its platform file
+ * delivery (`src/hooks/journal/use-export-sqlite-backup.ts`).
  *
  * The hook runs under the plain Node/tsx runner with every un-Node-able
  * import remapped to `./stubs/export-backup-stubs.ts` ('react', 'react-native'
@@ -8,24 +8,36 @@
  * `expo-sharing`, and a SABOTAGED `convex/react` whose `useConvex`/
  * `useConvexAuth` record the attempt and then throw). Real modules run
  * unmodified: `./export-backup/export-filename`, `./export-backup/native-export-file`
- * (the cache-directory + share-sheet boundary), the C-4 G1/G2 serializer
- * (`@/services/local-journal/journal-backup-format`), and
+ * (the cache-directory + share-sheet boundary), the canonical snapshot reader
+ * (`@/services/local-journal/journal-backup-format`), the shared PinPal row
+ * converter (`@/services/local-journal/pinpal-backup-rows`), and
  * `@/services/local-journal` — the accessor singleton over the real
- * SQLite-backed service, whose `expo-sqlite` dependency is remapped to the
- * shared `tests/db/expo-sqlite-stub.mjs` in-memory database.
+ * SQLite-backed service.
+ *
+ * `expo-sqlite` is remapped to the dialect stub rather than to
+ * `tests/db/expo-sqlite-stub.mjs`: the writers serialize the image they build
+ * (`SQLiteDatabase.serializeAsync()`), which the journal-only stub cannot do,
+ * and the dialect stub implements the same runtime API surface on top of a
+ * real `node:sqlite` database, so the journal and the writers run side by
+ * side over one seam.
  *
  * Two platform globals the delivery boundary relies on are stood up here
  * because the Node runner does not provide them: `FileReader` (the browser /
  * React Native global `native-export-file.ts` uses to turn the blob into the
- * base64 payload it writes) and `document` (the web branch's anchor-download
- * DOM). Both shims only record what the app asked the platform to do.
+ * base64 payload it writes — here it encodes the blob's raw bytes, which is
+ * what a device hands over) and `document` (the web branch's anchor-download
+ * DOM). A third, `confirm`, stands in for the browser prompt the web branch
+ * asks when the platform carries no device dialect. Both shims only record
+ * what the app asked the platform to do.
  *
- * Covered: the native branch writes the version-1 `.json` envelope into
- * `FileSystem.cacheDirectory` under the approved name and hands that exact
- * file to the share sheet; the export still succeeds with the `convex/react`
- * double sabotaged and no worker URL configured or passed (audit A1, A2, A18);
- * the web branch hands the same bytes to a browser download and writes no
- * native file; and a failing file write is surfaced as `exportError` without
+ * Covered: Android exports exactly one Android-dialect `.db` file whose bytes
+ * are a raw SQLite image; iOS exports exactly one iOS-dialect `.db` file whose
+ * bytes are the plist-wrapped compound image; web asks for the dialect and
+ * hands exactly one file for the dialect chosen to a browser download with no
+ * native write; the version-1 `.json` envelope is no longer the shipped
+ * artifact and no journal table ever reaches the file; the export still
+ * succeeds with the `convex/react` double sabotaged and no worker URL
+ * configured; and a failing file write is surfaced as `exportError` without
  * reporting a delivered file. In every case the journal itself is untouched.
  */
 import assert from 'node:assert/strict';
@@ -42,11 +54,6 @@ import {
   setPlatformOS,
   shareCalls,
 } from './stubs/export-backup-stubs';
-import {
-  JOURNAL_BACKUP_FILE_EXTENSION,
-  JOURNAL_BACKUP_FORMAT,
-  JOURNAL_BACKUP_VERSION,
-} from '../../src/services/local-journal/journal-backup-format';
 import { MiniReact } from '../harness/mini-hook-renderer';
 import { registerStubRemaps } from '../harness/remap';
 
@@ -58,7 +65,7 @@ const stubRewrites: Record<string, string> = {
   'react-native': stubPath,
   'expo-file-system/legacy': stubPath,
   'expo-sharing': stubPath,
-  'expo-sqlite': path.join(__dirname, '..', 'db', 'expo-sqlite-stub.mjs'),
+  'expo-sqlite': path.join(stubDir, 'android-dialect-expo-sqlite-stub.mjs'),
 };
 
 const hookHandle = registerStubRemaps(() => stubRewrites);
@@ -96,11 +103,11 @@ class FakeFileReader {
   readAsDataURL(blob: Blob): void {
     void (async () => {
       try {
-        const text = await blob.text();
-
+        // A device's FileReader base64-encodes the blob's bytes, so the shim
+        // does the same: the artifact is binary, not text.
         this.result =
           `data:${blob.type || 'application/octet-stream'};base64,` +
-          Buffer.from(text).toString('base64');
+          Buffer.from(await blob.bytes()).toString('base64');
 
         const onloadend = this.onloadend;
 
@@ -118,10 +125,6 @@ class FakeFileReader {
   }
 }
 
-// The Node runner has no DOM, and the app's `document`/`FileReader` globals
-// carry the DOM types the expo tsconfig pulls in, so the shims below are
-// installed through an erased view of the global object: the hook reads these
-// names at call time, which is what a browser or React Native would provide.
 function installGlobal(name: string, value: unknown): void {
   const globals: Record<string, unknown> = globalThis as unknown as Record<
     string,
@@ -166,6 +169,66 @@ function installFakeWebDocument(): Array<{ href: string; download: string }> {
   });
 
   return downloads;
+}
+
+// The web branch asks the browser to choose a dialect when the platform
+// carries none; this shim answers and records that the prompt was asked.
+function installFakeWebConfirm(answer: boolean): { asked: string | null } {
+  const prompt: { asked: string | null } = { asked: null };
+
+  installGlobal('confirm', (message: string) => {
+    prompt.asked = message;
+
+    return answer;
+  });
+
+  return prompt;
+}
+
+// --- What the artifact must and must not look like --------------------------
+
+/** The 16 bytes every raw SQLite image starts with. */
+const SQLITE_MAGIC = 'SQLite format 3\u0000';
+
+/** Where the iOS compound file's SQLite image starts inside its wrapper. */
+const IOS_COMPOUND_SQLITE_OFFSET = 4096;
+
+/** The approved export name, now carrying the `.db` extension. */
+const APPROVED_EXPORT_FILE_NAME = /^bowling-journal-\d{4}-\d{2}-\d{2}\.db$/;
+
+/** The table names only the journal has; none may reach the artifact. */
+const JOURNAL_ONLY_TABLES = [
+  'balls',
+  'houses',
+  'patterns',
+  'leagues',
+  'sessions',
+  'frames',
+];
+
+/** The DDL wording only the journal's own schema uses. */
+const JOURNAL_SCHEMA_MARK = 'CREATE TABLE IF NOT EXISTS';
+
+/** The text of the version-1 envelope this app no longer ships. */
+const JSON_ENVELOPE_MARK = '{"format":"bowling-journal"';
+
+/** The table only PinPal's Android dialect carries. */
+const ANDROID_METADATA_TABLE = 'android_metadata';
+
+/** The opening bytes of the iOS dialect's plist wrapper. */
+const IOS_WRAPPER_MARK = '<?xml';
+
+/** One artifact's bytes, decoded from the base64 the platform wrote. */
+function exportedBytes(write: { payload: string }): Buffer {
+  return Buffer.from(write.payload, 'base64');
+}
+
+function textAt(image: Buffer, offset: number, length: number): string {
+  return image.slice(offset, offset + length).toString('latin1');
+}
+
+function contains(image: Buffer, marker: string): boolean {
+  return image.includes(Buffer.from(marker, 'latin1'));
 }
 
 // --- Test harness -----------------------------------------------------------
@@ -214,6 +277,11 @@ async function settle(rounds = 24): Promise<void> {
 // built through the real service.
 async function buildFixtureJournal(): Promise<{
   journal: Journal;
+  counts: {
+    games: number;
+    sessions: number;
+    frames: number;
+  };
   ids: {
     house: string;
     ball: string;
@@ -272,8 +340,18 @@ async function buildFixtureJournal(): Promise<{
     },
   ]);
 
+  // The dialect stub backs each named database with a real file, so a later
+  // test's journal already holds the earlier tests' rows. Every test therefore
+  // compares against the counts it just built rather than an absolute number.
+  const counts = {
+    games: (await journal.listGames()).length,
+    sessions: (await journal.listSessions()).length,
+    frames: (await journal.getGameFrames(game.id)).length,
+  };
+
   return {
     journal,
+    counts,
     ids: {
       house: house.id,
       ball: ball.id,
@@ -285,50 +363,10 @@ async function buildFixtureJournal(): Promise<{
   };
 }
 
-type BackupRow = {
-  id: string;
-  gameId?: string | null;
-  frameNumber?: number;
-  roll1Mask?: number | null;
-  roll2Mask?: number | null;
-  roll3Mask?: number | null;
-};
-
-type ParsedBackupDocument = {
-  format: string;
-  version: number;
-  exportedAt: string;
-  data: {
-    balls: BackupRow[];
-    houses: BackupRow[];
-    patterns: BackupRow[];
-    leagues: BackupRow[];
-    sessions: BackupRow[];
-    games: BackupRow[];
-    frames: BackupRow[];
-  };
-};
-
-/** The exported artifact's bytes, decoded from the base64 the platform wrote. */
-type NativeWrite = {
-  uri: string;
-  encoding: string | null;
-  payload: string;
-};
-
-/** The exported artifact's bytes, decoded from the base64 the platform wrote. */
-function exportedDocument(write: NativeWrite): ParsedBackupDocument {
-  const json = Buffer.from(write.payload, 'base64').toString('utf8');
-
-  return JSON.parse(json) as unknown as ParsedBackupDocument;
-}
-
-const APPROVED_EXPORT_FILE_NAME = /^bowling-journal-\d{4}-\d{2}-\d{2}\.json$/;
-
 // --- Tests ------------------------------------------------------------------
 
-test('native: the export writes the versioned .json artifact and shares it', async () => {
-  const { journal, ids } = await buildFixtureJournal();
+test('android: the export writes one raw SQLite .db image and shares it', async () => {
+  const { journal, counts, ids } = await buildFixtureJournal();
   const harness = await mountExport('android');
 
   try {
@@ -339,19 +377,25 @@ test('native: the export writes the versioned .json artifact and shares it', asy
 
     assert.equal(api.exportError, null);
     assert.equal(api.isExporting, false);
+    assert.equal(api.lastExportDialect, 'android');
 
     const fileName = api.lastExportFileName ?? '';
 
     assert.notEqual(fileName, '', 'the export reported no delivered file');
     assert.match(fileName, APPROVED_EXPORT_FILE_NAME);
     assert.ok(
-      fileName.endsWith(JOURNAL_BACKUP_FILE_EXTENSION),
-      'the artifact is not a .json document'
+      fileName.endsWith('.db'),
+      'the artifact does not carry the SQLite extension'
     );
     assert.notEqual(
       fileName.slice(fileName.lastIndexOf('.')),
       '.pinpal',
-      'the artifact uses the PinPal extension'
+      'the artifact uses the PinPal app’s own extension'
+    );
+    assert.notEqual(
+      fileName.slice(fileName.lastIndexOf('.')),
+      '.json',
+      'the artifact is still the JSON envelope'
     );
 
     // Exactly one write, into the cache directory, under the approved name.
@@ -363,72 +407,111 @@ test('native: the export writes the versioned .json artifact and shares it', asy
     assert.equal(shareCalls.length, 1);
     assert.equal(shareCalls[0].uri, write.uri);
 
-    // The bytes are the version-1 envelope over the local journal.
-    const document = exportedDocument(write);
+    // The bytes are the Android dialect: a raw SQLite image, not the envelope.
+    const image = exportedBytes(write);
 
-    assert.equal(document.format, JOURNAL_BACKUP_FORMAT);
-    assert.notEqual(document.format, 'pinpal');
-    assert.equal(document.version, JOURNAL_BACKUP_VERSION);
-    assert.match(
-      document.exportedAt,
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-    );
-    assert.deepEqual(Object.keys(document.data), [
-      'balls',
-      'houses',
-      'patterns',
-      'leagues',
-      'sessions',
-      'games',
-      'frames',
-    ]);
-    assert.deepEqual(
-      document.data.balls.map((row) => row.id),
-      [ids.ball]
-    );
-    assert.deepEqual(
-      document.data.houses.map((row) => row.id),
-      [ids.house]
-    );
-    assert.deepEqual(
-      document.data.patterns.map((row) => row.id),
-      [ids.pattern]
-    );
-    assert.deepEqual(
-      document.data.leagues.map((row) => row.id),
-      [ids.league]
-    );
-    assert.deepEqual(
-      document.data.games.map((row) => row.id),
-      [ids.game]
-    );
-    assert.equal(document.data.sessions.length, 2);
-    assert.equal(document.data.frames.length, 3);
-    assert.ok(
-      document.data.frames.every((frame) => frame.gameId === ids.game),
-      'a frame belongs to another game'
+    assert.equal(
+      textAt(image, 0, SQLITE_MAGIC.length),
+      SQLITE_MAGIC,
+      'the artifact does not start with the SQLite magic'
     );
     assert.ok(
-      document.data.frames.some(
-        (frame) => frame.frameNumber === 10 && frame.roll3Mask === 0b1000000000
-      ),
-      'the tenth frame does not carry its third-roll mask'
+      contains(image, ANDROID_METADATA_TABLE),
+      'the Android dialect has no android_metadata table'
+    );
+    assert.ok(
+      !contains(image, IOS_WRAPPER_MARK),
+      'the Android artifact carries the iOS plist wrapper'
+    );
+    assert.ok(
+      !contains(image, JSON_ENVELOPE_MARK),
+      'the artifact is still the version-1 JSON envelope'
+    );
+    assert.ok(
+      !contains(image, JOURNAL_SCHEMA_MARK),
+      'the artifact is the journal database itself'
+    );
+    assert.deepStrictEqual(
+      JOURNAL_ONLY_TABLES.filter((table) => contains(image, table)),
+      [],
+      'a journal table reached the artifact'
     );
 
     // Nothing on the export path reached the sabotaged Convex boundary.
     assert.deepEqual(convexOps, []);
 
     // And the journal itself is untouched by the export.
-    assert.equal((await journal.listGames()).length, 1);
-    assert.equal((await journal.listSessions()).length, 2);
-    assert.equal((await journal.getGameFrames(ids.game)).length, 3);
+    assert.equal((await journal.listGames()).length, counts.games);
+    assert.equal((await journal.listSessions()).length, counts.sessions);
+    assert.equal((await journal.getGameFrames(ids.game)).length, counts.frames);
+  } finally {
+    harness.unmount();
+  }
+});
+
+test('ios: the export writes the plist-wrapped compound .db image', async () => {
+  const { journal, counts, ids } = await buildFixtureJournal();
+  const harness = await mountExport('ios');
+
+  try {
+    await harness.apiRef.current!.exportSqliteBackup();
+    await settle();
+
+    const api = harness.apiRef.current!;
+
+    assert.equal(api.exportError, null);
+    assert.equal(api.isExporting, false);
+    assert.equal(api.lastExportDialect, 'ios');
+
+    const fileName = api.lastExportFileName ?? '';
+
+    assert.match(fileName, APPROVED_EXPORT_FILE_NAME);
+    assert.equal(nativeWrites.length, 1);
+    assert.equal(shareCalls.length, 1);
+
+    const artifact = exportedBytes(nativeWrites[0]);
+
+    // The compound container: the plist wrapper first, the SQLite image at
+    // byte offset 4096, which is what the import detector already reads.
+    assert.equal(
+      textAt(artifact, 0, IOS_WRAPPER_MARK.length),
+      IOS_WRAPPER_MARK,
+      'the iOS artifact does not start with its plist wrapper'
+    );
+    assert.equal(
+      textAt(artifact, IOS_COMPOUND_SQLITE_OFFSET, SQLITE_MAGIC.length),
+      SQLITE_MAGIC,
+      'the iOS image is not at byte offset 4096'
+    );
+    assert.ok(
+      !contains(artifact, ANDROID_METADATA_TABLE),
+      'the iOS artifact carries the Android-only metadata table'
+    );
+    assert.ok(
+      !contains(artifact, JSON_ENVELOPE_MARK),
+      'the artifact is still the version-1 JSON envelope'
+    );
+    assert.ok(
+      !contains(artifact, JOURNAL_SCHEMA_MARK),
+      'the artifact is the journal database itself'
+    );
+    assert.deepStrictEqual(
+      JOURNAL_ONLY_TABLES.filter((table) => contains(artifact, table)),
+      [],
+      'a journal table reached the artifact'
+    );
+
+    assert.deepEqual(convexOps, []);
+    assert.equal((await journal.listGames()).length, counts.games);
+    assert.equal((await journal.listSessions()).length, counts.sessions);
+    assert.equal((await journal.getGameFrames(ids.game)).length, counts.frames);
   } finally {
     harness.unmount();
   }
 });
 
 test('the export succeeds with Convex sabotaged and no worker URL configured', async () => {
-  const { journal } = await buildFixtureJournal();
+  const { journal, ids } = await buildFixtureJournal();
 
   // Arm the sabotage: the module the export used to open with is present and
   // throws on contact.
@@ -459,24 +542,27 @@ test('the export succeeds with Convex sabotaged and no worker URL configured', a
     const api = harness.apiRef.current!;
 
     assert.equal(api.exportError, null);
-    assert.match(
-      api.lastExportFileName ?? '',
-      APPROVED_EXPORT_FILE_NAME,
-      'no .json artifact was delivered'
-    );
+    assert.match(api.lastExportFileName ?? '', APPROVED_EXPORT_FILE_NAME);
+    assert.equal(api.lastExportDialect, 'android');
     assert.equal(nativeWrites.length, 1);
     assert.equal(shareCalls.length, 1);
     assert.deepEqual(convexOps, []);
-    assert.equal((await journal.listGames()).length, 1);
+    assert.ok(
+      (await journal.listGames()).some((game) => {
+        return game.id === ids.game;
+      }),
+      'the export lost the fixture game'
+    );
   } finally {
     harness.unmount();
   }
 });
 
-test('web: the same bytes go to a browser download and no native file is written', async () => {
-  const { journal } = await buildFixtureJournal();
+test('web: the dialect the user picks decides one download and no native file', async () => {
+  const { journal, counts } = await buildFixtureJournal();
   const harness = await mountExport('web');
   const downloads = installFakeWebDocument();
+  const prompt = installFakeWebConfirm(true);
 
   try {
     await harness.apiRef.current!.exportSqliteBackup();
@@ -485,20 +571,59 @@ test('web: the same bytes go to a browser download and no native file is written
     const api = harness.apiRef.current!;
 
     assert.equal(api.exportError, null);
+    assert.ok(
+      prompt.asked !== null,
+      'web asked no dialect choice before writing a file'
+    );
+    assert.equal(api.lastExportDialect, 'android');
     assert.equal(nativeWrites.length, 0);
     assert.equal(shareCalls.length, 0);
-    assert.equal(downloads.length, 1);
+    assert.equal(
+      downloads.length,
+      1,
+      'web delivered more or less than one file'
+    );
     assert.match(downloads[0].download, APPROVED_EXPORT_FILE_NAME);
     assert.equal(api.lastExportFileName, downloads[0].download);
-    assert.equal((await journal.listGames()).length, 1);
+    assert.equal((await journal.listGames()).length, counts.games);
   } finally {
     installGlobal('document', null);
+    installGlobal('confirm', null);
+    harness.unmount();
+  }
+});
+
+test('web: the other dialect choice writes the compound file instead', async () => {
+  const { journal, counts } = await buildFixtureJournal();
+  const harness = await mountExport('web');
+  const downloads = installFakeWebDocument();
+  const prompt = installFakeWebConfirm(false);
+
+  try {
+    await harness.apiRef.current!.exportSqliteBackup();
+    await settle();
+
+    const api = harness.apiRef.current!;
+
+    assert.equal(api.exportError, null);
+    assert.ok(
+      prompt.asked !== null,
+      'web asked no dialect choice before writing a file'
+    );
+    assert.equal(api.lastExportDialect, 'ios');
+    assert.equal(nativeWrites.length, 0);
+    assert.equal(downloads.length, 1);
+    assert.equal(api.lastExportFileName, downloads[0].download);
+    assert.equal((await journal.listSessions()).length, counts.sessions);
+  } finally {
+    installGlobal('document', null);
+    installGlobal('confirm', null);
     harness.unmount();
   }
 });
 
 test('a failed file write is surfaced and no exported file is reported', async () => {
-  const { journal, ids } = await buildFixtureJournal();
+  const { journal, counts, ids } = await buildFixtureJournal();
 
   const harness = await mountExport('android');
 
@@ -513,13 +638,14 @@ test('a failed file write is surfaced and no exported file is reported', async (
     assert.equal(api.exportError, 'Native file system is unavailable.');
     assert.equal(api.isExporting, false);
     assert.equal(api.lastExportFileName, null);
+    assert.equal(api.lastExportDialect, null);
     assert.equal(nativeWrites.length, 0);
     assert.equal(shareCalls.length, 0);
 
     // The journal is still fully intact after the failed export.
-    assert.equal((await journal.listGames()).length, 1);
-    assert.equal((await journal.listSessions()).length, 2);
-    assert.equal((await journal.getGameFrames(ids.game)).length, 3);
+    assert.equal((await journal.listGames()).length, counts.games);
+    assert.equal((await journal.listSessions()).length, counts.sessions);
+    assert.equal((await journal.getGameFrames(ids.game)).length, counts.frames);
   } finally {
     harness.unmount();
   }

@@ -13,15 +13,24 @@
  * (`LocalJournalService`), so the payload mirrors the canonical model rather
  * than the SQLite column layout or the PinPal database schema (Packet G1:
  * "The exact field layout must mirror the canonical model"). It has no Convex,
- * authentication, network, worker, or file-system dependency: the bytes are
- * produced here, and where they are written is a separate slice (Packet G3).
+ * authentication, network, worker, or file-system dependency: it produces the
+ * snapshot payload, and the bytes that reach a device are a separate slice.
  *
  * ## The version-1 contract
  *
- * The portable file is a versioned, self-describing JSON document saved with
- * the `.json` extension (`JOURNAL_BACKUP_FILE_EXTENSION`). The `.pinpal`
- * extension stays reserved for the actual PinPal application's legacy import
- * format; it is a separate compatibility path and is never produced here.
+ * This contract describes a versioned, self-describing JSON document — the
+ * canonical journal snapshot — saved with the `.json` extension
+ * (`JOURNAL_BACKUP_FILE_EXTENSION`). The export reads it and the importer
+ * still accepts it, so a backup this app wrote before stays importable.
+ *
+ * It is no longer the file this app ships. The shipped export artifact is one
+ * device-specific PinPal SQLite image written as `.db` — the raw Android
+ * image or the iOS plist-wrapped compound image — assembled from the rows
+ * this contract defines by `src/hooks/journal/use-export-sqlite-backup.ts`
+ * and its two dialect writers. `.pinpal` is the name the real PinPal
+ * application writes its own backups under: this app can import both of its
+ * dialects (`src/hooks/journal/import-backup/file-validation.ts` sniffs the
+ * bytes, never the name) but never writes that name.
  *
  * ```json
  * {
@@ -108,10 +117,13 @@ export const JOURNAL_BACKUP_FORMAT: JournalBackupFormat = 'bowling-journal';
 export const JOURNAL_BACKUP_VERSION: JournalBackupVersion = 1;
 
 /**
- * The extension of the file this contract describes.
+ * The extension of the document this contract describes.
  *
- * `.json` — never `.pinpal`, which stays the real PinPal app's import-only
- * format, and never `.db`, which was the worker-produced legacy image.
+ * `.json` — this app's own canonical snapshot document, which the importer
+ * still recognizes so older backups remain importable. The file this app now
+ * exports is not this document: it is one device-specific PinPal SQLite
+ * image written as `.db`. `.pinpal` is the name PinPal itself writes —
+ * importable here in both dialects, never produced by this app.
  */
 export const JOURNAL_BACKUP_FILE_EXTENSION = '.json';
 
