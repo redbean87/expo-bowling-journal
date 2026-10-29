@@ -1233,7 +1233,10 @@ export async function restoreJournalBackupData(
       roll1Mask: frame.roll1Mask,
       roll2Mask: frame.roll2Mask,
       roll3Mask: frame.roll3Mask,
-      ballId: frame.ballId,
+      // The frame's ball is remapped like every other reference: the
+      // payload's ids never reach the journal, and `frames.ballId` is a
+      // foreign key into `balls`.
+      ballId: createdIdOf(created, frame.ballId),
       flags: frame.flags,
       pocket: frame.pocket,
       footBoard: frame.footBoard,
