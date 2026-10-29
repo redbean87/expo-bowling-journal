@@ -32,11 +32,11 @@ export function ProfileDataExportSection({
     <View style={styles.section}>
       <Text style={styles.subLabel}>Export</Text>
       <Text style={styles.meta}>
-        Export your journal as a versioned .json backup file.
+        Export your journal as a versioned PinPal .db backup file.
       </Text>
       <Button
         disabled={disabled || isExporting}
-        label={isExporting ? 'Exporting...' : 'Export journal backup (.json)'}
+        label={isExporting ? 'Exporting...' : 'Export PinPal backup (.db)'}
         onPress={onExport}
         variant="secondary"
       />

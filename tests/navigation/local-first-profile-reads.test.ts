@@ -204,7 +204,7 @@ for (const { label, state } of authStates) {
     assert.ok(html.includes('Entry mode'), 'entry mode row missing');
     assert.ok(html.includes('Data'), 'data section missing');
     assert.ok(
-      html.includes('Export journal backup (.json)'),
+      html.includes('Export PinPal backup (.db)'),
       'export button missing'
     );
     assert.ok(
