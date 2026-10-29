@@ -36,15 +36,15 @@ Container:
 
 Schema — seven core tables keyed `_id INTEGER PRIMARY KEY`:
 
-| Table | Columns (in DDL order) |
-| --- | --- |
-| `house` | `_id, name, sortOrder, flags` |
-| `pattern` | `_id, name, sortOrder, flags` |
-| `ball` | `_id, name, sortOrder, flags` |
-| `league` | `_id, ballFk, patternFk, houseFk, name, games, notes, sortOrder, flags` |
-| `week` | `_id, leagueFk, ballFk, patternFk, houseFk, date, notes, lane` |
-| `game` | `_id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane` |
-| `frame` | `_id, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags, pocket, footBoard, targetBoard` |
+| Table     | Columns (in DDL order)                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| `house`   | `_id, name, sortOrder, flags`                                                                                 |
+| `pattern` | `_id, name, sortOrder, flags`                                                                                 |
+| `ball`    | `_id, name, sortOrder, flags`                                                                                 |
+| `league`  | `_id, ballFk, patternFk, houseFk, name, games, notes, sortOrder, flags`                                       |
+| `week`    | `_id, leagueFk, ballFk, patternFk, houseFk, date, notes, lane`                                                |
+| `game`    | `_id, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes, lane`    |
+| `frame`   | `_id, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags, pocket, footBoard, targetBoard` |
 
 The DDL is written literally, not derived: PinPal's Android reader is strict
 about table names, column names, column order and key types. Rows are
@@ -76,15 +76,15 @@ Container:
 Schema — the same seven core tables keyed `pk INTEGER PRIMARY KEY`, with the
 Android-only columns simply not declared:
 
-| Table | Columns (in DDL order) |
-| --- | --- |
-| `house` | `pk, name, flags` |
-| `pattern` | `pk, name, flags` |
-| `ball` | `pk, name, flags` |
-| `league` | `pk, ballFk, patternFk, houseFk, name, games, notes, flags` |
-| `week` | `pk, leagueFk, ballFk, patternFk, houseFk, date, notes` |
-| `game` | `pk, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes` |
-| `frame` | `pk, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags` |
+| Table     | Columns (in DDL order)                                                                              |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `house`   | `pk, name, flags`                                                                                   |
+| `pattern` | `pk, name, flags`                                                                                   |
+| `ball`    | `pk, name, flags`                                                                                   |
+| `league`  | `pk, ballFk, patternFk, houseFk, name, games, notes, flags`                                         |
+| `week`    | `pk, leagueFk, ballFk, patternFk, houseFk, date, notes`                                             |
+| `game`    | `pk, weekFk, leagueFk, ballFk, patternFk, houseFk, score, frame, flags, singlePinSpareScore, notes` |
+| `frame`   | `pk, gameFk, weekFk, leagueFk, ballFk, frameNum, pins, scores, score, flags`                        |
 
 The iOS table set is the Android set minus `sortOrder` (house, pattern, ball,
 league), `lane` (week, game) and `pocket, footBoard, targetBoard` (frame), so
@@ -95,7 +95,7 @@ marker `3` at byte offset 44. Nothing in the SQL interface selects 3 — the
 only knob, `SQLITE_DBCONFIG_LEGACY_FILE_FORMAT`, forces `1`, which this writer
 must not emit either — so the writer emits the value the runtime writes, `4`,
 which is the value the captain's Android backup carries. Page size and
-`user_version` are physical header fields and *are* set here.
+`user_version` are physical header fields and _are_ set here.
 
 ## 3. The two dialects are not interchangeable
 
@@ -142,18 +142,18 @@ writers match its row rules by reading them, not by importing it.
 
 # The module map (local PinPal backup)
 
-| Responsibility | Module | Key names |
-| --- | --- | --- |
-| Snapshot: local SQLite → canonical tables | `src/services/local-journal/journal-backup-format.ts` | `readJournalBackupData`, `validateJournalBackupData` |
-| Shared row converter (pure, no DB, no clock) | `src/services/local-journal/pinpal-backup-rows.ts` | `buildPinPalLegacyRows`, `PinPalLegacyRows`, `PINPAL_ABSENT_FOREIGN_KEY`, `PINPAL_OPEN_BOWLING_LEAGUE_KEY`, `PINPAL_STRIKE_FRAME_FLAG`, `PINPAL_NON_STRIKE_FRAME_FLAG`, `PINPAL_PLACEHOLDER_FRAME_FLAGS`, `PINPAL_PLACEHOLDER_PINS_ANDROID`, `PINPAL_PLACEHOLDER_PINS_IOS` |
-| Android container (raw SQLite) | `src/hooks/journal/export-backup/android-pinpal-dialect.ts` | `buildAndroidPinpalBackupImage` |
-| iOS container (plist + SQLite @4096) | `src/hooks/journal/export-backup/ios-pinpal-dialect.ts` | `buildIosPinpalBackupImage`, `IOS_COMPOUND_SQLITE_OFFSET`, `IOS_PAGE_SIZE`, `IOS_USER_VERSION` |
-| Dialect choice + one `.db` artifact | `src/hooks/journal/use-export-sqlite-backup.ts` | `useExportSqliteBackup`, `deviceExportDialect`, `askWebExportDialect`, `PINPAL_BACKUP_FILE_EXTENSION`, `PINPAL_BACKUP_MIME_TYPE` |
-| File naming | `src/hooks/journal/export-backup/export-filename.ts` | `sanitizeBackupFileName`, `KNOWN_BACKUP_EXTENSIONS` |
-| Byte delivery to the platform | `src/hooks/journal/export-backup/native-export-file.ts` | `saveAndShareNativeBackupFile` (cache-directory write + share sheet; web uses a blob download) |
-| Format sniffing | `src/hooks/journal/import-backup/file-validation.ts` | `validateBackupBlob`, `detectBackupFormat`, `DetectedImportFormat`, `PINPAL_LITE_SQLITE_OFFSET` |
-| Local import of both dialects | `src/services/local-journal/pinpal-backup-import.ts` | `readPinPalBackupImage`, `convertPinPalBackupRowsToJournalBackupData`, `restoreJournalBackupData`, `importPinPalBackupIntoJournal` |
-| Server/worker import UI (not yet the local path) | `src/hooks/journal/use-import-backup.ts` | `useImportBackup` |
+| Responsibility                                   | Module                                                      | Key names                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Snapshot: local SQLite → canonical tables        | `src/services/local-journal/journal-backup-format.ts`       | `readJournalBackupData`, `validateJournalBackupData`                                                                                                                                                                                                                       |
+| Shared row converter (pure, no DB, no clock)     | `src/services/local-journal/pinpal-backup-rows.ts`          | `buildPinPalLegacyRows`, `PinPalLegacyRows`, `PINPAL_ABSENT_FOREIGN_KEY`, `PINPAL_OPEN_BOWLING_LEAGUE_KEY`, `PINPAL_STRIKE_FRAME_FLAG`, `PINPAL_NON_STRIKE_FRAME_FLAG`, `PINPAL_PLACEHOLDER_FRAME_FLAGS`, `PINPAL_PLACEHOLDER_PINS_ANDROID`, `PINPAL_PLACEHOLDER_PINS_IOS` |
+| Android container (raw SQLite)                   | `src/hooks/journal/export-backup/android-pinpal-dialect.ts` | `buildAndroidPinpalBackupImage`                                                                                                                                                                                                                                            |
+| iOS container (plist + SQLite @4096)             | `src/hooks/journal/export-backup/ios-pinpal-dialect.ts`     | `buildIosPinpalBackupImage`, `IOS_COMPOUND_SQLITE_OFFSET`, `IOS_PAGE_SIZE`, `IOS_USER_VERSION`                                                                                                                                                                             |
+| Dialect choice + one `.db` artifact              | `src/hooks/journal/use-export-sqlite-backup.ts`             | `useExportSqliteBackup`, `deviceExportDialect`, `askWebExportDialect`, `PINPAL_BACKUP_FILE_EXTENSION`, `PINPAL_BACKUP_MIME_TYPE`                                                                                                                                           |
+| File naming                                      | `src/hooks/journal/export-backup/export-filename.ts`        | `sanitizeBackupFileName`, `KNOWN_BACKUP_EXTENSIONS`                                                                                                                                                                                                                        |
+| Byte delivery to the platform                    | `src/hooks/journal/export-backup/native-export-file.ts`     | `saveAndShareNativeBackupFile` (cache-directory write + share sheet; web uses a blob download)                                                                                                                                                                             |
+| Format sniffing                                  | `src/hooks/journal/import-backup/file-validation.ts`        | `validateBackupBlob`, `detectBackupFormat`, `DetectedImportFormat`, `PINPAL_LITE_SQLITE_OFFSET`                                                                                                                                                                            |
+| Local import of both dialects                    | `src/services/local-journal/pinpal-backup-import.ts`        | `readPinPalBackupImage`, `convertPinPalBackupRowsToJournalBackupData`, `restoreJournalBackupData`, `importPinPalBackupIntoJournal`                                                                                                                                         |
+| Server/worker import UI (not yet the local path) | `src/hooks/journal/use-import-backup.ts`                    | `useImportBackup`                                                                                                                                                                                                                                                          |
 
 # Platform selection
 
@@ -161,7 +161,7 @@ writers match its row rules by reading them, not by importing it.
 - **iOS** (`Platform.OS === 'ios'`) always writes the iOS dialect.
 - **Web/PWA** has no device dialect to read off, so the user is asked
   explicitly — `globalThis.confirm('Export the Android PinPal dialect? OK =
-  Android, Cancel = iOS.')`, the same idiom the web delete dialogs already use.
+Android, Cancel = iOS.')`, the same idiom the web delete dialogs already use.
 - A caller that already knows the dialect may pass it
   (`exportSqliteBackup('ios' as PinpalExportDialect)`), but on a device the
   device always wins: `deviceExportDialect() ?? requestedDialect ?? askWebExportDialect()`.
