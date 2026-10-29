@@ -246,8 +246,8 @@ Target architecture:
        Local importer              Local exporter
               │                         │
               ▼                         ▼
-      external / PinPal           versioned .pinpal
-           formats                    format
+      external / PinPal           device PinPal .db
+           formats                    dialect
 ```
 
 UI code should consume the local service rather than directly manipulating SQLite.
@@ -294,19 +294,32 @@ PinPal's packed pin representation is an interchange representation, not canonic
 
 The supplied PinPal fixtures are the compatibility bar for import.
 
-Our own export format will be:
+Our own export format **as originally proposed in this plan** was a versioned,
+self-describing JSON document. **That proposal is superseded** (§7 Packet G1,
+§10 decision table): the captain's requirement is that the export re-imports
+into PinPal, and PinPal reads SQLite images, not JSON. The **shipped** export
+format is:
 
-- versioned
-- self-describing
-- portable
-- independent of Convex
-- independent of authentication
-- independent of network availability
-- capable of round-tripping canonical bowling data
+- one file per export, extension `.db` — the extension of what the file
+  actually is (PinPal ignores the extension; the bytes decide the format)
+- a SQLite image whose **dialect matches the device the export runs on**:
+  Android = raw SQLite (`android_metadata`, `_id` keys, `user_version` 8);
+  iOS = a 4096-byte plist wrapper with the SQLite image at byte offset 4096
+  (`pk` keys, narrower tables, 1024-byte pages, `user_version` 0)
+- independent of Convex, of authentication, and of network availability
+- capable of round-tripping canonical bowling data back into the journal
 
-Our own exported canonical UUIDs are preserved on re-import.
+The versioned JSON document still exists, but as the **canonical snapshot** the
+converter reads (`readJournalBackupData`) and as a still-recognized import
+format for backups the app exported earlier — it carries this app's own tag
+`bowling-journal`, never `pinpal`, and it is not the export artifact.
+See `docs/sqlite-backup-format.md` for both dialects, their schemas, their
+container layouts, and the module map.
 
-External PinPal imports receive new local UUIDs.
+Canonical UUIDs are preserved on our own snapshot round-trip.
+
+External PinPal imports receive new local UUIDs, and PinPal integer keys are
+never persisted into the journal.
 
 ---
 
@@ -866,11 +879,26 @@ Report discrepancies rather than silently changing the model.
 
 ## Phase G — Local export
 
+> **Superseded proposal, corrected against the shipped implementation.**
+> This packet proposed a JSON document that carried the `pinpal` format tag.
+> That is contradictory twice over: `pinpal` is the external application's
+> tag, and §4/§10 already hold PinPal IDs and PinPal storage representations
+> to be interchange-only, never canonical. It also cannot satisfy the
+> captain's requirement, because PinPal cannot read a JSON envelope. The
+> shipped export is a **device-specific PinPal SQLite `.db` file** (C-4 T1-T7
+> in this repo's history), and the JSON document that was actually built
+> carries this app's own tag `bowling-journal` and serves as the internal
+> canonical snapshot, not as the export artifact.
+
 ### Packet G1 — Define the own export format
 
-Use a versioned, self-describing `.pinpal` JSON-based document.
+Define the export as the file PinPal expects on the device it runs on, chosen
+by `Platform.OS`: the Android raw-SQLite dialect or the iOS plist-wrapped
+compound dialect, one `.db` file per export. On web there is no device to
+infer a dialect from, so the dialect is asked for explicitly.
 
-Minimum envelope:
+The legacy envelope sketch below is kept only as the record of what was
+proposed; it is not what the app writes:
 
 ```json
 {
@@ -881,7 +909,9 @@ Minimum envelope:
 }
 ```
 
-The exact field layout must mirror the canonical model rather than the PinPal database schema.
+The exact field layout must mirror the canonical model rather than the PinPal database schema — that rule still holds for the **canonical snapshot**
+(`src/services/local-journal/journal-backup-format.ts`), which is what the
+shared row converter consumes before either dialect writer serializes it.
 
 ---
 
@@ -1214,7 +1244,7 @@ These are settled and must not be reopened by Qwen.
 | PinPal IDs                         | Import provenance only                                                   |
 | Metadata                           | `Record<string, unknown> \| null`                                        |
 | Import policy                      | Additive/non-destructive by default                                      |
-| Own export                         | Versioned, self-describing JSON-based `.pinpal`                          |
+| Own export                         | Device-specific PinPal SQLite `.db` (Android or iOS)                     |
 | Own-format identity                | Preserve canonical UUIDs                                                 |
 | PinPal import identity             | Generate local UUIDs                                                     |
 | Normal bowling UI                  | Local service → SQLite                                                   |
