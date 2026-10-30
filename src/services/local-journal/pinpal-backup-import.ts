@@ -78,6 +78,7 @@ import {
   type Session,
   type Uuid,
 } from './types';
+import { newLocalUuid } from './uuid-source';
 import { normalizeImportDateStrict } from '../../../convex/lib/import_dates';
 import {
   laneContextFromLane,
@@ -1072,11 +1073,7 @@ function houseNameOf(houses: House[], houseId: Uuid | null): string | null {
 
 /** A fresh local `Uuid`, the same source the journal service mints its keys from. */
 function newUuid(): Uuid {
-  if (typeof crypto.randomUUID !== 'function') {
-    throw new Error('crypto.randomUUID() is not available');
-  }
-
-  return crypto.randomUUID();
+  return newLocalUuid();
 }
 
 /**

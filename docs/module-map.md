@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
@@ -97,7 +97,7 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
@@ -259,7 +259,7 @@ Verification: `npm test -- tests/connectivity.test.ts`.
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `connectivity.ts` ← `src/hooks/journal/use-import-backup.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/journal/journal-offline-create.ts`, `tests/connectivity.test.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`, `tests/hooks/journal-hooks-local-writes.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`, `tests/providers/game-save-queue-syncer.test.ts`, `tests/screens/journal-leagues-screen-local-writes.test.ts`
+- `connectivity.ts` ← `src/hooks/journal/use-import-backup.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/journal/journal-offline-create.ts`, `tests/connectivity.test.ts`, `tests/hooks/import-backup-device-runtime.test.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`, `tests/hooks/journal-hooks-local-writes.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`, `tests/providers/game-save-queue-syncer.test.ts`, `tests/screens/journal-leagues-screen-local-writes.test.ts`
 
 **Colocated tests**
 
@@ -282,13 +282,13 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
+<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
 
 **Files**
 
-- `src/hooks/journal/use-import-backup.ts` — 449 lines / 13,152 bytes — exports: `useImportBackup`
+- `src/hooks/journal/use-import-backup.ts` — 445 lines / 13,197 bytes — exports: `useImportBackup`
 - `src/hooks/journal/import-backup/import-upload-client.ts` — 187 lines / 4,772 bytes — exports: `SelectedBackupFile`, `uploadBackupFileAndStartImport`
-- `src/hooks/journal/import-backup/file-validation.ts` — 391 lines / 11,615 bytes — exports: `DetectedImportFormat`, `BackupFileValidation`, `validateBackupBlob`, `detectBackupFormat`, `isSupportedBackupBlob`
+- `src/hooks/journal/import-backup/file-validation.ts` — 472 lines / 14,229 bytes — exports: `DetectedImportFormat`, `BackupFileValidation`, `validateBackupBlob`, `validateBackupBytes`, `detectBackupFormat`, `isSupportedBackupBlob`
 - `src/hooks/journal/import-backup/file-picker-web.ts` — 128 lines / 3,352 bytes — exports: `WEB_BACKUP_PICKER_TYPES`, `WEB_BACKUP_ACCEPT`, `pickBackupFileOnWeb`
 - `convex/imports.ts` — 243 lines / 6,822 bytes — exports: `startImport`, `dispatchImportQueue`, `getImportStatus`, `getBatchByIdForCallback`, `updateBatchStatusForCallback`, `getNonceByValueForCallback`, `insertNonceForCallback`, `applyPostImportRefinement`, `deleteUserDocsChunkForImport`, `createImportBatchForSnapshot`, `persistRawImportChunkForBatch`, `importSqliteSnapshotAfterCleanupForUser`, `importSqliteSnapshot`, `submitParsedSnapshotForCallback`, `submitParsedSnapshotJsonForCallback`, `persistCanonicalFrameChunkForCallback`, `completeSnapshotImportForCallback`
 - `worker/src/index.js` — 792 lines / 20,407 bytes — exports: `default`
@@ -312,9 +312,9 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `use-import-backup.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`
+- `use-import-backup.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/import-backup-device-runtime.test.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`
 - `import-upload-client.ts` ← `src/hooks/journal/use-import-backup.ts`
-- `file-validation.ts` ← `src/hooks/journal/import-backup/import-upload-client.ts`, `src/hooks/journal/use-import-backup.ts`, `tests/hooks/ios-pinpal-dialect.test.ts`, `tests/import/backup-file-contract.test.ts`
+- `file-validation.ts` ← `src/hooks/journal/import-backup/import-upload-client.ts`, `src/hooks/journal/use-import-backup.ts`, `tests/hooks/ios-pinpal-dialect.test.ts`, `tests/import/backup-file-contract.test.ts`, `tests/import/device-runtime-backup-detection.test.ts`
 - `file-picker-web.ts` ← `src/hooks/journal/use-import-backup.ts`, `tests/import/backup-file-contract.test.ts`
 - `imports.ts` — none
 - `index.js` — none
@@ -327,8 +327,8 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 - `tests/hooks/import-backup-offline.test.ts` — 265 lines / 8,449 bytes
 - `tests/hooks/stubs/import-backup-stubs.ts` — 192 lines / 6,635 bytes
-- `tests/import/` — 19 test files, 2,026 lines / 58,770 bytes (directory totals)
+- `tests/import/` — 20 test files, 2,191 lines / 64,259 bytes (directory totals)
 
-**Totals** — files: 3,407 lines / 95,478 bytes; colocated tests: 2,483 lines / 73,854 bytes
+**Totals** — files: 3,484 lines / 98,137 bytes; colocated tests: 2,648 lines / 79,343 bytes
 
 <!-- MODULE-MAP:GENERATED:F:END -->
