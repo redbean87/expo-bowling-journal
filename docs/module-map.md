@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
@@ -97,7 +97,7 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
@@ -142,7 +142,7 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
@@ -282,7 +282,7 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=85a06bd7876d1d6f2ed5e4bbc178bf7baba38c5e date=2026-10-30 -->
+<!-- generated: head=e5bfc4004c097443169b7c88dd2d44549312a1d6 date=2026-10-30 -->
 
 **Files**
 
