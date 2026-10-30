@@ -594,21 +594,38 @@ function toLegacyFrameRow(
  * The key column the file's own tables use, read from its schema rather than
  * taken from the container that held it: `_id` on Android, `pk` on iOS, `null`
  * when the file declares neither.
+ *
+ * The schema is introspected (`PRAGMA table_info`) rather than parsed as DDL
+ * text: PinPal writes its `CREATE TABLE` statements with quoted identifiers —
+ * the captain's fixtures declare `'_id' INTEGER PRIMARY KEY` and `'pk' INTEGER
+ * PRIMARY KEY` — so a text check for `_id` immediately followed by `INTEGER`
+ * misses every genuine PinPal file while our own unquoted export passes. The
+ * column names and their primary-key flags come back the same however the
+ * file was written, so quoting, casing, spacing and formatting cannot matter.
  */
 async function readKeyColumn(db: SQLiteDatabase): Promise<string | null> {
-  const tables = await db.getAllAsync<{ name: string; sql: string | null }>(
-    "SELECT name, sql FROM sqlite_schema WHERE type = 'table'"
+  const tables = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM sqlite_schema WHERE type = 'table'"
   );
 
   for (const table of tables) {
-    const declaration = table.sql ?? '';
+    const quotedName = table.name.replace(/'/g, "''");
+    const columns = await db.getAllAsync<{ name: string; pk: number }>(
+      `SELECT * FROM pragma_table_info('${quotedName}')`
+    );
 
-    if (/_id\s+INTEGER\s+PRIMARY KEY/i.test(declaration)) {
-      return PINPAL_KEY_COLUMN.android;
-    }
+    for (const column of columns) {
+      if (column.pk < 1) {
+        continue;
+      }
 
-    if (/\bpk\s+INTEGER\s+PRIMARY KEY/i.test(declaration)) {
-      return PINPAL_KEY_COLUMN.ios;
+      if (column.name === PINPAL_KEY_COLUMN.android) {
+        return PINPAL_KEY_COLUMN.android;
+      }
+
+      if (column.name === PINPAL_KEY_COLUMN.ios) {
+        return PINPAL_KEY_COLUMN.ios;
+      }
     }
   }
 
