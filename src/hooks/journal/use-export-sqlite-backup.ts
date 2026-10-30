@@ -41,11 +41,14 @@
  * dialect (a future settings screen) can pass it; on a device the device
  * always wins.
  *
- * The bytes travel to the platform through the unchanged delivery boundary
+ * The bytes travel to the platform through the delivery boundary
  * (`./export-backup/native-export-file`: cache-directory write plus share
- * sheet, and the browser download below), which base64-encodes the blob it is
- * handed — so the image bytes are written verbatim, never re-encoded as JSON
- * text.
+ * sheet, and the browser download below). On a device the image is handed over
+ * as its `Uint8Array` and the boundary base64-encodes it in JavaScript, because
+ * React Native's `Blob` refuses parts that carry bytes and would throw before
+ * anything was written; on web the bytes are wrapped in a real browser `Blob`
+ * and downloaded through an object URL. Either way the image bytes are written
+ * verbatim, never re-encoded as JSON text.
  *
  * Snapshot consistency is stated, not assumed (A17): the tables are read one
  * query per table with no cross-table freeze, so the converter validates the
@@ -143,12 +146,6 @@ export function useExportSqliteBackup() {
           dialect === 'android'
             ? await buildAndroidPinpalBackupImage(legacyRows)
             : await buildIosPinpalBackupImage(legacyRows);
-        // The blob owns a copy of the image, so the bytes the platform writes
-        // are exactly the bytes the writer returned.
-        const backupBlob = new Blob([new Uint8Array(backupImage)], {
-          type: PINPAL_BACKUP_MIME_TYPE,
-        });
-
         const defaultFileName = getDefaultExportFileName();
         const fileName = sanitizeBackupFileName(
           defaultFileName,
@@ -156,6 +153,12 @@ export function useExportSqliteBackup() {
         );
 
         if (Platform.OS === 'web') {
+          // A browser's `Blob` owns a copy of the image, so the bytes the
+          // download carries are exactly the bytes the writer returned.
+          const backupBlob = new Blob([new Uint8Array(backupImage)], {
+            type: PINPAL_BACKUP_MIME_TYPE,
+          });
+
           const objectUrl = URL.createObjectURL(backupBlob);
 
           try {
@@ -170,7 +173,10 @@ export function useExportSqliteBackup() {
             URL.revokeObjectURL(objectUrl);
           }
         } else {
-          await saveAndShareNativeBackupFile(backupBlob, fileName);
+          // No blob on this branch: React Native's `Blob` rejects `ArrayBuffer`
+          // and `ArrayBufferView` parts, so the image reaches the boundary as
+          // its bytes and the boundary encodes them.
+          await saveAndShareNativeBackupFile(backupImage, fileName);
         }
 
         setLastExportFileName(fileName);
