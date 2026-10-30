@@ -21,14 +21,14 @@
  * real `node:sqlite` database, so the journal and the writers run side by
  * side over one seam.
  *
- * Two platform globals the delivery boundary relies on are stood up here
- * because the Node runner does not provide them: `FileReader` (the browser /
- * React Native global `native-export-file.ts` uses to turn the blob into the
- * base64 payload it writes — here it encodes the blob's raw bytes, which is
- * what a device hands over) and `document` (the web branch's anchor-download
- * DOM). A third, `confirm`, stands in for the browser prompt the web branch
- * asks when the platform carries no device dialect. Both shims only record
- * what the app asked the platform to do.
+ * Two platform globals are stood up here because the Node runner does not
+ * provide them: `FileReader` (the browser / React Native global the blob
+ * round trip used to turn the blob into the base64 payload `native-export-file.ts`
+ * writes — that boundary now encodes the bytes in JavaScript, so this suite
+ * keeps the shim only to leave the platform setup it always had intact) and
+ * `document` (the web branch's anchor-download DOM). A third, `confirm`, stands
+ * in for the browser prompt the web branch asks when the platform carries no
+ * device dialect. Both shims only record what the app asked the platform to do.
  *
  * Covered: Android exports exactly one Android-dialect `.db` file whose bytes
  * are a raw SQLite image; iOS exports exactly one iOS-dialect `.db` file whose
