@@ -83,14 +83,67 @@ async function readBlobSliceArrayBuffer(
   });
 }
 
-function decodeArrayBufferText(buffer: ArrayBuffer): string {
-  return new TextDecoder().decode(buffer);
+function decodeBytesText(bytes: Uint8Array<ArrayBufferLike>): string {
+  return new TextDecoder().decode(bytes);
 }
 
 async function readBlobText(fileBlob: Blob): Promise<string> {
-  return decodeArrayBufferText(
-    await readBlobSliceArrayBuffer(fileBlob, fileBlob.size)
+  return decodeBytesText(
+    new Uint8Array(await readBlobSliceArrayBuffer(fileBlob, fileBlob.size))
   );
+}
+
+/**
+ * Where a selected backup file's bytes come from, and how they are read.
+ *
+ * A native pick is read into bytes (`expo-file-system/legacy` hands a binary
+ * file over as base64), and the web picker and the upload path hold a picked
+ * `Blob`/`File`. React Native's `Blob` cannot be built from an `ArrayBuffer`
+ * or a typed array, so the device path passes its bytes through rather than
+ * wrapping them; both shapes are read the same two ways — a slice at an
+ * offset, and the whole file as text — so the sniff decides identically.
+ */
+interface BackupByteSource {
+  name: string | null;
+  type: string | null;
+  size: number;
+  readSlice(
+    offset: number,
+    length: number
+  ): Promise<Uint8Array<ArrayBufferLike>>;
+  readAllText(): Promise<string>;
+}
+
+function bytesSource(bytes: Uint8Array<ArrayBufferLike>): BackupByteSource {
+  return {
+    name: null,
+    type: null,
+    size: bytes.length,
+    async readSlice(offset, length) {
+      const start = Math.min(offset, bytes.length);
+
+      return bytes.subarray(start, Math.min(start + length, bytes.length));
+    },
+    async readAllText() {
+      return decodeBytesText(bytes);
+    },
+  };
+}
+
+function blobSource(fileBlob: Blob): BackupByteSource {
+  return {
+    name: (fileBlob as File).name ?? null,
+    type: (fileBlob as File).type ?? null,
+    size: fileBlob.size,
+    async readSlice(offset, length) {
+      return new Uint8Array(
+        await readBlobSliceArrayBuffer(fileBlob, length, offset)
+      );
+    },
+    readAllText() {
+      return readBlobText(fileBlob);
+    },
+  };
 }
 
 /**
@@ -100,8 +153,8 @@ async function readBlobText(fileBlob: Blob): Promise<string> {
  * `SQLite format 3` magic) and a PinPal Lite compound file (which opens with an
  * XML plist declaration) are never parsed as JSON.
  */
-function looksLikeJsonObject(buffer: ArrayBuffer): boolean {
-  for (const character of decodeArrayBufferText(buffer)) {
+function looksLikeJsonObject(bytes: Uint8Array<ArrayBufferLike>): boolean {
+  for (const character of decodeBytesText(bytes)) {
     if (
       character === ' ' ||
       character === '\t' ||
@@ -133,11 +186,9 @@ function describeBackupValue(value: unknown): string {
  *
  * @returns `journal-json` with no errors, or `null` with the reason.
  */
-async function validateJournalBackupEnvelope(
-  fileBlob: Blob
+async function validateJournalEnvelope(
+  documentText: string
 ): Promise<BackupFileValidation> {
-  const documentText = await readBlobText(fileBlob);
-
   let document: unknown;
 
   try {
@@ -253,18 +304,20 @@ async function validateJournalBackupEnvelope(
  * Reads the file's bytes in a fixed order — SQLite magic at offset 0, then the
  * PinPal Lite compound magic at offset 4096, then a JSON envelope — so the
  * legacy PinPal formats are identified before the JSON path is considered and
- * can never be mistaken for this app's `.json` document.
+ * can never be mistaken for this app's `.json` document. `validateBackupBlob`
+ * and `validateBackupBytes` are the two entry points, one per shape a caller
+ * holds.
  */
-export async function validateBackupBlob(
-  fileBlob: Blob
+async function classifyBackupSource(
+  source: BackupByteSource
 ): Promise<BackupFileValidation> {
   console.log('[Import Debug] File validation started:', {
-    fileName: (fileBlob as File).name ?? 'unknown',
-    fileSize: fileBlob.size,
-    fileType: (fileBlob as File).type ?? 'unknown',
+    fileName: source.name ?? 'unknown',
+    fileSize: source.size,
+    fileType: source.type ?? 'unknown',
   });
 
-  if (fileBlob.size <= 0) {
+  if (source.size <= 0) {
     console.log('[Import Debug] File size is 0 or negative');
 
     return {
@@ -275,10 +328,10 @@ export async function validateBackupBlob(
     };
   }
 
-  if (fileBlob.size < SQLITE_HEADER.length) {
+  if (source.size < SQLITE_HEADER.length) {
     console.log(
       '[Import Debug] File too small:',
-      fileBlob.size,
+      source.size,
       'bytes (need at least',
       SQLITE_HEADER.length,
       ')'
@@ -292,13 +345,9 @@ export async function validateBackupBlob(
     };
   }
 
-  const headerBuffer = await readBlobSliceArrayBuffer(
-    fileBlob,
-    SQLITE_HEADER.length
-  );
-  const headerText = decodeArrayBufferText(headerBuffer);
+  const headerBytes = await source.readSlice(0, SQLITE_HEADER.length);
+  const headerText = decodeBytesText(headerBytes);
 
-  const headerBytes = new Uint8Array(headerBuffer);
   const headerHex = Array.from(headerBytes.slice(0, 16))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join(' ');
@@ -315,16 +364,14 @@ export async function validateBackupBlob(
     return { errors: [], format: 'pinpal-sqlite' };
   }
 
-  if (fileBlob.size >= PINPAL_LITE_SQLITE_OFFSET + SQLITE_HEADER.length) {
+  if (source.size >= PINPAL_LITE_SQLITE_OFFSET + SQLITE_HEADER.length) {
     try {
-      const offsetBuffer = await readBlobSliceArrayBuffer(
-        fileBlob,
-        SQLITE_HEADER.length,
-        PINPAL_LITE_SQLITE_OFFSET
+      const offsetBytes = await source.readSlice(
+        PINPAL_LITE_SQLITE_OFFSET,
+        SQLITE_HEADER.length
       );
-      const offsetHeader = decodeArrayBufferText(offsetBuffer);
+      const offsetHeader = decodeBytesText(offsetBytes);
 
-      const offsetBytes = new Uint8Array(offsetBuffer);
       const offsetHex = Array.from(offsetBytes.slice(0, 16))
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join(' ');
@@ -346,15 +393,15 @@ export async function validateBackupBlob(
   } else {
     console.log(
       '[Import Debug] File too small for compound format check:',
-      fileBlob.size,
+      source.size,
       'bytes (need at least',
       PINPAL_LITE_SQLITE_OFFSET + SQLITE_HEADER.length,
       ')'
     );
   }
 
-  if (looksLikeJsonObject(headerBuffer)) {
-    return await validateJournalBackupEnvelope(fileBlob);
+  if (looksLikeJsonObject(headerBytes)) {
+    return await validateJournalEnvelope(await source.readAllText());
   }
 
   console.log(
@@ -369,10 +416,44 @@ export async function validateBackupBlob(
   };
 }
 
-export async function detectBackupFormat(
+/**
+ * Validate a picked `Blob` or `File` — the shape the upload path holds.
+ */
+export async function validateBackupBlob(
   fileBlob: Blob
+): Promise<BackupFileValidation> {
+  return await classifyBackupSource(blobSource(fileBlob));
+}
+
+/**
+ * Validate the bytes of a picked file — the shape the device path holds.
+ *
+ * `expo-file-system/legacy` hands a native pick's file over as bytes, and
+ * React Native's `Blob` refuses to be built from them, so the sniff reads the
+ * bytes directly. The decision is the one `validateBackupBlob` makes.
+ */
+export async function validateBackupBytes(
+  bytes: Uint8Array<ArrayBufferLike>
+): Promise<BackupFileValidation> {
+  return await classifyBackupSource(bytesSource(bytes));
+}
+
+/**
+ * The format a picked file is, from its bytes alone — never its name.
+ *
+ * Accepts either shape a caller has: the bytes a native pick was read into
+ * (`Uint8Array`, which is what a device holds), or the `Blob`/`File` the web
+ * picker and the upload path hold. Both decide identically.
+ */
+export async function detectBackupFormat(
+  source: Blob | Uint8Array<ArrayBufferLike>
 ): Promise<DetectedImportFormat> {
-  return (await validateBackupBlob(fileBlob)).format;
+  const validation =
+    source instanceof Uint8Array
+      ? await validateBackupBytes(source)
+      : await validateBackupBlob(source);
+
+  return validation.format;
 }
 
 /**

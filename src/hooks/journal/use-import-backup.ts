@@ -287,16 +287,12 @@ export function useImportBackup() {
       // bytes are read before any of the server requirements are considered.
       // Detection is the existing byte sniffing in `./import-backup/file-
       // validation` (never the file name), so the same file decides the same
-      // way here and in the upload path.
+      // way here and in the upload path. The sniff reads the bytes as they are:
+      // React Native's `Blob` refuses `ArrayBuffer` and `ArrayBufferView`
+      // parts, so wrapping them is what fails on a device.
       const backupBytes = await readSelectedBackupBytes(selectedFile);
       const backupFormat =
-        backupBytes === null
-          ? null
-          : await detectBackupFormat(
-              new Blob([backupBytes], {
-                type: 'application/octet-stream',
-              })
-            );
+        backupBytes === null ? null : await detectBackupFormat(backupBytes);
 
       if (
         backupBytes !== null &&
