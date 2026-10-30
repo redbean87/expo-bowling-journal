@@ -30,7 +30,7 @@ Representative change: change retry/backoff or flush semantics of a queued sessi
 Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- tests/providers` (the syncer test wires A's flush).
 
 <!-- MODULE-MAP:GENERATED:A:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
@@ -62,10 +62,10 @@ Verification: `npm test -- tests/journal` (colocated tests), and `npm test -- te
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `journal-create-queue.ts` ← `src/hooks/journal/use-league-queue.ts`, `src/hooks/journal/use-leagues.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/hooks/journal/use-session-queue.ts`, `src/hooks/journal/use-sessions.ts`, `src/hooks/journal/use-start-tonight.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal-leagues-screen.tsx`, `src/screens/journal/journal-create-queue-storage.ts`, `src/screens/journal/journal-create-queue-sync.ts`, `tests/journal/journal-create-queue.test.ts`
+- `journal-create-queue.ts` ← `src/hooks/journal/use-league-queue.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/hooks/journal/use-session-queue.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal-leagues-screen.tsx`, `src/screens/journal/journal-create-queue-storage.ts`, `src/screens/journal/journal-create-queue-sync.ts`, `tests/journal/journal-create-queue.test.ts`
 - `journal-create-queue-sync.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/providers/game-save-queue-syncer.tsx`
-- `journal-create-queue-storage.ts` ← `src/hooks/journal/use-league-queue.ts`, `src/hooks/journal/use-leagues.ts`, `src/hooks/journal/use-queue-sync-status.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/hooks/journal/use-session-queue.ts`, `src/hooks/journal/use-sessions.ts`, `src/hooks/journal/use-start-tonight.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal-leagues-screen.tsx`, `src/screens/journal/journal-create-queue-sync.ts`, `src/screens/journal/queue-sync-presence.ts`
-- `journal-offline-create.ts` ← `src/hooks/journal/use-reference-data.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/screens/journal-leagues-screen.tsx`, `tests/connectivity.test.ts`
+- `journal-create-queue-storage.ts` ← `src/hooks/journal/use-league-queue.ts`, `src/hooks/journal/use-queue-sync-status.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/hooks/journal/use-session-queue.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal-leagues-screen.tsx`, `src/screens/journal/journal-create-queue-sync.ts`, `src/screens/journal/queue-sync-presence.ts`
+- `journal-offline-create.ts` ← `tests/connectivity.test.ts`
 - `queue-sync-events.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/game-editor/game-save-queue-storage.ts`, `src/screens/journal/journal-create-queue-storage.ts`, `src/screens/journal/reference-create-queue-storage.ts`, `tests/providers/game-save-queue-syncer.test.ts`
 - `queue-sync-presence.ts` ← `src/providers/game-save-queue-syncer.tsx`, `tests/journal/queue-sync-presence.test.ts`
 - `journal-client-sync-map-storage.ts` ← `src/hooks/journal/reference-id-resolution.ts`, `src/hooks/journal/use-league-queue.ts`, `src/hooks/journal/use-reference-data.ts`, `src/hooks/journal/use-session-mutations.ts`, `src/hooks/journal/use-session-queue.ts`, `src/hooks/journal/use-session-route-sync.ts`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/journal-create-queue-sync.ts`, `src/screens/journal/reference-create-queue-sync.ts`, `src/screens/journal/reference-draft-id.ts`
@@ -97,20 +97,20 @@ Representative change: change an in-flight session mutation's offline behavior.
 Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:B:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
-- `src/hooks/journal/use-session-mutations.ts` — 593 lines / 16,921 bytes — exports: `useSessionMutations`
-- `src/hooks/journal/use-sessions.ts` — 191 lines / 5,766 bytes — exports: `useSessions`
+- `src/hooks/journal/use-session-mutations.ts` — 501 lines / 15,674 bytes — exports: `useSessionMutations`
+- `src/hooks/journal/use-sessions.ts` — 110 lines / 3,680 bytes — exports: `useSessions`
 - `src/hooks/journal/use-session-queue.ts` — 226 lines / 6,494 bytes — exports: `DisplaySession`, `useSessionQueue`
 - `src/hooks/journal/use-session-route-sync.ts` — 77 lines / 1,848 bytes — exports: `useSessionRouteSync`
 - `src/hooks/journal/index.ts` — 20 lines / 981 bytes — exports: `useGameEditor`, `useGames`, `useExportSqliteBackup`, `useHomeLeague`, `useImportBackup`, `useLeagues`, `useLeagueAnalytics`, `useSpareConversionAnalytics`, `SpareConversionData`, `useLeagueGames`, `useLeagueQueue`, `DisplayLeague`, `useQueueSyncStatus`, `useReferenceData`, `useSessions`, `useSessionMutations`, `useSessionQueue`, `DisplaySession`, `useStartTonight`, `useSessionRouteSync`
 
 **Depends on** (in-repo imports; external packages omitted)
 
-- `use-session-mutations.ts` → `src/screens/journal-fast-lane-utils.ts` (`formatIsoDateForToday`); `src/screens/journal/components/session-actions-modal.tsx` (`SessionActionTarget`); `src/screens/journal/journal-action-sheet.ts` (`openJournalNativeActionSheet`); `src/screens/journal/journal-client-sync-map-storage.ts` (`loadJournalClientSyncMap`); `src/screens/journal/journal-create-queue-storage.ts` (`loadJournalCreateQueue`, `persistJournalCreateQueue`); `src/screens/journal/journal-create-queue.ts` (`QueuedSessionCreateEntry`, `createQueuedSessionCreateEntry`, `createQueuedSessionDeleteEntry`, `createQueuedSessionUpdateEntry`, `isRetryableCreateError`, `upsertQueuedJournalCreateEntry`); `src/screens/journal/journal-offline-create.ts` (`isNavigatorOffline`, `withTimeout`); `src/screens/journal/journal-route-params.ts` (`buildJournalGamesRouteParams`); `src/services/journal/index.ts` (`LeagueId`, `SessionId`); `src/utils/client-sync-id.ts` (`createClientSyncId`)
-- `use-sessions.ts` → `src/hooks/journal/reference-id-resolution.ts` (`resolveReferenceIdForMutation`); `src/screens/journal/journal-create-queue-storage.ts` (`loadJournalCreateQueue`, `persistJournalCreateQueue`); `src/screens/journal/journal-create-queue.ts` (`createQueuedSessionCreateEntry`, `createQueuedSessionDeleteEntry`, `upsertQueuedJournalCreateEntry`); `src/services/connectivity.ts` (`isConnectivityOffline`); `src/services/journal/index.ts` (`CreateSessionInput`, `LeagueId`, `RemoveSessionInput`, `Session`, `SessionId`, `UpdateSessionInput`, `convexJournalService`); `src/services/journal/local-reads.ts` (`listLocalSessionsByLeague`); `src/utils/client-sync-id.ts` (`createClientSyncId`)
+- `use-session-mutations.ts` → `src/screens/journal-fast-lane-utils.ts` (`formatIsoDateForToday`); `src/screens/journal/components/session-actions-modal.tsx` (`SessionActionTarget`); `src/screens/journal/journal-action-sheet.ts` (`openJournalNativeActionSheet`); `src/screens/journal/journal-client-sync-map-storage.ts` (`loadJournalClientSyncMap`); `src/screens/journal/journal-create-queue-storage.ts` (`loadJournalCreateQueue`); `src/screens/journal/journal-create-queue.ts` (`QueuedSessionCreateEntry`); `src/screens/journal/journal-route-params.ts` (`buildJournalGamesRouteParams`); `src/services/journal/index.ts` (`LeagueId`, `SessionId`); `src/utils/client-sync-id.ts` (`createClientSyncId`)
+- `use-sessions.ts` → `src/services/journal/index.ts` (`CreateSessionInput`, `LeagueId`, `RemoveSessionInput`, `Session`, `SessionId`, `UpdateSessionInput`); `src/services/journal/local-reads.ts` (`listLocalSessionsByLeague`); `src/services/journal/local-writes.ts` (`localCreateSession`, `localRemoveSession`, `localUpdateSession`)
 - `use-session-queue.ts` → `src/screens/journal/journal-client-sync-map-storage.ts` (`JournalClientSyncMap`, `loadJournalClientSyncMap`); `src/screens/journal/journal-create-queue-storage.ts` (`loadJournalCreateQueue`); `src/screens/journal/journal-create-queue.ts` (`QueuedSessionCreateEntry`); `src/services/journal/index.ts` (`LeagueId`)
 - `use-session-route-sync.ts` → `src/screens/journal/journal-client-sync-map-storage.ts` (`JournalClientSyncMap`); `src/services/journal/index.ts` (`LeagueId`)
 - `index.ts` → `src/hooks/journal/use-export-sqlite-backup.ts` (`useExportSqliteBackup`); `src/hooks/journal/use-game-editor.ts` (`useGameEditor`); `src/hooks/journal/use-games.ts` (`useGames`); `src/hooks/journal/use-home-league.ts` (`useHomeLeague`); `src/hooks/journal/use-import-backup.ts` (`useImportBackup`); `src/hooks/journal/use-league-analytics.ts` (`SpareConversionData`, `useLeagueAnalytics`, `useSpareConversionAnalytics`); `src/hooks/journal/use-league-games.ts` (`useLeagueGames`); `src/hooks/journal/use-league-queue.ts` (`DisplayLeague`, `useLeagueQueue`); `src/hooks/journal/use-leagues.ts` (`useLeagues`); `src/hooks/journal/use-queue-sync-status.ts` (`useQueueSyncStatus`); `src/hooks/journal/use-reference-data.ts` (`useReferenceData`); `src/hooks/journal/use-session-mutations.ts` (`useSessionMutations`); `src/hooks/journal/use-session-queue.ts` (`DisplaySession`, `useSessionQueue`); `src/hooks/journal/use-session-route-sync.ts` (`useSessionRouteSync`); `src/hooks/journal/use-sessions.ts` (`useSessions`); `src/hooks/journal/use-start-tonight.ts` (`useStartTonight`)
@@ -118,17 +118,17 @@ Verification: `npm test -- tests/hooks/journal-hooks-offline.test.ts`.
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
 - `use-session-mutations.ts` ← `src/hooks/journal/index.ts`
-- `use-sessions.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/journal-hooks-offline.test.ts`
-- `use-session-queue.ts` ← `src/hooks/journal/index.ts`, `src/hooks/journal/use-start-tonight.ts`, `src/screens/journal/components/session-list.tsx`
+- `use-sessions.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/journal-hooks-local-writes.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`
+- `use-session-queue.ts` ← `src/hooks/journal/index.ts`, `src/hooks/journal/use-start-tonight.ts`, `src/screens/journal/components/session-list.tsx`, `tests/hooks/journal-hooks-start-tonight-local.test.ts`
 - `use-session-route-sync.ts` ← `src/hooks/journal/index.ts`
 - `index.ts` ← `src/screens/analytics-screen.tsx`, `src/screens/game-editor-screen.tsx`, `src/screens/home-screen.tsx`, `src/screens/home/home-tonight-card.tsx`, `src/screens/journal-games-screen.tsx`, `src/screens/journal-leagues-screen.tsx`, `src/screens/journal-sessions-screen.tsx`, `src/screens/profile-screen.tsx`, `src/screens/profile/profile-data-import-section.tsx`
 
 **Colocated tests**
 
-- `tests/hooks/journal-hooks-offline.test.ts` — 1,226 lines / 38,365 bytes
-- `tests/hooks/stubs/journal-hooks-stubs.ts` — 358 lines / 12,258 bytes
+- `tests/hooks/journal-hooks-offline.test.ts` — 2,247 lines / 78,559 bytes
+- `tests/hooks/stubs/journal-hooks-stubs.ts` — 365 lines / 12,557 bytes
 
-**Totals** — files: 1,107 lines / 32,010 bytes; colocated tests: 1,584 lines / 50,623 bytes
+**Totals** — files: 934 lines / 28,677 bytes; colocated tests: 2,612 lines / 91,116 bytes
 
 <!-- MODULE-MAP:GENERATED:B:END -->
 
@@ -142,41 +142,41 @@ Representative change: change the autosave guard (no-value frames).
 Verification: `npm test -- tests/game-editor` (covers the autosave, frame, and game-save queue tests).
 
 <!-- MODULE-MAP:GENERATED:C:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
-- `src/screens/game-editor/use-game-editor-autosave-sync.ts` — 629 lines / 16,435 bytes — exports: `useGameEditorAutosaveSync`
-- `src/screens/game-editor/game-editor-autosave-utils.ts` — 109 lines / 2,212 bytes — exports: `AutosaveGuardResult`, `hasAnyFrameValue`, `buildAutosaveGuardResult`
+- `src/screens/game-editor/use-game-editor-autosave-sync.ts` — 329 lines / 10,387 bytes — exports: `useGameEditorAutosaveSync`
+- `src/screens/game-editor/game-editor-autosave-utils.ts` — 120 lines / 2,947 bytes — exports: `AutosaveGuardResult`, `hasAnyFrameValue`, `buildAutosaveGuardResult`
 - `src/screens/game-editor/game-editor-frame-utils.ts` — 38 lines / 841 bytes — exports: `EMPTY_FRAME_DRAFT`, `EMPTY_FRAMES`, `FULL_PIN_MASK`, `getFirstParam`, `getRollValue`, `getStandingMaskForField`, `normalizeDateValue`, `packManualPins`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`, `FrameDraft`, `RollField`, `findSuggestedFrameIndex`, `getNextCursorAfterEntry`, `getPreferredRollField`, `getProvisionalTotalScore`, `getSettledRunningTotals`, `getFrameSplitFlags`, `isSplitLeaveMask`, `isOpenFrame`, `FrameSplitFlags`, `getFrameSymbolParts`, `getFrameSymbolSummary`, `buildFramesPayload`, `findFirstFrameError`, `getFrameInlineError`, `getFrameStatus`, `getVisibleRollFields`, `FrameStatus`
 - `src/screens/game-editor/game-editor-screen-utils.ts` — 137 lines / 2,568 bytes — exports: `createDraftNonce`, `togglePinInMask`, `setPinState`, `maskHasPin`, `buildSyncSignature`, `buildPersistedSignature`, `hasAnyFrameDraftValue`, `isOfflineLikely`, `getDefaultMaskForField`, `clearDownstreamRolls`
-- `src/hooks/journal/use-game-editor.ts` — 315 lines / 8,674 bytes — exports: `useGameEditor`
+- `src/hooks/journal/use-game-editor.ts` — 301 lines / 9,149 bytes — exports: `useGameEditor`
 - `src/screens/game-editor/use-game-editor-hydration.ts` — 473 lines / 13,515 bytes — exports: `useGameEditorHydration`
 
 **Depends on** (in-repo imports; external packages omitted)
 
-- `use-game-editor-autosave-sync.ts` → `src/screens/game-editor/game-editor-autosave-utils.ts` (`buildAutosaveGuardResult`); `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `sanitizeFrameDraftsForEntry`); `src/screens/game-editor/game-editor-screen-utils.ts` (`buildPersistedSignature`, `isOfflineLikely`); `src/screens/game-editor/game-save-queue-storage.ts` (`loadGameSaveQueue`, `persistGameSaveQueue`); `src/screens/game-editor/game-save-queue-sync.ts` (`flushQueuedGameSavesWithLock`, `isQueuedGameSaveFlushInFlight`); `src/screens/game-editor/game-save-queue.ts` (`buildGameSaveQueueId`, `createQueuedGameSaveEntry`, `getActionableSaveErrorMessage`, `getQueuedGameSaveEntry`, `isRetryableSaveError`, `upsertQueuedGameSaveEntry`); `src/services/journal/index.ts` (`CreateGameInput`, `GameId`, `ReplaceFramesInput`, `SessionId`, `UpdateGameInput`)
+- `use-game-editor-autosave-sync.ts` → `src/screens/game-editor/game-editor-autosave-utils.ts` (`buildAutosaveGuardResult`); `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `sanitizeFrameDraftsForEntry`); `src/screens/game-editor/game-editor-screen-utils.ts` (`buildPersistedSignature`); `src/screens/game-editor/game-save-queue.ts` (`getActionableSaveErrorMessage`); `src/services/journal/index.ts` (`CreateGameInput`, `GameId`, `ReplaceFramesInput`, `SessionId`, `UpdateGameInput`)
 - `game-editor-autosave-utils.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `buildFramesPayload`, `findFirstFrameError`); `src/services/journal/index.ts` (`EditableFrameInput`)
 - `game-editor-frame-utils.ts` → `src/screens/game-editor/frame-cursor.ts` (`findSuggestedFrameIndex`, `getNextCursorAfterEntry`, `getPreferredRollField`); `src/screens/game-editor/frame-mask-utils.ts` (`EMPTY_FRAMES`, `EMPTY_FRAME_DRAFT`, `FULL_PIN_MASK`, `FrameDraft`, `RollField`, `getFirstParam`, `getRollValue`, `getStandingMaskForField`, `normalizeDateValue`, `packManualPins`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`); `src/screens/game-editor/frame-scoring.ts` (`getProvisionalTotalScore`, `getSettledRunningTotals`); `src/screens/game-editor/frame-splits.ts` (`FrameSplitFlags`, `getFrameSplitFlags`, `isOpenFrame`, `isSplitLeaveMask`); `src/screens/game-editor/frame-symbols.ts` (`getFrameSymbolParts`, `getFrameSymbolSummary`); `src/screens/game-editor/frame-validation.ts` (`FrameStatus`, `buildFramesPayload`, `findFirstFrameError`, `getFrameInlineError`, `getFrameStatus`, `getVisibleRollFields`)
 - `game-editor-screen-utils.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`FrameDraft`, `RollField`, `buildFramesPayload`); `src/services/journal/index.ts` (`GameId`); `src/utils/draft-nonce.ts` (`createDraftNonce`)
-- `use-game-editor.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/hooks/journal/reference-id-resolution.ts` (`resolveReferenceIdForMutation`); `src/screens/game-editor/frame-mask-utils.ts` (`getRollValue`, `packManualPins`); `src/services/journal/index.ts` (`CreateGameInput`, `Frame`, `Game`, `GameId`, `LeagueId`, `ReplaceFramesInput`, `UpdateGameInput`, `convexJournalService`); `src/services/journal/local-reads.ts` (`LOCAL_JOURNAL_OPEN_LEAGUE_ID`, `LOCAL_JOURNAL_USER_ID`); `src/services/local-journal/index.ts` (`GameScore`, `LocalFrame`, `LocalGame`, `LocalSession`, `getLocalJournalService`)
+- `use-game-editor.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/screens/game-editor/frame-mask-utils.ts` (`getRollValue`, `packManualPins`); `src/services/journal/index.ts` (`CreateGameInput`, `Frame`, `Game`, `GameId`, `LeagueId`, `ReplaceFramesInput`, `UpdateGameInput`); `src/services/journal/local-reads.ts` (`LOCAL_JOURNAL_OPEN_LEAGUE_ID`, `LOCAL_JOURNAL_USER_ID`); `src/services/journal/local-writes.ts` (`localCreateGame`, `localReplaceFramesForGame`, `localUpdateGame`); `src/services/local-journal/index.ts` (`GameScore`, `LocalFrame`, `LocalGame`, `LocalSession`, `getLocalJournalService`)
 - `use-game-editor-hydration.ts` → `src/screens/game-editor/game-editor-frame-utils.ts` (`EMPTY_FRAMES`, `FrameDraft`, `RollField`, `findSuggestedFrameIndex`, `getPreferredRollField`, `normalizeDateValue`, `sanitizeFrameDraftsForEntry`, `toFrameDrafts`); `src/screens/game-editor/game-editor-screen-utils.ts` (`buildPersistedSignature`, `buildSyncSignature`, `hasAnyFrameDraftValue`, `isOfflineLikely`); `src/screens/game-editor/game-local-draft-storage.ts` (`loadLocalGameDraft`, `removeLocalGameDraft`, `upsertLocalGameDraft`); `src/screens/game-editor/game-local-draft-utils.ts` (`shouldRestoreLocalDraft`); `src/screens/game-editor/game-save-queue-storage.ts` (`loadGameSaveQueue`); `src/screens/game-editor/game-save-queue.ts` (`QueuedGameSaveEntry`); `src/services/journal/index.ts` (`Frame`, `Game`, `GameId`)
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `use-game-editor-autosave-sync.ts` ← `src/screens/game-editor-screen.tsx`
+- `use-game-editor-autosave-sync.ts` ← `src/screens/game-editor-screen.tsx`, `tests/hooks/journal-hooks-offline.test.ts`
 - `game-editor-autosave-utils.ts` ← `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `tests/game-editor/game-editor-autosave-utils.test.ts`
 - `game-editor-frame-utils.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/frame-progress-strip.tsx`, `src/screens/game-editor/game-editor-autosave-utils.ts`, `src/screens/game-editor/game-editor-screen-utils.ts`, `src/screens/game-editor/game-local-draft-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal/journal-games-display.ts`, `tests/game-editor/game-editor-autosave-utils.test.ts`, `tests/game-editor/game-editor-frame-utils.test.ts`, `tests/import/frame-preview-parity.test.ts`
 - `game-editor-screen-utils.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`
-- `use-game-editor.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/journal-hooks-offline.test.ts`
+- `use-game-editor.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/journal-hooks-local-writes.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`
 - `use-game-editor-hydration.ts` ← `src/screens/game-editor-screen.tsx`
 
 **Colocated tests**
 
-- `tests/game-editor/game-editor-autosave-utils.test.ts` — 202 lines / 4,547 bytes
+- `tests/game-editor/game-editor-autosave-utils.test.ts` — 244 lines / 5,496 bytes
 - `tests/game-editor/game-editor-frame-utils.test.ts` — 589 lines / 14,389 bytes
 
-**Totals** — files: 1,701 lines / 44,245 bytes; colocated tests: 791 lines / 18,936 bytes
+**Totals** — files: 1,398 lines / 39,407 bytes; colocated tests: 833 lines / 19,885 bytes
 
 <!-- MODULE-MAP:GENERATED:C:END -->
 
@@ -191,7 +191,7 @@ Representative change: change game-save flush retry classification.
 Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game-editor` (queue/sync/status/retry-contract tests).
 
 <!-- MODULE-MAP:GENERATED:D:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
@@ -217,23 +217,23 @@ Verification: `npm test -- tests/providers` (syncer) and `npm test -- tests/game
 
 - `game-save-queue-syncer.tsx` ← `app/(app)/_layout.tsx`, `tests/providers/game-save-queue-syncer.test.ts`
 - `game-save-queue.ts` ← `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/game-save-queue-status.ts`, `src/screens/game-editor/game-save-queue-storage.ts`, `src/screens/game-editor/game-save-queue-sync-core.ts`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/journal-games-display.ts`, `tests/game-editor/game-save-queue-status.test.ts`, `tests/game-editor/game-save-queue-sync.test.ts`, `tests/game-editor/game-save-queue.test.ts`
-- `game-save-queue-sync.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `tests/game-editor/game-save-queue-sync.test.ts`
+- `game-save-queue-sync.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/providers/game-save-queue-syncer.tsx`, `tests/game-editor/game-save-queue-sync.test.ts`
 - `game-save-queue-sync-core.ts` ← `src/screens/game-editor/game-save-queue-sync.ts`
 - `game-save-queue-sync-storage.ts` ← `src/screens/game-editor/game-save-queue-sync-core.ts`, `src/screens/game-editor/game-save-queue-sync.ts`
-- `game-save-queue-storage.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/game-editor/use-game-editor-autosave-sync.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/queue-sync-presence.ts`
+- `game-save-queue-storage.ts` ← `src/hooks/journal/use-queue-sync-status.ts`, `src/screens/game-editor-screen.tsx`, `src/screens/game-editor/game-save-queue-sync-storage.ts`, `src/screens/game-editor/use-game-editor-hydration.ts`, `src/screens/journal-games-screen.tsx`, `src/screens/journal/queue-sync-presence.ts`
 - `game-save-queue-status.ts` ← `src/components/sync-status-chip.tsx`, `src/hooks/journal/use-queue-sync-status.ts`, `src/screens/journal/components/league-sync-status-modal.tsx`, `tests/game-editor/game-save-queue-status.test.ts`
 
 **Colocated tests**
 
-- `tests/providers/game-save-queue-syncer.test.ts` — 431 lines / 14,235 bytes
-- `tests/providers/stubs/syncer-stubs.ts` — 244 lines / 8,001 bytes
+- `tests/providers/game-save-queue-syncer.test.ts` — 597 lines / 20,614 bytes
+- `tests/providers/stubs/syncer-stubs.ts` — 316 lines / 10,645 bytes
 - `tests/game-editor/game-save-queue-sync.test.ts` — 452 lines / 13,023 bytes
 - `tests/game-editor/game-save-queue.test.ts` — 375 lines / 9,166 bytes
 - `tests/game-editor/game-save-queue-status.test.ts` — 87 lines / 2,166 bytes
 - `tests/game-editor/game-save-queue-retry-contract.test.ts` — 76 lines / 2,556 bytes
 - `tests/navigation/stubs/game-save-queue-syncer.mjs` — 10 lines / 359 bytes
 
-**Totals** — files: 1,044 lines / 28,914 bytes; colocated tests: 1,675 lines / 49,506 bytes
+**Totals** — files: 1,044 lines / 28,914 bytes; colocated tests: 1,913 lines / 58,529 bytes
 
 <!-- MODULE-MAP:GENERATED:D:END -->
 
@@ -247,7 +247,7 @@ Representative change: change where the offline decision comes from.
 Verification: `npm test -- tests/connectivity.test.ts`.
 
 <!-- MODULE-MAP:GENERATED:E:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
@@ -259,7 +259,7 @@ Verification: `npm test -- tests/connectivity.test.ts`.
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `connectivity.ts` ← `src/hooks/journal/use-games.ts`, `src/hooks/journal/use-import-backup.ts`, `src/hooks/journal/use-leagues.ts`, `src/hooks/journal/use-sessions.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/journal/journal-offline-create.ts`, `tests/connectivity.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`, `tests/providers/game-save-queue-syncer.test.ts`
+- `connectivity.ts` ← `src/hooks/journal/use-import-backup.ts`, `src/providers/game-save-queue-syncer.tsx`, `src/screens/journal/journal-offline-create.ts`, `tests/connectivity.test.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`, `tests/hooks/journal-hooks-local-writes.test.ts`, `tests/hooks/journal-hooks-offline.test.ts`, `tests/providers/game-save-queue-syncer.test.ts`, `tests/screens/journal-leagues-screen-local-writes.test.ts`
 
 **Colocated tests**
 
@@ -282,14 +282,14 @@ Representative change: change backup import start's offline gate.
 Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), `npm test -- tests/import` (server-side import tests), and `npm --prefix worker run check` (worker package).
 
 <!-- MODULE-MAP:GENERATED:F:BEGIN -->
-<!-- generated: head=aa6bfbf28745cf210382a5c5393fe2e2a4f72460 date=2026-10-13 -->
+<!-- generated: head=00a4970e74c5c0efb3ec2e7dd54322e455b74587 date=2026-10-30 -->
 
 **Files**
 
-- `src/hooks/journal/use-import-backup.ts` — 256 lines / 6,549 bytes — exports: `useImportBackup`
+- `src/hooks/journal/use-import-backup.ts` — 449 lines / 13,152 bytes — exports: `useImportBackup`
 - `src/hooks/journal/import-backup/import-upload-client.ts` — 187 lines / 4,772 bytes — exports: `SelectedBackupFile`, `uploadBackupFileAndStartImport`
-- `src/hooks/journal/import-backup/file-validation.ts` — 142 lines / 3,913 bytes — exports: `DetectedImportFormat`, `detectBackupFormat`, `isSupportedBackupBlob`
-- `src/hooks/journal/import-backup/file-picker-web.ts` — 100 lines / 2,571 bytes — exports: `pickBackupFileOnWeb`
+- `src/hooks/journal/import-backup/file-validation.ts` — 391 lines / 11,615 bytes — exports: `DetectedImportFormat`, `BackupFileValidation`, `validateBackupBlob`, `detectBackupFormat`, `isSupportedBackupBlob`
+- `src/hooks/journal/import-backup/file-picker-web.ts` — 128 lines / 3,352 bytes — exports: `WEB_BACKUP_PICKER_TYPES`, `WEB_BACKUP_ACCEPT`, `pickBackupFileOnWeb`
 - `convex/imports.ts` — 243 lines / 6,822 bytes — exports: `startImport`, `dispatchImportQueue`, `getImportStatus`, `getBatchByIdForCallback`, `updateBatchStatusForCallback`, `getNonceByValueForCallback`, `insertNonceForCallback`, `applyPostImportRefinement`, `deleteUserDocsChunkForImport`, `createImportBatchForSnapshot`, `persistRawImportChunkForBatch`, `importSqliteSnapshotAfterCleanupForUser`, `importSqliteSnapshot`, `submitParsedSnapshotForCallback`, `submitParsedSnapshotJsonForCallback`, `persistCanonicalFrameChunkForCallback`, `completeSnapshotImportForCallback`
 - `worker/src/index.js` — 792 lines / 20,407 bytes — exports: `default`
 - `worker/src/sqlite_parser.js` — 868 lines / 25,303 bytes — exports: `SqliteParseError`, `mapParsedBackupToSnapshot`, `parseBackupDatabaseToSnapshot`, `parseBackupDatabase`
@@ -299,9 +299,9 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 **Depends on** (in-repo imports; external packages omitted)
 
-- `use-import-backup.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/hooks/journal/import-backup/file-picker-web.ts` (`pickBackupFileOnWeb`); `src/hooks/journal/import-backup/import-upload-client.ts` (`SelectedBackupFile`, `uploadBackupFileAndStartImport`); `src/services/connectivity.ts` (`isConnectivityOffline`); `src/services/journal/index.ts` (`convexJournalService`)
+- `use-import-backup.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/hooks/journal/import-backup/file-picker-web.ts` (`pickBackupFileOnWeb`); `src/hooks/journal/import-backup/file-validation.ts` (`detectBackupFormat`); `src/hooks/journal/import-backup/import-upload-client.ts` (`SelectedBackupFile`, `uploadBackupFileAndStartImport`); `src/services/connectivity.ts` (`isConnectivityOffline`); `src/services/journal/index.ts` (`convexJournalService`); `src/services/local-journal/index.ts`; `src/services/local-journal/pinpal-backup-import.ts` (`PinpalImportResult`, `PinpalSkippedRows`)
 - `import-upload-client.ts` → `convex/_generated/dataModel.d.ts` (`Id`); `src/hooks/journal/import-backup/file-validation.ts` (`isSupportedBackupBlob`)
-- `file-validation.ts` — none
+- `file-validation.ts` → `src/services/local-journal/journal-backup-format.ts` (`JOURNAL_BACKUP_FORMAT`, `JOURNAL_BACKUP_VERSION`)
 - `file-picker-web.ts` — none
 - `imports.ts` → `convex/_generated/server.js` (`action`, `internalAction`, `internalMutation`, `internalQuery`, `mutation`, `query`); `convex/lib/auth.ts` (`requireUserId`); `convex/lib/import_callback_helpers.ts` (`completeSnapshotImportForBatch`, `getRequiredImportBatch`, `persistCanonicalFramesForBatch`); `convex/lib/import_callback_state.ts` (`getCallbackNonceByValue`, `getImportBatchById`, `getImportStatusForUser`, `insertCallbackNonce`, `updateImportBatchStatus`); `convex/lib/import_core_refinement.ts` (`applyRefinement`); `convex/lib/import_dates.ts` (`normalizeTimezoneOffsetMinutes`); `convex/lib/import_function_refs.ts` (`dispatchImportQueueActionRef`, `getBatchByIdForDispatchQueryRef`, `updateBatchStatusForDispatchMutationRef`); `convex/lib/import_queue_dispatch.ts` (`dispatchImportQueueToWorker`); `convex/lib/import_refinement.ts` (`normalizeNullableInteger`); `convex/lib/import_replace_all_cleanup.ts` (`deleteUserDocsChunkForImportTable`); `convex/lib/import_snapshot_action.ts` (`runImportSqliteSnapshotAction`); `convex/lib/import_snapshot_runner.ts` (`importSqliteSnapshotAfterCleanupCore`, `submitParsedSnapshotForCallbackCore`, `submitParsedSnapshotJsonForCallbackCore`); `convex/lib/import_snapshot_storage.ts` (`createSnapshotImportBatch`, `persistRawImportRowsForBatch`); `convex/lib/import_start.ts` (`startImportBatch`); `convex/lib/import_types.ts` (`DEFAULT_REPLACE_ALL_DELETE_CHUNK_SIZE`, `RawImportRow`); `convex/lib/import_validators.ts` (`batchIdArgs`, `completeSnapshotImportArgs`, `createImportBatchForSnapshotArgs`, `deleteUserDocsChunkForImportArgs`, `dispatchImportQueueArgs`, `importSqliteSnapshotAfterCleanupArgs`, `insertNonceArgs`, `nonceLookupArgs`, `persistCanonicalFrameChunkArgs`, `persistRawImportChunkArgs`, `postImportRefinementArgs`, `sqliteSnapshotArgs`, `startImportArgs`, `submitParsedSnapshotArgs`, `submitParsedSnapshotJsonArgs`, `updateBatchStatusArgs`)
 - `index.js` → `worker/src/callback_payload.js` (`buildImportingSnapshotJsonCallbackPayload`); `worker/src/health.js` (`buildLivenessPayload`, `buildReadinessPayload`, `evaluateWorkerDependencies`, `readinessHttpStatus`); `worker/src/sqlite_exporter.js` (`buildSqliteBackupBytes`); `worker/src/sqlite_parser.js` (`SqliteParseError`, `parseBackupDatabaseToSnapshot`)
@@ -312,10 +312,10 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 **Imported by** (searched: `app/`, `convex/`, `src/`, `tests/`, `worker/src`)
 
-- `use-import-backup.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`
+- `use-import-backup.ts` ← `src/hooks/journal/index.ts`, `tests/hooks/import-backup-local-restore.test.ts`, `tests/hooks/import-backup-local-routing.test.ts`, `tests/hooks/import-backup-offline.test.ts`, `tests/hooks/import-status-local.test.ts`
 - `import-upload-client.ts` ← `src/hooks/journal/use-import-backup.ts`
-- `file-validation.ts` ← `src/hooks/journal/import-backup/import-upload-client.ts`
-- `file-picker-web.ts` ← `src/hooks/journal/use-import-backup.ts`
+- `file-validation.ts` ← `src/hooks/journal/import-backup/import-upload-client.ts`, `src/hooks/journal/use-import-backup.ts`, `tests/hooks/ios-pinpal-dialect.test.ts`, `tests/import/backup-file-contract.test.ts`
+- `file-picker-web.ts` ← `src/hooks/journal/use-import-backup.ts`, `tests/import/backup-file-contract.test.ts`
 - `imports.ts` — none
 - `index.js` — none
 - `sqlite_parser.js` ← `tests/import/pinpal_lite_compound_parse_test.test.ts`, `tests/import/sqlite-roundtrip-invariants.test.ts`, `tests/import/worker_snapshot_transport.test.ts`, `worker/src/index.js`
@@ -327,8 +327,8 @@ Verification: `npm test -- tests/hooks/import-backup-offline.test.ts` (client), 
 
 - `tests/hooks/import-backup-offline.test.ts` — 265 lines / 8,449 bytes
 - `tests/hooks/stubs/import-backup-stubs.ts` — 192 lines / 6,635 bytes
-- `tests/import/` — 18 test files, 1,788 lines / 50,973 bytes (directory totals)
+- `tests/import/` — 19 test files, 2,026 lines / 58,770 bytes (directory totals)
 
-**Totals** — files: 2,937 lines / 80,392 bytes; colocated tests: 2,245 lines / 66,057 bytes
+**Totals** — files: 3,407 lines / 95,478 bytes; colocated tests: 2,483 lines / 73,854 bytes
 
 <!-- MODULE-MAP:GENERATED:F:END -->
